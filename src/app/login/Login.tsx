@@ -1,0 +1,28 @@
+import { useState } from "react";
+import Layout from "@/components/Layout";
+
+import AuthCard from "@/components/auth/AuthCard";
+import LoginForm from "@/components/auth/LoginForm";
+import RegisterForm from "@/components/auth/RegisterForm";
+
+const Login = () => {
+  const [mode, setMode] = useState<"login" | "register">("login");
+
+  return (
+    <Layout>
+      <section className="py-12 lg:py-20">
+        <div className="container max-w-md">
+          <AuthCard>
+            {mode === "login" ? (
+              <LoginForm switchToRegister={() => setMode("register")} />
+            ) : (
+              <RegisterForm switchToLogin={() => setMode("login")} />
+            )}
+          </AuthCard>
+        </div>
+      </section>
+    </Layout>
+  );
+};
+
+export default Login;

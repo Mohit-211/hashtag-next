@@ -1,0 +1,66 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
+const ProductAccordion = () => {
+  return (
+    <div className="mt-16 max-w-3xl">
+      <Accordion type="single" collapsible defaultValue="description">
+        <AccordionItem value="description">
+          <AccordionTrigger className="text-base font-heading font-semibold">
+            Description
+          </AccordionTrigger>
+
+          <AccordionContent>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              The Classic Custom Tee is made from 100% premium combed cotton
+              with a fabric weight of 180 GSM, ensuring a soft feel and lasting
+              durability. The relaxed-fit silhouette is designed for everyday
+              comfort while maintaining a clean, modern aesthetic. Pre-shrunk
+              and double-stitched at all seams for longevity.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="customization">
+          <AccordionTrigger className="text-base font-heading font-semibold">
+            Customization Guide
+          </AccordionTrigger>
+
+          <AccordionContent>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Upload any image in PNG or JPG format (up to 5 MB). Select one or
+              more placement locations — each location adds a small
+              customization fee shown beside the option. Your uploaded image
+              will be printed using high-quality direct-to-garment (DTG)
+              technology for vivid and wash-resistant results. For best results,
+              use images with a minimum resolution of 300 DPI and avoid heavily
+              compressed files.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="shipping">
+          <AccordionTrigger className="text-base font-heading font-semibold">
+            Shipping Info
+          </AccordionTrigger>
+
+          <AccordionContent>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Standard shipping takes 5–7 business days across India. Customized
+              orders require an additional 2–3 days for production before
+              dispatch. Free shipping is available on all orders above $999. You
+              will receive a tracking link via email and SMS once your order has
+              been shipped.
+            </p>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
+  );
+};
+
+export default ProductAccordion;
