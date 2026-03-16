@@ -2,7 +2,9 @@ interface Props {
   category: string;
 }
 
-const CategoryHeader = ({ category }: Props) => {
+export default function CategoryHeader({ category }: Props) {
+  const title = category === "All" ? "All Products" : category;
+
   return (
     <section className="pt-12 pb-8">
       <div className="container max-w-4xl">
@@ -11,7 +13,7 @@ const CategoryHeader = ({ category }: Props) => {
         </p>
 
         <h1 className="text-3xl sm:text-4xl font-heading font-bold text-foreground mb-4">
-          {category === "All" ? "All Products" : category}
+          {title}
         </h1>
 
         <p className="text-base text-muted-foreground max-w-2xl">
@@ -20,6 +22,4 @@ const CategoryHeader = ({ category }: Props) => {
       </div>
     </section>
   );
-};
-
-export default CategoryHeader;
+}

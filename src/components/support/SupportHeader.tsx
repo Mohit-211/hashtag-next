@@ -1,11 +1,15 @@
-import supportHero from "@/assets/support-hero.jpg";
+// components/support/SupportHeader.tsx
 
-const SupportHeader = () => {
+import Image from "next/image";
+
+export default function SupportHeader() {
   return (
     <div className="text-center mb-12 space-y-4">
-      <img
-        src={supportHero}
+      <Image
+        src="/assets/support-hero.jpg"
         alt="Support illustration"
+        width={96}
+        height={96}
         className="h-24 w-24 mx-auto object-contain rounded-xl"
       />
 
@@ -20,6 +24,4 @@ const SupportHeader = () => {
       </p>
     </div>
   );
-};
-
-export default SupportHeader;
+}

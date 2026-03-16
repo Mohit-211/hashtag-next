@@ -1,9 +1,14 @@
+"use client";
+
 import { useState } from "react";
 import { CreditCard, Smartphone, Banknote } from "lucide-react";
+
 import RadioOption from "./RadioOption";
 
-const PaymentMethodSection = () => {
-  const [method, setMethod] = useState("card");
+type PaymentMethod = "card" | "upi" | "cod";
+
+export default function PaymentMethodSection() {
+  const [method, setMethod] = useState<PaymentMethod>("card");
 
   return (
     <div className="space-y-4">
@@ -34,6 +39,4 @@ const PaymentMethodSection = () => {
       />
     </div>
   );
-};
-
-export default PaymentMethodSection;
+}

@@ -1,11 +1,25 @@
-import { useState } from "react";
+// components/login/PasswordInput.tsx
+
+"use client";
+
+import { useState, ChangeEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
+
+interface PasswordInputProps {
+  value: string;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+}
 
 const inputClass =
   "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
 
-const PasswordInput = ({ value, onChange, placeholder }) => {
-  const [show, setShow] = useState(false);
+export default function PasswordInput({
+  value,
+  onChange,
+  placeholder,
+}: PasswordInputProps) {
+  const [show, setShow] = useState<boolean>(false);
 
   return (
     <div className="relative">
@@ -26,6 +40,4 @@ const PasswordInput = ({ value, onChange, placeholder }) => {
       </button>
     </div>
   );
-};
-
-export default PasswordInput;
+}

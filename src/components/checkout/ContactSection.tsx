@@ -1,6 +1,23 @@
 import InputField from "./InputField";
 
-const ContactSection = ({ form, update }) => {
+type CheckoutFormState = {
+  fullName: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
+type ContactSectionProps = {
+  form: CheckoutFormState;
+  update: (field: keyof CheckoutFormState, value: string) => void;
+};
+
+export default function ContactSection({ form, update }: ContactSectionProps) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-heading font-semibold">
@@ -10,24 +27,28 @@ const ContactSection = ({ form, update }) => {
       <InputField
         placeholder="Full Name"
         value={form.fullName}
-        onChange={(e) => update("fullName", e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          update("fullName", e.target.value)
+        }
       />
 
       <div className="grid sm:grid-cols-2 gap-3">
         <InputField
           placeholder="Email Address"
           value={form.email}
-          onChange={(e) => update("email", e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            update("email", e.target.value)
+          }
         />
 
         <InputField
           placeholder="Phone Number"
           value={form.phone}
-          onChange={(e) => update("phone", e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            update("phone", e.target.value)
+          }
         />
       </div>
     </div>
   );
-};
-
-export default ContactSection;
+}

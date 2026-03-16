@@ -1,4 +1,16 @@
-const PriceSummary = ({ order }) => {
+interface Order {
+  subtotal: number;
+  customizationTotal: number;
+  shippingCost: number;
+  tax: number;
+  total: number;
+}
+
+interface Props {
+  order: Order;
+}
+
+export default function PriceSummary({ order }: Props) {
   return (
     <div className="bg-card border rounded-xl p-6 space-y-2 mb-8">
       <p className="text-xs font-bold uppercase text-muted-foreground">
@@ -35,6 +47,4 @@ const PriceSummary = ({ order }) => {
       </div>
     </div>
   );
-};
-
-export default PriceSummary;
+}

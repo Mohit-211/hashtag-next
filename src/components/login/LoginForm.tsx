@@ -1,31 +1,40 @@
-import { useState } from "react";
+// components/login/LoginForm.tsx
+
+"use client";
+
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 import PasswordInput from "./PasswordInput";
 import DemoCredentials from "./DemoCredentials";
 
+interface LoginFormProps {
+  switchToRegister: () => void;
+}
+
 const inputClass =
   "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
 
-const LoginForm = ({ switchToRegister }) => {
+export default function LoginForm({ switchToRegister }: LoginFormProps) {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [remember, setRemember] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const result = login(email.trim(), password);
 
     if (result.success) {
-      navigate("/");
+      router.push("/");
     } else {
       setError(result.error || "Login failed");
     }
@@ -92,6 +101,4 @@ const LoginForm = ({ switchToRegister }) => {
       <DemoCredentials />
     </>
   );
-};
-
-export default LoginForm;
+}

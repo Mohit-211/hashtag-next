@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
 
 export interface User {
   name: string;
@@ -9,14 +17,26 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => { success: boolean; error?: string };
-  register: (name: string, email: string, phone: string, password: string) => { success: boolean; error?: string };
+  login: (
+    email: string,
+    password: string
+  ) => { success: boolean; error?: string };
+  register: (
+    name: string,
+    email: string,
+    phone: string,
+    password: string
+  ) => { success: boolean; error?: string };
   logout: () => void;
 }
 
 const DEMO_EMAIL = "demo@hashtagbillionaire.com";
 const DEMO_PASSWORD = "demo123";
-const DEMO_USER: User = { name: "Demo User", email: DEMO_EMAIL, phone: "9876543210" };
+const DEMO_USER: User = {
+  name: "Demo User",
+  email: DEMO_EMAIL,
+  phone: "9876543210",
+};
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -39,31 +59,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.password === password) {
-        setUser({ name: parsed.name, email: parsed.email, phone: parsed.phone });
+        setUser({
+          name: parsed.name,
+          email: parsed.email,
+          phone: parsed.phone,
+        });
         return { success: true };
       }
       return { success: false, error: "Incorrect password. Please try again." };
     }
-    return { success: false, error: "No account found with this email. Please sign up." };
+    return {
+      success: false,
+      error: "No account found with this email. Please sign up.",
+    };
   }, []);
 
-  const register = useCallback((name: string, email: string, phone: string, password: string) => {
-    if (email.toLowerCase() === DEMO_EMAIL) {
-      return { success: false, error: "This email is already registered. Please log in." };
-    }
-    const existing = sessionStorage.getItem(`user_${email.toLowerCase()}`);
-    if (existing) {
-      return { success: false, error: "An account with this email already exists." };
-    }
-    sessionStorage.setItem(`user_${email.toLowerCase()}`, JSON.stringify({ name, email, phone, password }));
-    setUser({ name, email, phone });
-    return { success: true };
-  }, []);
+  const register = useCallback(
+    (name: string, email: string, phone: string, password: string) => {
+      if (email.toLowerCase() === DEMO_EMAIL) {
+        return {
+          success: false,
+          error: "This email is already registered. Please log in.",
+        };
+      }
+      const existing = sessionStorage.getItem(`user_${email.toLowerCase()}`);
+      if (existing) {
+        return {
+          success: false,
+          error: "An account with this email already exists.",
+        };
+      }
+      sessionStorage.setItem(
+        `user_${email.toLowerCase()}`,
+        JSON.stringify({ name, email, phone, password })
+      );
+      setUser({ name, email, phone });
+      return { success: true };
+    },
+    []
+  );
 
   const logout = useCallback(() => setUser(null), []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, isAuthenticated: !!user, login, register, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

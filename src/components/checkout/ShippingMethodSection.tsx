@@ -1,9 +1,14 @@
+"use client";
+
 import { useState } from "react";
 import { ShoppingBag } from "lucide-react";
+
 import RadioOption from "./RadioOption";
 
-const ShippingMethodSection = () => {
-  const [method, setMethod] = useState("standard");
+type ShippingMethod = "standard" | "express";
+
+export default function ShippingMethodSection() {
+  const [method, setMethod] = useState<ShippingMethod>("standard");
 
   return (
     <div className="space-y-4">
@@ -26,6 +31,4 @@ const ShippingMethodSection = () => {
       />
     </div>
   );
-};
-
-export default ShippingMethodSection;
+}

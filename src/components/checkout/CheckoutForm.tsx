@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react";
 
 import ContactSection from "./ContactSection";
@@ -5,8 +7,20 @@ import ShippingAddressSection from "./ShippingAddressSection";
 import ShippingMethodSection from "./ShippingMethodSection";
 import PaymentMethodSection from "./PaymentMethodSection";
 
-const CheckoutForm = () => {
-  const [form, setForm] = useState({
+type CheckoutFormState = {
+  fullName: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+};
+
+export default function CheckoutForm() {
+  const [form, setForm] = useState<CheckoutFormState>({
     fullName: "",
     email: "",
     phone: "",
@@ -18,8 +32,8 @@ const CheckoutForm = () => {
     country: "India",
   });
 
-  const update = (field, value) => {
-    setForm((p) => ({ ...p, [field]: value }));
+  const update = (field: keyof CheckoutFormState, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   return (
@@ -33,6 +47,4 @@ const CheckoutForm = () => {
       <PaymentMethodSection />
     </div>
   );
-};
-
-export default CheckoutForm;
+}

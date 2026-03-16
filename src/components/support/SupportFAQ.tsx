@@ -1,3 +1,5 @@
+// components/support/SupportFAQ.tsx
+
 import {
   Accordion,
   AccordionContent,
@@ -7,7 +9,7 @@ import {
 
 import { FAQ_SECTIONS } from "@/data/supportData";
 
-const SupportFAQ = () => {
+export default function SupportFAQ() {
   return (
     <div className="mb-16 space-y-8">
       <h2 className="text-xl font-heading font-bold">
@@ -40,6 +42,4 @@ const SupportFAQ = () => {
       ))}
     </div>
   );
-};
-
-export default SupportFAQ;
+}

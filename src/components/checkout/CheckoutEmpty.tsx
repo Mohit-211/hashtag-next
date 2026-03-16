@@ -1,8 +1,9 @@
 import { ShoppingBag } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 
-const CheckoutEmpty = () => {
+import { Button } from "@/components/ui/button";
+
+export default function CheckoutEmpty() {
   return (
     <section className="py-20">
       <div className="container max-w-lg text-center space-y-6">
@@ -16,7 +17,7 @@ const CheckoutEmpty = () => {
           Your cart is empty. Add products before checkout.
         </p>
 
-        <Link to="/categories">
+        <Link href="/categories">
           <Button variant="hero" size="lg">
             Browse Products
           </Button>
@@ -24,6 +25,4 @@ const CheckoutEmpty = () => {
       </div>
     </section>
   );
-};
-
-export default CheckoutEmpty;
+}

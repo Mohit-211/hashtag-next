@@ -1,6 +1,11 @@
 import OrderedItemCard from "./OrderedItemCard";
+import type { CartItem } from "@/contexts/CartContext";
 
-const OrderedItems = ({ items }) => {
+interface Props {
+  items: CartItem[];
+}
+
+export default function OrderedItems({ items }: Props) {
   if (!items.length) return null;
 
   return (
@@ -16,6 +21,4 @@ const OrderedItems = ({ items }) => {
       </div>
     </div>
   );
-};
-
-export default OrderedItems;
+}

@@ -1,12 +1,4 @@
-import productTshirt from "@/assets/product-tshirt.jpg";
-import productHoodie from "@/assets/product-hoodie.jpg";
-import productCap from "@/assets/product-cap.jpg";
-import productJoggers from "@/assets/product-joggers.jpg";
-import productTote from "@/assets/product-tote.jpg";
-import productSocks from "@/assets/product-socks.jpg";
-import productMug from "@/assets/product-mug.jpg";
-import productPhonecase from "@/assets/product-phonecase.jpg";
-import productTote2 from "@/assets/product-tote2.jpg";
+// data/products.ts
 
 export interface Product {
   image: string;
@@ -20,7 +12,7 @@ export interface Product {
 
 export const products: Product[] = [
   {
-    image: productTshirt,
+    image: "/assets/product-tshirt.jpg",
     name: "Essential Black Tee",
     price: 799,
     originalPrice: 999,
@@ -29,14 +21,14 @@ export const products: Product[] = [
     category: "T-Shirts",
   },
   {
-    image: productHoodie,
+    image: "/assets/product-hoodie.jpg",
     name: "Classic White Hoodie",
     price: 1899,
     customizable: true,
     category: "Hoodies",
   },
   {
-    image: productCap,
+    image: "/assets/product-cap.jpg",
     name: "Stealth Snapback Cap",
     price: 599,
     badge: "NEW",
@@ -44,7 +36,7 @@ export const products: Product[] = [
     category: "Caps",
   },
   {
-    image: productJoggers,
+    image: "/assets/product-joggers.jpg",
     name: "Urban Joggers",
     price: 1999,
     originalPrice: 2499,
@@ -52,28 +44,28 @@ export const products: Product[] = [
     category: "Bottoms",
   },
   {
-    image: productTote,
+    image: "/assets/product-tote.jpg",
     name: "Canvas Tote Bag",
     price: 549,
     customizable: true,
     category: "Accessories",
   },
   {
-    image: productSocks,
+    image: "/assets/product-socks.jpg",
     name: "Crew Socks Pack",
     price: 399,
     customizable: false,
     category: "Accessories",
   },
   {
-    image: productMug,
+    image: "/assets/product-mug.jpg",
     name: "Custom Ceramic Mug",
     price: 449,
     customizable: true,
     category: "Accessories",
   },
   {
-    image: productPhonecase,
+    image: "/assets/product-phonecase.jpg",
     name: "Matte Phone Case",
     price: 699,
     badge: "NEW",
@@ -81,14 +73,14 @@ export const products: Product[] = [
     category: "Accessories",
   },
   {
-    image: productTshirt,
+    image: "/assets/product-tshirt.jpg",
     name: "Signature Logo Tee",
     price: 999,
     customizable: true,
     category: "T-Shirts",
   },
   {
-    image: productHoodie,
+    image: "/assets/product-hoodie.jpg",
     name: "Oversized Zip Hoodie",
     price: 2999,
     badge: "NEW",
@@ -96,14 +88,14 @@ export const products: Product[] = [
     category: "Hoodies",
   },
   {
-    image: productTote2,
+    image: "/assets/product-tote2.jpg",
     name: "Premium Tote Bag",
     price: 749,
     customizable: true,
     category: "Accessories",
   },
   {
-    image: productCap,
+    image: "/assets/product-cap.jpg",
     name: "Classic Fitted Cap",
     price: 649,
     customizable: true,

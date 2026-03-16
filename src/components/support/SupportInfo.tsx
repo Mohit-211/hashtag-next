@@ -1,6 +1,8 @@
+// components/support/SupportInfo.tsx
+
 import { Mail, Clock } from "lucide-react";
 
-const SupportInfo = () => {
+export default function SupportInfo() {
   return (
     <div className="bg-secondary/50 border rounded-xl p-6">
       <div className="grid sm:grid-cols-2 gap-6">
@@ -28,6 +30,4 @@ const SupportInfo = () => {
       </div>
     </div>
   );
-};
-
-export default SupportInfo;
+}

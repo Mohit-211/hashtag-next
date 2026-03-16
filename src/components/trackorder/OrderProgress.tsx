@@ -1,3 +1,5 @@
+// components/trackorder/OrderProgress.tsx
+
 import { CheckCircle, Circle } from "lucide-react";
 import { type OrderStatus } from "@/contexts/OrdersContext";
 
@@ -7,10 +9,10 @@ const STAGES = [
   "Shipped",
   "Out for Delivery",
   "Delivered",
-];
+] as const;
 
-const getIndex = (status: OrderStatus) => {
-  const map = {
+const getIndex = (status: OrderStatus): number => {
+  const map: Record<OrderStatus, number> = {
     Processing: 1,
     Shipped: 2,
     "Out for Delivery": 3,
@@ -21,7 +23,11 @@ const getIndex = (status: OrderStatus) => {
   return map[status] ?? 0;
 };
 
-const OrderProgress = ({ status }: { status: OrderStatus }) => {
+interface OrderProgressProps {
+  status: OrderStatus;
+}
+
+export default function OrderProgress({ status }: OrderProgressProps) {
   const current = getIndex(status);
 
   return (
@@ -55,6 +61,4 @@ const OrderProgress = ({ status }: { status: OrderStatus }) => {
       </div>
     </div>
   );
-};
-
-export default OrderProgress;
+}

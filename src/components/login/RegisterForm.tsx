@@ -1,29 +1,39 @@
-import { useState } from "react";
+// components/login/RegisterForm.tsx
+
+"use client";
+
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+
 import PasswordInput from "./PasswordInput";
+
+interface RegisterFormProps {
+  switchToLogin: () => void;
+}
 
 const inputClass =
   "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
 
-const RegisterForm = ({ switchToLogin }) => {
+export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
   const { register } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [name, setName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [confirm, setConfirm] = useState<string>("");
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const result = register(name, email, phone, password);
 
     if (result.success) {
-      navigate("/");
+      router.push("/");
     }
   };
 
@@ -85,6 +95,4 @@ const RegisterForm = ({ switchToLogin }) => {
       </p>
     </>
   );
-};
-
-export default RegisterForm;
+}

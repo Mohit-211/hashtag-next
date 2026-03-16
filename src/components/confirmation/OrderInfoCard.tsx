@@ -6,7 +6,17 @@ const paymentLabels: Record<string, string> = {
   cod: "Cash on Delivery",
 };
 
-const OrderInfoCard = ({ orderId, orderDate, paymentMethod }) => {
+interface Props {
+  orderId: string;
+  orderDate: string;
+  paymentMethod: string;
+}
+
+export default function OrderInfoCard({
+  orderId,
+  orderDate,
+  paymentMethod,
+}: Props) {
   return (
     <div className="bg-card border rounded-xl p-6 space-y-3 mb-8">
       <p className="text-xs font-bold uppercase text-muted-foreground">
@@ -36,6 +46,4 @@ const OrderInfoCard = ({ orderId, orderDate, paymentMethod }) => {
       </div>
     </div>
   );
-};
-
-export default OrderInfoCard;
+}

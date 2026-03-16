@@ -1,6 +1,12 @@
+// components/trackorder/OrderPriceSummary.tsx
+
 import { type Order } from "@/contexts/OrdersContext";
 
-const OrderPriceSummary = ({ order }: { order: Order }) => {
+interface OrderPriceSummaryProps {
+  order: Order;
+}
+
+export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
   return (
     <div className="bg-card border border-border rounded-xl p-6 space-y-2">
       <p className="text-xs font-bold uppercase text-muted-foreground mb-3">
@@ -37,6 +43,4 @@ const OrderPriceSummary = ({ order }: { order: Order }) => {
       </div>
     </div>
   );
-};
-
-export default OrderPriceSummary;
+}

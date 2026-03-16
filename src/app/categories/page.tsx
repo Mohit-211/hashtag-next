@@ -1,5 +1,6 @@
-import Layout from "@/components/Layout";
-import { useState, useMemo } from "react";
+"use client";
+
+import { useState, useMemo, useEffect } from "react";
 
 import CategoryHeader from "@/components/categories/CategoryHeader";
 import CategoryBanner from "@/components/categories/CategoryBanner";
@@ -12,24 +13,31 @@ import { products, subcategories, sortOptions } from "@/data/products";
 
 const ITEMS_PER_PAGE = 8;
 
-const Categories = () => {
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [sortBy, setSortBy] = useState("popular");
-  const [sortOpen, setSortOpen] = useState(false);
-  const [page, setPage] = useState(1);
+export default function Categories() {
+  const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [sortBy, setSortBy] = useState<string>("popular");
+  const [sortOpen, setSortOpen] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [activeCategory, sortBy]);
 
   const filtered = useMemo(() => {
-    let items = products;
+    let items = [...products];
 
     if (activeCategory !== "All") {
       items = items.filter((p) => p.category === activeCategory);
     }
 
-    if (sortBy === "price-asc")
-      items = [...items].sort((a, b) => a.price - b.price);
+    if (sortBy === "price-asc") {
+      items.sort((a, b) => a.price - b.price);
+    }
 
-    if (sortBy === "price-desc")
-      items = [...items].sort((a, b) => b.price - a.price);
+    if (sortBy === "price-desc") {
+      items.sort((a, b) => b.price - a.price);
+    }
 
     return items;
   }, [activeCategory, sortBy]);
@@ -38,7 +46,7 @@ const Categories = () => {
   const hasMore = page * ITEMS_PER_PAGE < filtered.length;
 
   return (
-    <Layout>
+    <>
       <CategoryHeader category={activeCategory} />
 
       <CategoryBanner />
@@ -67,7 +75,7 @@ const Categories = () => {
 
               <LoadMoreButton
                 hasMore={hasMore}
-                onLoadMore={() => setPage(page + 1)}
+                onLoadMore={() => setPage((prev) => prev + 1)}
               />
             </>
           ) : (
@@ -75,8 +83,6 @@ const Categories = () => {
           )}
         </div>
       </section>
-    </Layout>
+    </>
   );
-};
-
-export default Categories;
+}

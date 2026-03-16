@@ -1,6 +1,12 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 
-const EmptyProducts = ({ reset }) => {
+interface Props {
+  reset: () => void;
+}
+
+export default function EmptyProducts({ reset }: Props) {
   return (
     <div className="text-center py-20">
       <p className="text-lg text-muted-foreground max-w-md mx-auto">
@@ -12,6 +18,4 @@ const EmptyProducts = ({ reset }) => {
       </Button>
     </div>
   );
-};
-
-export default EmptyProducts;
+}

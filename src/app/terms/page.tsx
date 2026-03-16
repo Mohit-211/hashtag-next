@@ -1,4 +1,4 @@
-import Layout from "@/components/Layout";
+// app/terms/Terms.tsx
 
 const sections = [
   {
@@ -58,32 +58,30 @@ const sections = [
   },
 ];
 
-const Terms = () => {
+export default function Terms() {
   return (
-    <Layout>
-      <section className="py-10 lg:py-16">
-        <div className="container max-w-2xl space-y-10">
-          <div className="space-y-3">
-            <h1 className="text-3xl lg:text-4xl font-heading font-bold text-foreground">
-              Terms & Conditions
-            </h1>
-            <p className="text-xs text-muted-foreground">Last updated: February 2026</p>
-          </div>
-
-          {sections.map((section, i) => (
-            <div key={i} className="space-y-3">
-              <h2 className="text-lg font-heading font-semibold text-foreground">
-                {i + 1}. {section.title}
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {section.content}
-              </p>
-            </div>
-          ))}
+    <section className="py-10 lg:py-16">
+      <div className="container max-w-2xl space-y-10">
+        <div className="space-y-3">
+          <h1 className="text-3xl lg:text-4xl font-heading font-bold text-foreground">
+            Terms & Conditions
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Last updated: February 2026
+          </p>
         </div>
-      </section>
-    </Layout>
-  );
-};
 
-export default Terms;
+        {sections.map((section, i) => (
+          <div key={i} className="space-y-3">
+            <h2 className="text-lg font-heading font-semibold text-foreground">
+              {i + 1}. {section.title}
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {section.content}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

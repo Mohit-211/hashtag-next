@@ -1,4 +1,4 @@
-const NextSteps = () => {
+export default function NextSteps() {
   return (
     <div className="mb-10">
       <p className="text-xs font-bold uppercase text-muted-foreground mb-3">
@@ -11,6 +11,4 @@ const NextSteps = () => {
       </p>
     </div>
   );
-};
-
-export default NextSteps;
+}

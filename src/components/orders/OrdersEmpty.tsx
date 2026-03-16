@@ -1,15 +1,20 @@
-import { Button } from "@/components/ui/button";
-import { ShoppingBag } from "lucide-react";
-import { Link } from "react-router-dom";
-import emptyOrdersImg from "@/assets/empty-orders.jpg";
+// components/orders/OrdersEmpty.tsx
 
-const OrdersEmpty = () => {
+import Image from "next/image";
+import Link from "next/link";
+import { ShoppingBag } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+
+export default function OrdersEmpty() {
   return (
     <section className="py-20">
       <div className="container max-w-lg text-center space-y-6">
-        <img
-          src={emptyOrdersImg}
+        <Image
+          src="/assets/empty-orders.jpg"
           alt="No orders"
+          width={128}
+          height={128}
           className="w-32 h-32 mx-auto object-contain"
         />
 
@@ -19,7 +24,7 @@ const OrdersEmpty = () => {
           When you place orders they will appear here.
         </p>
 
-        <Link to="/categories">
+        <Link href="/categories">
           <Button variant="hero" size="lg" className="gap-2">
             <ShoppingBag className="h-5 w-5" />
             Browse Products
@@ -28,6 +33,4 @@ const OrdersEmpty = () => {
       </div>
     </section>
   );
-};
-
-export default OrdersEmpty;
+}

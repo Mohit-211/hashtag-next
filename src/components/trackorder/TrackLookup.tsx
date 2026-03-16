@@ -1,18 +1,23 @@
+// components/trackorder/TrackLookup.tsx
+
+"use client";
+
 import { useState } from "react";
 import { Search, Mail } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { useOrders, type Order } from "@/contexts/OrdersContext";
 
-interface Props {
+interface TrackLookupProps {
   setTrackedOrder: (order: Order | null) => void;
 }
 
-const TrackLookup = ({ setTrackedOrder }: Props) => {
+export default function TrackLookup({ setTrackedOrder }: TrackLookupProps) {
   const { orders } = useOrders();
 
-  const [lookupId, setLookupId] = useState("");
-  const [lookupEmail, setLookupEmail] = useState("");
-  const [error, setError] = useState("");
+  const [lookupId, setLookupId] = useState<string>("");
+  const [lookupEmail, setLookupEmail] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
   const handleLookup = () => {
     setError("");
@@ -34,6 +39,7 @@ const TrackLookup = ({ setTrackedOrder }: Props) => {
       <div className="grid sm:grid-cols-2 gap-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+
           <input
             placeholder="Order ID"
             value={lookupId}
@@ -44,6 +50,7 @@ const TrackLookup = ({ setTrackedOrder }: Props) => {
 
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+
           <input
             placeholder="Email"
             value={lookupEmail}
@@ -60,6 +67,4 @@ const TrackLookup = ({ setTrackedOrder }: Props) => {
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
-};
-
-export default TrackLookup;
+}

@@ -1,10 +1,21 @@
+// components/orders/OrderCard.tsx
+
+"use client";
+
 import { Package, ChevronDown, ChevronUp } from "lucide-react";
 
 import OrderItems from "./OrderItems";
 import OrderPriceSummary from "./OrderPriceSummary";
 import OrderActions from "./OrderActions";
+import type { Order } from "@/contexts/OrdersContext";
 
-const statusStyles = {
+interface OrderCardProps {
+  order: Order;
+  expanded: boolean;
+  toggleExpand: (orderId: string) => void;
+}
+
+const statusStyles: Record<string, string> = {
   Processing: "bg-secondary text-muted-foreground",
   Shipped: "bg-secondary text-foreground",
   "Out for Delivery": "bg-primary/20 text-primary-foreground",
@@ -12,7 +23,11 @@ const statusStyles = {
   Cancelled: "bg-destructive/10 text-destructive",
 };
 
-const OrderCard = ({ order, expanded, toggleExpand }) => {
+export default function OrderCard({
+  order,
+  expanded,
+  toggleExpand,
+}: OrderCardProps) {
   const orderDate = new Date(order.date).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
@@ -57,14 +72,10 @@ const OrderCard = ({ order, expanded, toggleExpand }) => {
       {expanded && (
         <div className="border-t p-5 space-y-5">
           <OrderItems items={order.items} />
-
           <OrderPriceSummary order={order} />
-
           <OrderActions order={order} />
         </div>
       )}
     </div>
   );
-};
-
-export default OrderCard;
+}

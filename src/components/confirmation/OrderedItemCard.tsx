@@ -1,4 +1,11 @@
-const OrderedItemCard = ({ item }) => {
+import Image from "next/image";
+import type { CartItem } from "@/contexts/CartContext";
+
+interface Props {
+  item: CartItem;
+}
+
+export default function OrderedItemCard({ item }: Props) {
   const placementCost = item.customization.placements.reduce(
     (s, p) => s + p.cost,
     0
@@ -14,16 +21,19 @@ const OrderedItemCard = ({ item }) => {
   return (
     <div className="bg-card border rounded-xl p-5 space-y-3">
       <div className="flex gap-4">
-        <img
+        <Image
           src={item.image}
           alt={item.name}
-          className="w-20 h-20 rounded-lg object-cover"
+          width={80}
+          height={80}
+          className="rounded-lg object-cover"
         />
 
         <div className="flex-1">
           <div className="flex justify-between">
             <div>
               <h3 className="font-semibold">{item.name}</h3>
+
               <p className="text-sm text-muted-foreground">
                 Base: ${item.basePrice} × {item.quantity}
               </p>
@@ -35,6 +45,4 @@ const OrderedItemCard = ({ item }) => {
       </div>
     </div>
   );
-};
-
-export default OrderedItemCard;
+}

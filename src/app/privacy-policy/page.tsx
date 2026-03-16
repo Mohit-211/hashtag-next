@@ -1,4 +1,4 @@
-import Layout from "@/components/Layout";
+// app/privacy-policy/PrivacyPolicy.tsx
 
 const sections = [
   {
@@ -48,32 +48,32 @@ const sections = [
   },
 ];
 
-const PrivacyPolicy = () => {
+export default function PrivacyPolicy() {
   return (
-    <Layout>
-      <section className="py-10 lg:py-16">
-        <div className="container max-w-2xl space-y-10">
-          <div className="space-y-3">
-            <h1 className="text-3xl lg:text-4xl font-heading font-bold text-foreground">
-              Privacy Policy
-            </h1>
-            <p className="text-xs text-muted-foreground">Last updated: February 2026</p>
-          </div>
+    <section className="py-10 lg:py-16">
+      <div className="container max-w-2xl space-y-10">
+        <div className="space-y-3">
+          <h1 className="text-3xl lg:text-4xl font-heading font-bold text-foreground">
+            Privacy Policy
+          </h1>
 
-          {sections.map((section, i) => (
-            <div key={i} className="space-y-3">
-              <h2 className="text-lg font-heading font-semibold text-foreground">
-                {i + 1}. {section.title}
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {section.content}
-              </p>
-            </div>
-          ))}
+          <p className="text-xs text-muted-foreground">
+            Last updated: February 2026
+          </p>
         </div>
-      </section>
-    </Layout>
-  );
-};
 
-export default PrivacyPolicy;
+        {sections.map((section, i) => (
+          <div key={i} className="space-y-3">
+            <h2 className="text-lg font-heading font-semibold text-foreground">
+              {i + 1}. {section.title}
+            </h2>
+
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {section.content}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

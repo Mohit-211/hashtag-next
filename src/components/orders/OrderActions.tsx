@@ -1,12 +1,21 @@
-import { Button } from "@/components/ui/button";
-import { RotateCcw, Package } from "lucide-react";
-import { Link } from "react-router-dom";
-import { useCart } from "@/contexts/CartContext";
-import { useToast } from "@/hooks/use-toast";
+// components/orders/OrderActions.tsx
 
-const OrderActions = ({ order }) => {
+"use client";
+
+import Link from "next/link";
+import { RotateCcw, Package } from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { useCart } from "@/contexts/CartContext";
+import type { Order } from "@/contexts/OrdersContext";
+
+interface OrderActionsProps {
+  order: Order;
+}
+
+export default function OrderActions({ order }: OrderActionsProps) {
   const { addItem } = useCart();
-  const { toast } = useToast();
 
   const reorder = () => {
     order.items.forEach((item) => {
@@ -16,15 +25,12 @@ const OrderActions = ({ order }) => {
       });
     });
 
-    toast({
-      title: "Added to Cart",
-      description: `Items from order #${order.orderId} added to cart`,
-    });
+    toast.success(`Items from order #${order.orderId} added to cart`);
   };
 
   return (
     <div className="flex flex-col sm:flex-row gap-2">
-      <Link to="/track">
+      <Link href="/track-order">
         <Button variant="hero" size="sm" className="gap-1.5">
           <Package className="h-4 w-4" />
           Track Order
@@ -37,6 +43,4 @@ const OrderActions = ({ order }) => {
       </Button>
     </div>
   );
-};
-
-export default OrderActions;
+}

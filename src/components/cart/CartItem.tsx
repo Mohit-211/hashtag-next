@@ -1,18 +1,48 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
 import { Minus, Plus, Trash2, Pencil } from "lucide-react";
-import { Link } from "react-router-dom";
+
 import { useCart } from "@/contexts/CartContext";
 import CartCustomization from "./CartCustomization";
 
-const CartItem = ({ item }: any) => {
+type Placement = {
+  id: string;
+  label: string;
+  cost: number;
+};
+
+type Customization = {
+  placements: Placement[];
+  uploadedImage?: string;
+  uploadedFileName?: string;
+  uploadFee?: number;
+};
+
+type CartItemType = {
+  id: string;
+  name: string;
+  image: string;
+  basePrice: number;
+  quantity: number;
+  customization: Customization;
+};
+
+interface Props {
+  item: CartItemType;
+}
+
+export default function CartItem({ item }: Props) {
   const { removeItem, updateQuantity } = useCart();
 
   const placementCost = item.customization.placements.reduce(
-    (s: number, p: any) => s + p.cost,
+    (sum, p) => sum + p.cost,
     0
   );
 
   const uploadCost = item.customization.uploadedImage
-    ? item.customization.uploadFee
+    ? item.customization.uploadFee ?? 0
     : 0;
 
   const unitCustomization = placementCost + uploadCost;
@@ -22,9 +52,11 @@ const CartItem = ({ item }: any) => {
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
       <div className="flex gap-4">
-        <img
+        <Image
           src={item.image}
           alt={item.name}
+          width={96}
+          height={96}
           className="w-24 h-24 rounded-lg object-cover bg-secondary shrink-0"
         />
 
@@ -74,11 +106,12 @@ const CartItem = ({ item }: any) => {
             </button>
           </div>
 
-          <Link to="/product">
-            <button className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
-              <Pencil className="h-3.5 w-3.5" />
-              Edit
-            </button>
+          <Link
+            href="/product"
+            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Edit
           </Link>
         </div>
 
@@ -88,6 +121,4 @@ const CartItem = ({ item }: any) => {
       </div>
     </div>
   );
-};
-
-export default CartItem;
+}

@@ -1,3 +1,5 @@
+// components/product/ProductAccordion.tsx
+
 import {
   Accordion,
   AccordionContent,
@@ -5,7 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-const ProductAccordion = () => {
+export default function ProductAccordion() {
   return (
     <div className="mt-16 max-w-3xl">
       <Accordion type="single" collapsible defaultValue="description">
@@ -61,6 +63,4 @@ const ProductAccordion = () => {
       </Accordion>
     </div>
   );
-};
-
-export default ProductAccordion;
+}

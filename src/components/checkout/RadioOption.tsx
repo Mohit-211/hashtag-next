@@ -1,4 +1,22 @@
-const RadioOption = ({ selected, onSelect, icon, label, desc }) => {
+"use client";
+
+import { ReactNode } from "react";
+
+type RadioOptionProps = {
+  selected: boolean;
+  onSelect: () => void;
+  icon: ReactNode;
+  label: string;
+  desc?: string;
+};
+
+export default function RadioOption({
+  selected,
+  onSelect,
+  icon,
+  label,
+  desc,
+}: RadioOptionProps) {
   return (
     <label
       onClick={onSelect}
@@ -18,10 +36,9 @@ const RadioOption = ({ selected, onSelect, icon, label, desc }) => {
 
       <div>
         <p className="text-sm font-medium">{label}</p>
-        <p className="text-xs text-muted-foreground">{desc}</p>
+
+        {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
       </div>
     </label>
   );
-};
-
-export default RadioOption;
+}

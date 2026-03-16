@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
 import type { CartItemCustomization } from "./CartContext";
 
 export interface SavedItem {
@@ -20,7 +28,8 @@ const SavedItemsContext = createContext<SavedItemsContextType | null>(null);
 
 export const useSavedItems = () => {
   const ctx = useContext(SavedItemsContext);
-  if (!ctx) throw new Error("useSavedItems must be used within SavedItemsProvider");
+  if (!ctx)
+    throw new Error("useSavedItems must be used within SavedItemsProvider");
   return ctx;
 };
 
@@ -44,7 +53,9 @@ export const SavedItemsProvider = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <SavedItemsContext.Provider value={{ savedItems, addSavedItem, removeSavedItem, isSaved }}>
+    <SavedItemsContext.Provider
+      value={{ savedItems, addSavedItem, removeSavedItem, isSaved }}
+    >
       {children}
     </SavedItemsContext.Provider>
   );

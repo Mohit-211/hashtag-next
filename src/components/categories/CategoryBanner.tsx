@@ -1,17 +1,20 @@
-import categoryBanner from "@/assets/category-banner.jpg";
+import Image from "next/image";
 
-const CategoryBanner = () => {
+export default function CategoryBanner() {
   return (
     <section className="pb-10">
       <div className="container">
-        <img
-          src={categoryBanner}
-          alt="Category banner"
-          className="w-full h-48 sm:h-56 md:h-72 object-cover rounded-2xl"
-        />
+        <div className="relative w-full h-48 sm:h-56 md:h-72 rounded-2xl overflow-hidden">
+          <Image
+            src="/assets/category-banner.jpg"
+            alt="Category banner"
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+          />
+        </div>
       </div>
     </section>
   );
-};
-
-export default CategoryBanner;
+}

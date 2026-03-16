@@ -1,19 +1,30 @@
-import { useState } from "react";
+// components/support/SupportContactForm.tsx
+
+"use client";
+
+import { useState, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { SUBJECTS } from "@/data/supportData";
 import { CheckCircle } from "lucide-react";
 
-const SupportContactForm = () => {
-  const [submitted, setSubmitted] = useState(false);
+interface SupportFormState {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+}
 
-  const [form, setForm] = useState({
+export default function SupportContactForm() {
+  const [submitted, setSubmitted] = useState<boolean>(false);
+
+  const [form, setForm] = useState<SupportFormState>({
     name: "",
     email: "",
     subject: "",
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitted(true);
   };
@@ -36,23 +47,28 @@ const SupportContactForm = () => {
             <input
               placeholder="Full Name"
               className="input"
+              value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
 
             <input
               placeholder="Email"
               className="input"
+              value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
 
             <select
               className="input"
+              value={form.subject}
               onChange={(e) => setForm({ ...form, subject: e.target.value })}
             >
-              <option>Select Subject</option>
+              <option value="">Select Subject</option>
 
               {SUBJECTS.map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
 
@@ -60,6 +76,7 @@ const SupportContactForm = () => {
               rows={5}
               placeholder="Your message"
               className="input"
+              value={form.message}
               onChange={(e) => setForm({ ...form, message: e.target.value })}
             />
 
@@ -71,6 +88,4 @@ const SupportContactForm = () => {
       </div>
     </div>
   );
-};
-
-export default SupportContactForm;
+}

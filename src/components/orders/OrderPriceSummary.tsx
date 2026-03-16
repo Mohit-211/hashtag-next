@@ -1,4 +1,12 @@
-const OrderPriceSummary = ({ order }) => {
+// components/orders/OrderPriceSummary.tsx
+
+import type { Order } from "@/contexts/OrdersContext";
+
+interface OrderPriceSummaryProps {
+  order: Order;
+}
+
+export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
   return (
     <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
       <div className="flex justify-between text-sm">
@@ -31,6 +39,4 @@ const OrderPriceSummary = ({ order }) => {
       </div>
     </div>
   );
-};
-
-export default OrderPriceSummary;
+}

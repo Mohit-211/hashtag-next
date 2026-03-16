@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { Address } from "../../data/types";
+import { Address } from "@/data/types";
 
 interface Props {
   address: Address;
@@ -9,7 +10,12 @@ interface Props {
   onEdit: (addr: Address) => void;
 }
 
-const AddressCard = ({ address, onDelete, onDefault, onEdit }: Props) => {
+export default function AddressCard({
+  address,
+  onDelete,
+  onDefault,
+  onEdit,
+}: Props) {
   return (
     <div
       className={`border rounded-lg p-4 flex flex-col sm:flex-row gap-3 ${
@@ -67,6 +73,4 @@ const AddressCard = ({ address, onDelete, onDefault, onEdit }: Props) => {
       </div>
     </div>
   );
-};
-
-export default AddressCard;
+}

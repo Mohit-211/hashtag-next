@@ -1,7 +1,9 @@
+// components/trackorder/OrderSupport.tsx
+
 import { Button } from "@/components/ui/button";
 import { Mail } from "lucide-react";
 
-const OrderSupport = () => {
+export default function OrderSupport() {
   return (
     <div className="space-y-3">
       <p className="text-xs font-bold uppercase text-muted-foreground">
@@ -19,6 +21,4 @@ const OrderSupport = () => {
       </Button>
     </div>
   );
-};
-
-export default OrderSupport;
+}

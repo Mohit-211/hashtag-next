@@ -1,7 +1,17 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
 
-const CartSummary = ({ subtotal, customizationTotal, grandTotal }: any) => {
+interface Props {
+  subtotal: number;
+  customizationTotal: number;
+  grandTotal: number;
+}
+
+export default function CartSummary({
+  subtotal,
+  customizationTotal,
+  grandTotal,
+}: Props) {
   const shipping = grandTotal >= 999 ? 0 : 99;
   const finalTotal = grandTotal + shipping;
 
@@ -41,21 +51,15 @@ const CartSummary = ({ subtotal, customizationTotal, grandTotal }: any) => {
         </div>
 
         <div className="space-y-2 pt-2">
-          <Link to="/checkout">
-            <Button variant="hero" size="lg" className="w-full">
-              Proceed to Checkout
-            </Button>
-          </Link>
+          <Button asChild variant="hero" size="lg" className="w-full">
+            <Link href="/checkout">Proceed to Checkout</Link>
+          </Button>
 
-          <Link to="/categories">
-            <Button variant="outline" size="lg" className="w-full">
-              Continue Shopping
-            </Button>
-          </Link>
+          <Button asChild variant="outline" size="lg" className="w-full">
+            <Link href="/categories">Continue Shopping</Link>
+          </Button>
         </div>
       </div>
     </div>
   );
-};
-
-export default CartSummary;
+}

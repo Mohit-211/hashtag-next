@@ -1,6 +1,8 @@
+// components/product/ProductInfo.tsx
+
 import { Star } from "lucide-react";
 
-const ProductInfo = () => {
+export default function ProductInfo() {
   return (
     <div>
       <span className="text-xs uppercase text-muted-foreground">Apparel</span>
@@ -29,6 +31,4 @@ const ProductInfo = () => {
       <p className="text-2xl font-bold mt-4">$799</p>
     </div>
   );
-};
-
-export default ProductInfo;
+}

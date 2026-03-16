@@ -1,4 +1,6 @@
-const PricingSummary = () => {
+// components/product/customization/PricingSummary.tsx
+
+export default function PricingSummary() {
   return (
     <div className="bg-background border rounded-lg p-4 space-y-2">
       <div className="flex justify-between text-sm">
@@ -12,6 +14,4 @@ const PricingSummary = () => {
       </div>
     </div>
   );
-};
-
-export default PricingSummary;
+}

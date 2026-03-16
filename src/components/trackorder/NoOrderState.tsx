@@ -1,8 +1,10 @@
+// components/trackorder/NoOrderState.tsx
+
 import { Truck } from "lucide-react";
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-const NoOrderState = () => {
+export default function NoOrderState() {
   return (
     <div className="text-center py-10 space-y-4">
       <div className="h-16 w-16 mx-auto rounded-full bg-secondary flex items-center justify-center">
@@ -15,13 +17,11 @@ const NoOrderState = () => {
         Enter your Order ID above to track your order.
       </p>
 
-      <Link to="/categories">
+      <Link href="/categories">
         <Button variant="hero" size="lg">
           Browse Products
         </Button>
       </Link>
     </div>
   );
-};
-
-export default NoOrderState;
+}

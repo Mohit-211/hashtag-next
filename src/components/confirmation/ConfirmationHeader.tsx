@@ -1,12 +1,15 @@
-import orderConfirmedImg from "@/assets/order-confirmed.jpg";
+import Image from "next/image";
 
-const ConfirmationHeader = () => {
+export default function ConfirmationHeader() {
   return (
     <div className="text-center space-y-4 mb-12">
-      <img
-        src={orderConfirmedImg}
+      <Image
+        src="/assets/order-confirmed.jpg"
         alt="Order confirmed"
-        className="w-28 h-28 mx-auto object-contain"
+        width={112}
+        height={112}
+        className="mx-auto object-contain"
+        priority
       />
 
       <h1 className="text-3xl sm:text-4xl font-heading font-bold">
@@ -18,6 +21,4 @@ const ConfirmationHeader = () => {
       </p>
     </div>
   );
-};
-
-export default ConfirmationHeader;
+}

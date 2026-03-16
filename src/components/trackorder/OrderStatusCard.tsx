@@ -1,7 +1,13 @@
+// components/trackorder/OrderStatusCard.tsx
+
 import { Package } from "lucide-react";
 import { type Order } from "@/contexts/OrdersContext";
 
-const OrderStatusCard = ({ order }: { order: Order }) => {
+interface OrderStatusCardProps {
+  order: Order;
+}
+
+export default function OrderStatusCard({ order }: OrderStatusCardProps) {
   const orderDate = new Date(order.date).toLocaleDateString("en-IN", {
     day: "numeric",
     month: "long",
@@ -30,13 +36,10 @@ const OrderStatusCard = ({ order }: { order: Order }) => {
 
           <span className="inline-flex items-center gap-2 bg-primary/15 px-3 py-1.5 rounded-lg font-semibold">
             <Package className="h-4 w-4" />
-
             {order.status}
           </span>
         </div>
       </div>
     </div>
   );
-};
-
-export default OrderStatusCard;
+}

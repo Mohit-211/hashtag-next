@@ -1,6 +1,13 @@
-import OrderItemRow from "./OrderItemRow";
+// components/orders/OrderItems.tsx
 
-const OrderItems = ({ items }) => {
+import OrderItemRow from "./OrderItemRow";
+import type { CartItem } from "@/contexts/CartContext";
+
+interface OrderItemsProps {
+  items: CartItem[];
+}
+
+export default function OrderItems({ items }: OrderItemsProps) {
   return (
     <div className="space-y-4">
       {items.map((item) => (
@@ -8,6 +15,4 @@ const OrderItems = ({ items }) => {
       ))}
     </div>
   );
-};
-
-export default OrderItems;
+}

@@ -1,7 +1,17 @@
-import { useState } from "react";
-import OrderCard from "./OrderCard";
+// components/orders/OrdersList.tsx
 
-const OrdersList = ({ orders }) => {
+"use client";
+
+import { useState } from "react";
+
+import OrderCard from "./OrderCard";
+import type { Order } from "@/contexts/OrdersContext";
+
+interface OrdersListProps {
+  orders: Order[];
+}
+
+export default function OrdersList({ orders }: OrdersListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
@@ -20,6 +30,4 @@ const OrdersList = ({ orders }) => {
       ))}
     </div>
   );
-};
-
-export default OrdersList;
+}

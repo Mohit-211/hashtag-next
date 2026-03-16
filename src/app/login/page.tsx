@@ -1,11 +1,13 @@
+"use client";
+
 import { useState } from "react";
-import Layout from "@/components/Layout";
+import Layout from "@/components/layout/Layout";
 
-import AuthCard from "@/components/auth/AuthCard";
-import LoginForm from "@/components/auth/LoginForm";
-import RegisterForm from "@/components/auth/RegisterForm";
+import AuthCard from "@/components/login/AuthCard";
+import LoginForm from "@/components/login/LoginForm";
+import RegisterForm from "@/components/login/RegisterForm";
 
-const Login = () => {
+export default function Login() {
   const [mode, setMode] = useState<"login" | "register">("login");
 
   return (
@@ -23,6 +25,4 @@ const Login = () => {
       </section>
     </Layout>
   );
-};
-
-export default Login;
+}

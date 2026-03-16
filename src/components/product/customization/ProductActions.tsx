@@ -1,7 +1,9 @@
+// components/product/customization/ProductActions.tsx
+
 import { Button } from "@/components/ui/button";
 import { Heart, ShoppingBag } from "lucide-react";
 
-const ProductActions = () => {
+export default function ProductActions() {
   return (
     <div className="flex flex-col sm:flex-row gap-3">
       <Button variant="hero" className="flex-1 gap-2">
@@ -15,6 +17,4 @@ const ProductActions = () => {
       </Button>
     </div>
   );
-};
-
-export default ProductActions;
+}

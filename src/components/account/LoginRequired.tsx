@@ -1,3 +1,5 @@
+"use client";
+
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -5,7 +7,7 @@ interface Props {
   onLogin: () => void;
 }
 
-const LoginRequired = ({ onLogin }: Props) => {
+export default function LoginRequired({ onLogin }: Props) {
   return (
     <section className="py-20">
       <div className="container max-w-md text-center space-y-6">
@@ -30,6 +32,4 @@ const LoginRequired = ({ onLogin }: Props) => {
       </div>
     </section>
   );
-};
-
-export default LoginRequired;
+}

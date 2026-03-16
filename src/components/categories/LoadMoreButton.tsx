@@ -1,6 +1,13 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
 
-const LoadMoreButton = ({ hasMore, onLoadMore }) => {
+interface Props {
+  hasMore: boolean;
+  onLoadMore: () => void;
+}
+
+export default function LoadMoreButton({ hasMore, onLoadMore }: Props) {
   if (!hasMore) return null;
 
   return (
@@ -10,6 +17,4 @@ const LoadMoreButton = ({ hasMore, onLoadMore }) => {
       </Button>
     </div>
   );
-};
-
-export default LoadMoreButton;
+}

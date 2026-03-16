@@ -1,6 +1,13 @@
+// components/trackorder/OrderedItems.tsx
+
+import Image from "next/image";
 import { type CartItem } from "@/contexts/CartContext";
 
-const OrderedItems = ({ items }: { items: CartItem[] }) => {
+interface OrderedItemsProps {
+  items: CartItem[];
+}
+
+export default function OrderedItems({ items }: OrderedItemsProps) {
   return (
     <div>
       <p className="text-xs font-bold uppercase text-muted-foreground mb-4">
@@ -26,9 +33,11 @@ const OrderedItems = ({ items }: { items: CartItem[] }) => {
               key={item.id}
               className="bg-card border border-border rounded-xl p-4 flex gap-4"
             >
-              <img
+              <Image
                 src={item.image}
                 alt={item.name}
+                width={64}
+                height={64}
                 className="w-16 h-16 rounded-lg object-cover"
               />
 
@@ -49,6 +58,4 @@ const OrderedItems = ({ items }: { items: CartItem[] }) => {
       </div>
     </div>
   );
-};
-
-export default OrderedItems;
+}

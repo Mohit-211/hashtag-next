@@ -1,13 +1,18 @@
-import { NAV_ITEMS } from "../../data/constants";
-import { Section } from "../../data/types";
+import { NAV_ITEMS } from "@/data/constants";
+import { Section } from "@/data/types";
+
+interface User {
+  name?: string;
+  email?: string;
+}
 
 interface Props {
   active: Section;
   onNavigate: (key: Section) => void;
-  user: any;
+  user: User | null;
 }
 
-const AccountSidebar = ({ active, onNavigate, user }: Props) => {
+export default function AccountSidebar({ active, onNavigate, user }: Props) {
   return (
     <aside className="lg:w-64 shrink-0">
       <div className="bg-card border border-border rounded-xl p-4 space-y-1">
@@ -15,6 +20,7 @@ const AccountSidebar = ({ active, onNavigate, user }: Props) => {
           <p className="text-sm font-semibold text-foreground truncate">
             {user?.name}
           </p>
+
           <p className="text-xs text-muted-foreground truncate">
             {user?.email}
           </p>
@@ -47,6 +53,4 @@ const AccountSidebar = ({ active, onNavigate, user }: Props) => {
       </div>
     </aside>
   );
-};
-
-export default AccountSidebar;
+}

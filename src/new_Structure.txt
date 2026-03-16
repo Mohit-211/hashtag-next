@@ -1,0 +1,161 @@
+.
+├── app
+│   ├── about
+│   │   └── About.tsx
+│   ├── account
+│   │   └── Account.tsx
+│   ├── cart
+│   │   └── Cart.tsx
+│   ├── categories
+│   │   └── Categories.tsx
+│   ├── checkout
+│   │   └── Checkout.tsx
+│   ├── confirmation
+│   │   └── Confirmation.tsx
+│   ├── globals.css
+│   ├── layout.tsx
+│   ├── login
+│   │   └── Login.tsx
+│   ├── not-found.tsx
+│   ├── orders
+│   │   └── Orders.tsx
+│   ├── page.tsx
+│   ├── privacy-policy
+│   │   └── PrivacyPolicy.tsx
+│   ├── product
+│   │   └── ProductDetail.tsx
+│   ├── saved
+│   │   └── Saved.tsx
+│   ├── shippingreturns
+│   │   └── ShippingReturns.tsx
+│   ├── support
+│   │   └── Support.tsx
+│   ├── terms
+│   │   └── Terms.tsx
+│   └── track-order
+│       └── TrackOrder.tsx
+├── components
+│   ├── account
+│   │   ├── AccountSidebar.tsx
+│   │   ├── AddressCard.tsx
+│   │   ├── AddressForm.tsx
+│   │   ├── AddressSection.tsx
+│   │   ├── LoginRequired.tsx
+│   │   ├── PasswordSection.tsx
+│   │   └── ProfileSection.tsx
+│   ├── cart
+│   │   ├── CartCustomization.tsx
+│   │   ├── CartEmpty.tsx
+│   │   ├── CartItem.tsx
+│   │   ├── CartItemsList.tsx
+│   │   └── CartSummary.tsx
+│   ├── categories
+│   │   ├── CategoryBanner.tsx
+│   │   ├── CategoryFilterBar.tsx
+│   │   ├── CategoryHeader.tsx
+│   │   ├── EmptyProducts.tsx
+│   │   ├── LoadMoreButton.tsx
+│   │   └── ProductGrid.tsx
+│   ├── checkout
+│   │   ├── CheckoutEmpty.tsx
+│   │   ├── CheckoutForm.tsx
+│   │   ├── CheckoutSummary.tsx
+│   │   ├── ContactSection.tsx
+│   │   ├── InputField.tsx
+│   │   ├── PaymentMethodSection.tsx
+│   │   ├── RadioOption.tsx
+│   │   ├── ShippingAddressSection.tsx
+│   │   └── ShippingMethodSection.tsx
+│   ├── confirmation
+│   │   ├── ConfirmationActions.tsx
+│   │   ├── ConfirmationHeader.tsx
+│   │   ├── NextSteps.tsx
+│   │   ├── OrderInfoCard.tsx
+│   │   ├── OrderedItemCard.tsx
+│   │   ├── OrderedItems.tsx
+│   │   └── PriceSummary.tsx
+│   ├── home
+│   │   ├── BrandIntroduction.tsx
+│   │   ├── CategoriesOverview.tsx
+│   │   ├── CategoryCard.tsx
+│   │   ├── CustomizationExperience.tsx
+│   │   ├── FeaturedProducts.tsx
+│   │   ├── FinalCTA.tsx
+│   │   ├── HeroSection.tsx
+│   │   ├── ProductCard.tsx
+│   │   └── TrustSimplicity.tsx
+│   ├── layout
+│   │   ├── Footer.tsx
+│   │   ├── Header.tsx
+│   │   ├── Layout.tsx
+│   │   └── NavLink.tsx
+│   ├── login
+│   │   ├── AuthCard.tsx
+│   │   ├── DemoCredentials.tsx
+│   │   ├── LoginForm.tsx
+│   │   ├── PasswordInput.tsx
+│   │   └── RegisterForm.tsx
+│   ├── orders
+│   │   ├── OrderActions.tsx
+│   │   ├── OrderCard.tsx
+│   │   ├── OrderItemRow.tsx
+│   │   ├── OrderItems.tsx
+│   │   ├── OrderPriceSummary.tsx
+│   │   ├── OrdersEmpty.tsx
+│   │   └── OrdersList.tsx
+│   ├── product
+│   │   ├── ProductAccordion.tsx
+│   │   ├── ProductCustomization.tsx
+│   │   ├── ProductGallery.tsx
+│   │   ├── ProductInfo.tsx
+│   │   ├── RelatedProducts.tsx
+│   │   └── customization
+│   │       ├── PlacementSelector.tsx
+│   │       ├── PricingSummary.tsx
+│   │       ├── ProductActions.tsx
+│   │       ├── QuantitySelector.tsx
+│   │       └── UploadImageBox.tsx
+│   ├── support
+│   │   ├── SupportContactForm.tsx
+│   │   ├── SupportFAQ.tsx
+│   │   ├── SupportHeader.tsx
+│   │   ├── SupportInfo.tsx
+│   │   └── supportData.ts
+│   ├── trackorder
+│   │   ├── NoOrderState.tsx
+│   │   ├── OrderPriceSummary.tsx
+│   │   ├── OrderProgress.tsx
+│   │   ├── OrderStatusCard.tsx
+│   │   ├── OrderSupport.tsx
+│   │   ├── OrderedItems.tsx
+│   │   ├── ShipmentDetails.tsx
+│   │   └── TrackLookup.tsx
+│   └── ui
+│       ├── accordion.tsx
+│       ├── button.tsx
+│       ├── checkbox.tsx
+│       ├── dialog.tsx
+│       ├── input.tsx
+│       ├── label.tsx
+│       ├── separator.tsx
+│       ├── sheet.tsx
+│       ├── skeleton.tsx
+│       ├── toggle.tsx
+│       └── tooltip.tsx
+├── contexts
+│   ├── AuthContext.tsx
+│   ├── CartContext.tsx
+│   ├── OrdersContext.tsx
+│   └── SavedItemsContext.tsx
+├── data
+│   ├── constants.ts
+│   ├── products.ts
+│   └── types.ts
+├── hooks
+│   └── use-mobile.tsx
+├── lib
+│   └── utils.ts
+├── new_Structure.txt
+└── types
+
+37 directories, 122 files

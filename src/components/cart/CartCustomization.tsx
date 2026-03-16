@@ -1,8 +1,31 @@
-const CartCustomization = ({ item, unitCustomization }: any) => {
-  if (
-    item.customization.placements.length === 0 &&
-    !item.customization.uploadedImage
-  ) {
+import Image from "next/image";
+
+type Placement = {
+  id: string;
+  label: string;
+  cost: number;
+};
+
+type Customization = {
+  placements: Placement[];
+  uploadedImage?: string;
+  uploadedFileName?: string;
+  uploadFee?: number;
+};
+
+type CartItem = {
+  customization: Customization;
+};
+
+interface Props {
+  item: CartItem;
+  unitCustomization: number;
+}
+
+export default function CartCustomization({ item, unitCustomization }: Props) {
+  const { customization } = item;
+
+  if (customization.placements.length === 0 && !customization.uploadedImage) {
     return null;
   }
 
@@ -12,9 +35,9 @@ const CartCustomization = ({ item, unitCustomization }: any) => {
         Customization
       </p>
 
-      {item.customization.placements.length > 0 && (
+      {customization.placements.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {item.customization.placements.map((p: any) => (
+          {customization.placements.map((p) => (
             <span
               key={p.id}
               className="text-xs font-medium bg-background border border-border rounded-md px-2.5 py-1"
@@ -25,21 +48,23 @@ const CartCustomization = ({ item, unitCustomization }: any) => {
         </div>
       )}
 
-      {item.customization.uploadedImage && (
+      {customization.uploadedImage && (
         <div className="flex items-center gap-3">
-          <img
-            src={item.customization.uploadedImage}
+          <Image
+            src={customization.uploadedImage}
             alt="Upload"
+            width={48}
+            height={48}
             className="w-12 h-12 rounded-md object-cover border"
           />
 
           <div>
             <p className="text-sm truncate max-w-[200px]">
-              {item.customization.uploadedFileName}
+              {customization.uploadedFileName}
             </p>
 
             <p className="text-xs text-muted-foreground">
-              Upload fee +${item.customization.uploadFee}
+              Upload fee +${customization.uploadFee ?? 0}
             </p>
           </div>
         </div>
@@ -55,6 +80,4 @@ const CartCustomization = ({ item, unitCustomization }: any) => {
       )}
     </div>
   );
-};
-
-export default CartCustomization;
+}

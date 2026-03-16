@@ -1,20 +1,30 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
-import { inputClass } from "../../data/constants";
+"use client";
 
-interface Props {
-  user: any;
+import { useState } from "react";
+import { Check } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { inputClass } from "@/data/constants";
+
+interface User {
+  name?: string;
+  email?: string;
+  phone?: string;
 }
 
-const ProfileSection = ({ user }: Props) => {
-  const [name, setName] = useState(user?.name || "");
-  const [phone, setPhone] = useState(user?.phone || "");
+interface Props {
+  user: User | null;
+}
+
+export default function ProfileSection({ user }: Props) {
+  const [name, setName] = useState(user?.name ?? "");
+  const [phone, setPhone] = useState(user?.phone ?? "");
   const [saved, setSaved] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
+    // later this will call API
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -30,10 +40,11 @@ const ProfileSection = ({ user }: Props) => {
           value={name}
           onChange={(e) => setName(e.target.value)}
           className={inputClass}
+          placeholder="Full Name"
         />
 
         <input
-          value={user?.email}
+          value={user?.email ?? ""}
           readOnly
           className={`${inputClass} bg-secondary`}
         />
@@ -42,13 +53,14 @@ const ProfileSection = ({ user }: Props) => {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           className={inputClass}
+          placeholder="Phone Number"
         />
 
         <div className="flex items-center gap-3">
           <Button type="submit">Save Changes</Button>
 
           {saved && (
-            <span className="text-sm flex items-center gap-1">
+            <span className="text-sm flex items-center gap-1 text-foreground">
               <Check className="h-4 w-4" /> Saved
             </span>
           )}
@@ -56,6 +68,4 @@ const ProfileSection = ({ user }: Props) => {
       </form>
     </div>
   );
-};
-
-export default ProfileSection;
+}

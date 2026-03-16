@@ -1,7 +1,20 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
 import type { CartItem } from "./CartContext";
 
-export type OrderStatus = "Processing" | "Shipped" | "Out for Delivery" | "Delivered" | "Cancelled";
+export type OrderStatus =
+  | "Processing"
+  | "Shipped"
+  | "Out for Delivery"
+  | "Delivered"
+  | "Cancelled";
 
 export interface Order {
   orderId: string;

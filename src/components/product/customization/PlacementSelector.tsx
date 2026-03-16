@@ -1,12 +1,20 @@
+// components/product/customization/PlacementSelector.tsx
+
 import { Checkbox } from "@/components/ui/checkbox";
 
-const placementOptions = [
+interface PlacementOption {
+  id: string;
+  label: string;
+  cost: number;
+}
+
+const placementOptions: PlacementOption[] = [
   { id: "front", label: "Front", cost: 50 },
   { id: "back", label: "Back", cost: 50 },
   { id: "sleeve", label: "Sleeve", cost: 30 },
 ];
 
-const PlacementSelector = () => {
+export default function PlacementSelector() {
   return (
     <div className="space-y-3">
       <p className="text-sm font-medium">Choose Placement</p>
@@ -27,6 +35,4 @@ const PlacementSelector = () => {
       </div>
     </div>
   );
-};
-
-export default PlacementSelector;
+}

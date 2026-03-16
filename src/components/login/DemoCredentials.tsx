@@ -1,4 +1,6 @@
-const DemoCredentials = () => {
+// components/login/DemoCredentials.tsx
+
+export default function DemoCredentials() {
   return (
     <div className="bg-secondary rounded-lg p-3 space-y-1">
       <p className="text-[10px] font-bold uppercase text-muted-foreground">
@@ -14,6 +16,4 @@ const DemoCredentials = () => {
       </p>
     </div>
   );
-};
-
-export default DemoCredentials;
+}

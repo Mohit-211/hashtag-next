@@ -1,4 +1,4 @@
-import Layout from "@/components/Layout";
+// app/shippingreturns/ShippingReturns.tsx
 
 const shippingSections = [
   {
@@ -56,59 +56,75 @@ const returnsSections = [
   },
 ];
 
-const ShippingReturns = () => {
+export default function ShippingReturns() {
   return (
-    <Layout>
-      <section className="py-10 lg:py-16">
-        <div className="container max-w-2xl space-y-12">
-          <div className="space-y-3">
-            <h1 className="text-3xl lg:text-4xl font-heading font-bold text-foreground">
-              Shipping & Returns
-            </h1>
-            <p className="text-xs text-muted-foreground">Last updated: February 2026</p>
-          </div>
-
-          {/* Shipping */}
-          <div className="space-y-8">
-            <h2 className="text-xl font-heading font-bold text-foreground">Shipping Policy</h2>
-            {shippingSections.map((s, i) => (
-              <div key={i} className="space-y-2">
-                <h3 className="text-base font-heading font-semibold text-foreground">{s.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{s.content}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="h-px bg-border" />
-
-          {/* Returns */}
-          <div className="space-y-8">
-            <h2 className="text-xl font-heading font-bold text-foreground">Returns & Refund Policy</h2>
-            {returnsSections.map((s, i) => (
-              <div key={i} className="space-y-2">
-                <h3 className="text-base font-heading font-semibold text-foreground">{s.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{s.content}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="h-px bg-border" />
-
-          {/* Closing */}
-          <div className="space-y-3">
-            <h2 className="text-xl font-heading font-bold text-foreground">Our Commitment</h2>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              At HashtagBillionaire, we believe in complete transparency when it comes to shipping
-              and returns. Every policy is designed to be fair, straightforward, and easy to
-              understand. If anything is unclear or if you need assistance at any point, our support
-              team is always here to help. Your satisfaction and trust are at the center of
-              everything we do.
-            </p>
-          </div>
+    <section className="py-10 lg:py-16">
+      <div className="container max-w-2xl space-y-12">
+        <div className="space-y-3">
+          <h1 className="text-3xl lg:text-4xl font-heading font-bold text-foreground">
+            Shipping & Returns
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Last updated: February 2026
+          </p>
         </div>
-      </section>
-    </Layout>
-  );
-};
 
-export default ShippingReturns;
+        {/* Shipping */}
+        <div className="space-y-8">
+          <h2 className="text-xl font-heading font-bold text-foreground">
+            Shipping Policy
+          </h2>
+
+          {shippingSections.map((s, i) => (
+            <div key={i} className="space-y-2">
+              <h3 className="text-base font-heading font-semibold text-foreground">
+                {s.title}
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {s.content}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="h-px bg-border" />
+
+        {/* Returns */}
+        <div className="space-y-8">
+          <h2 className="text-xl font-heading font-bold text-foreground">
+            Returns & Refund Policy
+          </h2>
+
+          {returnsSections.map((s, i) => (
+            <div key={i} className="space-y-2">
+              <h3 className="text-base font-heading font-semibold text-foreground">
+                {s.title}
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {s.content}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="h-px bg-border" />
+
+        {/* Closing */}
+        <div className="space-y-3">
+          <h2 className="text-xl font-heading font-bold text-foreground">
+            Our Commitment
+          </h2>
+
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            At HashtagBillionaire, we believe in complete transparency when it
+            comes to shipping and returns. Every policy is designed to be fair,
+            straightforward, and easy to understand. If anything is unclear or
+            if you need assistance at any point, our support team is always here
+            to help. Your satisfaction and trust are at the center of everything
+            we do.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}

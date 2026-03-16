@@ -1,6 +1,8 @@
-import { Link } from "react-router-dom";
+// components/layout/Footer.tsx
 
-const Footer = () => {
+import Link from "next/link";
+
+export default function Footer() {
   return (
     <footer className="bg-secondary border-t border-border">
       <div className="container py-12">
@@ -10,6 +12,7 @@ const Footer = () => {
             <h3 className="text-lg font-heading font-bold text-foreground">
               Hashtag<span className="text-primary">Billionaire</span>
             </h3>
+
             <p className="text-sm text-muted-foreground leading-relaxed">
               Build your identity.
             </p>
@@ -17,39 +20,75 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div className="space-y-3">
-            <h4 className="text-sm font-heading font-semibold text-foreground">Quick Links</h4>
+            <h4 className="text-sm font-heading font-semibold text-foreground">
+              Quick Links
+            </h4>
+
             <ul className="space-y-2 text-sm">
-              {["Home", "Categories", "Orders", "Saved", "Track Order"].map((item) => (
-                <li key={item}>
-                  <Link
-                    to={item === "Home" ? "/" : `/${item.toLowerCase().replace(" ", "-")}`}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {item}
-                  </Link>
-                </li>
-              ))}
+              {["Home", "Categories", "Orders", "Saved", "Track Order"].map(
+                (item) => (
+                  <li key={item}>
+                    <Link
+                      href={
+                        item === "Home"
+                          ? "/"
+                          : `/${item.toLowerCase().replace(" ", "-")}`
+                      }
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {item}
+                    </Link>
+                  </li>
+                )
+              )}
             </ul>
           </div>
 
           {/* Policies */}
           <div className="space-y-3">
-            <h4 className="text-sm font-heading font-semibold text-foreground">Policies</h4>
+            <h4 className="text-sm font-heading font-semibold text-foreground">
+              Policies
+            </h4>
+
             <ul className="space-y-2 text-sm">
-              {["Privacy Policy", "Terms of Service", "Refund Policy"].map((item) => (
-                <li key={item}>
-                  <span className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-                    {item}
-                  </span>
-                </li>
-              ))}
+              <li>
+                <Link
+                  href="/privacy-policy"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Privacy Policy
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  href="/terms"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Terms of Service
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  href="/shippingreturns"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Refund Policy
+                </Link>
+              </li>
             </ul>
           </div>
 
           {/* Contact */}
           <div className="space-y-3">
-            <h4 className="text-sm font-heading font-semibold text-foreground">Contact</h4>
-            <p className="text-sm text-muted-foreground">hello@hashtagbillionaire.com</p>
+            <h4 className="text-sm font-heading font-semibold text-foreground">
+              Contact
+            </h4>
+
+            <p className="text-sm text-muted-foreground">
+              hello@hashtagbillionaire.com
+            </p>
           </div>
         </div>
 
@@ -61,6 +100,4 @@ const Footer = () => {
       </div>
     </footer>
   );
-};
-
-export default Footer;
+}

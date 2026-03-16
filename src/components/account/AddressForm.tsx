@@ -1,22 +1,25 @@
 import { Button } from "@/components/ui/button";
-import { inputClass } from "../../data/constants";
+import { inputClass } from "@/data/constants";
+import { Address } from "@/data/types";
+
+type AddressFormData = Omit<Address, "id" | "isDefault">;
 
 interface Props {
-  formData: any;
-  setFormData: (data: any) => void;
-  onSave: (data: any) => void;
+  formData: AddressFormData;
+  setFormData: (data: AddressFormData) => void;
+  onSave: (data: AddressFormData) => void;
   onCancel: () => void;
   editing: boolean;
 }
 
-const AddressForm = ({
+export default function AddressForm({
   formData,
   setFormData,
   onSave,
   onCancel,
   editing,
-}: Props) => {
-  const handleSubmit = (e: React.FormEvent) => {
+}: Props) {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSave(formData);
   };
@@ -112,6 +115,4 @@ const AddressForm = ({
       </div>
     </form>
   );
-};
-
-export default AddressForm;
+}

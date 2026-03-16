@@ -1,14 +1,30 @@
-import { Button } from "@/components/ui/button";
+"use client";
 
-const CheckoutSummary = ({
+import { Button } from "@/components/ui/button";
+import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+
+import { CartItem } from "@/contexts/CartContext";
+import { Order } from "@/contexts/OrdersContext";
+
+type CheckoutSummaryProps = {
+  items: CartItem[];
+  subtotal: number;
+  customizationTotal: number;
+  grandTotal: number;
+  clearCart: () => void;
+  addOrder: (order: Omit<Order, "status">) => void;
+  router: AppRouterInstance;
+};
+
+export default function CheckoutSummary({
   items,
   subtotal,
   customizationTotal,
   grandTotal,
   clearCart,
   addOrder,
-  navigate,
-}) => {
+  router,
+}: CheckoutSummaryProps) {
   const shipping = grandTotal >= 999 ? 0 : 99;
   const tax = Math.round(grandTotal * 0.05);
   const total = grandTotal + shipping + tax;
@@ -21,7 +37,9 @@ const CheckoutSummary = ({
       items,
       subtotal,
       customizationTotal,
-      shipping,
+      shippingCost: shipping,
+      paymentMethod: "cod",
+      shippingMethod: "standard",
       tax,
       total,
       date: new Date().toISOString(),
@@ -30,7 +48,8 @@ const CheckoutSummary = ({
     addOrder(orderData);
     clearCart();
 
-    navigate("/confirmation", { state: orderData });
+    // Navigate to confirmation page
+    router.push(`/confirmation?orderId=${orderId}`);
   };
 
   return (
@@ -73,6 +92,4 @@ const CheckoutSummary = ({
       </div>
     </div>
   );
-};
-
-export default CheckoutSummary;
+}

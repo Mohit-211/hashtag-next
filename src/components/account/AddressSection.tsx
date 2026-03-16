@@ -1,12 +1,17 @@
+"use client";
+
 import { useState } from "react";
 import { Plus, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
+import { Button } from "@/components/ui/button";
 import AddressForm from "./AddressForm";
 import AddressCard from "./AddressCard";
-import { Address } from "../../data/types";
 
-const emptyAddress = {
+import { Address } from "@/data/types";
+
+type AddressFormData = Omit<Address, "id" | "isDefault">;
+
+const emptyAddress: AddressFormData = {
   fullName: "",
   phone: "",
   line1: "",
@@ -17,13 +22,13 @@ const emptyAddress = {
   country: "",
 };
 
-const AddressSection = () => {
+export default function AddressSection() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState(emptyAddress);
+  const [formData, setFormData] = useState<AddressFormData>(emptyAddress);
 
-  const handleSaveAddress = (data: typeof emptyAddress) => {
+  const handleSaveAddress = (data: AddressFormData) => {
     if (editingAddress) {
       setAddresses((prev) =>
         prev.map((a) => (a.id === editingAddress.id ? { ...a, ...data } : a))
@@ -47,8 +52,11 @@ const AddressSection = () => {
     setAddresses((prev) => {
       const filtered = prev.filter((a) => a.id !== id);
 
+      // ensure one default remains
       if (filtered.length > 0 && !filtered.some((a) => a.isDefault)) {
-        filtered[0].isDefault = true;
+        return filtered.map((a, i) =>
+          i === 0 ? { ...a, isDefault: true } : a
+        );
       }
 
       return filtered;
@@ -145,6 +153,4 @@ const AddressSection = () => {
       </div>
     </div>
   );
-};
-
-export default AddressSection;
+}

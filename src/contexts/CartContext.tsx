@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+"use client";
+
+import {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useCallback,
+} from "react";
 
 export interface CartItemCustomization {
   placements: { id: string; label: string; cost: number }[];
@@ -57,7 +65,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const updateQuantity = useCallback((id: string, qty: number) => {
     if (qty < 1) return;
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, quantity: qty } : i)));
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, quantity: qty } : i))
+    );
   }, []);
 
   const clearCart = useCallback(() => setItems([]), []);
@@ -67,8 +77,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const subtotal = items.reduce((s, i) => s + i.basePrice * i.quantity, 0);
 
   const customizationTotal = items.reduce((s, i) => {
-    const placementCost = i.customization.placements.reduce((ps, p) => ps + p.cost, 0);
-    const uploadCost = i.customization.uploadedImage ? i.customization.uploadFee : 0;
+    const placementCost = i.customization.placements.reduce(
+      (ps, p) => ps + p.cost,
+      0
+    );
+    const uploadCost = i.customization.uploadedImage
+      ? i.customization.uploadFee
+      : 0;
     return s + (placementCost + uploadCost) * i.quantity;
   }, 0);
 
@@ -76,7 +91,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, clearCart, totalItems, subtotal, customizationTotal, grandTotal }}
+      value={{
+        items,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        totalItems,
+        subtotal,
+        customizationTotal,
+        grandTotal,
+      }}
     >
       {children}
     </CartContext.Provider>

@@ -1,6 +1,28 @@
+"use client";
+
 import { ChevronDown } from "lucide-react";
 
-const CategoryFilterBar = ({
+interface SortOption {
+  label: string;
+  value: string;
+}
+
+interface CategoryFilterBarProps {
+  subcategories: string[];
+  activeCategory: string;
+  setActiveCategory: (category: string) => void;
+
+  sortOptions: SortOption[];
+  sortBy: string;
+  setSortBy: (value: string) => void;
+
+  sortOpen: boolean;
+  setSortOpen: (open: boolean) => void;
+
+  filteredCount: number;
+}
+
+export default function CategoryFilterBar({
   subcategories,
   activeCategory,
   setActiveCategory,
@@ -10,9 +32,10 @@ const CategoryFilterBar = ({
   sortOpen,
   setSortOpen,
   filteredCount,
-}) => {
+}: CategoryFilterBarProps) {
   return (
     <>
+      {/* Category filters */}
       <div className="flex flex-wrap gap-2 mb-6">
         {subcategories.map((cat) => (
           <button
@@ -29,6 +52,7 @@ const CategoryFilterBar = ({
         ))}
       </div>
 
+      {/* Sort + product count */}
       <div className="flex justify-between items-center">
         <span className="text-sm text-muted-foreground">
           {filteredCount} products
@@ -63,6 +87,4 @@ const CategoryFilterBar = ({
       </div>
     </>
   );
-};
-
-export default CategoryFilterBar;
+}

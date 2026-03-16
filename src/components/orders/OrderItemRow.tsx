@@ -1,4 +1,13 @@
-const OrderItemRow = ({ item }) => {
+// components/orders/OrderItemRow.tsx
+
+import Image from "next/image";
+import type { CartItem } from "@/contexts/CartContext";
+
+interface OrderItemRowProps {
+  item: CartItem;
+}
+
+export default function OrderItemRow({ item }: OrderItemRowProps) {
   const placementCost = item.customization.placements.reduce(
     (s, p) => s + p.cost,
     0
@@ -13,9 +22,11 @@ const OrderItemRow = ({ item }) => {
 
   return (
     <div className="flex gap-4">
-      <img
+      <Image
         src={item.image}
         alt={item.name}
+        width={64}
+        height={64}
         className="w-16 h-16 rounded-lg object-cover"
       />
 
@@ -32,6 +43,4 @@ const OrderItemRow = ({ item }) => {
       </div>
     </div>
   );
-};
-
-export default OrderItemRow;
+}
