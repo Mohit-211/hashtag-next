@@ -2,13 +2,9 @@ import type { Metadata } from "next";
 
 import { Inter, Space_Grotesk } from "next/font/google";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster as Sonner } from "sonner";
+import Providers from "./providers";
 
-import { CartProvider } from "@/contexts/CartContext";
-import { SavedItemsProvider } from "@/contexts/SavedItemsContext";
-import { OrdersProvider } from "@/contexts/OrdersContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { Toaster as Sonner } from "sonner";
 
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -28,9 +24,64 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "HashtagBillionaire",
+  metadataBase: new URL("https://hashtagbillionaire.com"),
+
+  title: {
+    default: "HashtagBillionaire",
+    template: "%s | HashtagBillionaire",
+  },
+
   description:
     "A platform for identity, customization, and self-expression through personalized products.",
+
+  keywords: [
+    "custom apparel",
+    "personalized products",
+    "custom t-shirts",
+    "streetwear",
+    "custom merchandise",
+    "custom fashion",
+  ],
+
+  authors: [{ name: "HashtagBillionaire" }],
+
+  creator: "HashtagBillionaire",
+  publisher: "HashtagBillionaire",
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+
+  icons: {
+    icon: "/favicon.png",
+  },
+
+  openGraph: {
+    title: "HashtagBillionaire",
+    description:
+      "Express your identity through customizable apparel and lifestyle products.",
+    url: "https://hashtagbillionaire.com",
+    siteName: "HashtagBillionaire",
+    images: [
+      {
+        url: "/assets/hero-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "HashtagBillionaire",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "HashtagBillionaire",
+    description:
+      "Express your identity through customizable apparel and lifestyle products.",
+    images: ["/assets/hero-image.jpg"],
+  },
 };
 
 export default function RootLayout({
@@ -40,24 +91,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${spaceGrotesk.variable}`}>
-        <TooltipProvider>
-          <AuthProvider>
-            <CartProvider>
-              <SavedItemsProvider>
-                <OrdersProvider>
-                  <Header />
+      <body
+        className={`${inter.variable} ${spaceGrotesk.variable}`}
+        suppressHydrationWarning
+      >
+        <Providers>
+          <Header />
 
-                  {children}
+          {children}
 
-                  <Footer />
+          <Footer />
 
-                  <Sonner position="top-right" richColors />
-                </OrdersProvider>
-              </SavedItemsProvider>
-            </CartProvider>
-          </AuthProvider>
-        </TooltipProvider>
+          <Sonner position="top-right" richColors />
+        </Providers>
       </body>
     </html>
   );

@@ -1,17 +1,22 @@
-// components/layout/Footer.tsx
-
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="bg-secondary border-t border-border">
+    <footer className="bg-secondary-50 border-t border-border">
       <div className="container py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="space-y-3">
-            <h3 className="text-lg font-heading font-bold text-foreground">
-              Hashtag<span className="text-primary">Billionaire</span>
-            </h3>
+            <Link href="/" className="inline-block">
+              <Image
+                src="/logo_footer.png"
+                alt="HashtagBillionaire"
+                width={180}
+                height={40}
+                className="h-24 w-auto"
+              />
+            </Link>
 
             <p className="text-sm text-muted-foreground leading-relaxed">
               Build your identity.
@@ -94,7 +99,8 @@ export default function Footer() {
 
         <div className="mt-10 pt-6 border-t border-border">
           <p className="text-xs text-muted-foreground text-center">
-            © 2026 HashtagBillionaire. All rights reserved.
+            © {new Date().getFullYear()} HashtagBillionaire. All rights
+            reserved.
           </p>
         </div>
       </div>

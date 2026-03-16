@@ -1,9 +1,8 @@
-// components/layout/Header.tsx
-
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Search, ShoppingBag, User, Menu, X, Heart } from "lucide-react";
 
@@ -30,10 +29,15 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
       <div className="container flex h-16 items-center justify-between gap-4">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xl font-heading font-bold tracking-tight text-foreground">
-            Hashtag<span className="text-primary">Billionaire</span>
-          </span>
+        <Link href="/" className="flex items-center shrink-0">
+          <Image
+            src="/logo_header.png"
+            alt="HashtagBillionaire"
+            width={180}
+            height={40}
+            priority
+            className="h-12 w-auto"
+          />
         </Link>
 
         {/* Desktop Nav */}
