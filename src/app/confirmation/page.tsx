@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+// import { useSearchParams } from "next/navigation";
 
 import ConfirmationHeader from "@/components/confirmation/ConfirmationHeader";
 import OrderInfoCard from "@/components/confirmation/OrderInfoCard";
@@ -26,10 +26,10 @@ interface OrderState {
 }
 
 export default function Confirmation() {
-  const searchParams = useSearchParams();
+  // const searchParams = useSearchParams();
 
-  const orderId = searchParams.get("orderId") || "HB00000001";
-
+  // const orderId = searchParams.get("orderId") || "HB00000001";
+const orderId="HB00000001"
   const [order] = useState<OrderState | null>(null);
 
   const orderDate = new Date().toLocaleDateString("en-IN", {

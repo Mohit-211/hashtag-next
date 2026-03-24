@@ -34,7 +34,7 @@ export default function Cart() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          <CartItemsList items={items} />
+          {/* <CartItemsList items={items} /> */}
 
           <CartSummary
             subtotal={subtotal}
