@@ -1,14 +1,12 @@
-// components/login/RegisterForm.tsx
-
 "use client";
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
-
 import PasswordInput from "./PasswordInput";
+
+import { registerApi } from "./../../api/auth/auth.api"; // ✅ import your API
 
 interface RegisterFormProps {
   switchToLogin: () => void;
@@ -18,29 +16,65 @@ const inputClass =
   "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
 
 export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
-  const { register } = useAuth();
   const router = useRouter();
 
-  const [name, setName] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-  const [phone, setPhone] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [confirm, setConfirm] = useState<string>("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
 
-  const handleRegister = (e: FormEvent<HTMLFormElement>) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleRegister = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const result = register(name, email, phone, password);
+    // ✅ basic validation
+    if (!name || !email || !phone || !password || !confirm) {
+      setError("All fields are required");
+      return;
+    }
 
-    if (result.success) {
-      router.push("/");
+    if (password !== confirm) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const payload = {
+        name,
+        email,
+        phone,
+        password,
+      };
+
+      const res = await registerApi(payload);
+
+      // ✅ handle success (depends on your API structure)
+      if (res?.data?.success) {
+        router.push("/"); // or "/login"
+      } else {
+        setError(res?.data?.message || "Registration failed");
+      }
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message || "Something went wrong. Try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <>
       <div className="text-center space-y-1">
-        <h1 className="text-xl font-heading font-bold">Create Your Account</h1>
+        <h1 className="text-xl font-heading font-bold">
+          Create Your Account
+        </h1>
       </div>
 
       <form onSubmit={handleRegister} className="space-y-4">
@@ -79,8 +113,19 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
           placeholder="Confirm Password"
         />
 
-        <Button type="submit" variant="hero" size="lg" className="w-full">
-          Create Account
+        {/* ✅ Error Message */}
+        {error && (
+          <p className="text-sm text-red-500 text-center">{error}</p>
+        )}
+
+        <Button
+          type="submit"
+          variant="hero"
+          size="lg"
+          className="w-full"
+          disabled={loading}
+        >
+          {loading ? "Creating..." : "Create Account"}
         </Button>
       </form>
 

@@ -1,5 +1,3 @@
-// components/login/LoginForm.tsx
-
 "use client";
 
 import { useState, FormEvent } from "react";
@@ -7,10 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAuth } from "@/contexts/AuthContext";
 
 import PasswordInput from "./PasswordInput";
 import DemoCredentials from "./DemoCredentials";
+
+import { loginApi } from "@/api/auth/auth.api"; // ✅ import API
 
 interface LoginFormProps {
   switchToRegister: () => void;
@@ -20,23 +19,55 @@ const inputClass =
   "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
 
 export default function LoginForm({ switchToRegister }: LoginFormProps) {
-  const { login } = useAuth();
   const router = useRouter();
 
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [remember, setRemember] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
 
-  const handleLogin = (e: FormEvent<HTMLFormElement>) => {
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const result = login(email.trim(), password);
+    if (!email || !password) {
+      setError("Email and password are required");
+      return;
+    }
 
-    if (result.success) {
-      router.push("/");
-    } else {
-      setError(result.error || "Login failed");
+    try {
+      setLoading(true);
+      setError("");
+
+      const payload = {
+        email: email.trim(),
+        password,
+      };
+
+      const res = await loginApi(payload);
+
+      // ✅ adjust based on your API response
+      if (res?.data?.success) {
+        const token = res?.data?.data?.token;
+
+        // ✅ store token
+        if (remember) {
+          localStorage.setItem("hastagBillionaire", token);
+        } else {
+          sessionStorage.setItem("hastagBillionaire", token);
+        }
+
+        router.push("/");
+      } else {
+        setError(res?.data?.message || "Login failed");
+      }
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message || "Something went wrong. Try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,10 +112,16 @@ export default function LoginForm({ switchToRegister }: LoginFormProps) {
           </button>
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <Button type="submit" variant="hero" size="lg" className="w-full">
-          Login
+        <Button
+          type="submit"
+          variant="hero"
+          size="lg"
+          className="w-full"
+          disabled={loading}
+        >
+          {loading ? "Logging in..." : "Login"}
         </Button>
       </form>
 

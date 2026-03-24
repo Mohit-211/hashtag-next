@@ -19,15 +19,15 @@ export default function Account() {
 
   const [active, setActive] = useState<Section>("profile");
 
-  if (!isAuthenticated) {
-    return (
-      <section className="py-10 lg:py-16">
-        <div className="container">
-          <LoginRequired onLogin={() => router.push("/login")} />
-        </div>
-      </section>
-    );
-  }
+  // if (!isAuthenticated) {
+  //   return (
+  //     <section className="py-10 lg:py-16">
+  //       <div className="container">
+  //         <LoginRequired onLogin={() => router.push("/login")} />
+  //       </div>
+  //     </section>
+  //   );
+  // }
 
   const handleNav = (key: Section) => {
     if (key === "orders") {
