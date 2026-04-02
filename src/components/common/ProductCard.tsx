@@ -23,12 +23,14 @@ export default function ProductCard({
   customizable,
 }: ProductCardProps) {
   const [liked, setLiked] = useState(false);
-
   return (
     <div className="group relative bg-card rounded-lg overflow-hidden border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
       {/* Image */}
       <div className="relative aspect-square overflow-hidden bg-secondary">
         <Image
+          unoptimized={process.env.NODE_ENV === "development"}
+          crossOrigin="anonymous"
+          // src="https://node.hashtagbillionaire.com/images/images-1775045577566.jpg"
           src={image}
           alt={name}
           fill
@@ -44,11 +46,10 @@ export default function ProductCard({
 
         <button
           onClick={() => setLiked(!liked)}
-          className={`absolute top-3 right-3 h-8 w-8 rounded-full flex items-center justify-center transition-all ${
-            liked
+          className={`absolute top-3 right-3 h-8 w-8 rounded-full flex items-center justify-center transition-all ${liked
               ? "bg-primary text-primary-foreground"
               : "bg-background/80 text-foreground hover:bg-background"
-          }`}
+            }`}
         >
           <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
         </button>

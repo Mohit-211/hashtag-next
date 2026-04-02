@@ -11,3 +11,9 @@ export const AUTH_ENDPOINTS = {
 export const USER_ENDPOINTS = {
   PROFILE: "user/profile",
 };
+export const PRODUCT_ENDPOINTS = {
+  PRODUCT: "product",
+  PRODUCT_DETAIL: (id: string) => `product/${id}`,
+  PRODUCT_CATEGORY: "product/category",
+  PRODUCT_VARIANT: "product/get-variant",
+};

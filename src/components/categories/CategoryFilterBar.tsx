@@ -8,9 +8,9 @@ interface SortOption {
 }
 
 interface CategoryFilterBarProps {
-  subcategories: string[];
-  activeCategory: string;
-  setActiveCategory: (category: string) => void;
+  subcategories: any[];
+  activeCategory: any;
+  setActiveCategory: (category: any) => void;
 
   sortOptions: SortOption[];
   sortBy: string;
@@ -35,24 +35,26 @@ export default function CategoryFilterBar({
 }: CategoryFilterBarProps) {
   return (
     <>
-      {/* Category filters */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {subcategories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
-              activeCategory === cat
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary"
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+        {subcategories.map((cat, index) => {
+          const name = cat?.name;
+
+          return (
+            <button
+              key={`${name}-${index}`}
+              onClick={() => setActiveCategory(cat)} // ✅ FIX
+              className={`px-4 py-2 rounded-lg text-sm ${
+                activeCategory?.name === name
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary"
+              }`}
+            >
+              {name}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Sort + product count */}
       <div className="flex justify-between items-center">
         <span className="text-sm text-muted-foreground">
           {filteredCount} products
@@ -69,9 +71,9 @@ export default function CategoryFilterBar({
 
           {sortOpen && (
             <div className="absolute right-0 mt-2 w-52 bg-card border rounded-lg shadow">
-              {sortOptions.map((opt) => (
+              {sortOptions.map((opt, index) => (
                 <button
-                  key={opt.value}
+                  key={`${opt.value}-${index}`}
                   onClick={() => {
                     setSortBy(opt.value);
                     setSortOpen(false);

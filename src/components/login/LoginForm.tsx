@@ -9,14 +9,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import PasswordInput from "./PasswordInput";
 import DemoCredentials from "./DemoCredentials";
 
-import { loginApi } from "@/api/auth/auth.api"; // ✅ import API
+import { loginApi } from "@/api/auth/auth.api";
 
+// ✅ Sonner toast
+import { toast } from "sonner";
 interface LoginFormProps {
   switchToRegister: () => void;
 }
 
 const inputClass =
-  "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
+"w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
+
+// Message returned by API when user hasn't verified OTP
+const UNVERIFIED_MESSAGE = "User is not verified yet.Please verify Your Otp First";
 
 export default function LoginForm({ switchToRegister }: LoginFormProps) {
   const router = useRouter();
@@ -25,20 +30,18 @@ export default function LoginForm({ switchToRegister }: LoginFormProps) {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
 
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!email || !password) {
-      setError("Email and password are required");
+      toast.error("Email and password are required ⚠️");
       return;
     }
 
     try {
       setLoading(true);
-      setError("");
 
       const payload = {
         email: email.trim(),
@@ -47,25 +50,57 @@ export default function LoginForm({ switchToRegister }: LoginFormProps) {
 
       const res = await loginApi(payload);
 
-      // ✅ adjust based on your API response
       if (res?.data?.success) {
         const token = res?.data?.data?.token;
 
-        // ✅ store token
+        // ✅ Store token
         if (remember) {
           localStorage.setItem("hastagBillionaire", token);
         } else {
           sessionStorage.setItem("hastagBillionaire", token);
         }
 
-        router.push("/");
+        toast.success("Login successful 🎉");
+
+        setTimeout(() => {
+          router.push("/");
+        }, 1000);
       } else {
-        setError(res?.data?.message || "Login failed");
+        const message: string = res?.data?.message || "";
+
+        // 🔐 Unverified user → redirect to OTP page
+        if (message.toLowerCase().includes("not verified")) {
+          toast.warning("Please verify your email first 📧");
+
+          setTimeout(() => {
+            router.push(
+              `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`
+            );
+          }, 1000);
+
+          return;
+        }
+
+        toast.error(message || "Login failed ❌");
       }
     } catch (err: any) {
-      setError(
-        err?.response?.data?.message || "Something went wrong. Try again."
-      );
+      const errMessage: string =
+        err?.response?.data?.message || "Something went wrong. Try again ❌";
+
+      // 🔐 Also handle it from catch (some APIs throw 4xx for unverified)
+      if (errMessage.toLowerCase().includes("not verified")) {
+        toast.warning("Please verify your email first 📧");
+
+        setTimeout(() => {
+          router.push(
+            `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`
+          );
+        }, 1000);
+
+        return;
+      }
+
+      toast.error(errMessage);
     } finally {
       setLoading(false);
     }
@@ -104,15 +139,14 @@ export default function LoginForm({ switchToRegister }: LoginFormProps) {
             <span className="text-sm text-muted-foreground">Remember me</span>
           </label>
 
-          <button
-            type="button"
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Forgot Password?
-          </button>
+       <button
+  type="button"
+  onClick={() => router.push("/send-otp")}
+  className="text-sm text-muted-foreground hover:underline"
+>
+  Forgot Password?
+</button>
         </div>
-
-        {error && <p className="text-sm text-red-500">{error}</p>}
 
         <Button
           type="submit"

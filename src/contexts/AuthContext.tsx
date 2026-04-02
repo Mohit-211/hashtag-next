@@ -11,7 +11,7 @@ import {
 export interface User {
   name: string;
   email: string;
-  phone?: string;
+  mobile?: string;
 }
 
 interface AuthContextType {
@@ -24,7 +24,7 @@ interface AuthContextType {
   register: (
     name: string,
     email: string,
-    phone: string,
+    mobile: string,
     password: string
   ) => { success: boolean; error?: string };
   logout: () => void;
@@ -35,7 +35,7 @@ const DEMO_PASSWORD = "demo123";
 const DEMO_USER: User = {
   name: "Demo User",
   email: DEMO_EMAIL,
-  phone: "9876543210",
+  mobile: "9876543210",
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser({
           name: parsed.name,
           email: parsed.email,
-          phone: parsed.phone,
+          mobile: parsed.mobile,
         });
         return { success: true };
       }
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const register = useCallback(
-    (name: string, email: string, phone: string, password: string) => {
+    (name: string, email: string, mobile: string, password: string) => {
       if (email.toLowerCase() === DEMO_EMAIL) {
         return {
           success: false,
@@ -91,9 +91,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       sessionStorage.setItem(
         `user_${email.toLowerCase()}`,
-        JSON.stringify({ name, email, phone, password })
+        JSON.stringify({ name, email, mobile, password })
       );
-      setUser({ name, email, phone });
+      setUser({ name, email, mobile });
       return { success: true };
     },
     []

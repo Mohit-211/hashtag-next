@@ -9,7 +9,7 @@ import { inputClass } from "@/data/constants";
 interface User {
   name?: string;
   email?: string;
-  phone?: string;
+  mobile?: string;
 }
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 
 export default function ProfileSection({ user }: Props) {
   const [name, setName] = useState(user?.name ?? "");
-  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [mobile, setMobile] = useState(user?.mobile ?? "");
   const [saved, setSaved] = useState(false);
 
   const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
@@ -50,8 +50,8 @@ export default function ProfileSection({ user }: Props) {
         />
 
         <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          value={mobile}
+          onChange={(e) => setMobile(e.target.value)}
           className={inputClass}
           placeholder="Phone Number"
         />

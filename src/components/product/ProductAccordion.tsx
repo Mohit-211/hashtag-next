@@ -7,7 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export default function ProductAccordion() {
+export default function ProductAccordion({ description }: { description?: string }) {
   return (
     <div className="mt-16 max-w-3xl">
       <Accordion type="single" collapsible defaultValue="description">
@@ -18,11 +18,7 @@ export default function ProductAccordion() {
 
           <AccordionContent>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              The Classic Custom Tee is made from 100% premium combed cotton
-              with a fabric weight of 180 GSM, ensuring a soft feel and lasting
-              durability. The relaxed-fit silhouette is designed for everyday
-              comfort while maintaining a clean, modern aesthetic. Pre-shrunk
-              and double-stitched at all seams for longevity.
+            {description}
             </p>
           </AccordionContent>
         </AccordionItem>

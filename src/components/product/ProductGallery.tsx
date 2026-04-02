@@ -1,33 +1,43 @@
-// components/product/ProductGallery.tsx
-
 "use client";
 
 import { useState } from "react";
 import Image from "next/image";
 
-const gallery = [
-  "/assets/product-detail-main.jpg",
-  "/assets/product-detail-back.jpg",
-  "/assets/product-detail-closeup.jpg",
-];
+interface Props {
+  attachments?: any[];
+}
 
-export default function ProductGallery() {
-  const [active, setActive] = useState<number>(0);
+export default function ProductGallery({ attachments = [] }: Props) {
+  const [active, setActive] = useState(0);
+
+  // ✅ Simple mapping
+  const images =
+    attachments.length > 0
+      ? attachments.map((item: any) =>
+          typeof item === "string"
+            ? item
+            : `https://node.hashtagbillionaire.com/images/${item?.file_name}`
+        )
+      : ["/assets/placeholder.jpg"];
 
   return (
     <div className="space-y-4">
+      {/* Main Image */}
       <div className="aspect-square rounded-xl overflow-hidden bg-secondary border">
         <Image
-          src={gallery[active]}
-          alt="Product image"
+          src={images[active]}
+             unoptimized={process.env.NODE_ENV === "development"}
+          crossOrigin="anonymous"
+          alt="Product"
           width={800}
           height={800}
           className="w-full h-full object-cover"
         />
       </div>
 
+      {/* Thumbnails */}
       <div className="flex gap-3">
-        {gallery.map((img, i) => (
+        {images.map((img, i) => (
           <button
             key={i}
             onClick={() => setActive(i)}
@@ -37,7 +47,9 @@ export default function ProductGallery() {
           >
             <Image
               src={img}
-              alt={`Product thumbnail ${i + 1}`}
+               unoptimized={process.env.NODE_ENV === "development"}
+          crossOrigin="anonymous"
+              alt={`thumb-${i}`}
               width={80}
               height={80}
               className="w-full h-full object-cover"
