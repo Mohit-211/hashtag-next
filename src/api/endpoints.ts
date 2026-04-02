@@ -14,6 +14,6 @@ export const USER_ENDPOINTS = {
 export const PRODUCT_ENDPOINTS = {
   PRODUCT: "product",
   PRODUCT_DETAIL: (id: string) => `product/${id}`,
-  PRODUCT_CATEGORY: "product/category",
+  PRODUCT_CATEGORY: "product-category",
   PRODUCT_VARIANT: "product/get-variant",
 };
