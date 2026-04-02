@@ -114,7 +114,7 @@ export default function VerifyOtpClient() {
     try {
       setResendLoading(true);
 
-      const res = await sendOtpApi(email);
+      const res = await sendOtpApi({email, type});
 
       if (res?.data?.success || res?.data?.status) {
         toast.success(res.data.message || "OTP sent successfully 📧");

@@ -11,6 +11,7 @@ interface VariantImage {
 }
 
 interface Variant {
+  is_active: boolean;
   id: number;
   sku: string;
   color: string;
