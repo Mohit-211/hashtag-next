@@ -13,11 +13,14 @@ type Customization = {
   uploadFee?: number;
 };
 
+// ✅ Keep flexible input type
 export type CartItemType = {
   id: string | number;
+  cart_id: string | number;
   name: string;
   image?: string;
   basePrice: number;
+  price: number;
   quantity: number;
   customization?: Customization;
 };
@@ -27,7 +30,6 @@ interface Props {
 }
 
 export default function CartItemsList({ items }: Props) {
-  // ✅ Safety check
   if (!items || items.length === 0) {
     return (
       <div className="lg:col-span-2 text-center py-10 text-muted-foreground">
@@ -40,10 +42,16 @@ export default function CartItemsList({ items }: Props) {
     <div className="lg:col-span-2 space-y-4">
       {items.map((item, index) => (
         <CartItem
-          key={item.id ?? index}
+          key={String(item.cart_id ?? index)} // ✅ FIX
           item={{
             ...item,
+
+            // ✅ FIX: force string
+            id: String(item.id),
+            cart_id: String(item.cart_id),
+
             image: item.image || "/placeholder.png",
+
             customization: item.customization || {
               placements: [],
               uploadFee: 0,

@@ -14,6 +14,7 @@ import {
   RemoveFromCartApi,
 } from "@/api/operations/cart.api";
 
+// ✅ Types
 type Placement = {
   id: string;
   label: string;
@@ -27,15 +28,16 @@ type Customization = {
   uploadFee?: number;
 };
 
-type CartItemType = {
-  id: string | number;        // UI / product reference
-  cart_id: string | number;   // ✅ API reference
+export type CartItemType = {
+ id: string;        // ✅ force string
+  cart_id: string;    // cart id (API)
   name: string;
   image?: string;
   basePrice: number;
   price: number;
   quantity: number;
   customization?: Customization;
+  
 };
 
 interface Props {
@@ -47,16 +49,17 @@ export default function CartItem({ item }: Props) {
   const [loading, setLoading] = useState(false);
 
   // ✅ Safe defaults
-  const placements = item.customization?.placements || [];
+  const placements: Placement[] = item.customization?.placements ?? [];
 
   const placementCost = placements.reduce(
-    (sum, p) => sum + (p?.cost || 0),
+    (sum, p) => sum + (p?.cost ?? 0),
     0
   );
 
-  const uploadCost = item.customization?.uploadedImage
-    ? item.customization?.uploadFee ?? 0
-    : 0;
+  const uploadCost =
+    item.customization?.uploadedImage
+      ? item.customization?.uploadFee ?? 0
+      : 0;
 
   const unitCustomization = placementCost + uploadCost;
 
@@ -90,7 +93,6 @@ export default function CartItem({ item }: Props) {
       await IncrementCartItemApi({
         cart_id: item.cart_id,
       });
-      console.log("hello")
 
       updateQuantity(item.id, item.quantity + 1);
     } catch (err) {
@@ -138,7 +140,7 @@ export default function CartItem({ item }: Props) {
               </h3>
 
               <p className="text-sm text-muted-foreground mt-0.5">
-                Base: ${item.basePrice}
+                Base: ${item.basePrice.toFixed(2)}
               </p>
             </div>
 
@@ -159,7 +161,7 @@ export default function CartItem({ item }: Props) {
           ...item,
           customization: {
             placements,
-            uploadFee: item.customization?.uploadFee || 0,
+            uploadFee: item.customization?.uploadFee ?? 0,
             uploadedImage: item.customization?.uploadedImage,
           },
         }}

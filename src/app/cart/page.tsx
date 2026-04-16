@@ -7,9 +7,9 @@ import CartItemsList from "@/components/cart/CartItemsList";
 import CartSummary from "@/components/cart/CartSummary";
 import { GetAllCartItemsApi } from "@/api/operations/cart.api";
 
-
-interface CartItem {
-  id: number;
+// ✅ API response type
+interface ApiCartItem {
+  id: number; // cart_id
   product_id: number;
   name: string;
   price: number;
@@ -18,8 +18,24 @@ interface CartItem {
   image?: string;
 }
 
+// ✅ UI type (used in CartItem component)
+type CartItemType = {
+  id: number;
+  cart_id: number;
+  name: string;
+  image?: string;
+  basePrice: number;
+  price: number;
+  quantity: number;
+  customization?: {
+    placements?: any[];
+    uploadFee?: number;
+    uploadedImage?: string;
+  };
+};
+
 export default function Cart() {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItemType[]>([]);
   const [loading, setLoading] = useState(true);
 
   // ✅ Fetch cart items from API
@@ -29,7 +45,25 @@ export default function Cart() {
         const res = await GetAllCartItemsApi();
         const data = res?.data?.data || res?.data;
 
-        setItems(data || []);
+        // 🔥 Transform API → UI format
+        const formattedItems: CartItemType[] = (data || []).map(
+          (item: ApiCartItem) => ({
+            id: item.product_id,       // UI usage
+            cart_id: item.id,          // API usage
+            name: item.name,
+            image: item.image,
+            basePrice: item.price,     // ✅ FIXED
+            price: item.price,
+            quantity: item.quantity,
+            customization: {
+              placements: [],
+              uploadFee: item.customization_price || 0,
+              uploadedImage: undefined,
+            },
+          })
+        );
+
+        setItems(formattedItems);
       } catch (error) {
         console.error("Error fetching cart:", error);
       } finally {
@@ -42,13 +76,13 @@ export default function Cart() {
 
   // ✅ Calculations
   const subtotal = items.reduce(
-    (acc, item) => acc + item.price * item.quantity,
+    (acc, item) => acc + item.basePrice * item.quantity,
     0
   );
 
   const customizationTotal = items.reduce(
     (acc, item) =>
-      acc + (item.customization_price || 0) * item.quantity,
+      acc + (item.customization?.uploadFee || 0) * item.quantity,
     0
   );
 
@@ -91,7 +125,7 @@ export default function Cart() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* ✅ Show items */}
+          {/* ✅ Items List */}
           <CartItemsList items={items} />
 
           {/* ✅ Summary */}
