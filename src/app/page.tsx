@@ -8,25 +8,43 @@ import FinalCTA from "@/components/home/FinalCTA";
 
 const products = [
   {
+    id: "1",
     image: "/assets/product-tshirt.jpg",
     name: "Classic Custom Tee",
     price: 799,
     badge: "POPULAR",
   },
-  { image: "/assets/product-hoodie.jpg", name: "Premium Hoodie", price: 1899 },
   {
+    id: "2",
+    image: "/assets/product-hoodie.jpg",
+    name: "Premium Hoodie",
+    price: 1899,
+  },
+  {
+    id: "3",
     image: "/assets/product-cap.jpg",
     name: "Statement Cap",
     price: 599,
     badge: "NEW",
   },
-  { image: "/assets/product-mug.jpg", name: "Custom Ceramic Mug", price: 449 },
   {
+    id: "4",
+    image: "/assets/product-mug.jpg",
+    name: "Custom Ceramic Mug",
+    price: 449,
+  },
+  {
+    id: "5",
     image: "/assets/product-phonecase.jpg",
     name: "Matte Phone Case",
     price: 699,
   },
-  { image: "/assets/product-tote2.jpg", name: "Canvas Tote Bag", price: 549 },
+  {
+    id: "6",
+    image: "/assets/product-tote2.jpg",
+    name: "Canvas Tote Bag",
+    price: 549,
+  },
 ];
 
 const categories = [
