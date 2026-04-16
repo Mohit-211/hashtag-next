@@ -6,6 +6,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import DOMPurify from "dompurify";
 
 export default function ProductAccordion({ description }: { description?: string }) {
   return (
@@ -17,9 +18,14 @@ export default function ProductAccordion({ description }: { description?: string
           </AccordionTrigger>
 
           <AccordionContent>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-            {description}
-            </p>
+         <p
+  className="text-sm text-muted-foreground leading-relaxed"
+  dangerouslySetInnerHTML={{
+    __html: DOMPurify.sanitize(
+      description || "No description available"
+    ),
+  }}
+/>
           </AccordionContent>
         </AccordionItem>
 

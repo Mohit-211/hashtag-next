@@ -17,3 +17,17 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT_CATEGORY: "product-category",
   PRODUCT_VARIANT: "product/get-variant",
 };
+export const CART_ENDPOINTS = {
+  CART: "cart",
+
+  ADD_TO_CART: "product/cart",
+  GET_ALL: "product/cart/get",
+
+  INCREMENT: "product/cart/increment",
+  DECREMENT: "product/cart/decrement",
+
+  UPDATE_QUANTITY: "product/cart/update",
+  REMOVE_FROM_CART: "product/cart/remove",
+
+  MOVE_TO_WISHLIST: "product/cart/move-to-wishlist",
+};

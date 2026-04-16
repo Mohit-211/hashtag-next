@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import ProductCard from "@/components/common/ProductCard";
 import { AllProductsApi } from "@/api/operations/product.api";
 
 interface Product {
+  attachments: any;
   id: any;
   _id: string;
   name: string;
@@ -31,11 +31,10 @@ export default function RelatedProducts({
 
         const params = {
           category_id: category_id,
-          limit: 8, // optional
+          limit: 8,
         };
 
         const res = await AllProductsApi(params);
-        // ✅ adjust based on your API response structure
         const data = res?.data?.data || [];
 
         setProducts(data);
@@ -48,7 +47,6 @@ export default function RelatedProducts({
 
     fetchProducts();
   }, [category_id]);
-  const BASE_IMAGE_URL = process.env.NEXT_PUBLIC_IMAGE_URL;
 
   return (
     <div className="mt-20">
@@ -63,16 +61,14 @@ export default function RelatedProducts({
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {products.map((product) => (
-
-            <Link key={product.id} href={`/product/${product.id}`}>
-              <ProductCard
-                image={`${BASE_IMAGE_URL}${(product as any)?.attachments?.[0]?.file_name}`}
-
-                name={product.name}
-                price={product.price}
-                customizable={product.customizable ?? true}
-              />
-            </Link>
+            <ProductCard
+              key={product.id}
+              image={product.attachments?.[0]?.file_uri}
+              name={product.name}
+              price={product.price}
+              customizable={product.customizable ?? true}
+              productId={Number(product.id)}
+            />
           ))}
         </div>
       )}

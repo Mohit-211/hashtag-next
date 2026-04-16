@@ -16,7 +16,7 @@ export default function ProductGallery({ attachments = [] }: Props) {
       ? attachments.map((item: any) =>
           typeof item === "string"
             ? item
-            : `https://node.hashtagbillionaire.com/images/${item?.file_name}`
+            : `${item?.file_uri}`
         )
       : ["/assets/placeholder.jpg"];
 

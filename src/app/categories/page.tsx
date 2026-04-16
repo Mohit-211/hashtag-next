@@ -120,7 +120,7 @@ export default function Categories() {
       </p>
     );
   }
-
+console.log(paginated,"paginated")
   return (
     <>
       <CategoryHeader category={activeCategory.name} />

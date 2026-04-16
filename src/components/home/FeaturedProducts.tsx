@@ -5,6 +5,7 @@ import ProductCard from "@/components/common/ProductCard";
 import { Button } from "@/components/ui/button";
 
 type Product = {
+  id: string | number;
   image: string;
   name: string;
   price: number;
@@ -19,6 +20,7 @@ export default function FeaturedProducts({ products }: Props) {
   return (
     <section className="py-20 lg:py-28 bg-secondary">
       <div className="container">
+
         {/* Header */}
         <div className="max-w-2xl mb-10">
           <p className="text-xs font-bold tracking-widest text-muted-foreground uppercase mb-3">
@@ -32,17 +34,18 @@ export default function FeaturedProducts({ products }: Props) {
           <p className="text-base text-muted-foreground leading-relaxed">
             These are some of the most loved and frequently customized products
             chosen by our customers for their versatility and personal
-            expression. From everyday essentials to statement pieces, each one
-            is designed to be a canvas for your creativity.
+            expression.
           </p>
         </div>
 
-        {/* Products Grid */}
+        {/* ✅ Products Grid (FIXED) */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
           {products.map((p) => (
-            <Link key={p.name} href="/product">
-              <ProductCard {...p} />
-            </Link>
+            <ProductCard
+              key={p.id}
+              {...p}
+              productId={Number(p.id)}
+            />
           ))}
         </div>
 
@@ -55,6 +58,7 @@ export default function FeaturedProducts({ products }: Props) {
             </Button>
           </Link>
         </div>
+
       </div>
     </section>
   );

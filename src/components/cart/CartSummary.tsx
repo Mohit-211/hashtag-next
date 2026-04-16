@@ -12,8 +12,9 @@ export default function CartSummary({
   customizationTotal,
   grandTotal,
 }: Props) {
+  // ✅ Shipping logic
   const shipping = grandTotal >= 999 ? 0 : 99;
-  const finalTotal = grandTotal + shipping;
+  const finalTotal = grandTotal 
 
   return (
     <div className="lg:col-span-1">
@@ -23,26 +24,26 @@ export default function CartSummary({
         <div className="space-y-2">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Subtotal</span>
-            <span>${subtotal}</span>
+            <span>₹{subtotal}</span>
           </div>
 
           {customizationTotal > 0 && (
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Customization</span>
-              <span>+${customizationTotal}</span>
+              <span>+₹{customizationTotal}</span>
             </div>
           )}
 
-          <div className="flex justify-between text-sm text-muted-foreground">
+          {/* <div className="flex justify-between text-sm text-muted-foreground">
             <span>Shipping</span>
-            <span>{shipping === 0 ? "Free" : `$${shipping}`}</span>
+            <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
           </div>
 
           {shipping > 0 && (
             <p className="text-xs text-muted-foreground">
-              Free shipping above $999
+              Free shipping above ₹999
             </p>
-          )}
+          )} */}
         </div>
 
         <div className="border-t border-border pt-3 flex justify-between font-heading font-bold">

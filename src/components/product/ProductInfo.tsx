@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { Star, Loader2 } from "lucide-react";
+import DOMPurify from "dompurify";
+
 
 interface VariantImage {
   id: number;
@@ -106,12 +108,16 @@ export default function ProductInfo({
       </div>
 
       {/* 📄 Description */}
-      <p className="mt-4 text-muted-foreground">
-        {description || "No description available"}
-      </p>
-
+      <p
+  className="mt-4 text-muted-foreground"
+  dangerouslySetInnerHTML={{
+    __html: DOMPurify.sanitize(
+      description || "No description available"
+    ),
+  }}
+/>
       {/* 💰 Price — updates from variant */}
-      <p className="text-2xl font-bold mt-4">₹{price}</p>
+      <p className="text-2xl font-bold mt-4">${price}</p>
 
       {/* ✅ SKU */}
       {variantSku && (

@@ -7,7 +7,7 @@ import ProductInfo from "@/components/product/ProductInfo";
 import ProductCustomization from "@/components/product/ProductCustomization";
 import ProductAccordion from "@/components/product/ProductAccordion";
 import RelatedProducts from "@/components/product/RelatedProducts";
-import { ProductDetailApi, ProductVariantApi } from "@/api/operations/product.api";
+import { ProductDetailApi } from "@/api/operations/product.api";
 
 interface Size {
   id: number;
@@ -51,22 +51,6 @@ interface Product {
   variants: Variant[];
 }
 
-interface VariantData {
-  id: number;
-  price: string;
-  stock: number;
-  sku: string;
-  color: string;
-  color_code: string;
-  size: string;
-  size_id: number;
-  min_order_quantity: number;
-  max_order_quantity: number | null;
-  images: VariantImage[];
-  size_details: Size;
-  [key: string]: any;
-}
-
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ProductDetail({ id }: { id: string }) {
@@ -75,16 +59,17 @@ export default function ProductDetail({ id }: { id: string }) {
 
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
-  const [variantData, setVariantData] = useState<VariantData | null>(null);
-  const [variantLoading, setVariantLoading] = useState(false);
+  const [variantData, setVariantData] = useState<Variant | null>(null);
 
-  // Fetch base product
+  // ✅ Fetch product
   useEffect(() => {
     if (!id) return;
+
     const fetchProduct = async () => {
       try {
         const res = await ProductDetailApi(id);
         const data = res?.data?.data || res?.data;
+
         setProduct(data);
       } catch (error) {
         console.error("Error fetching product:", error);
@@ -92,58 +77,61 @@ export default function ProductDetail({ id }: { id: string }) {
         setLoading(false);
       }
     };
+
     fetchProduct();
   }, [id]);
 
-  // Fetch variant when BOTH color and size are selected
+  // ✅ Set default variant (first one)
   useEffect(() => {
-    if (!selectedColor || !id) return;
+    if (!product || !product.variants?.length) return;
 
-    const fetchVariant = async () => {
-      setVariantLoading(true);
-      try {
-        const res = await ProductVariantApi({
-          product_id: Number(id),   // ✅ must be number
-          color: selectedColor,      // ✅ e.g. "White"
-          size_id: selectedSize?.id,  // ✅ e.g. 1
-        });
-        const data = res?.data?.data || res?.data;
-        setVariantData(data);
-      } catch (error) {
-        console.error("Error fetching variant:", error);
-        setVariantData(null);
-      } finally {
-        setVariantLoading(false);
-      }
-    };
+    const firstVariant = product.variants[0];
 
-    fetchVariant();
-  }, [selectedColor, selectedSize, id]);
+    setSelectedColor(firstVariant.color);
+    setSelectedSize(firstVariant.size_details);
+    setVariantData(firstVariant); // no API call needed
+  }, [product]);
+
+  // ✅ Update variant locally (NO API CALL)
+  useEffect(() => {
+    if (!product || !selectedColor || !selectedSize) return;
+
+    const matchedVariant = product.variants.find(
+      (v) =>
+        v.color === selectedColor &&
+        v.size_id === selectedSize.id
+    );
+
+    setVariantData(matchedVariant || null);
+  }, [selectedColor, selectedSize, product]);
 
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    setSelectedSize(null);  // reset size when color changes
-    setVariantData(null);
+    setSelectedSize(null); // reset size
   };
 
   const handleSizeChange = (size: Size) => {
     setSelectedSize(size);
-    setVariantData(null);
   };
 
-  if (loading) return <p className="text-center py-10">Loading product...</p>;
-  if (!product) return <p className="text-center py-10">Product not found</p>;
+  if (loading)
+    return <p className="text-center py-10">Loading product...</p>;
 
-  // ✅ Use variant data if available, fallback to base product
+  if (!product)
+    return <p className="text-center py-10">Product not found</p>;
+
+  // ✅ Price
   const displayPrice = variantData?.price
     ? Number(variantData.price)
     : product.price;
 
-  // ✅ Build gallery images from variant images
+  // ✅ Images
   const displayAttachments = variantData?.images?.length
     ? variantData.images.map((img) => ({
         ...img,
-        url: `${BASE_URL}${img.file_uri}/${img.file_name}`,
+        url: img.file_name.startsWith("http")
+          ? img.file_name
+          : `${BASE_URL}${img.file_uri}`,
       }))
     : product.attachments;
 
@@ -164,10 +152,9 @@ export default function ProductDetail({ id }: { id: string }) {
               selectedSize={selectedSize}
               onColorChange={handleColorChange}
               onSizeChange={handleSizeChange}
-              // ✅ Pass variant info for stock/sku display
               variantStock={variantData?.stock ?? null}
               variantSku={variantData?.sku ?? null}
-              variantLoading={variantLoading}
+              variantLoading={false} // no API now
             />
 
             <ProductCustomization />
