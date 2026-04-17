@@ -6,7 +6,11 @@ import {
   useState,
   ReactNode,
   useCallback,
+  useEffect,
 } from "react";
+
+import { UserProfileApi } from "@/api/users/users.api";
+import { loginApi } from "@/api/auth/auth.api";
 
 export interface User {
   name: string;
@@ -20,23 +24,9 @@ interface AuthContextType {
   login: (
     email: string,
     password: string
-  ) => { success: boolean; error?: string };
-  register: (
-    name: string,
-    email: string,
-    mobile: string,
-    password: string
-  ) => { success: boolean; error?: string };
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
 }
-
-const DEMO_EMAIL = "demo@hashtagbillionaire.com";
-const DEMO_PASSWORD = "demo123";
-const DEMO_USER: User = {
-  name: "Demo User",
-  email: DEMO_EMAIL,
-  mobile: "9876543210",
-};
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -48,62 +38,82 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = useCallback((email: string, password: string) => {
-    if (email.toLowerCase() === DEMO_EMAIL && password === DEMO_PASSWORD) {
-      setUser(DEMO_USER);
-      return { success: true };
+  // ✅ Load user from API if token exists
+  const fetchUser = async () => {
+    try {
+      const res = await UserProfileApi();
+      console.log(res, "res")
+      const data = res?.data?.data;
+      console.log(data, "data")
+      const formattedUser: User = {
+        name: data?.user_profile?.name,
+        email: data?.email,
+        mobile: data?.user_profile.mobile,
+      };
+console.log(formattedUser,"formattedUser")
+      setUser(formattedUser);
+    } catch (error) {
+      console.error("Profile fetch failed", error);
+      logout();
+    } finally {
+      setLoading(false);
     }
-    // Accept any registered mock user
-    const stored = sessionStorage.getItem(`user_${email.toLowerCase()}`);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed.password === password) {
-        setUser({
-          name: parsed.name,
-          email: parsed.email,
-          mobile: parsed.mobile,
-        });
-        return { success: true };
-      }
-      return { success: false, error: "Incorrect password. Please try again." };
+  };
+
+  // ✅ On app load
+  useEffect(() => {
+    const token = localStorage.getItem("hastagBillionaire");
+    if (token) {
+      fetchUser();
+    } else {
+      setLoading(false);
     }
-    return {
-      success: false,
-      error: "No account found with this email. Please sign up.",
-    };
   }, []);
 
-  const register = useCallback(
-    (name: string, email: string, mobile: string, password: string) => {
-      if (email.toLowerCase() === DEMO_EMAIL) {
-        return {
-          success: false,
-          error: "This email is already registered. Please log in.",
-        };
-      }
-      const existing = sessionStorage.getItem(`user_${email.toLowerCase()}`);
-      if (existing) {
-        return {
-          success: false,
-          error: "An account with this email already exists.",
-        };
-      }
-      sessionStorage.setItem(
-        `user_${email.toLowerCase()}`,
-        JSON.stringify({ name, email, mobile, password })
-      );
-      setUser({ name, email, mobile });
-      return { success: true };
-    },
-    []
-  );
+  // ✅ LOGIN
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const res = await loginApi({ email, password });
 
-  const logout = useCallback(() => setUser(null), []);
+      const token = res?.data?.token;
+
+      if (!token) {
+        return { success: false, error: "Invalid response from server" };
+      }
+
+      // ✅ Save token
+      localStorage.setItem("token", token);
+
+      // ✅ Fetch user after login
+      await fetchUser();
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.response?.data?.message || "Login failed",
+      };
+    }
+  }, []);
+
+  // ✅ LOGOUT
+  const logout = useCallback(() => {
+    localStorage.removeItem("hastagBillionaire");
+    setUser(null);
+  }, []);
+
+  if (loading) return null;
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated: !!user, login, register, logout }}
+      value={{
+        user,
+        isAuthenticated: !!user,
+        login,
+        logout,
+      }}
     >
       {children}
     </AuthContext.Provider>

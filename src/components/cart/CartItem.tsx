@@ -14,6 +14,8 @@ import {
   RemoveFromCartApi,
 } from "@/api/operations/cart.api";
 
+import { message } from "antd";
+
 // ✅ Types
 type Placement = {
   id: string;
@@ -29,26 +31,24 @@ type Customization = {
 };
 
 export type CartItemType = {
- id: string;        // ✅ force string
-  cart_id: string;    // cart id (API)
+  id: string; // cart_id
   name: string;
   image?: string;
   basePrice: number;
   price: number;
   quantity: number;
   customization?: Customization;
-  
 };
 
 interface Props {
   item: CartItemType;
+  onRefresh: () => void;
 }
 
-export default function CartItem({ item }: Props) {
+export default function CartItem({ item, onRefresh }: Props) {
   const { removeItem, updateQuantity } = useCart();
   const [loading, setLoading] = useState(false);
 
-  // ✅ Safe defaults
   const placements: Placement[] = item.customization?.placements ?? [];
 
   const placementCost = placements.reduce(
@@ -71,14 +71,24 @@ export default function CartItem({ item }: Props) {
     if (item.quantity <= 1 || loading) return;
 
     setLoading(true);
-    try {
-      await DecrementCartItemApi({
-        cart_id: item.cart_id,
-      });
+    updateQuantity(item.id, item.quantity - 1);
 
-      updateQuantity(item.id, item.quantity - 1);
-    } catch (err) {
+    try {
+      const res = await DecrementCartItemApi({ cart_id: item.id });
+
+      message.success(
+        res?.data?.message || "Quantity decreased"
+      );
+
+      onRefresh();
+    } catch (err: any) {
       console.error("Decrement failed", err);
+
+      updateQuantity(item.id, item.quantity); // rollback
+
+      message.error(
+        err?.response?.data?.message || "Failed to decrease quantity"
+      );
     } finally {
       setLoading(false);
     }
@@ -89,32 +99,51 @@ export default function CartItem({ item }: Props) {
     if (loading) return;
 
     setLoading(true);
-    try {
-      await IncrementCartItemApi({
-        cart_id: item.cart_id,
-      });
+    updateQuantity(item.id, item.quantity + 1);
 
-      updateQuantity(item.id, item.quantity + 1);
-    } catch (err) {
+    try {
+      const res = await IncrementCartItemApi({ cart_id: item.id });
+
+      message.success(
+        res?.data?.message || "Quantity increased"
+      );
+
+      onRefresh();
+    } catch (err: any) {
       console.error("Increment failed", err);
+
+      updateQuantity(item.id, item.quantity);
+
+      message.error(
+        err?.response?.data?.message || "Failed to increase quantity"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // ❌ Remove
+  // 🗑️ Remove
   const handleRemove = async () => {
     if (loading) return;
 
     setLoading(true);
+
     try {
-      await RemoveFromCartApi({
-        cart_id: item.cart_id,
-      });
+      const res = await RemoveFromCartApi(item.id);
 
       removeItem(item.id);
-    } catch (err) {
+
+      message.success(
+        res?.data?.message || "Item removed"
+      );
+
+      onRefresh();
+    } catch (err: any) {
       console.error("Remove failed", err);
+
+      message.error(
+        err?.response?.data?.message || "Failed to remove item"
+      );
     } finally {
       setLoading(false);
     }
@@ -122,7 +151,7 @@ export default function CartItem({ item }: Props) {
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-      {/* 🔝 Top */}
+      {/* Top */}
       <div className="flex gap-4">
         <Image
           src={item.image || "/placeholder.png"}
@@ -135,19 +164,19 @@ export default function CartItem({ item }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h3 className="font-heading font-semibold text-foreground truncate">
+              <h3 className="font-heading font-semibold truncate">
                 {item.name}
               </h3>
 
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Base: ${item.basePrice.toFixed(2)}
+              <p className="text-sm text-muted-foreground">
+                Base: ${item.basePrice}
               </p>
             </div>
 
             <button
               onClick={handleRemove}
               disabled={loading}
-              className="text-muted-foreground hover:text-destructive transition disabled:opacity-50"
+              className="hover:text-destructive disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />
             </button>
@@ -155,7 +184,7 @@ export default function CartItem({ item }: Props) {
         </div>
       </div>
 
-      {/* 🎨 Customization */}
+      {/* Customization */}
       <CartCustomization
         item={{
           ...item,
@@ -168,15 +197,15 @@ export default function CartItem({ item }: Props) {
         unitCustomization={unitCustomization}
       />
 
-      {/* 🔻 Bottom */}
+      {/* Bottom */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Quantity */}
-          <div className="flex items-center border border-border rounded-lg overflow-hidden">
+          <div className="flex items-center border rounded-lg overflow-hidden">
             <button
               onClick={handleDecrease}
               disabled={loading || item.quantity <= 1}
-              className="p-2 hover:bg-secondary transition disabled:opacity-50"
+              className="p-2 disabled:opacity-50"
             >
               <Minus className="h-3.5 w-3.5" />
             </button>
@@ -188,7 +217,7 @@ export default function CartItem({ item }: Props) {
             <button
               onClick={handleIncrease}
               disabled={loading}
-              className="p-2 hover:bg-secondary transition disabled:opacity-50"
+              className="p-2 disabled:opacity-50"
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
@@ -197,15 +226,15 @@ export default function CartItem({ item }: Props) {
           {/* Edit */}
           <Link
             href={`/product/${item.id}`}
-            className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 transition"
+            className="text-sm flex items-center gap-1"
           >
             <Pencil className="h-3.5 w-3.5" />
             Edit
           </Link>
         </div>
 
-        {/* 💰 Total */}
-        <p className="font-heading font-bold text-foreground text-lg">
+        {/* Total */}
+        <p className="font-bold text-lg">
           ${itemTotal.toFixed(2)}
         </p>
       </div>

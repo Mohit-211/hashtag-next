@@ -26,8 +26,16 @@ export const CART_ENDPOINTS = {
   INCREMENT: "product/cart/increment",
   DECREMENT: "product/cart/decrement",
 
-  UPDATE_QUANTITY: "product/cart/update",
-  REMOVE_FROM_CART: "product/cart/remove",
+  UPDATE_QUANTITY: "product/cart",
+  REMOVE_FROM_CART: (id: string) => `product/cart/${id}`,
 
-  MOVE_TO_WISHLIST: "product/cart/move-to-wishlist",
+  MOVE_TO_WISHLIST: "product/cart/move",
+};
+// ✅ Base URL assumed already set in client
+
+export const WISHLIST_ENDPOINTS = {
+  ADD: "/product/wishlist/add",
+  GET: "/product/wishlist/get",
+  REMOVE: (id: string | number) => `/product/wishlist/${id}`,
+  MOVE_TO_CART: "/product/wishlist/move",
 };

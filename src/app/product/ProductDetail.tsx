@@ -157,7 +157,12 @@ export default function ProductDetail({ id }: { id: string }) {
               variantLoading={false} // no API now
             />
 
-            <ProductCustomization />
+        <ProductCustomization
+  productId={Number(product.id)}
+  variantId={variantData?.id}
+  price={displayPrice}
+  name={product.name}
+/>
           </div>
         </div>
 
