@@ -1,12 +1,31 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  images: {
+   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "node.hashtagbillionaire.com",
-        // removed pathname — allows ALL paths on this hostname
+        hostname: "example.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.example.com",
+        pathname: "/images/**",
+      },
+      {
+        protocol: "https",
+        hostname: "https://hashtagbillionaire.com/categories",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "node.https://hashtagbillionaire.com/categories",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "maps.googleapis.com",
       },
     ],
   },
