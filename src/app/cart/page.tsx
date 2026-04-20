@@ -28,7 +28,7 @@ export default function Cart() {
 
       const res = await GetAllCartItemsApi();
       const data = res?.data?.data || res?.data;
-
+      console.log(data, "data by cart")
       const formattedItems = (data || []).map(
         (item: ApiCartItem) => ({
           id: item.product_id,
@@ -77,7 +77,7 @@ export default function Cart() {
   if (items.length === 0) {
     return <CartEmpty />;
   }
-
+  console.log(items, "items")
   return (
     <section className="py-8">
       <div className="container grid lg:grid-cols-3 gap-8">

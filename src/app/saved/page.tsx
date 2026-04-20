@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, ShoppingBag, X, ArrowRight } from "lucide-react";
+import {
+  Heart,
+  ShoppingBag,
+  X,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -29,16 +35,17 @@ export default function Saved() {
 
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
   // ✅ Fetch Wishlist
   const fetchWishlist = async () => {
     try {
       const res = await GetWishlistApi();
       const data = res?.data?.data || [];
-
       setWishlist(data);
     } catch (error) {
       console.error("Wishlist fetch error:", error);
+      toast.error("Failed to load wishlist");
     } finally {
       setLoading(false);
     }
@@ -48,9 +55,11 @@ export default function Saved() {
     fetchWishlist();
   }, []);
 
-  // ❌ Remove
+  // ❌ Remove Item
   const handleRemove = async (id: number) => {
     try {
+      setActionLoadingId(id);
+
       await RemoveFromWishlistApi(id);
 
       setWishlist((prev) => prev.filter((item) => item.id !== id));
@@ -59,17 +68,20 @@ export default function Saved() {
     } catch (err) {
       console.error(err);
       toast.error("Failed to remove item");
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
   // 🔄 Move to Cart
   const handleMoveToCart = async (item: WishlistItem) => {
     try {
+      setActionLoadingId(item.id);
+
       await MoveWishlistToCartApi({
         wishlist_id: item.id,
       });
 
-      // optional: also add locally to cart UI
       addItem({
         id: `wishlist-${item.id}`,
         image: item.image,
@@ -90,12 +102,18 @@ export default function Saved() {
     } catch (err) {
       console.error(err);
       toast.error("Failed to move item");
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
   // ⏳ Loading
   if (loading) {
-    return <p className="text-center py-20">Loading wishlist...</p>;
+    return (
+      <p className="text-center py-20 text-muted-foreground">
+        Loading wishlist...
+      </p>
+    );
   }
 
   // ❌ Empty
@@ -111,9 +129,7 @@ export default function Saved() {
             className="w-28 h-28 mx-auto object-contain opacity-80"
           />
 
-          <h1 className="text-3xl font-heading font-bold">
-            No Saved Items
-          </h1>
+          <h1 className="text-3xl font-bold">No Saved Items</h1>
 
           <p className="text-muted-foreground">
             You haven't saved anything yet.
@@ -137,61 +153,71 @@ export default function Saved() {
         <h1 className="text-3xl font-bold mb-6">Saved Items</h1>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {wishlist.map((item) => (
-            <div
-              key={item.id}
-              className="group relative bg-card rounded-lg overflow-hidden border hover:shadow-lg transition"
-            >
-              <div className="relative aspect-square overflow-hidden">
-                <Image
-                  src={item.image}
-                  alt={item.name}
-                  width={400}
-                  height={400}
-                  className="w-full h-full object-cover"
-                />
+          {wishlist.map((item) => {
+            const isLoading = actionLoadingId === item.id;
 
-                {/* ❌ Remove */}
-                <button
-                  onClick={() => handleRemove(item.id)}
-                  className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white flex items-center justify-center"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+            return (
+              <div
+                key={item.id}
+                className="group relative bg-card rounded-lg overflow-hidden border hover:shadow-lg transition"
+              >
+                <div className="relative aspect-square overflow-hidden">
+                  <Image
+                    unoptimized={process.env.NODE_ENV === "development"}
+          crossOrigin="anonymous"
+                    src={item?.image}
+                    alt={item.name}
+                    width={400}
+                    height={400}
+                    className="w-full h-full object-cover"
+                  />
 
-                {/* ❤️ */}
-                <span className="absolute top-3 left-3 h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                  <Heart className="h-4 w-4 text-white" fill="currentColor" />
-                </span>
-              </div>
+                 <button
+  onClick={() => handleRemove(item.id)}
+  disabled={isLoading}
+  className="absolute top-3 left-3 h-8 w-8 rounded-full bg-white flex items-center justify-center shadow"
+>
+  {isLoading ? (
+    <Loader2 className="h-4 w-4 animate-spin" />
+  ) : (
+    <Heart className="h-4 w-4 text-red-500" fill="currentColor" />
+  )}
+</button>
+                </div>
 
-              <div className="p-4 space-y-2">
-                <h3 className="text-sm font-medium truncate">
-                  {item.name}
-                </h3>
+                <div className="p-4 space-y-2">
+                  <h3 className="text-sm font-medium truncate">
+                    {item.name}
+                  </h3>
 
-                <p className="font-bold">₹{item.price}</p>
+                  <p className="font-bold">₹{item.price}</p>
 
-                <div className="flex flex-col gap-2">
-                  <Link href={`/product/${item.product_id}`}>
-                    <Button size="sm" variant="outline" className="w-full">
-                      View
-                      <ArrowRight className="h-3 w-3 ml-1" />
+                  <div className="flex flex-col gap-2">
+                    <Link href={`/product/${item.product_id}`}>
+                      <Button size="sm" variant="outline" className="w-full">
+                        View
+                        <ArrowRight className="h-3 w-3 ml-1" />
+                      </Button>
+                    </Link>
+
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      disabled={isLoading}
+                      onClick={() => handleMoveToCart(item)}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <ShoppingBag className="h-3 w-3 mr-1" />
+                      )}
+                      Move to Cart
                     </Button>
-                  </Link>
-
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    onClick={() => handleMoveToCart(item)}
-                  >
-                    <ShoppingBag className="h-3 w-3 mr-1" />
-                    Move to Cart
-                  </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

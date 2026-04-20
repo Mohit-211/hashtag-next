@@ -56,7 +56,7 @@ export default function ProductCard({
         </Link>
 
         {/* LIKE */}
-        <button
+        {/* <button
           onClick={() => setLiked(!liked)}
           className={`absolute top-3 right-3 h-8 w-8 rounded-full flex items-center justify-center transition-all ${
             liked
@@ -65,7 +65,7 @@ export default function ProductCard({
           }`}
         >
           <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} />
-        </button>
+        </button> */}
 
         {/* QUICK ADD */}
         {/* <div className="bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">

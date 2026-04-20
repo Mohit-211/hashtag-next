@@ -6,7 +6,7 @@ export const AUTH_ENDPOINTS = {
   VERIFY_OTP: "user/auth/verify-otp",
   FORGOT_PASSWORD: "user/auth/forgot-password",
   RESET_PASSWORD: "user/auth/reset-password",
-  CHANGE_PASSWORD: "user/auth/change-password",
+  // CHANGE_PASSWORD: "user/auth/change-password",
 };
 export const USER_ENDPOINTS = {
   PROFILE: "user/profile",
@@ -34,7 +34,7 @@ export const CART_ENDPOINTS = {
 // ✅ Base URL assumed already set in client
 
 export const WISHLIST_ENDPOINTS = {
-  ADD: "/product/wishlist/add",
+  ADD: "/product/wishlist",
   GET: "/product/wishlist/get",
   REMOVE: (id: string | number) => `/product/wishlist/${id}`,
   MOVE_TO_CART: "/product/wishlist/move",

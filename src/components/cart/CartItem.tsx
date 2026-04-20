@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, Trash2, Pencil } from "lucide-react";
 
@@ -15,6 +14,7 @@ import {
 } from "@/api/operations/cart.api";
 
 import { message } from "antd";
+import Image from "next/image";
 
 // ✅ Types
 type Placement = {
@@ -148,14 +148,16 @@ export default function CartItem({ item, onRefresh }: Props) {
       setLoading(false);
     }
   };
-
+  console.log(item, "====>>")
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
       {/* Top */}
       <div className="flex gap-4">
         <Image
-          src={item.image || "/placeholder.png"}
-          alt={item.name}
+          unoptimized={process.env.NODE_ENV === "development"}
+          crossOrigin="anonymous"
+          src={item?.image || "/placeholder.png"}
+          alt={item?.name}
           width={96}
           height={96}
           className="w-24 h-24 rounded-lg object-cover bg-secondary shrink-0"
@@ -224,13 +226,13 @@ export default function CartItem({ item, onRefresh }: Props) {
           </div>
 
           {/* Edit */}
-          <Link
+          {/* <Link
             href={`/product/${item.id}`}
             className="text-sm flex items-center gap-1"
           >
             <Pencil className="h-3.5 w-3.5" />
             Edit
-          </Link>
+          </Link> */}
         </div>
 
         {/* Total */}

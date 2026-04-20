@@ -27,7 +27,7 @@ export default function CartItemsList({ items, onRefresh }: Props) {
 
   const normalizedItems = items.map((item, index) => {
     const cartId = item.cart_id ?? item.id ?? index;
-
+console.log(item,"=====>>>>>>>")
     return {
       id: String(cartId),
       name: item.name,

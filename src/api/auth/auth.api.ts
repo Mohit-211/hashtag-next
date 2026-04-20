@@ -15,5 +15,5 @@ export const verifyOtpApi = (payload: { email: string; otp: string; type: string
 
 // Password 
 export const forgotPasswordApi = (payload: { email: string; password: string; confirm_password: string; token: string; }) => client.post(AUTH_ENDPOINTS.FORGOT_PASSWORD, payload);
-export const resetPasswordApi = (payload: any) => client.post(AUTH_ENDPOINTS.RESET_PASSWORD, payload);
-export const changePasswordApi = (payload: any) => client.post(AUTH_ENDPOINTS.CHANGE_PASSWORD, payload);
+// export const resetPasswordApi = (payload: any) => client.post(AUTH_ENDPOINTS.RESET_PASSWORD, payload);
+export const changePasswordApi = (payload: any) => client.post(AUTH_ENDPOINTS.RESET_PASSWORD, payload);
