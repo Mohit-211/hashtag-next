@@ -16,7 +16,6 @@ interface Props {
   variantId?: number;
   price: number;
   name: string;
-
   is_in_cart: boolean;
   is_in_wishlist: boolean;
   wishlist_id?: number | null;
@@ -36,59 +35,60 @@ export default function ProductActions({
   const [showModal, setShowModal] = useState(false);
   const [loadingWishlist, setLoadingWishlist] = useState(false);
 
-  const [isWishlisted, setIsWishlisted] = useState(is_in_wishlist);
+  const [isWishlisted, setIsWishlisted] = useState<boolean>(is_in_wishlist);
   const [wishlistId, setWishlistId] = useState<number | null>(
-    wishlist_id || null
+    wishlist_id ?? null
   );
 
-  // ✅ Sync on variant change
+  // ✅ Sync when props change
   useEffect(() => {
     setIsWishlisted(is_in_wishlist);
-    setWishlistId(wishlist_id || null);
+    setWishlistId(wishlist_id ?? null);
   }, [is_in_wishlist, wishlist_id]);
 
-  // ✅ REMOVE FUNCTION (your logic improved)
-  const handleRemove = async (id: number) => {
-    try {
-      setLoadingWishlist(true);
-
-      await RemoveFromWishlistApi(id);
-
-      setIsWishlisted(false);
-      setWishlistId(null);
-
-      message.success("Removed from wishlist");
-    } catch (err) {
-      console.error(err);
-      message.error("Failed to remove item");
-    } finally {
-      setLoadingWishlist(false);
-    }
-  };
-
-  // ❤️ TOGGLE
+  // ❤️ Toggle Wishlist
   const handleWishlist = async () => {
+    if (loadingWishlist) return;
+
     try {
       setLoadingWishlist(true);
 
-      // ✅ REMOVE CASE
+      // ❌ REMOVE
       if (isWishlisted) {
         if (!wishlistId) {
           message.error("Wishlist ID missing");
           return;
         }
 
-        await handleRemove(wishlistId);
+        await RemoveFromWishlistApi(wishlistId);
+
+        setIsWishlisted(false);
+        setWishlistId(null);
+
+        message.success("Removed from wishlist");
         return;
       }
 
-      // ✅ ADD CASE
-      const res = await AddToWishlistApi({
+      // ✅ ADD (safe variantId handling)
+      const payload: {
+        product_id: number;
+        variant_id?: number;
+      } = {
         product_id: productId,
-        variant_id: variantId,
-      });
+      };
 
-      const id = res?.data?.data?.id;
+      if (variantId !== undefined) {
+        payload.variant_id = variantId;
+      }
+
+      const res = await AddToWishlistApi(payload);
+
+      const id: number | undefined = res?.data?.data?.id;
+
+      if (!id) {
+        message.error("Invalid response from server");
+        return;
+      }
 
       setWishlistId(id);
       setIsWishlisted(true);

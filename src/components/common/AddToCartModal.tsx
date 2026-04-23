@@ -9,7 +9,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   productId: number;
-  variantId: number;
+  variantId?: number;
   price: number;
   name: string;
 }
@@ -22,25 +22,37 @@ export default function AddToCartModal({
   price,
   name,
 }: Props) {
-  const [quantity, setQuantity] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [quantity, setQuantity] = useState<number>(1);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [success, setSuccess] = useState<boolean>(false);
 
   const handleAddToCart = async () => {
-    setLoading(true);
     try {
-      await AddToCartApi({
+      setLoading(true);
+
+      // ✅ SAFE PAYLOAD (no undefined)
+      const payload: {
+        product_id: number;
+        variant_id?: number;
+        quantity: number;
+      } = {
         product_id: productId,
-        variant_id: variantId,
         quantity,
-      });
+      };
+
+      if (variantId !== undefined) {
+        payload.variant_id = variantId;
+      }
+
+      await AddToCartApi(payload);
 
       setSuccess(true);
 
       setTimeout(() => {
         setSuccess(false);
         onClose();
-      }, 1500);
+        setQuantity(1); // reset
+      }, 1200);
     } catch (err) {
       console.error("Add to cart failed:", err);
     } finally {
@@ -58,7 +70,7 @@ export default function AddToCartModal({
       <div className="bg-card border rounded-xl shadow-2xl w-full max-w-sm p-6 space-y-5">
 
         {/* Header */}
-        <div className="flex justify-between">
+        <div className="flex justify-between items-center">
           <h2 className="text-base font-semibold">{name}</h2>
           <button onClick={onClose}>
             <X className="h-4 w-4" />
@@ -67,26 +79,35 @@ export default function AddToCartModal({
 
         {/* Quantity */}
         <div className="flex items-center gap-3">
-          <button onClick={() => setQuantity(q => Math.max(1, q - 1))}>
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+          >
             <Minus />
           </button>
 
           <input
             type="number"
+            min={1}
             value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            className="w-16 text-center"
+            onChange={(e) =>
+              setQuantity(Math.max(1, Number(e.target.value) || 1))
+            }
+            className="w-16 text-center border rounded"
           />
 
-          <button onClick={() => setQuantity(q => q + 1)}>
+          <button
+            type="button"
+            onClick={() => setQuantity((q) => q + 1)}
+          >
             <Plus />
           </button>
         </div>
 
         {/* Total */}
-        <div className="flex justify-between">
+        <div className="flex justify-between font-medium">
           <span>Total</span>
-          <span>${(price * quantity).toFixed(2)}</span>
+          <span>₹{(price * quantity).toFixed(2)}</span>
         </div>
 
         {/* Actions */}
@@ -99,7 +120,6 @@ export default function AddToCartModal({
             {success ? "Added ✓" : loading ? "Adding..." : "Confirm"}
           </Button>
         </div>
-
       </div>
     </div>
   );

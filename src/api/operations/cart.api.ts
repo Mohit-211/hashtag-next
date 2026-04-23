@@ -2,12 +2,15 @@ import client from "../client";
 import { CART_ENDPOINTS } from "../endpoints";
 
 // ➕ Add to cart
+// cart.api.ts
+
 export const AddToCartApi = (payload: {
   product_id: number;
-  variant_id: number;
+  variant_id?: number; // ✅ FIX (make optional)
   quantity: number;
-}) => client.post(CART_ENDPOINTS.ADD_TO_CART, payload);
-
+}) => {
+  return client.post("/cart", payload);
+};
 // 📦 Get all cart items
 export const GetAllCartItemsApi = () =>
   client.get(CART_ENDPOINTS.GET_ALL);

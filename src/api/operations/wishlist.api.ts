@@ -2,11 +2,13 @@ import client from "../client";
 import { WISHLIST_ENDPOINTS } from "../endpoints";
 
 // ➕ Add to Wishlist
+// wishlist.api.ts
+
 export const AddToWishlistApi = (payload: {
-  product_id: string | number;
-  variant_id: string | number;
+  product_id: number;
+  variant_id?: number; // ✅ optional
 }) => {
-  return client.post(WISHLIST_ENDPOINTS.ADD, payload);
+  return client.post("/wishlist", payload);
 };
 
 // 📥 Get Wishlist
