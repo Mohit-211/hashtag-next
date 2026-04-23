@@ -1,78 +1,136 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, MapPin } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import AddressForm from "./AddressForm";
 import AddressCard from "./AddressCard";
+import { message } from "antd";
 
-import { Address } from "@/data/types";
+import {
+  AddAddressApi,
+  GetAddressApi,
+  UpdateAddressApi,
+  DeleteAddressApi,
+} from "@/api/operations/address.api";
 
-type AddressFormData = Omit<Address, "id" | "isDefault">;
+type AddressFormData = {
+  fullName: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  postalCode: string;
+  state_id?: number;
+  city_id?: number;
+  state?: string;
+  city?: string;
+  isDefault?: boolean;
+};
 
 const emptyAddress: AddressFormData = {
   fullName: "",
   phone: "",
   line1: "",
   line2: "",
-  city: "",
-  state: "",
   postalCode: "",
-  country: "",
+  state_id: undefined,
+  city_id: undefined,
+  state: "",
+  city: "",
+  isDefault: false,
 };
 
 export default function AddressSection() {
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [editingAddress, setEditingAddress] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<AddressFormData>(emptyAddress);
 
-  const handleSaveAddress = (data: AddressFormData) => {
-    if (editingAddress) {
-      setAddresses((prev) =>
-        prev.map((a) => (a.id === editingAddress.id ? { ...a, ...data } : a))
-      );
-    } else {
-      const newAddr: Address = {
-        ...data,
-        id: Date.now().toString(),
-        isDefault: addresses.length === 0,
+  useEffect(() => {
+    fetchAddresses();
+  }, []);
+
+  const fetchAddresses = async () => {
+    try {
+      const res = await GetAddressApi();
+
+      const formatted = res?.data?.data?.map((item: any) => ({
+        id: item.id,
+        fullName: item.name,
+        phone: item.phone,
+        line1: item.address_line1,
+        line2: item.address_line2,
+        postalCode: item.postal_code,
+        state: item.state,
+        city: item.city,
+        state_id: item.state_id,
+        city_id: item.city_id,
+        isDefault: item.is_default,
+      }));
+
+      setAddresses(formatted || []);
+    } catch {
+      message.error("Failed to load addresses");
+    }
+  };
+
+  const handleSaveAddress = async (data: AddressFormData) => {
+    try {
+      const payload: any = {
+        name: data.fullName,
+        phone: data.phone,
+        address_line1: data.line1,
+        address_line2: data.line2,
+        postal_code: data.postalCode,
+        country_id: 233,
+        state_id: Number(data.state_id),
+        city_id: Number(data.city_id),
+        is_default: data.isDefault || false,
       };
 
-      setAddresses((prev) => [...prev, newAddr]);
-    }
-
-    setShowForm(false);
-    setEditingAddress(null);
-    setFormData(emptyAddress);
-  };
-
-  const handleDelete = (id: string) => {
-    setAddresses((prev) => {
-      const filtered = prev.filter((a) => a.id !== id);
-
-      // ensure one default remains
-      if (filtered.length > 0 && !filtered.some((a) => a.isDefault)) {
-        return filtered.map((a, i) =>
-          i === 0 ? { ...a, isDefault: true } : a
-        );
+      if (editingAddress) {
+        payload.id = editingAddress.id;
+        await UpdateAddressApi(payload);
+        message.success("Address updated");
+      } else {
+        await AddAddressApi(payload);
+        message.success("Address added");
       }
 
-      return filtered;
-    });
+      fetchAddresses();
+      setShowForm(false);
+      setEditingAddress(null);
+      setFormData(emptyAddress);
+    } catch {
+      message.error("Something went wrong");
+    }
   };
 
-  const handleDefault = (id: string) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({
-        ...a,
-        isDefault: a.id === id,
-      }))
-    );
+  const handleDelete = async (id: number) => {
+    try {
+      await DeleteAddressApi({ id });
+      message.success("Address deleted");
+      fetchAddresses();
+    } catch {
+      message.error("Delete failed");
+    }
   };
 
-  const handleEdit = (addr: Address) => {
+  const handleDefault = async (id: number) => {
+    try {
+      await UpdateAddressApi({
+        id,
+        is_default: true,
+      });
+
+      message.success("Default updated");
+      fetchAddresses();
+    } catch {
+      message.error("Failed to update default");
+    }
+  };
+
+  const handleEdit = (addr: any) => {
     setEditingAddress(addr);
 
     setFormData({
@@ -80,39 +138,29 @@ export default function AddressSection() {
       phone: addr.phone,
       line1: addr.line1,
       line2: addr.line2,
-      city: addr.city,
-      state: addr.state,
       postalCode: addr.postalCode,
-      country: addr.country,
+      state_id: addr.state_id,
+      city_id: addr.city_id,
+      state: addr.state,
+      city: addr.city,
+      isDefault: addr.isDefault,
     });
 
     setShowForm(true);
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-6 lg:p-8 space-y-6">
-      <div className="flex justify-between items-start gap-4">
-        <div>
-          <h2 className="text-xl font-heading font-bold">Saved Addresses</h2>
-
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage your delivery addresses.
-          </p>
-        </div>
+    <div className="p-6 border rounded-xl space-y-6">
+      <div className="flex justify-between">
+        <h2 className="text-xl font-bold">Saved Addresses</h2>
 
         {!showForm && (
-          <Button
-            variant="hero"
-            size="sm"
-            className="rounded-lg"
-            onClick={() => {
-              setEditingAddress(null);
-              setFormData(emptyAddress);
-              setShowForm(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add New
+          <Button onClick={() => {
+            setEditingAddress(null);
+            setFormData(emptyAddress);
+            setShowForm(true);
+          }}>
+            <Plus className="h-4 w-4 mr-1" /> Add
           </Button>
         )}
       </div>
@@ -122,35 +170,27 @@ export default function AddressSection() {
           formData={formData}
           setFormData={setFormData}
           onSave={handleSaveAddress}
-          onCancel={() => {
-            setShowForm(false);
-            setEditingAddress(null);
-          }}
+          onCancel={() => setShowForm(false)}
           editing={!!editingAddress}
         />
       )}
 
       {addresses.length === 0 && !showForm && (
         <div className="text-center py-10">
-          <MapPin className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-
-          <p className="text-sm text-muted-foreground">
-            No saved addresses yet.
-          </p>
+          <MapPin className="mx-auto mb-2" />
+          No addresses found
         </div>
       )}
 
-      <div className="space-y-3">
-        {addresses.map((addr) => (
-          <AddressCard
-            key={addr.id}
-            address={addr}
-            onDelete={handleDelete}
-            onDefault={handleDefault}
-            onEdit={handleEdit}
-          />
-        ))}
-      </div>
+      {addresses.map((addr) => (
+        <AddressCard
+          key={addr.id}
+          address={addr}
+          onDelete={handleDelete}
+          onDefault={handleDefault}
+          onEdit={handleEdit}
+        />
+      ))}
     </div>
   );
 }

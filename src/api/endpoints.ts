@@ -39,3 +39,10 @@ export const WISHLIST_ENDPOINTS = {
   REMOVE: (id: string | number) => `/product/wishlist/${id}`,
   MOVE_TO_CART: "/product/wishlist/move",
 };
+
+export const ADDRESS_ENDPOINTS = {
+  ADD: "/address",
+  GET: "/address",
+  UPDATE:"/address",
+  DELETE:"/address",
+};

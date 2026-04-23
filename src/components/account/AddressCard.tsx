@@ -1,74 +1,33 @@
-import { Pencil, Trash2 } from "lucide-react";
-
+import { Trash2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Address } from "@/data/types";
 
-interface Props {
-  address: Address;
-  onDelete: (id: string) => void;
-  onDefault: (id: string) => void;
-  onEdit: (addr: Address) => void;
-}
-
-export default function AddressCard({
-  address,
-  onDelete,
-  onDefault,
-  onEdit,
-}: Props) {
+export default function AddressCard({ address, onDelete, onDefault, onEdit }: any) {
   return (
-    <div
-      className={`border rounded-lg p-4 flex flex-col sm:flex-row gap-3 ${
-        address.isDefault ? "border-primary bg-primary/5" : "border-border"
-      }`}
-    >
-      <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
-          <p className="text-sm font-semibold">{address.fullName}</p>
+    <div className="border p-4 rounded-lg flex justify-between">
+      <div>
+        <p className="font-semibold">{address.fullName}</p>
+        <p>{address.line1}</p>
+        <p>{address.city}, {address.state}</p>
+        <p>{address.phone}</p>
 
-          {address.isDefault && (
-            <span className="text-[10px] uppercase bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-              Default
-            </span>
-          )}
-        </div>
-
-        <p className="text-sm text-muted-foreground">
-          {address.line1}
-          {address.line2 ? `, ${address.line2}` : ""}
-        </p>
-
-        <p className="text-sm text-muted-foreground">
-          {address.city}, {address.state} {address.postalCode}
-        </p>
-
-        <p className="text-sm text-muted-foreground">{address.country}</p>
-
-        <p className="text-sm text-muted-foreground mt-1">{address.phone}</p>
+        {address.isDefault && (
+          <span className="text-xs text-green-600">Default</span>
+        )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex gap-2">
         {!address.isDefault && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onDefault(address.id)}
-          >
-            Set Default
+          <Button size="sm" onClick={() => onDefault(address.id)}>
+            Default
           </Button>
         )}
 
-        <Button variant="ghost" size="icon" onClick={() => onEdit(address)}>
-          <Pencil className="h-4 w-4" />
+        <Button size="icon" variant="ghost" onClick={() => onEdit(address)}>
+          <Pencil />
         </Button>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-destructive"
-          onClick={() => onDelete(address.id)}
-        >
-          <Trash2 className="h-4 w-4" />
+        <Button size="icon" variant="ghost" onClick={() => onDelete(address.id)}>
+          <Trash2 />
         </Button>
       </div>
     </div>

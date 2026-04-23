@@ -9,6 +9,8 @@ import ProductAccordion from "@/components/product/ProductAccordion";
 import RelatedProducts from "@/components/product/RelatedProducts";
 import { ProductDetailApi } from "@/api/operations/product.api";
 
+/* ================= TYPES ================= */
+
 interface Size {
   id: number;
   name: string;
@@ -35,6 +37,12 @@ interface Variant {
   min_order_quantity: number;
   max_order_quantity: number | null;
   is_active: boolean;
+
+  // ✅ FIXED FLAGS
+  is_in_cart?: boolean;
+  is_in_wishlist?: boolean;
+  wishlist_id?: number | null;
+
   images: VariantImage[];
   size_details: Size;
 }
@@ -53,6 +61,8 @@ interface Product {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
+/* ================= COMPONENT ================= */
+
 export default function ProductDetail({ id }: { id: string }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +71,8 @@ export default function ProductDetail({ id }: { id: string }) {
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [variantData, setVariantData] = useState<Variant | null>(null);
 
-  // ✅ Fetch product
+  /* ================= FETCH PRODUCT ================= */
+
   useEffect(() => {
     if (!id) return;
 
@@ -69,7 +80,6 @@ export default function ProductDetail({ id }: { id: string }) {
       try {
         const res = await ProductDetailApi(id);
         const data = res?.data?.data || res?.data;
-
         setProduct(data);
       } catch (error) {
         console.error("Error fetching product:", error);
@@ -81,7 +91,8 @@ export default function ProductDetail({ id }: { id: string }) {
     fetchProduct();
   }, [id]);
 
-  // ✅ Set default variant (first one)
+  /* ================= DEFAULT VARIANT ================= */
+
   useEffect(() => {
     if (!product || !product.variants?.length) return;
 
@@ -89,10 +100,11 @@ export default function ProductDetail({ id }: { id: string }) {
 
     setSelectedColor(firstVariant.color);
     setSelectedSize(firstVariant.size_details);
-    setVariantData(firstVariant); // no API call needed
+    setVariantData(firstVariant);
   }, [product]);
 
-  // ✅ Update variant locally (NO API CALL)
+  /* ================= UPDATE VARIANT ================= */
+
   useEffect(() => {
     if (!product || !selectedColor || !selectedSize) return;
 
@@ -102,30 +114,99 @@ export default function ProductDetail({ id }: { id: string }) {
         v.size_id === selectedSize.id
     );
 
-    setVariantData(matchedVariant || null);
+    if (matchedVariant) {
+      setVariantData(matchedVariant);
+    }
   }, [selectedColor, selectedSize, product]);
 
+  /* ================= HANDLERS ================= */
+
+  // ✅ FIXED (no flicker)
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
-    setSelectedSize(null); // reset size
+
+    const firstMatch = product?.variants.find(
+      (v) => v.color === color
+    );
+
+    if (firstMatch) {
+      setSelectedSize(firstMatch.size_details);
+      setVariantData(firstMatch);
+    }
   };
 
   const handleSizeChange = (size: Size) => {
     setSelectedSize(size);
   };
 
-  if (loading)
-    return <p className="text-center py-10">Loading product...</p>;
+  /* ================= LOADING ================= */
 
-  if (!product)
-    return <p className="text-center py-10">Product not found</p>;
+  if (loading) {
+    return (
+      <section className="py-8 lg:py-14">
+        <div className="container">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-14">
+            <div className="space-y-3">
+              <div className="aspect-square rounded-2xl bg-muted animate-pulse" />
+              <div className="flex gap-2.5">
+                {[...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-[72px] h-[72px] rounded-xl bg-muted animate-pulse"
+                  />
+                ))}
+              </div>
+            </div>
 
-  // ✅ Price
+            <div className="space-y-4">
+              <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-9 w-3/4 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+              <div className="h-10 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-px bg-border" />
+
+              <div className="flex gap-2">
+                {[...Array(5)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-9 h-9 rounded-full bg-muted animate-pulse"
+                  />
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-12 h-9 rounded-lg bg-muted animate-pulse"
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  /* ================= NO PRODUCT ================= */
+
+  if (!product) {
+    return (
+      <section className="py-20">
+        <div className="container text-center">
+          <p className="text-muted-foreground">Product not found.</p>
+        </div>
+      </section>
+    );
+  }
+
+  /* ================= DERIVED DATA ================= */
+
   const displayPrice = variantData?.price
     ? Number(variantData.price)
     : product.price;
 
-  // ✅ Images
   const displayAttachments = variantData?.images?.length
     ? variantData.images.map((img) => ({
         ...img,
@@ -135,13 +216,15 @@ export default function ProductDetail({ id }: { id: string }) {
       }))
     : product.attachments;
 
+  /* ================= UI ================= */
+
   return (
     <section className="py-8 lg:py-14">
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-14">
           <ProductGallery attachments={displayAttachments} />
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             <ProductInfo
               name={product.name}
               price={displayPrice}
@@ -154,20 +237,28 @@ export default function ProductDetail({ id }: { id: string }) {
               onSizeChange={handleSizeChange}
               variantStock={variantData?.stock ?? null}
               variantSku={variantData?.sku ?? null}
-              variantLoading={false} // no API now
+              variantLoading={false}
             />
 
-        <ProductCustomization
-  productId={Number(product.id)}
-  variantId={variantData?.id}
-  price={displayPrice}
-  name={product.name}
-/>
+            {/* ✅ SAFE RENDER */}
+            {variantData && (
+              <ProductCustomization
+                productId={Number(product.id)}
+                variantId={variantData.id}
+                price={displayPrice}
+                name={product.name}
+                is_in_cart={Boolean(variantData.is_in_cart)}
+                is_in_wishlist={Boolean(variantData.is_in_wishlist)}
+                wishlist_id={variantData.wishlist_id ?? null}
+              />
+            )}
           </div>
         </div>
 
         <ProductAccordion description={product.description} />
-        <RelatedProducts category_id={product?.categories[0]?.id} />
+        <RelatedProducts
+          category_id={product?.categories?.[0]?.id ?? null}
+        />
       </div>
     </section>
   );

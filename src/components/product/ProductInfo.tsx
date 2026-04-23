@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import { Star, Loader2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Star, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import DOMPurify from "dompurify";
-
 
 interface VariantImage {
   id: number;
@@ -58,7 +57,9 @@ export default function ProductInfo({
   variantSku?: string | null;
   variantLoading?: boolean;
 }) {
-  // ✅ Unique colors from variants
+  const [showSizeChart, setShowSizeChart] = useState(false);
+
+  // Unique colors
   const colors = useMemo(() => {
     const map = new Map<string, string>();
     variants.forEach((v) => {
@@ -67,7 +68,7 @@ export default function ProductInfo({
     return Array.from(map, ([color, color_code]) => ({ color, color_code }));
   }, [variants]);
 
-  // ✅ Only show sizes available for selected color
+  // Available sizes for selected color
   const availableSizeIds = useMemo(() => {
     if (!selectedColor) return new Set<number>();
     return new Set(
@@ -77,7 +78,7 @@ export default function ProductInfo({
     );
   }, [selectedColor, variants]);
 
-  // ✅ Parse measurements safely
+  // Parse measurements
   const measurements = useMemo(() => {
     if (!selectedSize?.measurements) return null;
     try {
@@ -87,124 +88,146 @@ export default function ProductInfo({
     }
   }, [selectedSize]);
 
-  return (
-    <div>
-      <span className="text-xs uppercase text-muted-foreground">Apparel</span>
-      <h1 className="text-3xl font-heading font-bold">{name}</h1>
+  const rating = 4.2;
+  const reviewCount = 128;
 
-      {/* ⭐ Rating */}
-      <div className="flex items-center gap-1 mt-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            className={`h-4 w-4 ${
-              i < 4 ? "fill-primary text-primary" : "text-border"
-            }`}
-          />
-        ))}
-        <span className="text-sm text-muted-foreground ml-2">
-          4.0 (128 reviews)
+  return (
+    <div className="space-y-5">
+      {/* Eyebrow + Name */}
+      <div>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#4a7a58]">
+          Premium Apparel
+        </span>
+        <h1 className="font-heading text-[2rem] leading-[1.15] font-bold text-foreground mt-1">
+          {name}
+        </h1>
+      </div>
+
+      {/* Rating */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star
+              key={i}
+              className={`h-3.5 w-3.5 ${
+                i < Math.floor(rating)
+                  ? "fill-amber-500 text-amber-500"
+                  : i < rating
+                  ? "fill-amber-300 text-amber-300"
+                  : "fill-border text-border"
+              }`}
+            />
+          ))}
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {rating} · {reviewCount} reviews
         </span>
       </div>
 
-      {/* 📄 Description */}
-      <p
-  className="mt-4 text-muted-foreground"
-  dangerouslySetInnerHTML={{
-    __html: DOMPurify.sanitize(
-      description || "No description available"
-    ),
-  }}
-/>
-      {/* 💰 Price — updates from variant */}
-      <p className="text-2xl font-bold mt-4">${price}</p>
+      {/* Price */}
+      <div className="flex items-baseline gap-3">
+        <p className="font-heading text-[2rem] font-bold text-foreground">
+          ${price}
+        </p>
+       
+      </div>
 
-      {/* ✅ SKU */}
-      {variantSku && (
-        <p className="text-xs text-muted-foreground mt-1">SKU: {variantSku}</p>
-      )}
+      {/* Stock */}
+      <div className="h-7 flex items-center">
+        {variantLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>Checking availability…</span>
+          </div>
+        ) : variantStock !== null && variantStock !== undefined ? (
+          <span
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+              variantStock > 0
+                ? "bg-green-50 text-green-700"
+                : "bg-red-50 text-red-600"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                variantStock > 0 ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            {variantStock > 0
+              ? `In Stock (${variantStock} available)`
+              : "Out of Stock"}
+          </span>
+        ) : null}
+      </div>
 
-      {/* ✅ Stock status */}
-      {variantLoading && (
-        <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Checking availability...
-        </div>
-      )}
-    {variantLoading ? (
-  // 🔹 Skeleton Loader
-  <div className="mt-2">
-    <div className="h-4 w-40 bg-gray-200 rounded animate-pulse"></div>
-  </div>
-) : (
-  variantStock !== null &&
-  variantStock !== undefined && (
-    <p
-      className={`text-sm mt-2 font-medium ${
-        variantStock > 0 ? "text-green-600" : "text-red-500"
-      }`}
-    >
-      {variantStock > 0
-        ? `✓ In Stock (${variantStock} available)`
-        : "✗ Out of Stock"}
-    </p>
-  )
-)}
+      <div className="h-px bg-border" />
 
-      {/* 🎨 Colors */}
+      {/* Colors */}
       {colors.length > 0 && (
-        <div className="mt-6">
-          <p className="font-medium mb-2">
-            Color:{" "}
-            <span className="text-muted-foreground font-normal">
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              Color
+            </p>
+            <p className="text-sm text-foreground font-medium">
               {selectedColor || "Select a color"}
-            </span>
-          </p>
-          <div className="flex flex-wrap gap-2">
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2.5">
             {colors.map((item) => (
               <button
                 key={item.color}
+                title={item.color}
                 onClick={() => onColorChange(item.color)}
-                className={`flex items-center gap-2 px-3 py-1.5 border rounded transition-all ${
+                className={`relative w-9 h-9 rounded-full border-2 transition-all duration-150 hover:scale-110 ${
                   selectedColor === item.color
-                    ? "border-black bg-black text-white"
-                    : "border-gray-300 hover:border-gray-500"
+                    ? "border-foreground ring-2 ring-background ring-offset-2 ring-offset-foreground/10 scale-105"
+                    : "border-transparent"
                 }`}
-              >
-                <span
-                  className="w-4 h-4 rounded-full border border-gray-300"
-                  style={{ backgroundColor: item.color_code }}
-                />
-                {item.color}
-              </button>
+                style={{
+                  backgroundColor: item.color_code,
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
+                }}
+              />
             ))}
           </div>
         </div>
       )}
 
-      {/* 📏 Sizes — filtered by selected color */}
+      {/* Sizes */}
       {sizes.length > 0 && (
-        <div className="mt-6">
-          <p className="font-medium mb-2">
-            Size:{" "}
-            <span className="text-muted-foreground font-normal">
-              {selectedSize?.name || "Select a size"}
-            </span>
-          </p>
+        <div>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              Size
+            </p>
+            <button
+              onClick={() => setShowSizeChart((v) => !v)}
+              className="text-xs text-[#4a7a58] underline underline-offset-2 flex items-center gap-0.5"
+            >
+              Size guide
+              {showSizeChart ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+            </button>
+          </div>
+
           <div className="flex flex-wrap gap-2">
             {sizes.map((size) => {
               const available = !selectedColor || availableSizeIds.has(size.id);
+              const isActive = selectedSize?.id === size.id;
               return (
                 <button
                   key={size.id}
                   onClick={() => available && onSizeChange(size)}
                   disabled={!available}
-                  className={`px-3 py-1.5 border rounded transition-all ${
-                    selectedSize?.id === size.id
-                      ? "border-black bg-black text-white"
+                  className={`min-w-[48px] px-3.5 py-2 text-sm font-medium rounded-lg border transition-all duration-150 ${
+                    isActive
+                      ? "bg-[#2d4a35] text-white border-[#2d4a35]"
                       : available
-                      ? "border-gray-300 hover:border-gray-500"
-                      : "border-gray-200 text-gray-300 cursor-not-allowed line-through"
+                      ? "bg-background text-foreground border-border hover:border-[#4a7a58] hover:text-[#4a7a58] hover:bg-[#e8f0ea]"
+                      : "bg-muted/30 text-muted-foreground/40 border-border/40 cursor-not-allowed line-through"
                   }`}
                 >
                   {size.name}
@@ -212,31 +235,48 @@ export default function ProductInfo({
               );
             })}
           </div>
+
           {selectedColor && availableSizeIds.size === 0 && (
-            <p className="text-sm text-red-500 mt-2">
+            <p className="text-xs text-red-500 mt-2">
               No sizes available for this color.
             </p>
+          )}
+
+          {/* Collapsible size chart */}
+          {showSizeChart && measurements && (
+            <div className="mt-3 rounded-xl border border-border overflow-hidden bg-muted/20">
+              <div className="px-4 py-2.5 border-b border-border">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Size Chart — {selectedSize?.name}
+                </p>
+              </div>
+              <table className="w-full text-sm">
+                <tbody>
+                  {Object.entries(measurements).map(([key, value]) => (
+                    <tr key={key} className="border-b border-border last:border-none">
+                      <td className="px-4 py-2 capitalize text-muted-foreground text-xs">
+                        {key.replace(/_/g, " ")}
+                      </td>
+                      <td className="px-4 py-2 font-semibold text-right text-xs">
+                        {String(value)} cm
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
-      {/* 📊 Size Chart */}
-      {measurements && (
-        <div className="mt-8 border rounded p-4 bg-muted/30">
-          <h3 className="font-semibold mb-3">Size Chart</h3>
-          <table className="w-full text-sm">
-            <tbody>
-              {Object.entries(measurements).map(([key, value]) => (
-                <tr key={key} className="border-b last:border-none">
-                  <td className="py-1.5 capitalize text-muted-foreground">
-                    {key.replace(/_/g, " ")}
-                  </td>
-                  <td className="py-1.5 font-medium">{String(value)} cm</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Description preview */}
+      {description && (
+        <p
+          className="text-sm text-muted-foreground leading-relaxed line-clamp-3"
+          dangerouslySetInnerHTML={{
+            __html: DOMPurify.sanitize(description),
+          }}
+        />
       )}
     </div>
   );

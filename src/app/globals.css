@@ -98,7 +98,12 @@
 /* ------------------------------------------------ */
 /* Container */
 /* ------------------------------------------------ */
-
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  scrollbar-width: none;
+}
 .container {
   width: 100%;
   margin-inline: auto;
