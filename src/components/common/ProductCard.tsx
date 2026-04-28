@@ -6,6 +6,7 @@ import { Heart, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import AddToCartModal from "./AddToCartModal";
+import ProxyImage from "../Proxyimage";
 
 interface ProductCardProps {
   image: string;
@@ -38,9 +39,9 @@ export default function ProductCard({
         {/* IMAGE */}
         <Link href={`/product/${productId}`}>
           <div className="relative aspect-square overflow-hidden bg-secondary">
-            <Image
-              unoptimized={process.env.NODE_ENV === "development"}
-              crossOrigin="anonymous"
+            <ProxyImage
+              // unoptimized={process.env.NODE_ENV === "development"}
+              // crossOrigin="anonymous"
               src={image}
               alt={name}
               fill

@@ -8,7 +8,7 @@ export const AddToWishlistApi = (payload: {
   product_id: number;
   variant_id?: number; // ✅ optional
 }) => {
-  return client.post("/wishlist", payload);
+  return client.post(WISHLIST_ENDPOINTS.ADD, payload);
 };
 
 // 📥 Get Wishlist

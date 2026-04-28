@@ -12,7 +12,7 @@ import CheckoutSummary from "@/components/checkout/CheckoutSummary";
 export default function Checkout() {
   const router = useRouter();
 
-  const { items, subtotal, customizationTotal, grandTotal, clearCart } =
+  const { items, subtotal, customizationTotal, grandTotal } =
     useCart();
 
   const { addOrder } = useOrders();
@@ -48,7 +48,6 @@ export default function Checkout() {
             subtotal={subtotal}
             customizationTotal={customizationTotal}
             grandTotal={grandTotal}
-            clearCart={clearCart}
             addOrder={addOrder}
             router={router}
           />

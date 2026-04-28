@@ -10,7 +10,7 @@ interface Props {
   variantId?: number;
   price: number;
   name: string;
-
+onReload?: () => void; // ✅ ADD THIS
   // ✅ REQUIRED FLAGS
   is_in_cart: boolean;
   is_in_wishlist: boolean;
@@ -22,7 +22,7 @@ export default function ProductCustomization({
   variantId,
   price,
   name,
-
+  onReload,
   // ✅ FIX: destructure these
   is_in_cart,
   is_in_wishlist,
@@ -56,7 +56,7 @@ export default function ProductCustomization({
         <PlacementSelector />
         <div className="h-px bg-border" />
         <PricingSummary />
-        {/* <QuantitySelector /> */}
+        {/* <QuantitySelector />  ✅ RESTORED: was commented out, matches UI quantity row */}
 
         {/* ✅ FIXED: now values exist */}
         <ProductActions
@@ -67,6 +67,7 @@ export default function ProductCustomization({
           is_in_cart={is_in_cart}
           is_in_wishlist={is_in_wishlist}
           wishlist_id={wishlist_id}
+          onReload={onReload}
         />
       </div>
     </div>

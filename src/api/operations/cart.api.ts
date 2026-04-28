@@ -9,7 +9,7 @@ export const AddToCartApi = (payload: {
   variant_id?: number; // ✅ FIX (make optional)
   quantity: number;
 }) => {
-  return client.post("/cart", payload);
+  return client.post(CART_ENDPOINTS.ADD_TO_CART, payload);
 };
 // 📦 Get all cart items
 export const GetAllCartItemsApi = () =>

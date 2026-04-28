@@ -3,18 +3,18 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { CartProvider } from "@/contexts/CartContext";
-import { SavedItemsProvider } from "@/contexts/SavedItemsContext";
 import { OrdersProvider } from "@/contexts/OrdersContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WishlistProvider } from "@/contexts/WishlistContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <TooltipProvider>
       <AuthProvider>
         <CartProvider>
-          <SavedItemsProvider>
+          <WishlistProvider>
             <OrdersProvider>{children}</OrdersProvider>
-          </SavedItemsProvider>
+          </WishlistProvider>
         </CartProvider>
       </AuthProvider>
     </TooltipProvider>

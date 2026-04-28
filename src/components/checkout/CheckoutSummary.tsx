@@ -11,7 +11,6 @@ type CheckoutSummaryProps = {
   subtotal: number;
   customizationTotal: number;
   grandTotal: number;
-  clearCart: () => void;
   addOrder: (order: Omit<Order, "status">) => void;
   router: AppRouterInstance;
 };
@@ -21,7 +20,6 @@ export default function CheckoutSummary({
   subtotal,
   customizationTotal,
   grandTotal,
-  clearCart,
   addOrder,
   router,
 }: CheckoutSummaryProps) {
@@ -46,8 +44,7 @@ export default function CheckoutSummary({
     };
 
     addOrder(orderData);
-    clearCart();
-
+        
     // Navigate to confirmation page
     router.push(`/confirmation?orderId=${orderId}`);
   };

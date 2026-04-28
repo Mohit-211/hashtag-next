@@ -1,56 +1,27 @@
-// import type { NextConfig } from "next";
-
-// const nextConfig: NextConfig = {
-//   images: {
-//     remotePatterns: [
-//       {
-//         protocol: "https",
-//         hostname: "example.com",
-//         pathname: "/**",
-//       },
-//       {
-//         protocol: "https",
-//         hostname: "cdn.example.com",
-//         pathname: "/images/**",
-//       },
-//       {
-//         protocol: "https",
-//         hostname: "cdn.example.com",
-//         pathname: "/image/**",
-//       },
-
-//       // ✅ FIXED
-//       {
-//         protocol: "https",
-//         hostname: "hashtagbillionaire.com",
-//         pathname: "/**",
-//       },
-//       {
-//         protocol: "https",
-//         hostname: "maps.googleapis.com",
-//       },
-
-//       // ✅ ADD YOUR NEW SOURCES
-//       {
-//         protocol: "https",
-//         hostname: "www.ssactivewear.com",
-//         pathname: "/**",
-//       },
-//       {
-//         protocol: "https",
-//         hostname: "www.promoplace.com",
-//         pathname: "/**",
-//       },
-//     ],
-//   },
-// };
-
-// export default nextConfig;
-
-// next.config.ts
+// next.config.js (or next.config.mjs)
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    unoptimized: true,
+    // Allow all domains since proxy-image route handles the actual fetching
+    remotePatterns: [
+      {
+        // Your own proxy route — always allow
+        protocol: "http",
+        hostname: "localhost",
+        pathname: "/api/proxy-image**",
+      },
+      {
+        protocol: "https",
+        hostname: "**", // wildcard: let the proxy route handle security
+        pathname: "**",
+      },
+    ],
+    // Disable Next.js built-in optimisation for proxied images
+    // (the proxy returns the raw image, optimisation can be added separately)
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 };
-export default nextConfig;
+
+module.exports = nextConfig;

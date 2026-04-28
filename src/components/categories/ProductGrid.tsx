@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import ProxyImage from "../Proxyimage";
 
 interface Attachment {
   file_uri: string;
@@ -42,9 +43,9 @@ console.log(product,"product")
     >
       {/* Image */}
       <div className="relative aspect-square bg-secondary overflow-hidden">
-        <Image
-          unoptimized={process.env.NODE_ENV === "development"}
-          crossOrigin="anonymous"
+        <ProxyImage
+          // unoptimized={process.env.NODE_ENV === "development"}
+          // crossOrigin="anonymous"
           src={imageUrl}
           alt={product.name || "Product Image"}
           fill
@@ -52,7 +53,6 @@ console.log(product,"product")
           sizes="(max-width: 768px) 50vw, 25vw"
         />
       </div>
-
       {/* Body */}
       <div className="px-3 pt-2.5 pb-3">
         <p className="text-[13px] font-medium text-foreground truncate mb-1 leading-snug">
@@ -79,7 +79,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

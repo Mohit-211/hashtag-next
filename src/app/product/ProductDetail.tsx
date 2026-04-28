@@ -73,24 +73,28 @@ export default function ProductDetail({ id }: { id: string }) {
 
   /* ================= FETCH PRODUCT ================= */
 
-  useEffect(() => {
-    if (!id) return;
+const fetchProduct = async () => {
+  if (!id) return;
 
-    const fetchProduct = async () => {
-      try {
-        const res = await ProductDetailApi(id);
-        const data = res?.data?.data || res?.data;
-        setProduct(data);
-      } catch (error) {
-        console.error("Error fetching product:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    setLoading(true);
+    const res = await ProductDetailApi(id);
+    const data = res?.data?.data || res?.data;
+    setProduct(data);
+  } catch (error) {
+    console.error("Error fetching product:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
-    fetchProduct();
-  }, [id]);
+useEffect(() => {
+  fetchProduct();
+}, [id]);
 
+const reloadProduct = () => {
+  fetchProduct();
+};
   /* ================= DEFAULT VARIANT ================= */
 
   useEffect(() => {
@@ -221,7 +225,7 @@ export default function ProductDetail({ id }: { id: string }) {
   return (
     <section className="py-8 lg:py-14">
       <div className="container">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-14">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           <ProductGallery attachments={displayAttachments} />
 
           <div className="space-y-5">
@@ -250,6 +254,7 @@ export default function ProductDetail({ id }: { id: string }) {
                 is_in_cart={Boolean(variantData.is_in_cart)}
                 is_in_wishlist={Boolean(variantData.is_in_wishlist)}
                 wishlist_id={variantData.wishlist_id ?? null}
+                onReload={reloadProduct}
               />
             )}
           </div>

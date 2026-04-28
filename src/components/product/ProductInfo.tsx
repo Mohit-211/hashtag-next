@@ -102,9 +102,9 @@ export default function ProductInfo({
           {name}
         </h1>
       </div>
-
+{/* do not remove we will impliment later */}
       {/* Rating */}
-      <div className="flex items-center gap-2">
+      {/* <div className="flex items-center gap-2">
         <div className="flex items-center gap-0.5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
@@ -122,7 +122,7 @@ export default function ProductInfo({
         <span className="text-xs text-muted-foreground">
           {rating} · {reviewCount} reviews
         </span>
-      </div>
+      </div> */}
 
       {/* Price */}
       <div className="flex items-baseline gap-3">

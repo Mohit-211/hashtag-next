@@ -15,7 +15,7 @@ interface Product {
   customizable?: boolean;
 }
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 6;
 
 export default function RelatedProducts({
   category_id,
@@ -110,7 +110,7 @@ export default function RelatedProducts({
 
       {/* Loading skeletons */}
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols- gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="rounded-2xl overflow-hidden border border-border">
               <div className="aspect-square bg-muted animate-pulse" />
@@ -128,7 +128,7 @@ export default function RelatedProducts({
       ) : (
         <>
           {/* Product grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 md:gap-5">
             {currentProducts.map((product) => (
               <ProductCard
                 key={product.id}

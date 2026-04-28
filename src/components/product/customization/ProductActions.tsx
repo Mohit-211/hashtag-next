@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Heart, ShoppingBag } from "lucide-react";
 import AddToCartModal from "@/components/common/AddToCartModal";
-import {
-  AddToWishlistApi,
-  RemoveFromWishlistApi,
-} from "@/api/operations/wishlist.api";
 import { message } from "antd";
 import { useRouter } from "next/navigation";
+
+import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 interface Props {
   productId: number;
@@ -19,6 +18,7 @@ interface Props {
   is_in_cart: boolean;
   is_in_wishlist: boolean;
   wishlist_id?: number | null;
+  onReload?: () => void; // ✅ ADDED: callback to refresh parent component after cart/wishlist changes
 }
 
 export default function ProductActions({
@@ -28,75 +28,42 @@ export default function ProductActions({
   name,
   is_in_cart,
   is_in_wishlist,
-  wishlist_id,
+  wishlist_id
+
 }: Props) {
   const router = useRouter();
+  const { refreshCart } = useCart();
+  const { wishlist, addToWishlist, removeItem } = useWishlist();
 
   const [showModal, setShowModal] = useState(false);
   const [loadingWishlist, setLoadingWishlist] = useState(false);
 
-  const [isWishlisted, setIsWishlisted] = useState<boolean>(is_in_wishlist);
-  const [wishlistId, setWishlistId] = useState<number | null>(
-    wishlist_id ?? null
+  const item = wishlist.find(
+    (w) =>
+      w.product_id === productId &&
+      (variantId ? w.variant_id === variantId : true)
   );
 
-  // ✅ Sync when props change
-  useEffect(() => {
-    setIsWishlisted(is_in_wishlist);
-    setWishlistId(wishlist_id ?? null);
-  }, [is_in_wishlist, wishlist_id]);
+  const isWishlisted = !!item;
 
-  // ❤️ Toggle Wishlist
   const handleWishlist = async () => {
     if (loadingWishlist) return;
 
+    setLoadingWishlist(true);
+
     try {
-      setLoadingWishlist(true);
-
-      // ❌ REMOVE
-      if (isWishlisted) {
-        if (!wishlistId) {
-          message.error("Wishlist ID missing");
-          return;
-        }
-
-        await RemoveFromWishlistApi(wishlistId);
-
-        setIsWishlisted(false);
-        setWishlistId(null);
-
-        message.success("Removed from wishlist");
-        return;
+      if (isWishlisted && item) {
+        await removeItem(item.id);
+        message.success("Removed");
+      } else {
+        await addToWishlist({
+          product_id: productId,
+          variant_id: variantId,
+          name,
+          price,
+        });
+        message.success("Added ❤️");
       }
-
-      // ✅ ADD (safe variantId handling)
-      const payload: {
-        product_id: number;
-        variant_id?: number;
-      } = {
-        product_id: productId,
-      };
-
-      if (variantId !== undefined) {
-        payload.variant_id = variantId;
-      }
-
-      const res = await AddToWishlistApi(payload);
-
-      const id: number | undefined = res?.data?.data?.id;
-
-      if (!id) {
-        message.error("Invalid response from server");
-        return;
-      }
-
-      setWishlistId(id);
-      setIsWishlisted(true);
-
-      message.success("Added to wishlist ❤️");
-    } catch (error) {
-      console.error(error);
-      message.error("Something went wrong");
     } finally {
       setLoadingWishlist(false);
     }
@@ -104,43 +71,24 @@ export default function ProductActions({
 
   return (
     <>
-      <div className="flex flex-col sm:flex-row gap-3">
-        {/* 🛒 CART */}
+      <div className="flex gap-3">
         {is_in_cart ? (
-          <Button
-            variant="hero"
-            className="flex-1 gap-2"
-            onClick={() => router.push("/cart")}
-          >
-            <ShoppingBag className="h-5 w-5" />
+          <Button onClick={() => router.push("/cart")} className="w-50">
             Go to Cart
           </Button>
         ) : (
-          <Button
-            variant="hero"
-            className="flex-1 gap-2"
-            onClick={() => setShowModal(true)}
-          >
-            <ShoppingBag className="h-5 w-5" />
+          <Button onClick={() => setShowModal(true)} className="w-50">
             Add to Cart
           </Button>
         )}
 
-        {/* ❤️ WISHLIST */}
-        <Button
-          variant="outline"
-          onClick={handleWishlist}
-          disabled={loadingWishlist}
-        >
+        <Button onClick={handleWishlist}>
           <Heart
-            className={`h-5 w-5 transition ${
-              isWishlisted ? "fill-red-500 text-red-500" : ""
-            }`}
+            className={isWishlisted ? "fill-red-500 text-red-500" : ""}
           />
         </Button>
       </div>
 
-      {/* 🛒 MODAL */}
       <AddToCartModal
         open={showModal}
         onClose={() => setShowModal(false)}
@@ -148,6 +96,7 @@ export default function ProductActions({
         variantId={variantId}
         price={price}
         name={name}
+        onSuccess={refreshCart}
       />
     </>
   );

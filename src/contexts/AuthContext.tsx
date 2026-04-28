@@ -73,30 +73,32 @@ console.log(formattedUser,"formattedUser")
   }, []);
 
   // ✅ LOGIN
-  const login = useCallback(async (email: string, password: string) => {
-    try {
-      const res = await loginApi({ email, password });
+ const login = useCallback(async (email: string, password: string) => {
+  try {
+    const res = await loginApi({ email, password });
 
-      const token = res?.data?.token;
+    const token = res?.data?.data?.tokens?.access?.token;
 
-      if (!token) {
-        return { success: false, error: "Invalid response from server" };
-      }
-
-      // ✅ Save token
-      localStorage.setItem("token", token);
-
-      // ✅ Fetch user after login
-      await fetchUser();
-
-      return { success: true };
-    } catch (err: any) {
-      return {
-        success: false,
-        error: err?.response?.data?.message || "Login failed",
-      };
+    if (!token) {
+      return { success: false, error: "Invalid response from server" };
     }
-  }, []);
+
+    // ✅ Store token (same key everywhere)
+    localStorage.setItem("hastagBillionaire", token);
+
+    // ✅ Fetch user AFTER login
+    await fetchUser();
+
+    return { success: true };
+  } catch (err: any) {
+    const message = err?.response?.data?.message || "Login failed";
+
+    return {
+      success: false,
+      error: message,
+    };
+  }
+}, []);
 
   // ✅ LOGOUT
   const logout = useCallback(() => {

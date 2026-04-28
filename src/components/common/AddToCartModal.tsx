@@ -12,6 +12,7 @@ interface Props {
   variantId?: number;
   price: number;
   name: string;
+  onSuccess?: () => void; // ✅ callback for success
 }
 
 export default function AddToCartModal({
@@ -21,6 +22,7 @@ export default function AddToCartModal({
   variantId,
   price,
   name,
+  onSuccess
 }: Props) {
   const [quantity, setQuantity] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(false);
@@ -45,9 +47,9 @@ export default function AddToCartModal({
       }
 
       await AddToCartApi(payload);
-
+onSuccess?.(); 
       setSuccess(true);
-
+      onSuccess?.();
       setTimeout(() => {
         setSuccess(false);
         onClose();

@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import PasswordInput from "./PasswordInput";
 import DemoCredentials from "./DemoCredentials";
-import { loginApi } from "@/api/auth/auth.api";
+// import { loginApi } from "@/api/auth/auth.api";
 // ✅ Sonner toast
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 interface LoginFormProps {
   switchToRegister: () => void;
 }
@@ -21,65 +22,38 @@ export default function LoginForm({ switchToRegister }: LoginFormProps) {
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
-  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast.error("Email and password are required ⚠️");
+ const { login } = useAuth();
+
+const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  if (!email || !password) {
+    toast.error("Email and password are required ⚠️");
+    return;
+  }
+
+  setLoading(true);
+
+  const res = await login(email.trim(), password);
+
+  if (res.success) {
+    toast.success("Login successful 🎉");
+    router.push("/");
+  } else {
+    if (res.error?.toLowerCase().includes("not verified")) {
+      toast.warning("Please verify your email first 📧");
+
+      router.push(
+        `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`
+      );
       return;
     }
-    try {
-      setLoading(true);
-      const payload = {
-        email: email.trim(),
-        password,
-      };
-      const res = await loginApi(payload);
-      console.log(res, "res")
-      if (res?.data?.success) {
-        const token = res?.data?.data?.tokens?.access?.token;
-        console.log(token,"token")
-        // ✅ Store token
-        if (token) {
-          localStorage.setItem("hastagBillionaire", token);
-        } else {
-          sessionStorage.setItem("hastagBillionaire", token);
-        }
-        toast.success("Login successful 🎉");
-        setTimeout(() => {
-          router.push("/");
-        }, 1000);
-      } else {
-        const message: string = res?.data?.message || "";
-        // 🔐 Unverified user → redirect to OTP page
-        if (message.toLowerCase().includes("not verified")) {
-          toast.warning("Please verify your email first 📧");
-          setTimeout(() => {
-            router.push(
-              `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`
-            );
-          }, 1000);
-          return;
-        }
-        toast.error(message || "Login failed ❌");
-      }
-    } catch (err: any) {
-      const errMessage: string =
-        err?.response?.data?.message || "Something went wrong. Try again ❌";
-      // 🔐 Also handle it from catch (some APIs throw 4xx for unverified)
-      if (errMessage.toLowerCase().includes("not verified")) {
-        toast.warning("Please verify your email first 📧");
-        setTimeout(() => {
-          router.push(
-            `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`
-          );
-        }, 1000);
-        return;
-      }
-      toast.error(errMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+
+    toast.error(res.error || "Login failed ❌");
+  }
+
+  setLoading(false);
+};
   return (
     <>
       <div className="text-center space-y-1">
