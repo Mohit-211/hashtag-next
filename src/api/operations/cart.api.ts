@@ -36,3 +36,4 @@ export const RemoveFromCartApi = (cart_id: string) =>
 // ❤️ Move item to wishlist
 export const MoveCartToWishlistApi = (payload: { cart_id: string }) =>
   client.post(CART_ENDPOINTS.MOVE_TO_WISHLIST, payload);
+// ❤️ Move item to wishlist

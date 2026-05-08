@@ -19,30 +19,32 @@ export const PRODUCT_ENDPOINTS = {
 };
 export const CART_ENDPOINTS = {
   CART: "cart",
-
   ADD_TO_CART: "product/cart",
   GET_ALL: "product/cart/get",
-
   INCREMENT: "product/cart/increment",
   DECREMENT: "product/cart/decrement",
-
   UPDATE_QUANTITY: "product/cart",
   REMOVE_FROM_CART: (id: string) => `product/cart/${id}`,
-
   MOVE_TO_WISHLIST: "product/cart/move",
+ 
+};
+export const SHIPPING_ENDPOINTS = {
+  GET_RATES: "order/shipping/rates",
 };
 // ✅ Base URL assumed already set in client
-
 export const WISHLIST_ENDPOINTS = {
   ADD: "/product/wishlist",
   GET: "/product/wishlist/get",
   REMOVE: (id: string | number) => `/product/wishlist/${id}`,
   MOVE_TO_CART: "/product/wishlist/move",
 };
-
 export const ADDRESS_ENDPOINTS = {
   ADD: "/address",
   GET: "/address",
-  UPDATE:"/address",
-  DELETE:"/address",
+  UPDATE: "/address",
+  DELETE: "/address",
 };
+export const ORDER={
+  CREATE:"/order",
+  GET_ALL:"/order"
+}

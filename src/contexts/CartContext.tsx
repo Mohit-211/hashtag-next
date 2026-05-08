@@ -85,7 +85,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         );
       }
 
-      // नया item add करो
+
       return [...prev, item];
     });
   };

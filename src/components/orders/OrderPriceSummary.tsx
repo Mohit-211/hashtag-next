@@ -1,41 +1,63 @@
 // components/orders/OrderPriceSummary.tsx
 
-import type { Order } from "@/contexts/OrdersContext";
+interface Order {
+  subtotal?: number | string;
+  customizationTotal?: number | string;
+  shippingCost?: number | string;
+  tax?: number | string;
+  total?: number | string;
+  [key: string]: any;
+}
 
 interface OrderPriceSummaryProps {
   order: Order;
 }
 
-export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
+export default function OrderPriceSummary({
+  order,
+}: OrderPriceSummaryProps) {
+  const subtotal = Number(order?.subtotal || 0);
+  const customizationTotal = Number(
+    order?.customizationTotal || 0
+  );
+  const shippingCost = Number(order?.shippingCost || 0);
+  const tax = Number(order?.tax || 0);
+  const total = Number(order?.total || 0);
+
   return (
     <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
       <div className="flex justify-between text-sm">
         <span>Subtotal</span>
-        <span>${order.subtotal}</span>
+        <span>${subtotal.toFixed(2)}</span>
       </div>
 
-      {order.customizationTotal > 0 && (
+      {customizationTotal > 0 && (
         <div className="flex justify-between text-sm">
           <span>Customization</span>
-          <span>${order.customizationTotal}</span>
+          <span>
+            ${customizationTotal.toFixed(2)}
+          </span>
         </div>
       )}
 
       <div className="flex justify-between text-sm">
         <span>Shipping</span>
+
         <span>
-          {order.shippingCost === 0 ? "Free" : `$${order.shippingCost}`}
+          {shippingCost === 0
+            ? "Free"
+            : `$${shippingCost.toFixed(2)}`}
         </span>
       </div>
 
       <div className="flex justify-between text-sm">
         <span>Tax</span>
-        <span>${order.tax}</span>
+        <span>${tax.toFixed(2)}</span>
       </div>
 
       <div className="border-t pt-2 flex justify-between font-bold">
         <span>Total</span>
-        <span>${order.total}</span>
+        <span>${total.toFixed(2)}</span>
       </div>
     </div>
   );

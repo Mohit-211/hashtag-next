@@ -1,5 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import CheckoutAddressModal from "./Checkoutaddressmodal";
+ // adjust path
 
 interface Props {
   subtotal: number;
@@ -12,9 +17,15 @@ export default function CartSummary({
   customizationTotal,
   grandTotal,
 }: Props) {
-  // ✅ Shipping logic
-  const shipping = grandTotal >= 999 ? 0 : 99;
-  const finalTotal = grandTotal 
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const finalTotal = grandTotal;
+
+  const handleConfirm = (addressId: string, shippingData: any) => {
+    // shippingData contains the response from SHIPPING_RATE API
+    console.log("Selected address:", addressId, "Shipping:", shippingData);
+    // TODO: navigate to /checkout or update checkout state with addressId + shippingData
+  };
 
   return (
     <div className="lg:col-span-1">
@@ -33,27 +44,22 @@ export default function CartSummary({
               <span>+₹{customizationTotal}</span>
             </div>
           )}
-
-          {/* <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Shipping</span>
-            <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
-          </div>
-
-          {shipping > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Free shipping above ₹999
-            </p>
-          )} */}
         </div>
 
         <div className="border-t border-border pt-3 flex justify-between font-heading font-bold">
           <span>Total</span>
-          <span className="text-primary text-xl">${finalTotal}</span>
+          <span className="text-primary text-xl">₹{finalTotal}</span>
         </div>
 
         <div className="space-y-2 pt-2">
-          <Button asChild variant="hero" size="lg" className="w-full">
-            <Link href="/checkout">Proceed to Checkout</Link>
+          {/* ✅ Opens address modal instead of navigating directly */}
+          <Button
+            variant="hero"
+            size="lg"
+            className="w-full"
+            onClick={() => setModalOpen(true)}
+          >
+            Proceed to Checkout
           </Button>
 
           <Button asChild variant="outline" size="lg" className="w-full">
@@ -61,6 +67,13 @@ export default function CartSummary({
           </Button>
         </div>
       </div>
+
+      {/* ✅ Address selection modal */}
+      <CheckoutAddressModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={handleConfirm}
+      />
     </div>
   );
 }

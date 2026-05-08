@@ -1,33 +1,37 @@
-// components/orders/OrdersList.tsx
-
 "use client";
 
 import { useState } from "react";
-
-import OrderCard from "./OrderCard";
-import type { Order } from "@/contexts/OrdersContext";
+import OrderCard, { OrderData } from "@/components/orders/OrderCard";
 
 interface OrdersListProps {
-  orders: Order[];
+  orders: OrderData[];
 }
 
 export default function OrdersList({ orders }: OrdersListProps) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
 
-  const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+  const toggleExpand = (orderId: string) => {
+    setExpandedOrders((prev) => ({
+      ...prev,
+      [orderId]: !prev[orderId],
+    }));
   };
 
   return (
     <div className="space-y-4">
-      {orders.map((order) => (
-        <OrderCard
-          key={order.orderId}
-          order={order}
-          expanded={expandedId === order.orderId}
-          toggleExpand={toggleExpand}
-        />
-      ))}
+      {orders.map((order) => {
+        // Must use the SAME key logic as inside OrderCard
+        const cardKey = String(order?.orderId || order?.id);
+
+        return (
+          <OrderCard
+            key={cardKey}
+            order={order}
+            expanded={expandedOrders[cardKey] ?? false}
+            toggleExpand={toggleExpand}
+          />
+        );
+      })}
     </div>
   );
 }
