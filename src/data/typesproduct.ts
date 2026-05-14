@@ -35,6 +35,7 @@ export interface Product {
 export interface ProductApiResponse {
   data: {
     data: {
+      pagination: any;
       data: Product[];
     };
   };

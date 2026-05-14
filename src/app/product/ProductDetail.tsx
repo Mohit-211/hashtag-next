@@ -9,7 +9,7 @@ import ProductAccordion from "@/components/product/ProductAccordion";
 import RelatedProducts from "@/components/product/RelatedProducts";
 import { ProductDetailApi } from "@/api/operations/product.api";
 
-/* ================= TYPES ================= */
+/* ─── Types ──────────────────────────────────────────────────────────────── */
 
 interface Size {
   id: number;
@@ -37,12 +37,9 @@ interface Variant {
   min_order_quantity: number;
   max_order_quantity: number | null;
   is_active: boolean;
-
-  // ✅ FIXED FLAGS
   is_in_cart?: boolean;
   is_in_wishlist?: boolean;
   wishlist_id?: number | null;
-
   images: VariantImage[];
   size_details: Size;
 }
@@ -61,7 +58,7 @@ interface Product {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-/* ================= COMPONENT ================= */
+/* ─── Component ──────────────────────────────────────────────────────────── */
 
 export default function ProductDetail({ id }: { id: string }) {
   const [product, setProduct] = useState<Product | null>(null);
@@ -71,71 +68,53 @@ export default function ProductDetail({ id }: { id: string }) {
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [variantData, setVariantData] = useState<Variant | null>(null);
 
-  /* ================= FETCH PRODUCT ================= */
+  // Tracks whichever thumbnail the user is viewing in the gallery
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
 
-const fetchProduct = async () => {
-  if (!id) return;
-
-  try {
-    setLoading(true);
-    const res = await ProductDetailApi(id);
-    const data = res?.data?.data || res?.data;
-    setProduct(data);
-  } catch (error) {
-    console.error("Error fetching product:", error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-useEffect(() => {
-  fetchProduct();
-}, [id]);
-
-const reloadProduct = () => {
-  fetchProduct();
-};
-  /* ================= DEFAULT VARIANT ================= */
+  /* ── Fetch ── */
+  const fetchProduct = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const res = await ProductDetailApi(id);
+      const data = res?.data?.data || res?.data;
+      setProduct(data);
+    } catch (error) {
+      console.error("Error fetching product:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!product || !product.variants?.length) return;
+    fetchProduct();
+  }, [id]);
 
-    const firstVariant = product.variants[0];
-
-    setSelectedColor(firstVariant.color);
-    setSelectedSize(firstVariant.size_details);
-    setVariantData(firstVariant);
+  /* ── Default variant on load ── */
+  useEffect(() => {
+    if (!product?.variants?.length) return;
+    const first = product.variants[0];
+    setSelectedColor(first.color);
+    setSelectedSize(first.size_details);
+    setVariantData(first);
   }, [product]);
 
-  /* ================= UPDATE VARIANT ================= */
-
+  /* ── Sync variant when color/size changes ── */
   useEffect(() => {
     if (!product || !selectedColor || !selectedSize) return;
-
-    const matchedVariant = product.variants.find(
-      (v) =>
-        v.color === selectedColor &&
-        v.size_id === selectedSize.id
+    const match = product.variants.find(
+      (v) => v.color === selectedColor && v.size_id === selectedSize.id
     );
-
-    if (matchedVariant) {
-      setVariantData(matchedVariant);
-    }
+    if (match) setVariantData(match);
   }, [selectedColor, selectedSize, product]);
 
-  /* ================= HANDLERS ================= */
-
-  // ✅ FIXED (no flicker)
+  /* ── Handlers ── */
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
-
-    const firstMatch = product?.variants.find(
-      (v) => v.color === color
-    );
-
-    if (firstMatch) {
-      setSelectedSize(firstMatch.size_details);
-      setVariantData(firstMatch);
+    const first = product?.variants.find((v) => v.color === color);
+    if (first) {
+      setSelectedSize(first.size_details);
+      setVariantData(first);
     }
   };
 
@@ -143,8 +122,7 @@ const reloadProduct = () => {
     setSelectedSize(size);
   };
 
-  /* ================= LOADING ================= */
-
+  /* ── Loading skeleton ── */
   if (loading) {
     return (
       <section className="py-8 lg:py-14">
@@ -154,36 +132,24 @@ const reloadProduct = () => {
               <div className="aspect-square rounded-2xl bg-muted animate-pulse" />
               <div className="flex gap-2.5">
                 {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-[72px] h-[72px] rounded-xl bg-muted animate-pulse"
-                  />
+                  <div key={i} className="w-[72px] h-[72px] rounded-xl bg-muted animate-pulse" />
                 ))}
               </div>
             </div>
-
             <div className="space-y-4">
               <div className="h-4 w-24 bg-muted rounded animate-pulse" />
               <div className="h-9 w-3/4 bg-muted rounded animate-pulse" />
               <div className="h-4 w-32 bg-muted rounded animate-pulse" />
               <div className="h-10 w-24 bg-muted rounded animate-pulse" />
               <div className="h-px bg-border" />
-
               <div className="flex gap-2">
                 {[...Array(5)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-9 h-9 rounded-full bg-muted animate-pulse"
-                  />
+                  <div key={i} className="w-9 h-9 rounded-full bg-muted animate-pulse" />
                 ))}
               </div>
-
               <div className="flex gap-2">
                 {[...Array(6)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-12 h-9 rounded-lg bg-muted animate-pulse"
-                  />
+                  <div key={i} className="w-12 h-9 rounded-lg bg-muted animate-pulse" />
                 ))}
               </div>
             </div>
@@ -193,8 +159,7 @@ const reloadProduct = () => {
     );
   }
 
-  /* ================= NO PRODUCT ================= */
-
+  /* ── Not found ── */
   if (!product) {
     return (
       <section className="py-20">
@@ -205,11 +170,8 @@ const reloadProduct = () => {
     );
   }
 
-  /* ================= DERIVED DATA ================= */
-
-  const displayPrice = variantData?.price
-    ? Number(variantData.price)
-    : product.price;
+  /* ── Derived data ── */
+  const displayPrice = variantData?.price ? Number(variantData.price) : product.price;
 
   const displayAttachments = variantData?.images?.length
     ? variantData.images.map((img) => ({
@@ -220,13 +182,15 @@ const reloadProduct = () => {
       }))
     : product.attachments;
 
-  /* ================= UI ================= */
-
+  /* ── UI ── */
   return (
     <section className="py-8 lg:py-14">
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
-          <ProductGallery attachments={displayAttachments} />
+          <ProductGallery
+            attachments={displayAttachments}
+            onActiveChange={setActiveGalleryIndex}
+          />
 
           <div className="space-y-5">
             <ProductInfo
@@ -244,26 +208,27 @@ const reloadProduct = () => {
               variantLoading={false}
             />
 
-            {/* ✅ SAFE RENDER */}
             {variantData && (
               <ProductCustomization
                 productId={Number(product.id)}
                 variantId={variantData.id}
                 price={displayPrice}
                 name={product.name}
+                productImage={
+                  // Use the exact image the user is viewing in the gallery
+                  (displayAttachments?.[activeGalleryIndex] ?? displayAttachments?.[0])?.file_uri ?? null
+                }
                 is_in_cart={Boolean(variantData.is_in_cart)}
                 is_in_wishlist={Boolean(variantData.is_in_wishlist)}
                 wishlist_id={variantData.wishlist_id ?? null}
-                onReload={reloadProduct}
+                onReload={fetchProduct}
               />
             )}
           </div>
         </div>
 
         <ProductAccordion description={product.description} />
-        <RelatedProducts
-          category_id={product?.categories?.[0]?.id ?? null}
-        />
+        <RelatedProducts category_id={product?.categories?.[0]?.id ?? null} />
       </div>
     </section>
   );
