@@ -27,11 +27,17 @@ import {
 import { cn } from "@/lib/utils";
 
 interface Props {
+  productId?: number;
+  variantId?: number;
+  wishlist_id?: number | null;
+
   price: number;
   name: string;
   productImage?: string | null;
+
   is_in_cart: boolean;
   is_in_wishlist: boolean;
+
   onReload?: () => void;
 }
 
@@ -51,7 +57,6 @@ const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
     reader.readAsDataURL(blob);
   });
 };
-
 export default function ProductCustomization({
   price,
   name,
@@ -60,6 +65,8 @@ export default function ProductCustomization({
   is_in_wishlist,
   onReload,
 }: Props) {
+
+
   /* ---------------- TAB ---------------- */
   const [activeTab, setActiveTab] = useState<"image" | "text">("image");
 
@@ -423,7 +430,7 @@ export default function ProductCustomization({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {["#000000","#ffffff","#ef4444","#22c55e","#3b82f6","#eab308","#a855f7","#ec4899","#14b8a6"].map((color) => (
+              {["#000000", "#ffffff", "#ef4444", "#22c55e", "#3b82f6", "#eab308", "#a855f7", "#ec4899", "#14b8a6"].map((color) => (
                 <button
                   key={color}
                   onClick={() => setTextColor(color)}

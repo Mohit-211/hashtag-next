@@ -175,11 +175,11 @@ export default function ProductDetail({ id }: { id: string }) {
 
   const displayAttachments = variantData?.images?.length
     ? variantData.images.map((img) => ({
-        ...img,
-        url: img.file_name.startsWith("http")
-          ? img.file_name
-          : `${BASE_URL}${img.file_uri}`,
-      }))
+      ...img,
+      url: img.file_name.startsWith("http")
+        ? img.file_name
+        : `${BASE_URL}${img.file_uri}`,
+    }))
     : product.attachments;
 
   /* ── UI ── */
@@ -209,14 +209,28 @@ export default function ProductDetail({ id }: { id: string }) {
             />
 
             {variantData && (
+              // <ProductCustomization
+              //   productId={Number(product.id)}
+              //   variantId={variantData.id}
+              //   price={displayPrice}
+              //   name={product.name}
+              //   productImage={
+              //     // Use the exact image the user is viewing in the gallery
+              //     (displayAttachments?.[activeGalleryIndex] ?? displayAttachments?.[0])?.file_uri ?? null
+              //   }
+              //   is_in_cart={Boolean(variantData.is_in_cart)}
+              //   is_in_wishlist={Boolean(variantData.is_in_wishlist)}
+              //   wishlist_id={variantData.wishlist_id ?? null}
+              //   onReload={fetchProduct}
+              // />
               <ProductCustomization
                 productId={Number(product.id)}
                 variantId={variantData.id}
                 price={displayPrice}
                 name={product.name}
                 productImage={
-                  // Use the exact image the user is viewing in the gallery
-                  (displayAttachments?.[activeGalleryIndex] ?? displayAttachments?.[0])?.file_uri ?? null
+                  (displayAttachments?.[activeGalleryIndex] ??
+                    displayAttachments?.[0])?.file_uri ?? null
                 }
                 is_in_cart={Boolean(variantData.is_in_cart)}
                 is_in_wishlist={Boolean(variantData.is_in_wishlist)}
