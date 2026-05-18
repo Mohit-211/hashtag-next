@@ -19,16 +19,16 @@ export default function TrackLookup({ setTrackedOrder }: TrackLookupProps) {
   const [lookupEmail, setLookupEmail] = useState<string>("");
   const [error, setError] = useState<string>("");
 
-  const handleLookup = () => {
-    setError("");
+  // const handleLookup = () => {
+  //   setError("");
 
-    const cleanId = lookupId.replace("#", "").trim();
+  //   const cleanId = lookupId.replace("#", "").trim();
 
-    const found = orders.find((o) => o.orderId === cleanId);
+  //   const found = orders.find((o) => o.orderId === cleanId);
 
-    if (found) setTrackedOrder(found);
-    else setError("Order not found.");
-  };
+  //   if (found) setTrackedOrder(found);
+  //   else setError("Order not found.");
+  // };
 
   return (
     <div className="bg-card border rounded-xl p-5 mb-8 space-y-4">
@@ -60,9 +60,9 @@ export default function TrackLookup({ setTrackedOrder }: TrackLookupProps) {
         </div>
       </div>
 
-      <Button variant="hero" onClick={handleLookup}>
+      {/* <Button variant="hero" onClick={handleLookup}>
         Track Order
-      </Button>
+      </Button> */}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>

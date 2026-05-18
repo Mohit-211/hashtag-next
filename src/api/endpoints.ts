@@ -14,6 +14,8 @@ export const USER_ENDPOINTS = {
 export const PRODUCT_ENDPOINTS = {
   PRODUCT: "product",
   PRODUCT_DETAIL: (id: string) => `product/${id}`,
+  PRODUCT_DETAIL_GUEST: (id: string) => `product/guest/${id}`,
+
   PRODUCT_CATEGORY: "product-category",
   PRODUCT_VARIANT: "product/get-variant",
 };
@@ -24,7 +26,7 @@ export const CART_ENDPOINTS = {
   INCREMENT: "product/cart/increment",
   DECREMENT: "product/cart/decrement",
   UPDATE_QUANTITY: "product/cart",
-  REMOVE_FROM_CART: (id: string) => `product/cart/${id}`,
+  REMOVE_FROM_CART: (cart_id: string) => `product/cart/${cart_id}`,
   MOVE_TO_WISHLIST: "product/cart/move",
  
 };
@@ -44,7 +46,14 @@ export const ADDRESS_ENDPOINTS = {
   UPDATE: "/address",
   DELETE: "/address",
 };
-export const ORDER={
-  CREATE:"/order",
-  GET_ALL:"/order"
-}
+export const ORDER = {
+  CREATE: "/order",
+  GET_ALL: "/order",
+  GET_DETAIL: (id: string | number) => `/order/${id}`,
+  CREATE_SHIPMENT_LABEL: "/order/create-shipment-label",
+};
+export const PAYMENT_ENDPOINTS = {
+  CREATE_PAYMENT: "/payment/square/create-payment",
+  SQUARE_CONFIG:"payment/square/config"
+
+};

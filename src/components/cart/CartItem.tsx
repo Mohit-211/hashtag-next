@@ -28,8 +28,9 @@ type Customization = {
 };
 
 export type CartItemType = {
-  id: string; // cart_id
   name: string;
+  id: string; // cart_id
+  cart_id: string; // ✅ FIXED (added cart_id for API operations)
   image?: string;
   basePrice: number;
   // price: number;
@@ -43,6 +44,7 @@ interface Props {
 }
 
 export default function CartItem({ item, onRefresh }: Props) {
+  console.log(item, "item")
   const [loading, setLoading] = useState(false);
 
   const placements = item.customization?.placements ?? [];
@@ -109,7 +111,7 @@ export default function CartItem({ item, onRefresh }: Props) {
     try {
       setLoading(true);
 
-      await RemoveFromCartApi(item.id);
+      await RemoveFromCartApi(item.cart_id);
 
       message.success("Item removed");
 
@@ -124,7 +126,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-      
+
       {/* Top */}
       <div className="flex gap-4">
         <ProxyImage
@@ -174,7 +176,7 @@ export default function CartItem({ item, onRefresh }: Props) {
       {/* Bottom */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          
+
           {/* Quantity */}
           <div className="flex items-center border rounded-lg overflow-hidden">
             <button

@@ -190,3 +190,6 @@
 .overflow-y-auto {
       scrollbar-width: none
 }
+button{
+  cursor: pointer !important;
+}

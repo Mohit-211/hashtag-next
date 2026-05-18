@@ -15,6 +15,8 @@ export const AllProductsApi = (params?: ProductQueryParams) => {
   });
 };
 export const ProductDetailApi = (id: string) => client.get(PRODUCT_ENDPOINTS.PRODUCT_DETAIL(id))
+export const ProductDetailGuestApi = (id: string) => client.get(PRODUCT_ENDPOINTS.PRODUCT_DETAIL_GUEST(id))
+
 export const ProductCategoryApi = ({
   page = 1,
   limit = 10,

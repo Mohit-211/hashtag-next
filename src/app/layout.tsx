@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 
 import Providers from "./providers";
-
+import Script from "next/script";
 import { Toaster as Sonner } from "sonner";
 
 import Header from "@/components/layout/Header";
@@ -95,6 +95,10 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable}`}
         suppressHydrationWarning
       >
+        <Script
+  src="https://sandbox.web.squarecdn.com/v1/square.js"
+  strategy="afterInteractive"
+/>
         <Providers>
           <Header />
 

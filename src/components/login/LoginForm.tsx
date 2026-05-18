@@ -38,7 +38,8 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
 
   if (res.success) {
     toast.success("Login successful 🎉");
-    router.push("/");
+    // router.push("/");
+    router.back();
   } else {
     if (res.error?.toLowerCase().includes("not verified")) {
       toast.warning("Please verify your email first 📧");
@@ -95,7 +96,7 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
           type="submit"
           variant="hero"
           size="lg"
-          className="w-full"
+          className="w-full cursor-pointer596"
           disabled={loading}
         >
           {loading ? "Logging in..." : "Login"}

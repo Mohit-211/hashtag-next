@@ -68,7 +68,7 @@ export default function ProxyImage({
   sizes,
   priority = false,
   fallback = DEFAULT_FALLBACK,
-  objectFit = "cover",
+  objectFit = "contain",
 }: ProxyImageProps) {
   const [errored, setErrored] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
@@ -98,7 +98,7 @@ export default function ProxyImage({
   };
 
   const imageStyle =
-    objectFit !== "cover"
+    objectFit !== "contain"
       ? { objectFit: objectFit as React.CSSProperties["objectFit"] }
       : undefined;
 

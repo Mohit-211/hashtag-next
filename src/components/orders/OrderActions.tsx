@@ -49,16 +49,7 @@ export default function OrderActions({
 
   return (
     <div className="flex flex-col sm:flex-row gap-2">
-      <Link href="/track-order">
-        <Button
-          variant="hero"
-          size="sm"
-          className="gap-1.5"
-        >
-          <Package className="h-4 w-4" />
-          Track Order
-        </Button>
-      </Link>
+     
 
       <Button
         variant="outline"

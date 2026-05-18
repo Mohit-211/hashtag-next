@@ -79,7 +79,7 @@ export default function ProductGallery({
                     src={img}
                     alt={`Thumbnail ${i + 1}`}
                     fill
-                    className="object-cover transition-transform duration-300 group-hover/thumb:scale-110"
+                    className="object-contain transition-transform duration-300 group-hover/thumb:scale-110"
                   />
                   {active === i && (
                     <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 bg-[#2d4a35] rounded-r-full" />
@@ -105,7 +105,7 @@ export default function ProductGallery({
                 alt="Product"
                 fill
                 priority
-                className={`object-cover transition-transform duration-500 ease-out ${
+                className={`object-contain transition-transform duration-500 ease-out ${
                   zoomed
                     ? "scale-150 group-hover:scale-[1.6]"
                     : "scale-100 group-hover:scale-[1.04]"
@@ -250,7 +250,7 @@ export default function ProductGallery({
                     crossOrigin="anonymous"
                     alt={`Thumb ${i + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-contain"
                   />
                 </button>
               ))}

@@ -45,7 +45,7 @@ export default function ProductCard({
               src={image}
               alt={name}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              className="object-contain group-hover:scale-105 transition-transform duration-500"
             />
 
             {badge && (

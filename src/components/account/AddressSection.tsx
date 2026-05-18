@@ -63,7 +63,7 @@ export default function AddressSection() {
   const fetchAddresses = async () => {
     try {
       const res = await GetAddressApi();
-      console.log(res,"res")
+      console.log(res, "res")
       const formatted = res?.data?.data?.map((item: any) => ({
         id: item.id,
         fullName: item.name,
@@ -99,7 +99,7 @@ export default function AddressSection() {
 
       if (editingAddress) {
         payload.id = editingAddress.id;
-        await UpdateAddressApi(payload);
+        await UpdateAddressApi(editingAddress.id, payload);
         message.success("Address updated");
       } else {
         await AddAddressApi(payload);
@@ -115,28 +115,28 @@ export default function AddressSection() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    setDeletingId(id);
-    try {
-      await DeleteAddressApi({ id });
-      message.success("Address deleted");
-      fetchAddresses();
-    } catch {
-      message.error("Delete failed");
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  // const handleDelete = async (id: number) => {
+  //   setDeletingId(id);
+  //   try {
+  //     await DeleteAddressApi({ id });
+  //     message.success("Address deleted");
+  //     fetchAddresses();
+  //   } catch {
+  //     message.error("Delete failed");
+  //   } finally {
+  //     setDeletingId(null);
+  //   }
+  // };
 
-  const handleDefault = async (id: number) => {
-    try {
-      await UpdateAddressApi({ id, is_default: true });
-      message.success("Default updated");
-      fetchAddresses();
-    } catch {
-      message.error("Failed to update default");
-    }
-  };
+  // const handleDefault = async (id: number) => {
+  //   try {
+  //     await UpdateAddressApi(id);
+  //     message.success("Default updated");
+  //     fetchAddresses();
+  //   } catch {
+  //     message.error("Failed to update default");
+  //   }
+  // };
 
   const handleEdit = (addr: any) => {
     setEditingAddress(addr);
@@ -293,7 +293,7 @@ export default function AddressSection() {
                 Edit
               </button>
 
-              {!addr.isDefault && (
+              {/* {!addr.isDefault && (
                 <button
                   onClick={() => handleDefault(addr.id)}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border text-muted-foreground hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors"
@@ -301,18 +301,18 @@ export default function AddressSection() {
                   <CircleDot className="h-3 w-3" />
                   Set default
                 </button>
-              )}
+              )} */}
 
               <span className="flex-1" />
 
-              <button
+              {/* <button
                 onClick={() => handleDelete(addr.id)}
                 disabled={deletingId === addr.id}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border text-muted-foreground hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Trash2 className="h-3 w-3" />
                 Delete
-              </button>
+              </button> */}
             </div>
           </div>
         ))}

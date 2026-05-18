@@ -35,6 +35,7 @@ const statusStyles: Record<string, string> = {
 };
 
 export default function OrderCard({ order, expanded, toggleExpand }: OrderCardProps) {
+  console.log(order,"order")
   // Use a single consistent key — prefer orderId, fall back to id
   const cardKey = String(order?.orderId || order?.id);
 

@@ -1,19 +1,20 @@
+// app/cart/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 
 import CartEmpty from "@/components/cart/CartEmpty";
-import CartItemsList from "@/components/cart/CartItemsList";
+import CartItemsList, {
+  CartItemType,
+} from "@/components/cart/CartItemsList";
 import CartSummary from "@/components/cart/CartSummary";
 import { useCart } from "@/contexts/CartContext";
-import { Loader2 } from "lucide-react";
-
 
 function CartSkeleton() {
   return (
     <div className="min-h-[100dvh] bg-gray-50 p-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+        
         {/* LEFT: Cart Items */}
         <div className="lg:col-span-2 space-y-6">
           {[1, 2, 3].map((_, i) => (
@@ -64,9 +65,10 @@ function CartSkeleton() {
     </div>
   );
 }
+
 export default function Cart() {
   const {
-    items,
+    items = [],
     subtotal,
     customizationTotal,
     grandTotal,
@@ -75,35 +77,56 @@ export default function Cart() {
 
   const [loading, setLoading] = useState(true);
 
-  // ✅ Use context fetch
   useEffect(() => {
     const load = async () => {
-      await refreshCart(); // 🔥 API call from context
-      setLoading(false);
+      try {
+        setLoading(true);
+        await refreshCart();
+      } catch (error) {
+        console.error("Failed to load cart:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     load();
   }, [refreshCart]);
 
-  // ✅ Loading state
+  // ✅ Loading
   if (loading) {
-    return
-    <CartSkeleton/>;
+    return <CartSkeleton />;
   }
 
-  // ✅ Empty state
-  if (!items || items.length === 0) {
+  // ✅ Empty cart
+  if (items.length === 0) {
     return <CartEmpty />;
   }
+
+  // ✅ Safe typed items
+  const formattedItems: CartItemType[] = items.map((item: any) => ({
+    id: item.id || item._id || "",
+    cart_id: item.cart_id || item.id || "",
+
+    name: item.name || "",
+    image: item.image || "/placeholder.png",
+
+    basePrice: Number(item.basePrice || item.price || 0),
+    quantity: Number(item.quantity || 1),
+
+    customization: item.customization || {
+      placements: [],
+      uploadFee: 0,
+    },
+  }));
 
   return (
     <section className="py-8">
       <div className="container grid lg:grid-cols-3 gap-8">
-
+        
         {/* 🛒 Items */}
         <CartItemsList
-          items={items}
-          onRefresh={refreshCart} // 🔥 always use context refresh
+          items={formattedItems}
+          onRefresh={refreshCart}
         />
 
         {/* 💰 Summary */}
