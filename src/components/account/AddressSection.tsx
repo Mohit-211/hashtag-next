@@ -99,7 +99,7 @@ export default function AddressSection() {
 
       if (editingAddress) {
         payload.id = editingAddress.id;
-        await UpdateAddressApi(editingAddress.id, payload);
+        await UpdateAddressApi(payload);
         message.success("Address updated");
       } else {
         await AddAddressApi(payload);
