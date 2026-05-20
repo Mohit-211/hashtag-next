@@ -88,12 +88,15 @@ export default function ProductCard({
               {name}
             </h3>
           </Link>
+          <div className="pg-price-row">
+          {price && <span className="pg-price">{price}</span>}
+          </div>
 
-          {customizable && (
+          {/* {customizable && (
             <span className="inline-block text-[10px] font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded">
               CUSTOMIZABLE
             </span>
-          )}
+          )} */}
         </div>
       </div>
 

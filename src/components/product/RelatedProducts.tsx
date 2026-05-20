@@ -2,16 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import ProductCard from "@/components/common/ProductCard";
+
 import { AllProductsApi } from "@/api/operations/product.api";
+import ProductGrid from "../categories/ProductGrid";
 
 interface Product {
-  attachments: any;
-  id: any;
-  _id: string;
+  attachments?: {
+    file_uri: string;
+  }[];
+  id: number | string;
+  _id?: string;
   name: string;
   price: number;
-  images: string[];
+  original_price?: number;
+  rating?: number;
+  review_count?: number;
+  is_assured?: boolean;
+  is_sponsored?: boolean;
+  is_hot_deal?: boolean;
+  variant_label?: string;
   customizable?: boolean;
 }
 
@@ -22,6 +31,7 @@ export default function RelatedProducts({
 }: {
   category_id: string | null;
 }) {
+  console.log(category_id,"category_id")
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -32,8 +42,14 @@ export default function RelatedProducts({
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const res = await AllProductsApi({ category_id, limit: 10 });
-        const data = res?.data?.data?.data
+
+        const res = await AllProductsApi({
+          category_id,
+          limit: 50,
+        });
+
+        const data = res?.data?.data?.data || [];
+
         setProducts(data);
         setCurrentPage(1);
       } catch (error) {
@@ -47,60 +63,99 @@ export default function RelatedProducts({
   }, [category_id]);
 
   const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
+
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentProducts = products?.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const currentProducts = products.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE
+  );
 
   const goTo = (page: number) => {
     if (page < 1 || page > totalPages) return;
+
     setCurrentPage(page);
+
+    window.scrollTo({
+      top:
+        document.getElementById("related-products")?.offsetTop ?? 0,
+      behavior: "smooth",
+    });
   };
 
-  // Build page number range with ellipsis
   const getPageNumbers = (): (number | "...")[] => {
-    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (totalPages <= 5) {
+      return Array.from(
+        { length: totalPages },
+        (_, i) => i + 1
+      );
+    }
+
     const pages: (number | "...")[] = [];
+
     if (currentPage <= 3) {
       pages.push(1, 2, 3, "...", totalPages);
     } else if (currentPage >= totalPages - 2) {
-      pages.push(1, "...", totalPages - 2, totalPages - 1, totalPages);
+      pages.push(
+        1,
+        "...",
+        totalPages - 2,
+        totalPages - 1,
+        totalPages
+      );
     } else {
-      pages.push(1, "...", currentPage - 1, currentPage, currentPage + 1, "...", totalPages);
+      pages.push(
+        1,
+        "...",
+        currentPage - 1,
+        currentPage,
+        currentPage + 1,
+        "...",
+        totalPages
+      );
     }
+
     return pages;
   };
 
   return (
-    <div className="mt-20">
+    <div
+      id="related-products"
+      className="mt-16 pt-10 border-t border-[#ece8e2]"
+    >
       {/* Header */}
-      <div className="flex items-end justify-between mb-6">
+      <div className="flex items-end justify-between mb-8">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-[#4a7a58] mb-1">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#4a7a58] mb-2">
+            <span className="w-3 h-px bg-[#4a7a58] inline-block" />
             Related
-          </p>
-          <h2 className="font-heading text-2xl font-bold text-foreground">
+          </span>
+
+          <h2 className="font-heading text-2xl font-bold text-[#1a2e1f]">
             You Might Also Like
           </h2>
         </div>
 
-        {/* Prev / Next quick nav */}
         {totalPages > 1 && (
           <div className="flex items-center gap-2">
             <button
               onClick={() => goTo(currentPage - 1)}
               disabled={currentPage === 1}
               aria-label="Previous page"
-              className="w-8 h-8 rounded-full border border-border bg-background flex items-center justify-center transition-all hover:bg-[#2d4a35] hover:border-[#2d4a35] hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+              className="w-9 h-9 rounded-xl border border-[#dde8df] bg-white flex items-center justify-center transition-all hover:bg-[#2d4a35] hover:border-[#2d4a35] hover:text-white text-[#4a7a58] disabled:opacity-30 disabled:pointer-events-none shadow-sm"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="text-xs text-muted-foreground tabular-nums">
+
+            <span className="text-xs font-semibold text-[#8fa989] tabular-nums px-1">
               {currentPage} / {totalPages}
             </span>
+
             <button
               onClick={() => goTo(currentPage + 1)}
               disabled={currentPage === totalPages}
               aria-label="Next page"
-              className="w-8 h-8 rounded-full border border-border bg-background flex items-center justify-center transition-all hover:bg-[#2d4a35] hover:border-[#2d4a35] hover:text-white disabled:opacity-30 disabled:pointer-events-none"
+              className="w-9 h-9 rounded-xl border border-[#dde8df] bg-white flex items-center justify-center transition-all hover:bg-[#2d4a35] hover:border-[#2d4a35] hover:text-white text-[#4a7a58] disabled:opacity-30 disabled:pointer-events-none shadow-sm"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -108,59 +163,55 @@ export default function RelatedProducts({
         )}
       </div>
 
-      {/* Loading skeletons */}
+      {/* Loading */}
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols- gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-2xl overflow-hidden border border-border">
-              <div className="aspect-square bg-muted animate-pulse" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl overflow-hidden border border-[#ece8e2] bg-white"
+            >
+              <div className="aspect-square bg-[#f0ede8] animate-pulse" />
+
               <div className="p-3 space-y-2">
-                <div className="h-3 bg-muted rounded animate-pulse w-3/4" />
-                <div className="h-4 bg-muted rounded animate-pulse w-1/3" />
+                <div className="h-2.5 bg-[#e8e4df] rounded-full animate-pulse w-3/4" />
+                <div className="h-3.5 bg-[#e8e4df] rounded-full animate-pulse w-1/3" />
               </div>
             </div>
           ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="py-12 text-center text-muted-foreground text-sm">
-          No related products found.
+        <div className="py-16 text-center">
+          <div className="w-12 h-12 rounded-full bg-[#e8f0ea] flex items-center justify-center mx-auto mb-3">
+            <span className="text-xl">🌿</span>
+          </div>
+
+          <p className="text-[#8fa989] text-sm font-medium">
+            No related products found.
+          </p>
         </div>
       ) : (
         <>
-          {/* Product grid */}
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 md:gap-5">
-            {currentProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                image={product.attachments?.[0]?.file_uri}
-                name={product.name}
-                price={product.price}
-                customizable={product.customizable ?? true}
-                productId={Number(product.id)}
-              />
-            ))}
-          </div>
+          {/* Product Grid */}
+          <ProductGrid products={currentProducts} />
 
-          {/* Full pagination bar */}
+          {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-1.5 mt-8">
-              {/* Prev */}
+            <div className="flex items-center justify-center gap-1.5 mt-10">
               <button
                 onClick={() => goTo(currentPage - 1)}
                 disabled={currentPage === 1}
-                aria-label="Previous"
-                className="h-9 px-3 rounded-lg border border-border text-sm font-medium flex items-center gap-1 transition-all hover:bg-[#e8f0ea] hover:border-[#4a7a58] hover:text-[#2d4a35] disabled:opacity-30 disabled:pointer-events-none"
+                className="h-9 px-3 rounded-xl border border-[#dde8df] bg-white text-sm font-semibold flex items-center gap-1.5 transition-all hover:bg-[#f0f6f1] hover:border-[#4a7a58] hover:text-[#2d4a35] text-[#6b8070] disabled:opacity-30 disabled:pointer-events-none shadow-sm"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 Prev
               </button>
 
-              {/* Page numbers */}
               {getPageNumbers().map((page, idx) =>
                 page === "..." ? (
                   <span
                     key={`ellipsis-${idx}`}
-                    className="h-9 w-9 flex items-center justify-center text-muted-foreground text-sm select-none"
+                    className="h-9 w-9 flex items-center justify-center text-[#8fa989] text-sm select-none"
                   >
                     …
                   </span>
@@ -168,11 +219,13 @@ export default function RelatedProducts({
                   <button
                     key={page}
                     onClick={() => goTo(page as number)}
-                    aria-current={currentPage === page ? "page" : undefined}
-                    className={`h-9 w-9 rounded-lg text-sm font-medium transition-all ${
+                    aria-current={
+                      currentPage === page ? "page" : undefined
+                    }
+                    className={`h-9 w-9 rounded-xl text-sm font-semibold transition-all shadow-sm ${
                       currentPage === page
-                        ? "bg-[#2d4a35] text-white border border-[#2d4a35]"
-                        : "border border-border hover:border-[#4a7a58] hover:text-[#2d4a35] hover:bg-[#e8f0ea]"
+                        ? "bg-[#2d4a35] text-white border border-[#2d4a35] shadow-md shadow-[#2d4a35]/20"
+                        : "border border-[#dde8df] bg-white text-[#6b8070] hover:border-[#4a7a58] hover:text-[#2d4a35] hover:bg-[#f0f6f1]"
                     }`}
                   >
                     {page}
@@ -180,12 +233,10 @@ export default function RelatedProducts({
                 )
               )}
 
-              {/* Next */}
               <button
                 onClick={() => goTo(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                aria-label="Next"
-                className="h-9 px-3 rounded-lg border border-border text-sm font-medium flex items-center gap-1 transition-all hover:bg-[#e8f0ea] hover:border-[#4a7a58] hover:text-[#2d4a35] disabled:opacity-30 disabled:pointer-events-none"
+                className="h-9 px-3 rounded-xl border border-[#dde8df] bg-white text-sm font-semibold flex items-center gap-1.5 transition-all hover:bg-[#f0f6f1] hover:border-[#4a7a58] hover:text-[#2d4a35] text-[#6b8070] disabled:opacity-30 disabled:pointer-events-none shadow-sm"
               >
                 Next
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -193,9 +244,14 @@ export default function RelatedProducts({
             </div>
           )}
 
-          {/* Result count */}
-          <p className="text-center text-xs text-muted-foreground mt-3">
-            Showing {startIndex + 1}–{Math.min(startIndex + ITEMS_PER_PAGE, products.length)} of {products.length} products
+          {/* Count */}
+          <p className="text-center text-xs text-[#8fa989] font-medium mt-4">
+            Showing {startIndex + 1}–
+            {Math.min(
+              startIndex + ITEMS_PER_PAGE,
+              products.length
+            )}{" "}
+            of {products.length} items
           </p>
         </>
       )}

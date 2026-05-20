@@ -39,7 +39,7 @@ export default function CartSummary({
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Subtotal</span>
 
-            <span>₹{subtotal}</span>
+            <span>${subtotal}</span>
           </div>
 
           {customizationTotal > 0 && (
@@ -47,7 +47,7 @@ export default function CartSummary({
               <span>Customization</span>
 
               <span>
-                +₹{customizationTotal}
+                +${customizationTotal}
               </span>
             </div>
           )}
@@ -58,7 +58,7 @@ export default function CartSummary({
           <span>Total</span>
 
           <span className="text-primary text-xl">
-            ₹{finalTotal}
+            ${finalTotal}
           </span>
         </div>
 

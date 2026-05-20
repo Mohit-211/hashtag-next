@@ -57,12 +57,7 @@ const METHODS: {
     icon: Smartphone,
     badge: "Fast",
   },
-  {
-    key: "BANK_ACCOUNT",
-    label: "Bank Transfer",
-    sub: "ACH direct debit · 1–3 business days",
-    icon: Landmark,
-  },
+  
 ];
 
 export default function PaymentSection({
@@ -611,9 +606,10 @@ export default function PaymentSection({
                   ? "Card Details"
                   : selectedMethod === "GOOGLE_PAY"
                   ? "Google Pay"
-                  : selectedMethod === "APPLE_PAY"
-                  ? "Apple Pay"
-                  : "Bank Transfer"}
+                  
+                  : "Apple Pay"
+                 
+                }
               </p>
             </div>
 

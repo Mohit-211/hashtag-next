@@ -145,7 +145,7 @@ export default function CartItem({ item, onRefresh }: Props) {
               </h3>
 
               <p className="text-sm text-muted-foreground">
-                Base: ₹{item.basePrice}
+                Base: ${item.basePrice}
               </p>
             </div>
 
@@ -203,7 +203,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
         {/* Total */}
         <p className="font-bold text-lg">
-          ₹{itemTotal.toFixed(2)}
+          ${itemTotal.toFixed(2)}
         </p>
       </div>
     </div>

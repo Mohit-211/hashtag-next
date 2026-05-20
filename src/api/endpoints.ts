@@ -16,7 +16,7 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT_DETAIL: (id: string) => `product/${id}`,
   PRODUCT_DETAIL_GUEST: (id: string) => `product/guest/${id}`,
 
-  PRODUCT_CATEGORY: "product-category",
+  PRODUCT_CATEGORY: "product-category/get-parent-categories",
   PRODUCT_VARIANT: "product/get-variant",
 };
 export const CART_ENDPOINTS = {

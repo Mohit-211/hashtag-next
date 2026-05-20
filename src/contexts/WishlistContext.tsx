@@ -45,6 +45,7 @@ interface WishlistContextType {
     variant_id?: number;
     name: string;
     price: number;
+    image?: string;
   }) => Promise<void>;
 }
 
@@ -66,17 +67,13 @@ export const WishlistProvider = ({
 
   const [loading, setLoading] = useState(true);
 
-  // ✅ SINGLE TOKEN CONDITION
   const isLoggedIn =
     typeof window !== "undefined" &&
     !!localStorage.getItem("hastagBillionaire");
 
-  // ✅ Wishlist Count
   const wishlistCount = wishlist.length;
 
-  // 🔄 Fetch Wishlist
   const fetchWishlist = async () => {
-    // 🚫 No token
     if (!isLoggedIn) {
       setWishlist([]);
       setLoading(false);
@@ -100,14 +97,11 @@ export const WishlistProvider = ({
     }
   };
 
-  // ✅ Initial Fetch
   useEffect(() => {
     fetchWishlist();
   }, []);
 
-  // ❌ Remove
   const removeItem = async (id: number) => {
-    // 🚫 No token
     if (!isLoggedIn) return;
 
     try {
@@ -125,25 +119,36 @@ export const WishlistProvider = ({
     }
   };
 
-  // ❤️ Add
   const addToWishlist = async ({
     product_id,
     variant_id,
     name,
     price,
+    image,
   }: {
     product_id: number;
     variant_id?: number;
     name: string;
     price: number;
+    image?: string;
   }) => {
-    // 🚫 Guest user
     if (!isLoggedIn) {
       toast.error("Please login first");
       return;
     }
 
     try {
+      const exists = wishlist.some(
+        (item) =>
+          item.product_id === product_id &&
+          item.variant_id === variant_id
+      );
+
+      if (exists) {
+        toast.error("Already in wishlist");
+        return;
+      }
+
       const res = await AddToWishlistApi({
         product_id,
         variant_id,
@@ -156,18 +161,6 @@ export const WishlistProvider = ({
         return;
       }
 
-      // ✅ Prevent duplicate
-      const exists = wishlist.some(
-        (item) =>
-          item.product_id === product_id &&
-          item.variant_id === variant_id
-      );
-
-      if (exists) {
-        toast.error("Already in wishlist");
-        return;
-      }
-
       setWishlist((prev) => [
         ...prev,
         {
@@ -176,7 +169,7 @@ export const WishlistProvider = ({
           variant_id,
           name,
           price,
-          image: newItem.image || "",
+          image: image || "",
         },
       ]);
 
@@ -190,11 +183,9 @@ export const WishlistProvider = ({
     }
   };
 
-  // 🛒 Move To Cart
   const moveToCart = async (
     item: WishlistItem
   ) => {
-    // 🚫 No token
     if (!isLoggedIn) return;
 
     try {
@@ -247,7 +238,6 @@ export const WishlistProvider = ({
   );
 };
 
-// ✅ Hook
 export const useWishlist = () => {
   const context = useContext(WishlistContext);
 

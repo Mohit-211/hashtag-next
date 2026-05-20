@@ -106,7 +106,7 @@ export default function ProductPage() {
                     <div style={{ fontSize: 12, color: "#888", margin: "6px 0 2px" }}>SKU: 2089741</div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
                         <span style={{ fontSize: 28, fontWeight: 900, color: "#111" }}>$12.35</span>
-                        <span style={{ fontSize: 13, color: "#27ae60", fontWeight: 600 }}>✓ 19 in stock</span>
+                        {/* <span style={{ fontSize: 13, color: "#27ae60", fontWeight: 600 }}>✓ 19 in stock</span> */}
                     </div>
 
                     {/* Color */}

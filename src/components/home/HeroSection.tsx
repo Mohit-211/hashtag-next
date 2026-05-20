@@ -11,12 +11,12 @@ export default function HeroSection() {
           {/* Text */}
           <div className="space-y-8">
             <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-heading font-bold text-foreground leading-[1.1] tracking-tight">
-              Build Your Identity.
+             Your Logo. Our Craft. delivered.
               <br />
-              <span className="relative inline-block mt-1">
+              {/* <span className="relative inline-block mt-1">
                 Wear Your Statement.
                 <span className="absolute -bottom-1.5 left-0 right-0 h-3 bg-primary/30 -z-10 rounded-sm" />
-              </span>
+              </span> */}
             </h1>
 
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg">

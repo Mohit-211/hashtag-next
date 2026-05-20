@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
   Plus,
   X,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 
 import { AddToCartApi } from "@/api/operations/cart.api";
@@ -21,6 +22,7 @@ interface Props {
   variantId?: number;
   price: number;
   name: string;
+  initialQuantity?: number;
   onSuccess?: () => void;
 }
 
@@ -31,18 +33,27 @@ export default function AddToCartModal({
   variantId,
   price,
   name,
+  initialQuantity = 1,
   onSuccess,
 }: Props) {
   const router = useRouter();
 
   const [quantity, setQuantity] =
-    useState<number>(1);
+    useState<number>(initialQuantity || 1);
 
   const [loading, setLoading] =
     useState<boolean>(false);
 
   const [success, setSuccess] =
     useState<boolean>(false);
+
+  // sync quantity when modal opens
+  useEffect(() => {
+    if (open) {
+      setQuantity(initialQuantity || 1);
+      setSuccess(false);
+    }
+  }, [initialQuantity, open]);
 
   const handleAddToCart = async () => {
     try {
@@ -67,9 +78,7 @@ export default function AddToCartModal({
 
       onSuccess?.();
 
-      // ✅ redirect to checkout page
       setTimeout(() => {
-        setQuantity(1);
         onClose();
 
         router.push("/checkout");
@@ -85,55 +94,60 @@ export default function AddToCartModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      onClick={(e) =>
-        e.target === e.currentTarget && onClose()
-      }
+      className="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
-      <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-300">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b">
-          <div>
-            <h2 className="text-lg font-bold">
+        <div className="flex items-start justify-between border-b px-6 py-5">
+          <div className="pr-4">
+            <h2 className="text-xl font-bold text-black">
               Add To Cart
             </h2>
 
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="mt-1 line-clamp-2 text-sm text-gray-500">
               {name}
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="h-9 w-9 rounded-full hover:bg-gray-100 flex items-center justify-center transition"
+            className="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-gray-100"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 p-6">
           
           {/* Quantity */}
           <div>
-            <p className="text-sm font-medium mb-3">
+            <p className="mb-3 text-sm font-semibold text-gray-700">
               Quantity
             </p>
 
             <div className="flex items-center justify-center gap-4">
+              
+              {/* Minus */}
               <button
                 type="button"
                 onClick={() =>
-                  setQuantity((q) =>
-                    Math.max(1, q - 1)
+                  setQuantity((prev) =>
+                    Math.max(1, prev - 1)
                   )
                 }
-                className="h-11 w-11 rounded-full border hover:bg-gray-100 flex items-center justify-center transition"
+                className="flex h-11 w-11 items-center justify-center rounded-full border transition hover:bg-gray-100"
               >
                 <Minus className="h-4 w-4" />
               </button>
 
+              {/* Input */}
               <input
                 type="number"
                 min={1}
@@ -146,62 +160,66 @@ export default function AddToCartModal({
                     )
                   )
                 }
-                className="w-24 h-11 text-center border rounded-xl font-semibold outline-none focus:ring-2 focus:ring-primary"
+                className="h-12 w-24 rounded-xl border text-center text-lg font-semibold outline-none focus:border-black"
               />
 
+              {/* Plus */}
               <button
                 type="button"
                 onClick={() =>
-                  setQuantity((q) => q + 1)
+                  setQuantity((prev) => prev + 1)
                 }
-                className="h-11 w-11 rounded-full border hover:bg-gray-100 flex items-center justify-center transition"
+                className="flex h-11 w-11 items-center justify-center rounded-full border transition hover:bg-gray-100"
               >
                 <Plus className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* Price */}
-          <div className="rounded-2xl bg-gray-50 p-5 border">
-            <div className="flex justify-between items-center">
+          {/* Summary */}
+          <div className="rounded-2xl border bg-gray-50 p-5">
+            
+            <div className="flex items-center justify-between">
               <span className="text-gray-600">
                 Price
               </span>
 
-              <span className="font-medium">
-                ₹{price}
+              <span className="font-semibold">
+                ${price}
               </span>
             </div>
 
-            <div className="flex justify-between items-center mt-3">
+            <div className="mt-3 flex items-center justify-between">
               <span className="text-gray-600">
                 Quantity
               </span>
 
-              <span className="font-medium">
+              <span className="font-semibold">
                 {quantity}
               </span>
             </div>
 
-            <div className="border-t my-4" />
+            <div className="my-4 border-t" />
 
-            <div className="flex justify-between items-center">
-              <span className="text-base font-semibold">
+            <div className="flex items-center justify-between">
+              <span className="text-base font-bold">
                 Total
               </span>
 
-              <span className="text-2xl font-bold text-primary">
-                ₹{(price * quantity).toFixed(2)}
+              <span className="text-3xl font-extrabold text-black">
+                ${(price * quantity).toFixed(2)}
               </span>
             </div>
           </div>
 
           {/* Buttons */}
           <div className="flex gap-3">
+            
             <Button
               onClick={onClose}
               variant="outline"
-              className="flex-1 h-11 rounded-xl"
+              disabled={loading}
+              className="h-12 flex-1 rounded-xl"
             >
               Cancel
             </Button>
@@ -209,10 +227,13 @@ export default function AddToCartModal({
             <Button
               onClick={handleAddToCart}
               disabled={loading || success}
-              className="flex-1 h-11 rounded-xl"
+              className="h-12 flex-1 rounded-xl"
             >
               {loading ? (
-                "Adding..."
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Adding...
+                </span>
               ) : success ? (
                 <span className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4" />

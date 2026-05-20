@@ -12,87 +12,146 @@ import type {
   ProductApiResponse,
   ProductCategoryApiResponse,
 } from "@/data/typesproduct";
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 const INITIAL_LIMIT = 15;
 const LOAD_MORE_LIMIT = 15;
 const CATEGORY_LIMIT = 50;
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = `
-  @keyframes shimmer {
-    0%   { background-position: -600px 0; }
-    100% { background-position: 600px 0; }
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
+
+  :root {
+    --ink:       #1a1612;
+    --ink-soft:  #6b6560;
+    --ink-faint: #a09b96;
+    --border:    #e8e3de;
+    --border-faint: #f0ece8;
+    --bg:        #faf8f5;
+    --bg-card:   #ffffff;
+    --accent:    #c8502a;
+    --accent-light: #f5ede8;
+    --sidebar-w: 240px;
+    --radius:    12px;
+    --font-serif: 'DM Serif Display', Georgia, serif;
+    --font-sans:  'DM Sans', system-ui, sans-serif;
   }
-  .sk {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e4e4e4 50%, #f0f0f0 75%);
-    background-size: 1200px 100%;
-    animation: shimmer 1.4s ease-in-out infinite;
+
+  * { box-sizing: border-box; }
+
+  .cat-root {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Animations ── */
+  @keyframes shimmer {
+    0%   { background-position: -800px 0; }
+    100% { background-position: 800px 0; }
   }
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
-  @keyframes fade-up {
-    from { opacity: 0; transform: translateY(8px); }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  .fade-up { animation: fade-up 0.28s ease-out both; }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .sk {
+    background: linear-gradient(90deg, #ede9e4 25%, #e3ddd7 50%, #ede9e4 75%);
+    background-size: 1600px 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+  .fade-up { animation: fadeUp 0.32s cubic-bezier(.22,.68,0,1.2) both; }
+
+  /* ── Layout ── */
   .cat-layout {
     display: flex;
     gap: 0;
-    min-height: 100vh;
+    min-height: calc(100vh - 64px);
     align-items: flex-start;
+    background: var(--bg);
   }
+
   /* ── Sidebar ── */
   .cat-sidebar {
-    width: 232px;
+    width: var(--sidebar-w);
     flex-shrink: 0;
     position: sticky;
     top: 0;
     height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0 0 32px 0;
-    border-right: 1px solid #f0eff0;
+    padding-bottom: 40px;
+    border-right: 1px solid var(--border);
+    background: var(--bg-card);
     scrollbar-width: thin;
-    scrollbar-color: #e4e4e4 transparent;
+    scrollbar-color: var(--border) transparent;
   }
-  .cat-sidebar::-webkit-scrollbar { width: 4px; }
-  .cat-sidebar::-webkit-scrollbar-track { background: transparent; }
-  .cat-sidebar::-webkit-scrollbar-thumb { background: #e4e4e4; border-radius: 4px; }
+  .cat-sidebar::-webkit-scrollbar { width: 3px; }
+  .cat-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
   .sidebar-header {
-    padding: 20px 16px 12px;
+    padding: 24px 18px 14px;
     position: sticky;
     top: 0;
-    background: #fff;
+    background: var(--bg-card);
     z-index: 2;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid var(--border-faint);
   }
   .sidebar-title {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #a1a1aa;
-    margin: 0 0 10px 0;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--ink);
+    margin: 0 0 12px 0;
+    font-style: italic;
+  }
+  .sidebar-search-wrap {
+    position: relative;
+  }
+  .sidebar-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-faint);
+    pointer-events: none;
   }
   .sidebar-search {
     width: 100%;
-    height: 32px;
-    border: 1px solid #e4e4e7;
+    height: 34px;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 0 10px 0 30px;
-    font-size: 13px;
-    color: #18181b;
-    background: #fafafa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 8px center;
-    box-sizing: border-box;
+    padding: 0 10px 0 32px;
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    color: var(--ink);
+    background: var(--bg);
     outline: none;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.18s, box-shadow 0.18s;
   }
+  .sidebar-search::placeholder { color: var(--ink-faint); }
   .sidebar-search:focus {
-    border-color: #18181b;
-    background-color: #fff;
+    border-color: var(--ink-soft);
+    box-shadow: 0 0 0 3px rgba(26,22,18,0.06);
+    background: #fff;
   }
+
   .cat-list {
-    padding: 8px 0;
+    padding: 8px 0 0;
     list-style: none;
     margin: 0;
   }
@@ -100,194 +159,267 @@ const styles = `
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 16px;
-    height: 38px;
+    padding: 0 18px;
+    height: 36px;
     cursor: pointer;
-    font-size: 13.5px;
+    font-size: 13px;
     font-weight: 400;
-    color: #52525b;
-    border-radius: 0;
-    transition: background 0.12s, color 0.12s;
+    color: var(--ink-soft);
+    transition: background 0.14s, color 0.14s;
     position: relative;
     user-select: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .cat-item:hover { background: #f4f4f5; color: #18181b; }
+  .cat-item:hover {
+    background: var(--accent-light);
+    color: var(--ink);
+  }
   .cat-item.active {
-    color: #18181b;
-    font-weight: 600;
-    background: #f4f4f5;
+    color: var(--ink);
+    font-weight: 500;
+    background: var(--accent-light);
   }
   .cat-item.active::before {
     content: '';
     position: absolute;
-    left: 0;
-    top: 6px;
-    bottom: 6px;
-    width: 3px;
-    background: #18181b;
-    border-radius: 0 3px 3px 0;
+    left: 0; top: 7px; bottom: 7px;
+    width: 2.5px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
   }
-  .cat-item-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #d4d4d8;
+  .cat-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+  .cat-item-tick {
+    width: 14px;
+    height: 14px;
     flex-shrink: 0;
-    transition: background 0.12s;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity 0.14s;
   }
-  .cat-item.active .cat-item-dot { background: #18181b; }
+  .cat-item.active .cat-item-tick { opacity: 1; }
+
   .load-more-cats {
-    margin: 4px 16px 0;
+    margin: 8px 18px 0;
     padding: 7px 12px;
     font-size: 12px;
-    color: #71717a;
-    border: 1px solid #e4e4e7;
+    font-family: var(--font-sans);
+    color: var(--ink-soft);
+    border: 1px solid var(--border);
     border-radius: 8px;
     background: none;
     cursor: pointer;
-    width: calc(100% - 32px);
+    width: calc(100% - 36px);
     text-align: center;
-    transition: background 0.12s, color 0.12s;
+    transition: background 0.14s, color 0.14s, border-color 0.14s;
+    letter-spacing: 0.01em;
   }
-  .load-more-cats:hover { background: #f4f4f5; color: #18181b; }
+  .load-more-cats:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
   /* ── Main content ── */
   .cat-main {
     flex: 1;
     min-width: 0;
-    padding: 0 0 80px 0;
+    padding-bottom: 100px;
   }
+
   .cat-topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 20px 16px;
+    padding: 22px 24px 18px;
     gap: 12px;
-    border-bottom: 1px solid #f5f5f5;
-    background: #fff;
+    border-bottom: 1px solid var(--border-faint);
+    background: var(--bg-card);
     position: sticky;
     top: 0;
     z-index: 1;
   }
+  .cat-heading-group { display: flex; align-items: baseline; gap: 10px; }
   .cat-heading {
-    font-size: 18px;
-    font-weight: 700;
-    color: #18181b;
+    font-family: var(--font-serif);
+    font-size: 22px;
+    font-weight: 400;
+    color: var(--ink);
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
   }
   .cat-count {
-    font-size: 13px;
-    color: #a1a1aa;
+    font-size: 12.5px;
+    color: var(--ink-faint);
     font-weight: 400;
-    margin-left: 6px;
+    font-family: var(--font-sans);
   }
+
+  /* ── Sort ── */
   .sort-wrapper { position: relative; }
   .sort-btn {
     display: flex;
     align-items: center;
     gap: 6px;
     height: 34px;
-    padding: 0 12px;
-    border: 1px solid #e4e4e7;
+    padding: 0 14px;
+    border: 1px solid var(--border);
     border-radius: 8px;
-    background: #fff;
-    font-size: 13px;
-    color: #18181b;
+    background: var(--bg-card);
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    color: var(--ink);
     cursor: pointer;
-    transition: border-color 0.12s, background 0.12s;
+    transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
     white-space: nowrap;
+    letter-spacing: 0.01em;
   }
-  .sort-btn:hover { border-color: #a1a1aa; background: #fafafa; }
-  .sort-btn svg { color: #71717a; }
+  .sort-btn:hover {
+    border-color: var(--ink-soft);
+    background: var(--bg);
+  }
+  .sort-btn.open {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px rgba(26,22,18,0.06);
+  }
+  .sort-btn svg { color: var(--ink-soft); transition: transform 0.2s; }
+  .sort-btn.open .sort-chevron { transform: rotate(180deg); }
+
   .sort-dropdown {
     position: absolute;
-    top: calc(100% + 6px);
+    top: calc(100% + 8px);
     right: 0;
-    background: #fff;
-    border: 1px solid #e4e4e7;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
-    min-width: 180px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 32px rgba(26,22,18,0.1), 0 2px 8px rgba(26,22,18,0.06);
+    min-width: 190px;
     overflow: hidden;
     z-index: 50;
-    animation: fade-up 0.15s ease-out;
+    animation: slideDown 0.18s ease-out;
+    padding: 4px;
   }
   .sort-option {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    font-size: 13.5px;
+    justify-content: space-between;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: var(--font-sans);
     cursor: pointer;
-    color: #3f3f46;
-    transition: background 0.1s;
+    color: var(--ink-soft);
+    border-radius: 8px;
+    transition: background 0.1s, color 0.1s;
+    gap: 8px;
   }
-  .sort-option:hover { background: #f4f4f5; }
-  .sort-option.active { color: #18181b; font-weight: 600; }
-  .sort-option.active::after {
-    content: '';
-    margin-left: auto;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #18181b;
+  .sort-option:hover { background: var(--bg); color: var(--ink); }
+  .sort-option.active {
+    color: var(--ink);
+    font-weight: 500;
+    background: var(--accent-light);
   }
-  .products-area { padding: 20px; }
-  /* ── Spinner ── */
+  .sort-check { color: var(--accent); flex-shrink: 0; }
+
+  /* ── Products area ── */
+  .products-area { padding: 24px; }
+
+  /* ── Category pill breadcrumb ── */
+  .active-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 12px;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 100px;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-left: 10px;
+  }
+  .active-filter-pill button {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    font-size: 14px;
+    transition: color 0.12s;
+  }
+  .active-filter-pill button:hover { color: #fff; }
+
+  /* ── Load more spinner ── */
   .spinner {
     width: 18px; height: 18px;
     border-radius: 50%;
-    border: 2px solid #e4e4e7;
-    border-top-color: #18181b;
+    border: 2px solid var(--border);
+    border-top-color: var(--ink);
     animation: spin 0.7s linear infinite;
   }
-  /* ── Skeleton product card ── */
+
+  /* ── Skeleton ── */
   .sk-card {
-    border-radius: 14px;
+    border-radius: var(--radius);
     overflow: hidden;
-    border: 1px solid #f0f0f0;
+    border: 1px solid var(--border-faint);
+    background: var(--bg-card);
   }
-  .sk-img {
-    padding-bottom: 100%;
-    position: relative;
-  }
-  .sk-img-inner {
-    position: absolute;
-    inset: 0;
-  }
-  .sk-body { padding: 12px; }
-  /* ── Sidebar skeleton ── */
+  .sk-img { padding-bottom: 100%; position: relative; }
+  .sk-img-inner { position: absolute; inset: 0; }
+  .sk-body { padding: 14px; }
   .sk-sidebar-item {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 16px;
-    height: 38px;
+    padding: 0 18px;
+    height: 36px;
   }
+
+  /* ── Loading overlay on grid ── */
+  .products-grid-wrap { position: relative; }
+  .products-load-more {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    padding: 36px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+
+  /* ── Empty state enhancements ── */
+  .cat-section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
+    margin: 0 24px;
+  }
+
+  /* ── Responsive ── */
   @media (max-width: 768px) {
-    .cat-sidebar {
-      display: none;
-    }
-    .cat-layout {
-      flex-direction: column;
-    }
+    .cat-sidebar { display: none; }
+    .cat-layout { flex-direction: column; }
+    .products-area { padding: 16px; }
+    .cat-topbar { padding: 16px; }
+    .cat-heading { font-size: 20px; }
   }
 `;
+
 // ─── Skeleton Components ───────────────────────────────────────────────────────
 function SidebarSkeleton() {
   return (
     <aside className="cat-sidebar">
       <div className="sidebar-header">
-        <div className="sk" style={{ height: 11, width: 80, borderRadius: 4, marginBottom: 10 }} />
-        <div className="sk" style={{ height: 32, borderRadius: 8 }} />
+        <div className="sk" style={{ height: 16, width: 90, borderRadius: 4, marginBottom: 12 }} />
+        <div className="sk" style={{ height: 34, borderRadius: 8 }} />
       </div>
       <ul className="cat-list">
-        {[100, 80, 120, 90, 110, 75, 95, 85].map((w, i) => (
+        {[90, 72, 110, 84, 100, 68, 88, 76, 95, 60].map((w, i) => (
           <li key={i} className="sk-sidebar-item">
-            <div className="sk" style={{ width: 6, height: 6, borderRadius: "50%", flexShrink: 0 }} />
             <div className="sk" style={{ height: 12, width: w, borderRadius: 4 }} />
           </li>
         ))}
@@ -295,52 +427,73 @@ function SidebarSkeleton() {
     </aside>
   );
 }
+
 function TopBarSkeleton() {
   return (
     <div className="cat-topbar">
-      <div className="sk" style={{ height: 22, width: 160, borderRadius: 6 }} />
-      <div className="sk" style={{ height: 34, width: 110, borderRadius: 8 }} />
+      <div className="sk" style={{ height: 24, width: 140, borderRadius: 6 }} />
+      <div className="sk" style={{ height: 34, width: 120, borderRadius: 8 }} />
     </div>
   );
 }
+
 function ProductsSkeleton({ count = 8 }: { count?: number }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-        gap: 16,
-      }}
-    >
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 18 }}>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="sk-card sk">
-          <div className="sk-img">
-            <div className="sk-img-inner sk" />
-          </div>
+        <div key={i} className="sk-card" style={{ animationDelay: `${i * 40}ms` }}>
+          <div className="sk-img"><div className="sk-img-inner sk" /></div>
           <div className="sk-body">
-            <div className="sk" style={{ height: 11, width: "65%", borderRadius: 4, marginBottom: 8 }} />
-            <div className="sk" style={{ height: 11, width: "40%", borderRadius: 4 }} />
+            <div className="sk" style={{ height: 11, width: "70%", borderRadius: 4, marginBottom: 8 }} />
+            <div className="sk" style={{ height: 13, width: "45%", borderRadius: 4 }} />
           </div>
         </div>
       ))}
     </div>
   );
 }
-// ─── Sort Icon ────────────────────────────────────────────────────────────────
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
 function SortIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 6h18M7 12h10M11 18h2" />
     </svg>
   );
 }
-function ChevronDown() {
+
+function ChevronDown({ className }: { className?: string }) {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg className={className} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
+
+function CheckIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+    </svg>
+  );
+}
+
+function TickIcon() {
+  return (
+    <svg className="cat-item-tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function Categories() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -357,6 +510,8 @@ export default function Categories() {
   const [sortOpen, setSortOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [total_products, setTotalProducts] = useState(0);
+
   const pageRef = useRef(1);
   const fetchingRef = useRef(false);
   const hasMoreRef = useRef(true);
@@ -368,9 +523,10 @@ export default function Categories() {
   const categorySearchInitRef = useRef(false);
   const filterInitRef = useRef(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => { activeCategoryRef.current = activeCategory; }, [activeCategory]);
   useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
-  // Close sort dropdown on outside click
+
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
@@ -380,13 +536,16 @@ export default function Categories() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
   const getLimitForPage = (p: number) => (p === 1 ? INITIAL_LIMIT : LOAD_MORE_LIMIT);
+
   const sortProducts = (data: Product[], sort: SortOption["value"]): Product[] => {
     const copy = [...data];
     if (sort === "price-asc") return copy.sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0));
     if (sort === "price-desc") return copy.sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0));
     return copy;
   };
+
   const fetchCategories = useCallback(
     async (pageNumber: number, isLoadMore: boolean, search: string) => {
       categorySearchAbortRef.current?.abort();
@@ -394,18 +553,13 @@ export default function Categories() {
       categorySearchAbortRef.current = controller;
       try {
         setCategoryLoading(true);
-        const res: ProductCategoryApiResponse = await ProductCategoryApi({
-          page: pageNumber,
-          limit: CATEGORY_LIMIT,
-          search,
-        });
+        const res: ProductCategoryApiResponse = await ProductCategoryApi({ page: pageNumber, limit: CATEGORY_LIMIT, search });
         if (controller.signal.aborted) return;
         const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
         const formatted: Category[] = raw.map((cat) => ({
           id: cat.id,
           name: cat.name ?? cat.category_name ?? cat.title ?? "Unnamed",
         }));
-        console.log(formatted, "formatted");
         setCategories((prev) =>
           isLoadMore ? [...prev, ...formatted] : [{ id: null, name: "All" }, ...formatted]
         );
@@ -421,8 +575,7 @@ export default function Categories() {
     },
     []
   );
-  const [total_products, setTotalProducts] = useState(0)
-  console.log(total_products, "total_products")
+
   const fetchProducts = useCallback(
     async (pageNumber: number, isLoadMore: boolean, category: Category, sort: SortOption["value"]) => {
       try {
@@ -434,7 +587,7 @@ export default function Categories() {
           limit,
           ...(category.id !== null && { category_id: category.id }),
         });
-        setTotalProducts(res?.data?.data?.pagination?.total ?? 0)
+        setTotalProducts(res?.data?.data?.pagination?.total ?? 0);
         const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
         const sorted = sortProducts(raw, sort);
         setProducts((prev) => (isLoadMore ? [...prev, ...sorted] : sorted));
@@ -458,6 +611,7 @@ export default function Categories() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
+
   useEffect(() => {
     Promise.all([
       fetchCategories(1, false, ""),
@@ -465,12 +619,14 @@ export default function Categories() {
     ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
   useEffect(() => {
     if (!categorySearchInitRef.current) { categorySearchInitRef.current = true; return; }
     setCategoryPage(1);
     fetchCategories(1, false, categorySearch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categorySearch]);
+
   useEffect(() => {
     if (!filterInitRef.current) { filterInitRef.current = true; return; }
     pageRef.current = 1;
@@ -482,6 +638,7 @@ export default function Categories() {
     fetchProducts(1, false, activeCategory, sortBy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory, sortBy]);
+
   useEffect(() => {
     const handleScroll = async () => {
       if (fetchingRef.current || !hasMoreRef.current || productLoadingRef.current) return;
@@ -500,25 +657,30 @@ export default function Categories() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [fetchProducts]);
+
   const handleCategorySelect = (cat: Category) => {
     if (cat.id === activeCategory.id) return;
     setActiveCategory(cat);
     setSortOpen(false);
   };
+
   const handleSortSelect = (value: SortOption["value"]) => {
     setSortBy(value);
     setSortOpen(false);
   };
+
   const handleLoadMoreCategories = useCallback(() => {
     const nextPage = categoryPage + 1;
     setCategoryPage(nextPage);
     fetchCategories(nextPage, true, categorySearch);
   }, [categoryPage, categorySearch, fetchCategories]);
+
   const activeSortLabel = sortOptions.find((s) => s.value === sortBy)?.label ?? "Sort";
+
   // ─── Full-page skeleton ────────────────────────────────────────────────────
   if (initialLoading) {
     return (
-      <>
+      <div className="cat-root">
         <style>{styles}</style>
         <div className="container" style={{ paddingTop: 0 }}>
           <CategoryBanner />
@@ -532,27 +694,36 @@ export default function Categories() {
             </div>
           </div>
         </div>
-      </>
+      </div>
     );
   }
+
   // ─── Main UI ───────────────────────────────────────────────────────────────
+  const itemCount = activeCategory.name === "All" ? total_products : products.length;
+
   return (
-    <>
+    <div className="cat-root">
       <style>{styles}</style>
       <div className="container" style={{ paddingTop: 0 }}>
         <CategoryBanner />
         <div className="cat-layout">
+
           {/* ── Left Sidebar ── */}
           <aside className="cat-sidebar">
             <div className="sidebar-header">
-              <p className="sidebar-title">Categories</p>
-              <input
-                type="search"
-                className="sidebar-search"
-                placeholder="Search…"
-                value={categorySearch}
-                onChange={(e) => setCategorySearch(e.target.value)}
-              />
+              <p className="sidebar-title">Browse by category</p>
+              <div className="sidebar-search-wrap">
+                <span className="sidebar-search-icon">
+                  <SearchIcon />
+                </span>
+                <input
+                  type="search"
+                  className="sidebar-search"
+                  placeholder="Filter categories…"
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                />
+              </div>
             </div>
             <ul className="cat-list">
               {categories.map((cat) => (
@@ -562,40 +733,58 @@ export default function Categories() {
                   onClick={() => handleCategorySelect(cat)}
                   title={cat.name}
                 >
-                  <span className="cat-item-dot" />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{cat.name}</span>
+                  <span className="cat-item-name">{cat.name}</span>
+                  <TickIcon />
                 </li>
               ))}
               {categoryLoading && (
-                <li style={{ padding: "10px 16px", display: "flex", gap: 8, alignItems: "center" }}>
-                  <div className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
-                  <span style={{ fontSize: 12, color: "#a1a1aa" }}>Loading…</span>
+                <li style={{ padding: "10px 18px", display: "flex", gap: 8, alignItems: "center" }}>
+                  <div className="spinner" style={{ width: 13, height: 13, borderWidth: 1.5 }} />
+                  <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>Loading…</span>
                 </li>
               )}
               {hasMoreCategories && !categoryLoading && (
                 <li>
                   <button className="load-more-cats" onClick={handleLoadMoreCategories}>
-                    Load more
+                    Show more categories
                   </button>
                 </li>
               )}
             </ul>
           </aside>
+
           {/* ── Right Content ── */}
           <div className="cat-main">
-            {/* Top bar: heading + sort */}
+            {/* Top bar */}
             <div className="cat-topbar">
-              <h1 className="cat-heading">
-                {activeCategory.name}
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+                <h1 className="cat-heading">{activeCategory.name}</h1>
                 {!productGridLoading && (
-                  <span className="cat-count">{activeCategory.name==="All" ? total_products : products.length} items</span>
+                  <span className="cat-count">
+                    {itemCount.toLocaleString()} {itemCount === 1 ? "item" : "items"}
+                  </span>
                 )}
-              </h1>
+                {activeCategory.id !== null && (
+                  <span className="active-filter-pill">
+                    {activeCategory.name}
+                    <button
+                      onClick={() => setActiveCategory({ id: null, name: "All" })}
+                      aria-label="Clear filter"
+                    >
+                      ×
+                    </button>
+                  </span>
+                )}
+              </div>
+
               <div className="sort-wrapper" ref={sortDropdownRef}>
-                <button className="sort-btn" onClick={() => setSortOpen((v) => !v)}>
+                <button
+                  className={`sort-btn${sortOpen ? " open" : ""}`}
+                  onClick={() => setSortOpen((v) => !v)}
+                >
                   <SortIcon />
                   {activeSortLabel}
-                  <ChevronDown />
+                  <ChevronDown className="sort-chevron" />
                 </button>
                 {sortOpen && (
                   <div className="sort-dropdown">
@@ -605,34 +794,30 @@ export default function Categories() {
                         className={`sort-option${sortBy === opt.value ? " active" : ""}`}
                         onClick={() => handleSortSelect(opt.value)}
                       >
-                        {opt.label}
+                        <span>{opt.label}</span>
+                        {sortBy === opt.value && (
+                          <span className="sort-check"><CheckIcon /></span>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             </div>
+
+            <div className="cat-section-divider" />
+
             {/* Products */}
             <div className="products-area">
               {productGridLoading ? (
                 <ProductsSkeleton count={12} />
               ) : products.length > 0 ? (
-                <div className="fade-up">
+                <div className="fade-up products-grid-wrap">
                   <ProductGrid products={products} />
                   {productLoading && page > 1 && (
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "32px 0",
-                        fontSize: 13,
-                        color: "#a1a1aa",
-                      }}
-                    >
+                    <div className="products-load-more">
                       <div className="spinner" />
-                      Loading more products…
+                      Loading more…
                     </div>
                   )}
                 </div>
@@ -641,8 +826,9 @@ export default function Categories() {
               )}
             </div>
           </div>
+
         </div>
       </div>
-    </>
+    </div>
   );
 }

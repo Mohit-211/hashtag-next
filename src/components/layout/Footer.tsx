@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="bg-secondary-50 border-t border-border">
+    <footer className="bg-gray-200/95 border-t border-gray-200">
       <div className="container py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
@@ -18,9 +18,7 @@ export default function Footer() {
               />
             </Link>
 
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Build your identity.
-            </p>
+          
           </div>
 
           {/* Quick Links */}

@@ -30,6 +30,8 @@ const navLinks = [
   { label: "All Products", href: "/categories" },
   { label: "Orders", href: "/orders" },
   { label: "Saved", href: "/saved" },
+  { label: "Gallery", href: "/gallery" },
+
 ];
 
 export default function Header() {
@@ -89,7 +91,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+   <header className="sticky top-0 z-50 bg-gray-200/95 backdrop-blur border-b border-gray-200">
       <div className="container flex h-16 items-center justify-between gap-4">
         {/* Logo */}
         <Link

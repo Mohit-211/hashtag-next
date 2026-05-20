@@ -2,19 +2,23 @@
 
 import { useState } from "react";
 
+import Image from "next/image";
 import Link from "next/link";
 
 import {
   Heart,
-  ShoppingBag,
+  ShoppingCart,
   Loader2,
+  ShoppingBag,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-import ProxyImage from "@/components/Proxyimage";
-
 import { useWishlist } from "@/contexts/WishlistContext";
+
+import { cn } from "@/lib/utils";
+
+import { Badge } from "antd";
 
 interface WishlistItem {
   id: number;
@@ -23,6 +27,54 @@ interface WishlistItem {
   image: string;
   price: number;
   variant_id?: number;
+  badge?: string;
+}
+
+/* ────────────────────────────────────────────────────────── */
+/* FAST IMAGE */
+/* ────────────────────────────────────────────────────────── */
+
+function FastImage({
+  src,
+  alt,
+  priority = false,
+}: {
+  src: string;
+  alt: string;
+  priority?: boolean;
+}) {
+  const [loaded, setLoaded] =
+    useState(false);
+
+  return (
+    <div className="relative w-full h-full overflow-hidden">
+      {!loaded && (
+        <div className="absolute inset-0 animate-pulse bg-[#f3f5f4]" />
+      )}
+
+      <Image
+        src={
+          src?.trim()
+            ? src
+            : "/placeholder.png"
+        }
+        alt={alt}
+        fill
+        priority={priority}
+        loading={
+          priority ? "eager" : "lazy"
+        }
+        unoptimized
+        onLoad={() => setLoaded(true)}
+        className={cn(
+          "object-cover transition-all duration-500 group-hover:scale-105",
+          loaded
+            ? "opacity-100"
+            : "opacity-0"
+        )}
+      />
+    </div>
+  );
 }
 
 export default function Saved() {
@@ -32,50 +84,86 @@ export default function Saved() {
     removeItem,
     moveToCart,
   } = useWishlist();
+console.log(wishlist,"wishlist====>>")
+  const [
+    removeLoadingId,
+    setRemoveLoadingId,
+  ] = useState<number | null>(
+    null
+  );
 
-  const [actionLoadingId, setActionLoadingId] =
-    useState<number | null>(null);
+  const [
+    cartLoadingId,
+    setCartLoadingId,
+  ] = useState<number | null>(
+    null
+  );
 
-  // ✅ TOKEN CONDITION
   const isLoggedIn =
-    typeof window !== "undefined" &&
-    !!localStorage.getItem("hastagBillionaire");
+    typeof window !==
+      "undefined" &&
+    !!localStorage.getItem(
+      "hastagBillionaire"
+    );
 
-  const handleRemove = async (id: number) => {
-    setActionLoadingId(id);
+  const handleRemove = async (
+    id: number
+  ) => {
+    try {
+      setRemoveLoadingId(id);
 
-    await removeItem(id);
-
-    setActionLoadingId(null);
+      await removeItem(id);
+    } finally {
+      setRemoveLoadingId(null);
+    }
   };
 
   const handleMoveToCart = async (
     item: WishlistItem
   ) => {
-    setActionLoadingId(item.id);
+    try {
+      setCartLoadingId(item.id);
 
-    await moveToCart(item);
-
-    setActionLoadingId(null);
+      await moveToCart(item);
+    } finally {
+      setCartLoadingId(null);
+    }
   };
 
-  // ✅ LOGIN REQUIRED
+  /* ────────────────────────────────────────────────────────── */
+  /* LOGIN REQUIRED */
+  /* ────────────────────────────────────────────────────────── */
+
   if (!isLoggedIn) {
     return (
       <section className="py-8 lg:py-14">
         <div className="container max-w-3xl">
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <h2 className="text-2xl font-bold">
-              Please Login
-            </h2>
+          <div className="flex flex-col items-center justify-center py-28 text-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <Heart className="h-7 w-7 text-muted-foreground" />
+            </div>
 
-            <p className="text-muted-foreground mt-2 max-w-md">
-              You need to login to view your
-              orders and track your purchases.
-            </p>
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight">
+                Sign in to see your
+                wishlist
+              </h2>
 
-            <Link href="/login" className="mt-6">
-              <Button className="cursor-pointer">
+              <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
+                Save items you love and
+                come back to them any
+                time.
+              </p>
+            </div>
+
+            <Link
+              href="/login"
+              className="mt-2"
+            >
+              <Button
+                size="lg"
+                className="rounded-full px-8"
+              >
                 Login to Continue
               </Button>
             </Link>
@@ -85,108 +173,199 @@ export default function Saved() {
     );
   }
 
-  // ✅ Loading
+  /* ────────────────────────────────────────────────────────── */
+  /* LOADING */
+  /* ────────────────────────────────────────────────────────── */
+
   if (loading) {
     return (
-      <p className="text-center py-20 text-muted-foreground">
-        Loading wishlist...
-      </p>
+      <div className="flex items-center justify-center py-28 gap-2 text-muted-foreground text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" />
+
+        Loading wishlist…
+      </div>
     );
   }
 
-  // ✅ Empty Wishlist
+  /* ────────────────────────────────────────────────────────── */
+  /* EMPTY */
+  /* ────────────────────────────────────────────────────────── */
+
   if (wishlist.length === 0) {
     return (
-      <section className="py-20 text-center">
-        <h1 className="text-3xl font-bold">
-          No Saved Items
-        </h1>
+      <section className="py-28 text-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <Heart className="h-7 w-7 text-muted-foreground" />
+          </div>
 
-        <p className="text-muted-foreground mt-2">
-          Your wishlist is currently empty.
-        </p>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Nothing saved yet
+            </h1>
 
-        <Link href="/categories">
-          <Button className="mt-4">
-            <ShoppingBag className="mr-2 h-5 w-5" />
-            Browse Products
-          </Button>
-        </Link>
+            <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
+              Browse products and tap
+              the heart to save items
+              you love.
+            </p>
+          </div>
+
+          <Link
+            href="/categories"
+            className="mt-2"
+          >
+            <Button
+              size="lg"
+              className="rounded-full px-8 gap-2"
+            >
+              <ShoppingBag className="h-4 w-4" />
+
+              Browse Products
+            </Button>
+          </Link>
+        </div>
       </section>
     );
   }
 
+  /* ────────────────────────────────────────────────────────── */
+  /* WISHLIST */
+  /* ────────────────────────────────────────────────────────── */
+
   return (
     <section className="py-8">
       <div className="container">
-        <h1 className="text-3xl font-bold mb-6">
-          Saved Items
-        </h1>
+        {/* HEADER */}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-5">
-          {wishlist.map((item) => {
-            const isLoading =
-              actionLoadingId === item.id;
+        <div className="flex items-baseline justify-between mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Saved Items
+          </h1>
 
-            return (
-              <div
-                key={item.id}
-                className="border rounded-lg p-3"
-              >
-                <ProxyImage
-                  src={item.image}
-                  alt={item.name}
-                  width={200}
-                  height={200}
-                  className="w-full h-40 object-cover"
-                />
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {wishlist.length} item
+            {wishlist.length !== 1
+              ? "s"
+              : ""}
+          </span>
+        </div>
 
-                <h3 className="text-sm mt-2 line-clamp-2">
-                  {item.name}
-                </h3>
+        {/* GRID */}
 
-                <p className="font-bold mt-1">
-                  ₹{item.price}
-                </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {wishlist.map(
+            (item, index) => {
+              const isRemoving =
+                removeLoadingId ===
+                item.id;
 
-                <div className="flex flex-col gap-2 mt-3">
-                  {/* Remove */}
-                  <button
-                    onClick={() =>
-                      handleRemove(item.id)
-                    }
-                    className="flex items-center justify-center border rounded-md py-2 hover:bg-secondary transition"
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Heart
-                        className="h-4 w-4 text-red-500"
-                        fill="currentColor"
-                      />
-                    )}
-                  </button>
+              const isMovingToCart =
+                cartLoadingId ===
+                item.id;
 
-                  {/* Move To Cart */}
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      handleMoveToCart(item)
-                    }
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                    ) : (
-                      <ShoppingBag className="mr-1 h-4 w-4" />
-                    )}
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "group relative bg-card border rounded-2xl overflow-hidden",
+                    "transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  )}
+                >
+                  {/* IMAGE */}
 
-                    Move to Cart
-                  </Button>
+                  <div className="relative aspect-square overflow-hidden bg-[#f8f8f8]">
+                    <FastImage
+                      src={item.image}
+                      alt={item.name}
+                      priority={
+                        index < 4
+                      }
+                    />
+
+                    {/* BADGE */}
+
+                    {/* {item.badge && (
+                      <Badge className="absolute top-2 left-2 text-[10px] uppercase tracking-wide">
+                        {item.badge}
+                      </Badge>
+                    )} */}
+
+                    {/* REMOVE */}
+
+                    <button
+                      onClick={() =>
+                        handleRemove(
+                          item.id
+                        )
+                      }
+                      disabled={
+                        isRemoving
+                      }
+                      aria-label="Remove from wishlist"
+                      className={cn(
+                        "absolute top-2 right-2 h-8 w-8 rounded-full",
+                        "flex items-center justify-center",
+                        "bg-white/90 backdrop-blur-md border border-border/50 shadow-sm",
+                        "transition-all hover:scale-110 disabled:opacity-60"
+                      )}
+                    >
+                      {isRemoving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Heart
+                          className="h-3.5 w-3.5 text-rose-500"
+                          fill="currentColor"
+                        />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* BODY */}
+
+                  <div className="p-3">
+                    <p className="text-sm leading-snug line-clamp-2 text-foreground min-h-[2.5rem]">
+                      {item.name}
+                    </p>
+
+                    <div className="flex items-center justify-between gap-2 mt-3">
+                      <span className="font-semibold text-base">
+                        ₹
+                        {item.price.toLocaleString(
+                          "en-IN"
+                        )}
+                      </span>
+
+                      {/* MOVE TO CART */}
+
+                      <button
+                        onClick={() =>
+                          handleMoveToCart(
+                            item
+                          )
+                        }
+                        disabled={
+                          isMovingToCart
+                        }
+                        aria-label={`Move ${item.name} to cart`}
+                        className={cn(
+                          "flex items-center justify-center h-9 w-9 rounded-xl",
+                          "bg-black text-white",
+                          "transition-all hover:opacity-80 active:scale-95 disabled:opacity-50"
+                        )}
+                      >
+                        {isMovingToCart ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ShoppingCart className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            }
+          )}
         </div>
       </div>
     </section>
