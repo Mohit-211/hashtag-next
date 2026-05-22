@@ -8,55 +8,57 @@ export default function HeroSection() {
     <section className="bg-background">
       <div className="container">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center py-16 lg:py-24">
-          {/* Text */}
+
           <div className="space-y-8">
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-heading font-bold text-foreground leading-[1.1] tracking-tight">
-             Your Logo. Our Craft. delivered.
+
+            <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold leading-[1.1] tracking-tight">
+              Premium Printing for Businesses,
               <br />
-              {/* <span className="relative inline-block mt-1">
-                Wear Your Statement.
-                <span className="absolute -bottom-1.5 left-0 right-0 h-3 bg-primary/30 -z-10 rounded-sm" />
-              </span> */}
+              Creators & Events
             </h1>
 
-            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg">
-              HashtagBillionaire is more than a store — it is a platform for
-              self-expression, personal branding, and individuality through
-              customized products. Every item you create here becomes a
-              reflection of who you are and what you stand for.
+            <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
+              Apparel, business cards, banners, signage,
+              stickers, and promo items, printed with precision.
             </p>
 
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Link href="/categories">
+            <div className="flex flex-wrap gap-3">
+
+              <Link href="/print-project">
                 <Button
                   variant="hero"
                   size="lg"
-                  className="gap-2 rounded-lg px-8"
+                  className="rounded-lg px-8 gap-2"
                 >
-                  Shop Now
+                  Start a Print Project
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
 
               <Link href="/categories">
-                <Button variant="outline" size="lg" className="rounded-lg px-8">
-                  Explore Categories
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="rounded-lg px-8"
+                >
+                  Browse Print Products
                 </Button>
               </Link>
+
             </div>
           </div>
 
-          {/* Image */}
           <div className="relative">
             <Image
-              src="/assets/hero-lifestyle.jpg"
-              alt="Person wearing a premium customizable product from HashtagBillionaire"
+              src="/assets/printing-hero.jpg"
+              alt="Printing products"
               width={900}
               height={700}
               priority
-              className="w-full h-auto max-h-[550px] object-cover rounded-2xl"
+              className="w-full h-auto rounded-2xl object-cover"
             />
           </div>
+
         </div>
       </div>
     </section>
