@@ -29,9 +29,9 @@ type Customization = {
 
 export type CartItemType = {
   name: string;
+  logo_image: string;
   id: string; // cart_id
   cart_id: string; // ✅ FIXED (added cart_id for API operations)
-  image?: string;
   basePrice: number;
   // price: number;
   quantity: number;
@@ -130,7 +130,7 @@ export default function CartItem({ item, onRefresh }: Props) {
       {/* Top */}
       <div className="flex gap-4">
         <ProxyImage
-          src={item?.image || "/placeholder.png"}
+          src={item?.logo_image || "/placeholder.png"}
           alt={item?.name}
           width={96}
           height={96}

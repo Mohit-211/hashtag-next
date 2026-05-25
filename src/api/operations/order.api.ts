@@ -9,13 +9,19 @@ export const CreateOrderApi = (payload: {
 }) => {
   return client.post(ORDER.CREATE, payload);
 };
+export const GetAllOrderApi =
+  () => {
+    return client.get(
+      ORDER.GET_ALL
+    );
+  };
 
-export const GetAllOrderApi = () => {
-  return client.get(ORDER.GET_ALL);
-};
-
-export const GetOrderDetailApi = (id: string | number) => {
-  return client.get(ORDER.GET_DETAIL(id));
+export const GetOrderDetailApi = (
+  id: string | number
+) => {
+  return client.get(
+    ORDER.GET_DETAIL(id)
+  );
 };
 
 export const CreateShipmentLabelApi = (payload: { order_id: number }) => {

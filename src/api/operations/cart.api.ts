@@ -3,14 +3,39 @@ import { CART_ENDPOINTS } from "../endpoints";
 
 // ➕ Add to cart
 // cart.api.ts
-
-export const AddToCartApi = (payload: {
+export interface AddToCartPayload {
   product_id: number;
-  variant_id?: number; // ✅ FIX (make optional)
+  variant_id?: number;
   quantity: number;
-}) => {
-  return client.post(CART_ENDPOINTS.ADD_TO_CART, payload);
+  customization?: string;      // JSON string: { print_method, locations, ... }
+  images?: File | Blob | null; // canvas export as PNG blob
+}
+export const AddToCartApi = (payload: AddToCartPayload) => {
+  const formData = new FormData();
+ 
+  formData.append("product_id", String(payload.product_id));
+ 
+  if (payload.variant_id !== undefined) {
+    formData.append("variant_id", String(payload.variant_id));
+  }
+ 
+  formData.append("quantity", String(payload.quantity));
+ 
+  if (payload.customization) {
+    formData.append("customization", payload.customization);
+  }
+ 
+  if (payload.images) {
+    formData.append("images", payload.images, "customized-product.png");
+  }
+ 
+  return client.post(CART_ENDPOINTS.ADD_TO_CART, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 };
+ 
 // 📦 Get all cart items
 export const GetAllCartItemsApi = () =>
   client.get(CART_ENDPOINTS.GET_ALL);

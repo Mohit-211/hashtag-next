@@ -27,10 +27,6 @@ export const GetSquareConfigApi = async (): Promise<SquareConfig> => {
 
 // ─────────────────────────────────────────────────────────────
 // Create Payment
-// IMPORTANT:
-// Backend expects OLD FIELD NAMES:
-//   sourceId
-//   payment_mode
 // ─────────────────────────────────────────────────────────────
 
 export interface CreatePaymentPayload {
@@ -54,7 +50,6 @@ export const CreatePaymentApi = async (
     payload
   );
 
-  // Debug check
   if (
     payload.payment_mode !== "BANK_ACCOUNT" &&
     !payload.sourceId
@@ -75,4 +70,40 @@ export const CreatePaymentApi = async (
   );
 
   return response;
+};
+
+// ─────────────────────────────────────────────────────────────
+// Payment History
+// API:
+// {{BASE_URL}}payment/history?page=1&limit=10
+// ─────────────────────────────────────────────────────────────
+
+export interface PaymentHistoryParams {
+  page?: number;
+  limit?: number;
+}
+
+export const GetPaymentHistoryApi = async (
+  params: PaymentHistoryParams = {}
+) => {
+  const {
+    page = 1,
+    limit = 10,
+  } = params;
+
+  console.log(
+    "📜 [payment.api] GetPaymentHistoryApi called",
+    { page, limit }
+  );
+
+  const response = await client.get(
+    `${PAYMENT_ENDPOINTS.PAYMENT_HISTORY}?page=${page}&limit=${limit}`
+  );
+
+  console.log(
+    "📜 [payment.api] Payment history response:",
+    response?.data
+  );
+
+  return response?.data;
 };

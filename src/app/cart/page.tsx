@@ -76,7 +76,7 @@ export default function Cart() {
   } = useCart();
 
   const [loading, setLoading] = useState(true);
-
+console.log(items,"items")
   useEffect(() => {
     const load = async () => {
       try {
@@ -108,7 +108,7 @@ export default function Cart() {
     cart_id: item.cart_id || item.id || "",
 
     name: item.name || "",
-    image: item.image || "/placeholder.png",
+    logo_image: item.logo_image || "/placeholder.png",
 
     basePrice: Number(item.basePrice || item.price || 0),
     quantity: Number(item.quantity || 1),

@@ -3,6 +3,7 @@
 import CartItem from "./CartItem";
 
 export type CartItemType = {
+  logo_image: string;
   id: string;
   cart_id?: string;
 
@@ -27,7 +28,9 @@ export default function CartItemsList({
   items,
   onRefresh,
 }: Props) {
+
   if (!items || items.length === 0) {
+    console.log(items, "===>>")
     return (
       <div className="lg:col-span-2 text-center py-10">
         No items in cart
@@ -45,7 +48,7 @@ export default function CartItemsList({
             cart_id: item.cart_id || item.id,
 
             name: item.name,
-            image: item.image || "/placeholder.png",
+            logo_image: item.logo_image || "/placeholder.png",
 
             basePrice: item.basePrice,
             quantity: item.quantity,

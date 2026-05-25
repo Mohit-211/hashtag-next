@@ -50,7 +50,7 @@ export default function HeroSection() {
 
           <div className="relative">
             <Image
-              src="/assets/printing-hero.jpg"
+              src="/assets/HomeImage/image1.jpeg"
               alt="Printing products"
               width={900}
               height={700}

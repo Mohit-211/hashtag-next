@@ -53,7 +53,7 @@ export const ORDER = {
   CREATE_SHIPMENT_LABEL: "/order/create-shipment-label",
 };
 export const PAYMENT_ENDPOINTS = {
-  CREATE_PAYMENT: "/payment/square/create-payment",
-  SQUARE_CONFIG:"payment/square/config"
-
+  SQUARE_CONFIG: "/payment/square-config",
+  CREATE_PAYMENT: "/payment/create",
+  PAYMENT_HISTORY: "/payment/history",
 };

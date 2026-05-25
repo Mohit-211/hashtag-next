@@ -1,3 +1,5 @@
+// components/product/ProductCustomization.tsx
+
 "use client";
 
 import React, {
@@ -28,12 +30,15 @@ import {
   ChevronDown,
   ChevronUp,
   Table2,
+  Check,
+  Circle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import AddToCartModal from "@/components/common/AddToCartModal";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useCart } from "@/contexts/CartContext";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -57,19 +62,19 @@ const CANVAS_SIZE = 500;
 /* ─── Print Locations ────────────────────────────────────────────────────── */
 
 const PRINT_LOCATIONS = [
-  { id: "left-chest",        label: "Left Chest",           icon: "◧", category: "embroidery", pricingKey: "left_chest"        },
-  { id: "right-chest",       label: "Right Chest",          icon: "◨", category: "embroidery", pricingKey: "right_chest"       },
-  { id: "sleeve",            label: "Sleeve",               icon: "▷", category: "embroidery", pricingKey: "sleeve"            },
-  { id: "hat-front",         label: "Hat Front",            icon: "🧢", category: "embroidery", pricingKey: "hat_front"         },
-  { id: "hat-side",          label: "Hat Side",             icon: "◧", category: "embroidery", pricingKey: "hat_side"          },
-  { id: "hat-back",          label: "Hat Back (Arch)",      icon: "◨", category: "embroidery", pricingKey: "hat_back_arch"     },
-  { id: "full-back-standard",label: "Full Back (Standard)", icon: "⬛", category: "embroidery", pricingKey: "full_back_standard"},
-  { id: "full-back-large",   label: "Full Back (Large)",    icon: "⬛", category: "embroidery", pricingKey: "full_back_large"   },
-  { id: "oversized",         label: "Oversized Back",       icon: "⬛", category: "embroidery", pricingKey: "oversized_back", quoteOnly: true },
-  { id: "front-regular",     label: "Front Regular",        icon: "⬛", category: "dtg",        pricingKey: "front_regular"     },
-  { id: "oversized-front",   label: "Oversized Front",      icon: "⬛", category: "dtg",        pricingKey: "oversized_front"   },
-  { id: "front-back-regular",label: "Front & Back Regular", icon: "⬛", category: "dtg",        pricingKey: "front_back_regular"},
-  { id: "front-back-oversized",label:"Front & Back Oversized",icon:"⬛",category: "dtg",        pricingKey: "front_back_oversized"},
+  { id: "left-chest", label: "Left Chest", icon: "◧", category: "embroidery", pricingKey: "left_chest" },
+  { id: "right-chest", label: "Right Chest", icon: "◨", category: "embroidery", pricingKey: "right_chest" },
+  { id: "sleeve", label: "Sleeve", icon: "▷", category: "embroidery", pricingKey: "sleeve" },
+  { id: "hat-front", label: "Hat Front", icon: "🧢", category: "embroidery", pricingKey: "hat_front" },
+  { id: "hat-side", label: "Hat Side", icon: "◧", category: "embroidery", pricingKey: "hat_side" },
+  { id: "hat-back", label: "Hat Back (Arch)", icon: "◨", category: "embroidery", pricingKey: "hat_back_arch" },
+  { id: "full-back-standard", label: "Full Back (Standard)", icon: "⬛", category: "embroidery", pricingKey: "full_back_standard" },
+  { id: "full-back-large", label: "Full Back (Large)", icon: "⬛", category: "embroidery", pricingKey: "full_back_large" },
+  { id: "oversized", label: "Oversized Back", icon: "⬛", category: "embroidery", pricingKey: "oversized_back", quoteOnly: true },
+  { id: "front-regular", label: "Front Regular", icon: "⬛", category: "dtg", pricingKey: "front_regular" },
+  { id: "oversized-front", label: "Oversized Front", icon: "⬛", category: "dtg", pricingKey: "oversized_front" },
+  { id: "front-back-regular", label: "Front & Back Regular", icon: "⬛", category: "dtg", pricingKey: "front_back_regular" },
+  { id: "front-back-oversized", label: "Front & Back Oversized", icon: "⬛", category: "dtg", pricingKey: "front_back_oversized" },
 ];
 
 /* ─── Materials ──────────────────────────────────────────────────────────── */
@@ -77,90 +82,90 @@ const PRINT_LOCATIONS = [
 type MaterialId = "embroidery" | "dtf" | "screenprint" | "dtg";
 
 const MATERIALS: { id: MaterialId; label: string; desc: string; badge: string; emoji: string }[] = [
-  { id: "embroidery",  label: "Embroidery",   desc: "Thread-stitched branding. Premium, durable, professional finish on any fabric.", badge: "All Fabrics",  emoji: "🧵" },
-  { id: "dtf",         label: "DTF Print",    desc: "Direct-to-Film transfer. Full colour, no minimums, vibrant finish.",             badge: "No Minimum",   emoji: "🖨️" },
-  { id: "screenprint", label: "Screen Print", desc: "Classic ink-on-fabric. Best for bulk runs, bold solid colours.",                 badge: "Min 50 pcs",   emoji: "🎨" },
-  { id: "dtg",         label: "DTG Print",    desc: "Direct-to-Garment. Photographic detail on 100% cotton only.",                    badge: "Cotton Only",  emoji: "👕" },
+  { id: "embroidery", label: "Embroidery", desc: "Thread-stitched branding. Premium, durable, professional finish on any fabric.", badge: "All Fabrics", emoji: "🧵" },
+  { id: "dtf", label: "DTF Print", desc: "Direct-to-Film transfer. Full colour, no minimums, vibrant finish.", badge: "No Minimum", emoji: "🖨️" },
+  { id: "screenprint", label: "Screen Print", desc: "Classic ink-on-fabric. Best for bulk runs, bold solid colours.", badge: "Min 50 pcs", emoji: "🎨" },
+  { id: "dtg", label: "DTG Print", desc: "Direct-to-Garment. Photographic detail on 100% cotton only.", badge: "Cotton Only", emoji: "👕" },
 ];
 
 /* ─── Pricing tables ─────────────────────────────────────────────────────── */
 
 const EMB_TIERS = [
-  { label: "1–11",   min: 1,   max: 11        },
-  { label: "12–23",  min: 12,  max: 23        },
-  { label: "24–35",  min: 24,  max: 35        },
-  { label: "36–71",  min: 36,  max: 71        },
-  { label: "72–95",  min: 72,  max: 95        },
-  { label: "96–143", min: 96,  max: 143       },
-  { label: "144+",   min: 144, max: Infinity  },
+  { label: "1–11", min: 1, max: 11 },
+  { label: "12–23", min: 12, max: 23 },
+  { label: "24–35", min: 24, max: 35 },
+  { label: "36–71", min: 36, max: 71 },
+  { label: "72–95", min: 72, max: 95 },
+  { label: "96–143", min: 96, max: 143 },
+  { label: "144+", min: 144, max: Infinity },
 ];
 
 const EMB_ROWS: { label: string; key: string; prices: (number | "quote")[] }[] = [
-  { label: "Left Chest",          key: "left-chest",         prices: [12,11,10, 9, 8, 7, 6] },
-  { label: "Right Chest",         key: "right-chest",        prices: [12,11,10, 9, 8, 7, 6] },
-  { label: "Sleeve",              key: "sleeve-left",        prices: [12,11,10, 9, 8, 7, 6] },
-  { label: "Hat Front",           key: "hat-front",          prices: [15,14,12,11,10, 9, 8] },
-  { label: "Hat Side",            key: "hat-side",           prices: [10, 9, 8, 7, 6, 5, 5] },
-  { label: "Hat Back (Arch)",     key: "hat-back",           prices: [10, 9, 8, 7, 6, 5, 5] },
-  { label: "Full Back (Standard)",key: "full-back-standard", prices: [18,16,14,13,12,11,10] },
-  { label: "Full Back (Large)",   key: "full-back-large",    prices: [22,20,18,16,15,14,12] },
-  { label: "Oversized Back",      key: "oversized",          prices: ["quote","quote","quote","quote","quote","quote","quote"] },
+  { label: "Left Chest", key: "left-chest", prices: [12, 11, 10, 9, 8, 7, 6] },
+  { label: "Right Chest", key: "right-chest", prices: [12, 11, 10, 9, 8, 7, 6] },
+  { label: "Sleeve", key: "sleeve-left", prices: [12, 11, 10, 9, 8, 7, 6] },
+  { label: "Hat Front", key: "hat-front", prices: [15, 14, 12, 11, 10, 9, 8] },
+  { label: "Hat Side", key: "hat-side", prices: [10, 9, 8, 7, 6, 5, 5] },
+  { label: "Hat Back (Arch)", key: "hat-back", prices: [10, 9, 8, 7, 6, 5, 5] },
+  { label: "Full Back (Standard)", key: "full-back-standard", prices: [18, 16, 14, 13, 12, 11, 10] },
+  { label: "Full Back (Large)", key: "full-back-large", prices: [22, 20, 18, 16, 15, 14, 12] },
+  { label: "Oversized Back", key: "oversized", prices: ["quote", "quote", "quote", "quote", "quote", "quote", "quote"] },
 ];
 
 const EMB_PRICES: Record<string, number[]> = {
-  "left-chest":         [12,11,10, 9, 8, 7, 6],
-  "right-chest":        [12,11,10, 9, 8, 7, 6],
-  "sleeve-left":        [12,11,10, 9, 8, 7, 6],
-  "sleeve-right":       [12,11,10, 9, 8, 7, 6],
-  "hat-front":          [15,14,12,11,10, 9, 8],
-  "hat-side":           [10, 9, 8, 7, 6, 5, 5],
-  "hat-back":           [10, 9, 8, 7, 6, 5, 5],
-  "full-back-standard": [18,16,14,13,12,11,10],
-  "full-back-large":    [22,20,18,16,15,14,12],
-  "oversized":          [ 0, 0, 0, 0, 0, 0, 0],
+  "left-chest": [12, 11, 10, 9, 8, 7, 6],
+  "right-chest": [12, 11, 10, 9, 8, 7, 6],
+  "sleeve-left": [12, 11, 10, 9, 8, 7, 6],
+  "sleeve-right": [12, 11, 10, 9, 8, 7, 6],
+  "hat-front": [15, 14, 12, 11, 10, 9, 8],
+  "hat-side": [10, 9, 8, 7, 6, 5, 5],
+  "hat-back": [10, 9, 8, 7, 6, 5, 5],
+  "full-back-standard": [18, 16, 14, 13, 12, 11, 10],
+  "full-back-large": [22, 20, 18, 16, 15, 14, 12],
+  "oversized": [0, 0, 0, 0, 0, 0, 0],
 };
 
-const DTF_TIERS  = [1, 12, 24, 36, 72, 96, 144];
-const DTF_PRICES = [15, 12, 10,  9,  7,  5,   5];
-const DTF_TIER_LABELS = ["1–11","12–23","24–35","36–71","72–95","96–143","144+"];
+const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
+const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
+const DTF_TIER_LABELS = ["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"];
 
 const SP_TIERS = [
-  { label: "50–99",  min: 50  },
-  { label: "100+",   min: 100 },
+  { label: "50–99", min: 50 },
+  { label: "100+", min: 100 },
 ];
 const SP_PRICES: Record<string, number[]> = {
-  "1 Color":  [6.58, 4.40],
-  "2 Color":  [9.43, 7.98],
-  "3 Color":  [11.55, 9.54],
+  "1 Color": [6.58, 4.40],
+  "2 Color": [9.43, 7.98],
+  "3 Color": [11.55, 9.54],
 };
 
 const DTG_TIERS = [
-  { label: "1–23",  min: 1   },
-  { label: "24–47", min: 24  },
-  { label: "48–99", min: 48  },
-  { label: "100+",  min: 100 },
+  { label: "1–23", min: 1 },
+  { label: "24–47", min: 24 },
+  { label: "48–99", min: 48 },
+  { label: "100+", min: 100 },
 ];
 const DTG_PRICES: Record<string, number[]> = {
-  "Front Regular":          [15, 12, 11,  9],
-  "Oversized":              [20, 17, 16, 14],
-  "Front & Back Regular":   [30, 24, 22, 18],
+  "Front Regular": [15, 12, 11, 9],
+  "Oversized": [20, 17, 16, 14],
+  "Front & Back Regular": [30, 24, 22, 18],
   "Front & Back Oversized": [40, 34, 32, 28],
 };
 
 const FONTS = [
-  { label: "Georgia",         value: "Georgia, serif"                  },
-  { label: "Playfair Display",value: "'Playfair Display', serif"       },
-  { label: "Montserrat",      value: "'Montserrat', sans-serif"        },
-  { label: "Roboto",          value: "'Roboto', sans-serif"            },
-  { label: "Dancing Script",  value: "'Dancing Script', cursive"       },
-  { label: "Oswald",          value: "'Oswald', sans-serif"            },
-  { label: "Courier New",     value: "'Courier New', monospace"        },
-  { label: "Impact",          value: "Impact, sans-serif"              },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Playfair Display", value: "'Playfair Display', serif" },
+  { label: "Montserrat", value: "'Montserrat', sans-serif" },
+  { label: "Roboto", value: "'Roboto', sans-serif" },
+  { label: "Dancing Script", value: "'Dancing Script', cursive" },
+  { label: "Oswald", value: "'Oswald', sans-serif" },
+  { label: "Courier New", value: "'Courier New', monospace" },
+  { label: "Impact", value: "Impact, sans-serif" },
 ];
 
 const PRESET_COLORS = [
-  "#1a1a1a","#ffffff","#e05555","#2d7dd2",
-  "#2d4a35","#f5a623","#9b59b6","#1abc9c",
+  "#1a1a1a", "#ffffff", "#e05555", "#2d7dd2",
+  "#2d4a35", "#f5a623", "#9b59b6", "#1abc9c",
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -187,7 +192,7 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload  = () => resolve(img);
+    img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
   });
@@ -239,12 +244,12 @@ function drawAll({
     ctx.save();
     ctx.globalAlpha = textOpacity;
     const weight = textBold ? "bold" : "normal";
-    const style  = textItalic ? "italic" : "normal";
-    ctx.font      = `${style} ${weight} ${textSize}px ${fontFamily}`;
+    const style = textItalic ? "italic" : "normal";
+    ctx.font = `${style} ${weight} ${textSize}px ${fontFamily}`;
     ctx.fillStyle = textColor;
     if (textShadow) {
-      ctx.shadowColor   = "rgba(0,0,0,0.4)";
-      ctx.shadowBlur    = 6;
+      ctx.shadowColor = "rgba(0,0,0,0.4)";
+      ctx.shadowBlur = 6;
       ctx.shadowOffsetX = 2;
       ctx.shadowOffsetY = 2;
     }
@@ -272,9 +277,11 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
         <span className="text-xs font-medium text-[#6b7280]">{label}</span>
         <span className="text-xs font-semibold text-[#1a2e1e] tabular-nums">{value}{unit}</span>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value}
+      <input
+        type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-[#dde8df] accent-[#2d4a35] cursor-pointer" />
+        className="w-full h-1.5 rounded-full appearance-none bg-[#dde8df] accent-[#2d4a35] cursor-pointer"
+      />
     </div>
   );
 }
@@ -297,32 +304,37 @@ function EmbroideryPricingTable({ activeLocation }: { activeLocation: string | n
             <tr className="bg-[#e8f0ea]">
               <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-40">Location</th>
               {EMB_TIERS.map((t) => (
-                <th key={t.label} className="px-2 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] text-center whitespace-nowrap">{t.label}</th>
+                <th key={t.label} className="px-2 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] text-center whitespace-nowrap">
+                  {t.label}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             {EMB_ROWS.map((row, i) => {
-              const isActive = activeLocation === row.key ||
+              const isActive =
+                activeLocation === row.key ||
                 (activeLocation === "sleeve-right" && row.key === "sleeve-left");
               return (
-                <tr key={row.key}
+                <tr
+                  key={row.key}
                   className={cn(
                     "border-b border-[#edf4ef] transition-colors",
                     isActive ? "bg-[#2d4a35]/10" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
-                  )}>
-                  <td className={cn(
-                    "px-3 py-2 font-semibold border-r border-[#edf4ef]",
-                    isActive ? "text-[#1a2e1e]" : "text-[#374151]"
-                  )}>
+                  )}
+                >
+                  <td className={cn("px-3 py-2 font-semibold border-r border-[#edf4ef]", isActive ? "text-[#1a2e1e]" : "text-[#374151]")}>
                     {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#2d4a35] mr-1.5 mb-0.5" />}
                     {row.label}
                   </td>
                   {row.prices.map((p, j) => (
-                    <td key={j} className={cn(
-                      "px-2 py-2 text-center border-r border-[#edf4ef] font-medium",
-                      p === "quote" ? "text-[#e05555] text-[10px]" : isActive ? "text-[#1a2e1e] font-bold" : "text-[#4a5568]"
-                    )}>
+                    <td
+                      key={j}
+                      className={cn(
+                        "px-2 py-2 text-center border-r border-[#edf4ef] font-medium",
+                        p === "quote" ? "text-[#e05555] text-[10px]" : isActive ? "text-[#1a2e1e] font-bold" : "text-[#4a5568]"
+                      )}
+                    >
                       {p === "quote" ? "Quote" : `$${p}`}
                     </td>
                   ))}
@@ -358,10 +370,13 @@ function DTFPricingTable({ qty }: { qty: number }) {
             <tr className="bg-[#e8f0ea]">
               <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-24">Method</th>
               {DTF_TIER_LABELS.map((lbl, i) => (
-                <th key={lbl} className={cn(
-                  "px-2 py-2 font-bold border-b border-r border-[#d0e4d5] text-center whitespace-nowrap",
-                  activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
-                )}>
+                <th
+                  key={lbl}
+                  className={cn(
+                    "px-2 py-2 font-bold border-b border-r border-[#d0e4d5] text-center whitespace-nowrap",
+                    activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
+                  )}
+                >
                   {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#2d4a35] mx-auto mb-0.5" />}
                   {lbl}
                 </th>
@@ -373,10 +388,13 @@ function DTFPricingTable({ qty }: { qty: number }) {
             <tr className="bg-white">
               <td className="px-3 py-3 font-bold text-[#1a2e1e] border-r border-[#edf4ef]">DTF</td>
               {DTF_PRICES.map((p, i) => (
-                <td key={i} className={cn(
-                  "px-2 py-3 text-center border-r border-[#edf4ef] font-medium",
-                  activeTier === i ? "text-[#2d4a35] font-bold text-sm bg-[#2d4a35]/5" : "text-[#4a5568]"
-                )}>
+                <td
+                  key={i}
+                  className={cn(
+                    "px-2 py-3 text-center border-r border-[#edf4ef] font-medium",
+                    activeTier === i ? "text-[#2d4a35] font-bold text-sm bg-[#2d4a35]/5" : "text-[#4a5568]"
+                  )}
+                >
                   ${p}.00
                 </td>
               ))}
@@ -409,10 +427,13 @@ function ScreenPrintPricingTable({ qty, activeColor }: { qty: number; activeColo
             <tr className="bg-[#e8f0ea]">
               <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-28">Colors</th>
               {SP_TIERS.map((t, i) => (
-                <th key={t.label} className={cn(
-                  "px-3 py-2 font-bold border-b border-r border-[#d0e4d5] text-center",
-                  activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
-                )}>
+                <th
+                  key={t.label}
+                  className={cn(
+                    "px-3 py-2 font-bold border-b border-r border-[#d0e4d5] text-center",
+                    activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
+                  )}
+                >
                   {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#2d4a35] mx-auto mb-0.5" />}
                   {t.label}
                 </th>
@@ -424,22 +445,25 @@ function ScreenPrintPricingTable({ qty, activeColor }: { qty: number; activeColo
             {Object.entries(SP_PRICES).map(([colorKey, prices], i) => {
               const isActiveColor = activeColor === colorKey;
               return (
-                <tr key={colorKey} className={cn(
-                  "border-b border-[#edf4ef]",
-                  isActiveColor ? "bg-[#2d4a35]/5" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
-                )}>
-                  <td className={cn(
-                    "px-3 py-2.5 font-semibold border-r border-[#edf4ef]",
-                    isActiveColor ? "text-[#1a2e1e]" : "text-[#374151]"
-                  )}>
+                <tr
+                  key={colorKey}
+                  className={cn(
+                    "border-b border-[#edf4ef]",
+                    isActiveColor ? "bg-[#2d4a35]/5" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
+                  )}
+                >
+                  <td className={cn("px-3 py-2.5 font-semibold border-r border-[#edf4ef]", isActiveColor ? "text-[#1a2e1e]" : "text-[#374151]")}>
                     {isActiveColor && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#2d4a35] mr-1.5 mb-0.5" />}
                     {colorKey}
                   </td>
                   {prices.map((p, j) => (
-                    <td key={j} className={cn(
-                      "px-3 py-2.5 text-center border-r border-[#edf4ef] font-medium",
-                      activeTier === j && isActiveColor ? "text-[#2d4a35] font-bold text-sm" : "text-[#4a5568]"
-                    )}>
+                    <td
+                      key={j}
+                      className={cn(
+                        "px-3 py-2.5 text-center border-r border-[#edf4ef] font-medium",
+                        activeTier === j && isActiveColor ? "text-[#2d4a35] font-bold text-sm" : "text-[#4a5568]"
+                      )}
+                    >
                       ${p.toFixed(2)}
                     </td>
                   ))}
@@ -452,7 +476,8 @@ function ScreenPrintPricingTable({ qty, activeColor }: { qty: number; activeColo
       </div>
       <div className="bg-[#f4f9f5] px-4 py-2 border-t border-[#dde8df]">
         <p className="text-[10px] text-[#8fa989]">
-          💡 Prices are per piece. Minimum 50 pcs. {qty < 50 ? `You need ${50 - qty} more pieces to qualify.` : `Your qty (${qty}) qualifies.`}
+          💡 Prices are per piece. Minimum 50 pcs.{" "}
+          {qty < 50 ? `You need ${50 - qty} more pieces to qualify.` : `Your qty (${qty}) qualifies.`}
         </p>
       </div>
     </div>
@@ -476,10 +501,13 @@ function DTGPricingTable({ qty, activeStyle }: { qty: number; activeStyle: strin
             <tr className="bg-[#e8f0ea]">
               <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-40">Print Area</th>
               {DTG_TIERS.map((t, i) => (
-                <th key={t.label} className={cn(
-                  "px-2 py-2 font-bold border-b border-r border-[#d0e4d5] text-center",
-                  activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
-                )}>
+                <th
+                  key={t.label}
+                  className={cn(
+                    "px-2 py-2 font-bold border-b border-r border-[#d0e4d5] text-center",
+                    activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
+                  )}
+                >
                   {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#2d4a35] mx-auto mb-0.5" />}
                   {t.label}
                 </th>
@@ -490,22 +518,25 @@ function DTGPricingTable({ qty, activeStyle }: { qty: number; activeStyle: strin
             {Object.entries(DTG_PRICES).map(([styleKey, prices], i) => {
               const isActive = activeStyle === styleKey;
               return (
-                <tr key={styleKey} className={cn(
-                  "border-b border-[#edf4ef]",
-                  isActive ? "bg-[#2d4a35]/5" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
-                )}>
-                  <td className={cn(
-                    "px-3 py-2.5 font-semibold border-r border-[#edf4ef]",
-                    isActive ? "text-[#1a2e1e]" : "text-[#374151]"
-                  )}>
+                <tr
+                  key={styleKey}
+                  className={cn(
+                    "border-b border-[#edf4ef]",
+                    isActive ? "bg-[#2d4a35]/5" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
+                  )}
+                >
+                  <td className={cn("px-3 py-2.5 font-semibold border-r border-[#edf4ef]", isActive ? "text-[#1a2e1e]" : "text-[#374151]")}>
                     {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#2d4a35] mr-1.5 mb-0.5" />}
                     {styleKey}
                   </td>
                   {prices.map((p, j) => (
-                    <td key={j} className={cn(
-                      "px-2 py-2.5 text-center border-r border-[#edf4ef] font-medium",
-                      activeTier === j && isActive ? "text-[#2d4a35] font-bold text-sm" : "text-[#4a5568]"
-                    )}>
+                    <td
+                      key={j}
+                      className={cn(
+                        "px-2 py-2.5 text-center border-r border-[#edf4ef] font-medium",
+                        activeTier === j && isActive ? "text-[#2d4a35] font-bold text-sm" : "text-[#4a5568]"
+                      )}
+                    >
                       ${p}
                     </td>
                   ))}
@@ -542,6 +573,9 @@ export default function ProductCustomization({
     return false;
   };
 
+  /* ─── Cart context ─── */
+  const { refreshCart } = useCart();
+
   /* ─── Wishlist ─── */
   const { wishlist, addToWishlist, removeItem, fetchWishlist } = useWishlist();
   const wishlistItem = wishlist.find(
@@ -572,6 +606,14 @@ export default function ProductCustomization({
   const [inCart, setInCart] = useState(is_in_cart);
   const [showCartModal, setShowCartModal] = useState(false);
 
+  /* ─── Canvas blob + customization JSON for cart submission ─── */
+  const [canvasBlob, setCanvasBlob] = useState<Blob | null>(null);
+  const [customizationJson, setCustomizationJson] = useState<string>("");
+
+  /* ─── Validation ─── */
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [showValidationShake, setShowValidationShake] = useState(false);
+
   /* ─── Selections ─── */
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
@@ -584,33 +626,33 @@ export default function ProductCustomization({
 
   /* ─── Image state ─── */
   const [productImg, setProductImg] = useState<HTMLImageElement | null>(null);
-  const [logoImg, setLogoImg]       = useState<HTMLImageElement | null>(null);
-  const [logoSrc, setLogoSrc]       = useState<string | null>(null);
-  const [logoSize, setLogoSize]     = useState(120);
+  const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [logoSize, setLogoSize] = useState(120);
   const [logoRotation, setLogoRotation] = useState(0);
-  const [logoOpacity, setLogoOpacity]   = useState(1);
-  const [logoPos, setLogoPos]           = useState({ x: 190, y: 190 });
+  const [logoOpacity, setLogoOpacity] = useState(1);
+  const [logoPos, setLogoPos] = useState({ x: 190, y: 190 });
 
   /* ─── Text state ─── */
-  const [customText, setCustomText]     = useState("");
-  const [textSize, setTextSize]         = useState(36);
-  const [textColor, setTextColor]       = useState("#1a1a1a");
+  const [customText, setCustomText] = useState("");
+  const [textSize, setTextSize] = useState(36);
+  const [textColor, setTextColor] = useState("#1a1a1a");
   const [textRotation, setTextRotation] = useState(0);
-  const [fontFamily, setFontFamily]     = useState("Georgia, serif");
-  const [textBold, setTextBold]         = useState(false);
-  const [textItalic, setTextItalic]     = useState(false);
-  const [textShadow, setTextShadow]     = useState(false);
-  const [textOpacity, setTextOpacity]   = useState(1);
-  const [textPos, setTextPos]           = useState({ x: 80, y: 300 });
+  const [fontFamily, setFontFamily] = useState("Georgia, serif");
+  const [textBold, setTextBold] = useState(false);
+  const [textItalic, setTextItalic] = useState(false);
+  const [textShadow, setTextShadow] = useState(false);
+  const [textOpacity, setTextOpacity] = useState(1);
+  const [textPos, setTextPos] = useState({ x: 80, y: 300 });
 
   /* ─── Drag ─── */
-  const [dragging, setDragging]     = useState<"logo" | "text" | null>(null);
+  const [dragging, setDragging] = useState<"logo" | "text" | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   /* ─── Preview ─── */
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewDataUrl, setPreviewDataUrl]     = useState<string | null>(null);
-  const [previewError, setPreviewError]         = useState(false);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
 
   /* ─── Quantity ─── */
   const [quantity, setQuantity] = useState(1);
@@ -618,7 +660,24 @@ export default function ProductCustomization({
   const increaseQuantity = () => setQuantity((p) => p + 1);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileRef   = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  /* ─── Validation helper ─── */
+  const getMissingRequirements = () => {
+    const missing: string[] = [];
+    if (!selectedLocation) missing.push("a print location");
+    if (!selectedMaterial) missing.push("a print method");
+    if (quantity < 1)      missing.push("a valid quantity");
+    return missing;
+  };
+
+  const requirementsMet = !selectedLocation === false && !selectedMaterial === false && quantity >= 1;
+
+  const REQUIREMENTS = [
+    { key: "loc", label: "Print location", done: !!selectedLocation },
+    { key: "mat", label: "Print method",   done: !!selectedMaterial },
+    { key: "qty", label: "Item count",     done: quantity >= 1 },
+  ];
 
   /* ─── Load product image ─── */
   useEffect(() => {
@@ -682,13 +741,13 @@ export default function ProductCustomization({
     const rect = canvas.getBoundingClientRect();
     return {
       x: (e.clientX - rect.left) * (CANVAS_SIZE / rect.width),
-      y: (e.clientY - rect.top)  * (CANVAS_SIZE / rect.height),
+      y: (e.clientY - rect.top) * (CANVAS_SIZE / rect.height),
     };
   };
 
   const isOverLogo = (pt: { x: number; y: number }) =>
     !!(logoImg && pt.x >= logoPos.x && pt.x <= logoPos.x + logoSize &&
-       pt.y >= logoPos.y && pt.y <= logoPos.y + logoSize);
+      pt.y >= logoPos.y && pt.y <= logoPos.y + logoSize);
 
   const isOverText = (pt: { x: number; y: number }) => {
     if (!customText.trim()) return false;
@@ -732,14 +791,14 @@ export default function ProductCustomization({
 
   const stopDrag = () => setDragging(null);
 
-  /* ─── Preview / Download ─── */
+  /* ─── Preview ─── */
   const handleOpenPreview = () => {
     if (requireLogin()) return;
     setPreviewError(false);
     setShowPreviewModal(true);
     try {
       const offscreen = document.createElement("canvas");
-      offscreen.width  = CANVAS_SIZE * 2;
+      offscreen.width = CANVAS_SIZE * 2;
       offscreen.height = CANVAS_SIZE * 2;
       const ctx = offscreen.getContext("2d");
       if (!ctx) return;
@@ -757,11 +816,12 @@ export default function ProductCustomization({
     }
   };
 
+  /* ─── Download only — no cart side-effect ─── */
   const handleConfirmDownload = () => {
     if (!previewDataUrl) return;
     const link = document.createElement("a");
-    link.href      = previewDataUrl;
-    link.download  = `${name.replace(/\s+/g, "-").toLowerCase()}-customized.png`;
+    link.href = previewDataUrl;
+    link.download = `${name.replace(/\s+/g, "-").toLowerCase()}-customized.png`;
     link.click();
     setShowPreviewModal(false);
   };
@@ -813,16 +873,78 @@ export default function ProductCustomization({
 
   const printPrice = getPrintPrice();
 
+  /* ─── Export canvas as Blob ─── */
+  const getCanvasBlob = (): Promise<Blob | null> =>
+    new Promise((resolve) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return resolve(null);
+      canvas.toBlob((blob) => resolve(blob), "image/png", 1);
+    });
+
+  /* ─── Build customization JSON payload ─── */
+  const buildCustomizationPayload = (): string => {
+    const payload: Record<string, unknown> = {
+      print_method: selectedMaterial?.toUpperCase() ?? null,
+      locations: selectedLocation ? [{ id: selectedLocation }] : [],
+      quantity,
+    };
+    if (selectedMaterial === "screenprint") {
+      payload.color_count = spColorCount;
+    }
+    if (selectedMaterial === "dtg") {
+      payload.print_area = dtgStyle;
+    }
+    if (customText.trim()) {
+      payload.custom_text = customText.trim();
+    }
+    if (logoSrc) {
+      payload.has_logo = true;
+    }
+    return JSON.stringify(payload);
+  };
+
+  /* ─── Add to cart — validates all three required fields first ─── */
+  const handleAddToCart = async () => {
+    if (requireLogin()) return;
+
+    const missing = getMissingRequirements();
+    if (missing.length > 0) {
+      setValidationError(
+        `Please select ${missing.join(", ")} before adding to cart.`
+      );
+      // Shake effect
+      setShowValidationShake(true);
+      setTimeout(() => setShowValidationShake(false), 600);
+      return;
+    }
+
+    setValidationError(null);
+    const blob = await getCanvasBlob();
+    const json = buildCustomizationPayload();
+    setCanvasBlob(blob);
+    setCustomizationJson(json);
+    setShowCartModal(true);
+  };
+
+  // Clear validation error when user completes each requirement
+  useEffect(() => {
+    if (validationError && getMissingRequirements().length === 0) {
+      setValidationError(null);
+    }
+  }, [selectedLocation, selectedMaterial, quantity]);
+
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-2">{children}</p>
   );
   const Divider = () => <div className="h-px bg-[#edf4ef] my-4" />;
 
-  /* ─── When material changes, auto-open the price table ─── */
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
   };
+
+  /* ─── Computed: all requirements satisfied ─── */
+  const allRequirementsMet = !!selectedLocation && !!selectedMaterial && quantity >= 1;
 
   return (
     <>
@@ -843,12 +965,16 @@ export default function ProductCustomization({
               Login to customize products, save to wishlist, and add to cart.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowLoginModal(false)}
-                className="flex-1 h-11 rounded-xl border border-[#dde8df] text-sm font-semibold text-[#6b8070] hover:bg-[#f0f6f1] transition-colors">
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="flex-1 h-11 rounded-xl border border-[#dde8df] text-sm font-semibold text-[#6b8070] hover:bg-[#f0f6f1] transition-colors"
+              >
                 Cancel
               </button>
-              <button onClick={() => router.push("/login")}
-                className="flex-1 h-11 rounded-xl bg-[#2d4a35] text-white text-sm font-bold hover:bg-[#1f3526] transition-colors">
+              <button
+                onClick={() => router.push("/login")}
+                className="flex-1 h-11 rounded-xl bg-[#2d4a35] text-white text-sm font-bold hover:bg-[#1f3526] transition-colors"
+              >
                 Sign In
               </button>
             </div>
@@ -865,8 +991,10 @@ export default function ProductCustomization({
                 <Eye size={18} />
                 <h3 className="font-bold text-lg">Preview Design</h3>
               </div>
-              <button onClick={() => setShowPreviewModal(false)}
-                className="w-10 h-10 rounded-xl border flex items-center justify-center hover:bg-gray-50">
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="w-10 h-10 rounded-xl border flex items-center justify-center hover:bg-gray-50"
+              >
                 <X size={16} />
               </button>
             </div>
@@ -887,15 +1015,20 @@ export default function ProductCustomization({
               </div>
             </div>
             <div className="flex gap-3 p-5 pt-0">
-              <button onClick={() => setShowPreviewModal(false)}
-                className="flex-1 h-12 rounded-2xl border hover:bg-gray-50 font-semibold">
+              <button
+                onClick={() => setShowPreviewModal(false)}
+                className="flex-1 h-12 rounded-2xl border hover:bg-gray-50 font-semibold"
+              >
                 Cancel
               </button>
-              <button onClick={handleConfirmDownload} disabled={!previewDataUrl}
+              <button
+                onClick={handleConfirmDownload}
+                disabled={!previewDataUrl}
                 className={cn(
                   "flex-1 h-12 rounded-2xl text-white font-bold flex items-center justify-center gap-2",
                   previewDataUrl ? "bg-[#1f3526] hover:bg-[#294832]" : "bg-gray-300 cursor-not-allowed"
-                )}>
+                )}
+              >
                 <ImageDown size={18} />
                 Download
               </button>
@@ -914,9 +1047,14 @@ export default function ProductCustomization({
             <p className="text-sm font-bold text-[#1a2e1e]">Print Location</p>
             <p className="text-[10px] text-[#8aaa90]">Where should we print on the garment?</p>
           </div>
-          {selectedLocation && (
-            <span className="ml-auto text-xs font-semibold text-[#2d4a35] bg-[#e8f0ea] px-2.5 py-1 rounded-full">
+          {selectedLocation ? (
+            <span className="ml-auto text-xs font-semibold text-[#2d4a35] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
+              <Check size={10} />
               {PRINT_LOCATIONS.find((l) => l.id === selectedLocation)?.label}
+            </span>
+          ) : (
+            <span className="ml-auto text-xs font-semibold text-[#e05555] bg-[#fdf0f0] px-2.5 py-1 rounded-full">
+              Required
             </span>
           )}
         </div>
@@ -924,8 +1062,10 @@ export default function ProductCustomization({
         <div className="p-5">
           <div className="relative mx-auto mb-5 mt-5" style={{ maxWidth: 320 }}>
             <svg viewBox="0 0 320 360" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
-              <path d="M100 40 L60 80 L20 70 L10 130 L60 140 L60 320 L260 320 L260 140 L310 130 L300 70 L260 80 L220 40 Q180 65 160 65 Q140 65 100 40Z"
-                fill="#f0f5f1" stroke="#c5d9ca" strokeWidth="2" />
+              <path
+                d="M100 40 L60 80 L20 70 L10 130 L60 140 L60 320 L260 320 L260 140 L310 130 L300 70 L260 80 L220 40 Q180 65 160 65 Q140 65 100 40Z"
+                fill="#f0f5f1" stroke="#c5d9ca" strokeWidth="2"
+              />
               <path d="M100 40 Q130 80 160 82 Q190 80 220 40" fill="#dde8df" stroke="#b5cebb" strokeWidth="1.5" />
 
               {/* LEFT CHEST */}
@@ -934,7 +1074,8 @@ export default function ProductCustomization({
                 className="cursor-pointer transition-all"
                 fill={selectedLocation === "left-chest" ? "#2d4a35" : "#e8f0ea"}
                 fillOpacity={selectedLocation === "left-chest" ? 0.9 : 0.7}
-                stroke={selectedLocation === "left-chest" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5" />
+                stroke={selectedLocation === "left-chest" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+              />
               <text x="115" y="141" textAnchor="middle" fontSize="9" fill={selectedLocation === "left-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
               <text x="115" y="152" textAnchor="middle" fontSize="9" fill={selectedLocation === "left-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
 
@@ -944,7 +1085,8 @@ export default function ProductCustomization({
                 className="cursor-pointer transition-all"
                 fill={selectedLocation === "right-chest" ? "#2d4a35" : "#e8f0ea"}
                 fillOpacity={selectedLocation === "right-chest" ? 0.9 : 0.7}
-                stroke={selectedLocation === "right-chest" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5" />
+                stroke={selectedLocation === "right-chest" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+              />
               <text x="205" y="141" textAnchor="middle" fontSize="9" fill={selectedLocation === "right-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
               <text x="205" y="152" textAnchor="middle" fontSize="9" fill={selectedLocation === "right-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
 
@@ -954,7 +1096,8 @@ export default function ProductCustomization({
                 className="cursor-pointer transition-all"
                 fill={selectedLocation === "full-front" ? "#2d4a35" : "#e8f0ea"}
                 fillOpacity={selectedLocation === "full-front" ? 0.9 : 0.7}
-                stroke={selectedLocation === "full-front" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5" />
+                stroke={selectedLocation === "full-front" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+              />
               <text x="160" y="200" textAnchor="middle" fontSize="9" fill={selectedLocation === "full-front" ? "#fff" : "#2d4a35"} fontWeight="600">Full</text>
               <text x="160" y="213" textAnchor="middle" fontSize="9" fill={selectedLocation === "full-front" ? "#fff" : "#2d4a35"} fontWeight="600">Front</text>
 
@@ -964,7 +1107,8 @@ export default function ProductCustomization({
                 className="cursor-pointer transition-all"
                 fill={selectedLocation === "sleeve-left" ? "#2d4a35" : "#e8f0ea"}
                 fillOpacity={selectedLocation === "sleeve-left" ? 0.9 : 0.7}
-                stroke={selectedLocation === "sleeve-left" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5" />
+                stroke={selectedLocation === "sleeve-left" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+              />
               <text x="42" y="106" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-left" ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
               <text x="42" y="117" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-left" ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
 
@@ -974,7 +1118,8 @@ export default function ProductCustomization({
                 className="cursor-pointer transition-all"
                 fill={selectedLocation === "sleeve-right" ? "#2d4a35" : "#e8f0ea"}
                 fillOpacity={selectedLocation === "sleeve-right" ? 0.9 : 0.7}
-                stroke={selectedLocation === "sleeve-right" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5" />
+                stroke={selectedLocation === "sleeve-right" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+              />
               <text x="278" y="106" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-right" ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
               <text x="278" y="117" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-right" ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
             </svg>
@@ -983,20 +1128,22 @@ export default function ProductCustomization({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
               { id: "full-back-standard", label: "Full Back (Standard)" },
-              { id: "full-back-large",    label: "Full Back (Large)"    },
-              { id: "oversized",          label: "Oversized Back"       },
-              { id: "hat-front",          label: "Hat Front"            },
-              { id: "hat-side",           label: "Hat Side"             },
-              { id: "hat-back",           label: "Hat Back (Arch)"      },
+              { id: "full-back-large", label: "Full Back (Large)" },
+              { id: "oversized", label: "Oversized Back" },
+              { id: "hat-front", label: "Hat Front" },
+              { id: "hat-side", label: "Hat Side" },
+              { id: "hat-back", label: "Hat Back (Arch)" },
             ].map((loc) => (
-              <button key={loc.id}
+              <button
+                key={loc.id}
                 onClick={() => setSelectedLocation(loc.id)}
                 className={cn(
                   "h-10 rounded-xl border text-xs font-semibold transition-all px-3",
                   selectedLocation === loc.id
                     ? "border-[#2d4a35] bg-[#2d4a35] text-white"
                     : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
-                )}>
+                )}
+              >
                 {loc.label}
               </button>
             ))}
@@ -1018,24 +1165,30 @@ export default function ProductCustomization({
             <p className="text-sm font-bold text-[#1a2e1e]">Print Method</p>
             <p className="text-[10px] text-[#8aaa90]">Select the decoration technique</p>
           </div>
-          {selectedMaterial && (
-            <span className="ml-auto text-xs font-semibold text-[#2d4a35] bg-[#e8f0ea] px-2.5 py-1 rounded-full">
+          {selectedMaterial ? (
+            <span className="ml-auto text-xs font-semibold text-[#2d4a35] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
+              <Check size={10} />
               {MATERIALS.find((m) => m.id === selectedMaterial)?.label}
+            </span>
+          ) : (
+            <span className="ml-auto text-xs font-semibold text-[#e05555] bg-[#fdf0f0] px-2.5 py-1 rounded-full">
+              Required
             </span>
           )}
         </div>
 
-        {/* ── Material cards ── */}
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {MATERIALS.map((mat) => (
-            <button key={mat.id}
+            <button
+              key={mat.id}
               onClick={() => handleSelectMaterial(mat.id)}
               className={cn(
                 "relative text-left rounded-2xl border-2 p-4 transition-all",
                 selectedMaterial === mat.id
                   ? "border-[#2d4a35] bg-[#f4f9f5]"
                   : "border-[#e2ece4] hover:border-[#b5cebb] hover:bg-[#f8fbf9]"
-              )}>
+              )}
+            >
               <span className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-wider bg-[#e8f0ea] text-[#2d4a35] px-2 py-0.5 rounded-full">
                 {mat.badge}
               </span>
@@ -1048,7 +1201,6 @@ export default function ProductCustomization({
           ))}
         </div>
 
-        {/* ── Sub-options: Embroidery ── */}
         {selectedMaterial === "embroidery" && (
           <div className="px-5 pb-2">
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
@@ -1062,20 +1214,22 @@ export default function ProductCustomization({
           </div>
         )}
 
-        {/* ── Sub-options: Screen Print ── */}
         {selectedMaterial === "screenprint" && (
           <div className="px-5 pb-2">
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-3">Number of Colours</p>
               <div className="flex gap-2">
-                {(["1 Color","2 Color","3 Color"] as const).map((c) => (
-                  <button key={c} onClick={() => setSpColorCount(c)}
+                {(["1 Color", "2 Color", "3 Color"] as const).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setSpColorCount(c)}
                     className={cn(
                       "flex-1 h-9 rounded-xl border text-xs font-semibold transition-all",
                       spColorCount === c
                         ? "border-[#2d4a35] bg-[#2d4a35] text-white"
                         : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
-                    )}>
+                    )}
+                  >
                     {c}
                   </button>
                 ))}
@@ -1085,20 +1239,22 @@ export default function ProductCustomization({
           </div>
         )}
 
-        {/* ── Sub-options: DTG ── */}
         {selectedMaterial === "dtg" && (
           <div className="px-5 pb-2">
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-3">Print Area</p>
               <div className="grid grid-cols-2 gap-2">
                 {(Object.keys(DTG_PRICES) as (keyof typeof DTG_PRICES)[]).map((s) => (
-                  <button key={s} onClick={() => setDtgStyle(s)}
+                  <button
+                    key={s}
+                    onClick={() => setDtgStyle(s)}
                     className={cn(
                       "h-9 rounded-xl border text-xs font-semibold transition-all px-2",
                       dtgStyle === s
                         ? "border-[#2d4a35] bg-[#2d4a35] text-white"
                         : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
-                    )}>
+                    )}
+                  >
                     {s}
                   </button>
                 ))}
@@ -1108,12 +1264,8 @@ export default function ProductCustomization({
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════════
-             PRICING TABLE — shown when a material is selected
-        ════════════════════════════════════════════════════════ */}
         {selectedMaterial && (
           <div className="px-5 pb-5">
-            {/* Toggle button */}
             <button
               onClick={() => setShowPriceTable((p) => !p)}
               className="w-full mt-2 flex items-center justify-between h-10 px-4 rounded-2xl border border-[#dde8df] bg-[#f4f9f5] hover:bg-[#eef5f0] transition-colors"
@@ -1128,21 +1280,12 @@ export default function ProductCustomization({
               }
             </button>
 
-            {/* Animated table reveal */}
             {showPriceTable && (
               <div>
-                {selectedMaterial === "embroidery" && (
-                  <EmbroideryPricingTable activeLocation={selectedLocation} />
-                )}
-                {selectedMaterial === "dtf" && (
-                  <DTFPricingTable qty={quantity} />
-                )}
-                {selectedMaterial === "screenprint" && (
-                  <ScreenPrintPricingTable qty={quantity} activeColor={spColorCount} />
-                )}
-                {selectedMaterial === "dtg" && (
-                  <DTGPricingTable qty={quantity} activeStyle={dtgStyle} />
-                )}
+                {selectedMaterial === "embroidery" && <EmbroideryPricingTable activeLocation={selectedLocation} />}
+                {selectedMaterial === "dtf" && <DTFPricingTable qty={quantity} />}
+                {selectedMaterial === "screenprint" && <ScreenPrintPricingTable qty={quantity} activeColor={spColorCount} />}
+                {selectedMaterial === "dtg" && <DTGPricingTable qty={quantity} activeStyle={dtgStyle} />}
               </div>
             )}
           </div>
@@ -1159,13 +1302,13 @@ export default function ProductCustomization({
             <p className="text-sm font-bold text-[#1a2e1e]">Item Count</p>
             <p className="text-[10px] text-[#8aaa90]">How many pieces do you need?</p>
           </div>
-          <span className="ml-auto text-xs font-bold text-[#1a2e1e] bg-[#e8f0ea] px-2.5 py-1 rounded-full">
+          <span className="ml-auto text-xs font-bold text-[#1a2e1e] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Check size={10} className="text-[#2d4a35]" />
             {quantity} {quantity === 1 ? "pc" : "pcs"}
           </span>
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Big quantity selector */}
           <div className="flex items-center justify-between gap-4">
             <button
               onClick={() => setQuantity((p) => Math.max(1, p - 1))}
@@ -1175,38 +1318,43 @@ export default function ProductCustomization({
                 quantity <= 1
                   ? "border-[#e2ece4] text-[#c5d9ca] cursor-not-allowed"
                   : "border-[#2d4a35] text-[#2d4a35] hover:bg-[#f4f9f5]"
-              )}>
+              )}
+            >
               <Minus size={16} />
             </button>
             <div className="flex-1 text-center">
-              <input type="number" min={1} value={quantity}
+              <input
+                type="number" min={1} value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full text-center text-3xl font-bold text-[#1a2e1e] border-0 outline-none bg-transparent" />
+                className="w-full text-center text-3xl font-bold text-[#1a2e1e] border-0 outline-none bg-transparent"
+              />
               <p className="text-[10px] text-[#8fa989] mt-0.5">pieces</p>
             </div>
             <button
               onClick={() => setQuantity((p) => p + 1)}
-              className="w-12 h-12 rounded-2xl border-2 border-[#2d4a35] text-[#2d4a35] hover:bg-[#f4f9f5] flex items-center justify-center transition-all">
+              className="w-12 h-12 rounded-2xl border-2 border-[#2d4a35] text-[#2d4a35] hover:bg-[#f4f9f5] flex items-center justify-center transition-all"
+            >
               <Plus size={16} />
             </button>
           </div>
 
-          {/* Quick-select chips */}
           <div className="flex flex-wrap gap-2">
-            {[1,12,24,36,50,72,100,144].map((q) => (
-              <button key={q} onClick={() => setQuantity(q)}
+            {[1, 12, 24, 36, 50, 72, 100, 144].map((q) => (
+              <button
+                key={q}
+                onClick={() => setQuantity(q)}
                 className={cn(
                   "h-8 px-3 rounded-xl border text-xs font-semibold transition-all",
                   quantity === q
                     ? "border-[#2d4a35] bg-[#2d4a35] text-white"
                     : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
-                )}>
+                )}
+              >
                 {q}
               </button>
             ))}
           </div>
 
-          {/* Pricing summary card */}
           {selectedMaterial && (
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4 space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-3">Estimated Print Cost</p>
@@ -1283,22 +1431,26 @@ export default function ProductCustomization({
                       <p className="text-[10px] text-[#8aaa90]">Drag to reposition</p>
                     </div>
                   </div>
-                  <button onClick={handleOpenPreview}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-[#1f3526] text-white text-xs font-semibold hover:bg-[#294832] transition-colors">
+                  <button
+                    onClick={handleOpenPreview}
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-[#1f3526] text-white text-xs font-semibold hover:bg-[#294832] transition-colors"
+                  >
                     <Download size={13} />
                     Export
                   </button>
                 </div>
 
                 <div className="p-3 bg-[#f8faf9]">
-                  <canvas ref={canvasRef}
+                  <canvas
+                    ref={canvasRef}
                     width={CANVAS_SIZE} height={CANVAS_SIZE}
                     onMouseDown={handleCanvasMouseDown}
                     onMouseMove={handleCanvasMouseMove}
                     onMouseUp={stopDrag}
                     onMouseLeave={stopDrag}
                     className="w-full h-auto rounded-2xl block border border-[#e2ece4]"
-                    style={{ cursor: getCursor() }} />
+                    style={{ cursor: getCursor() }}
+                  />
                 </div>
 
                 <div className="px-5 pb-5 pt-2 space-y-3 border-t border-[#edf4ef]">
@@ -1310,14 +1462,21 @@ export default function ProductCustomization({
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-[#6b7280]">Quantity</span>
                     <div className="flex items-center rounded-xl border border-[#dde8df] bg-[#f8faf9] overflow-hidden">
-                      <button onClick={decreaseQuantity} disabled={quantity <= 1}
-                        className={cn("w-9 h-9 flex items-center justify-center transition-colors",
-                          quantity <= 1 ? "text-[#c5d9ca] cursor-not-allowed" : "text-[#2d4a35] hover:bg-[#eef5f0]")}>
+                      <button
+                        onClick={decreaseQuantity}
+                        disabled={quantity <= 1}
+                        className={cn(
+                          "w-9 h-9 flex items-center justify-center transition-colors",
+                          quantity <= 1 ? "text-[#c5d9ca] cursor-not-allowed" : "text-[#2d4a35] hover:bg-[#eef5f0]"
+                        )}
+                      >
                         <Minus size={13} />
                       </button>
                       <span className="w-8 text-center text-sm font-bold text-[#1a2e1e] select-none">{quantity}</span>
-                      <button onClick={increaseQuantity}
-                        className="w-9 h-9 flex items-center justify-center text-[#2d4a35] hover:bg-[#eef5f0] transition-colors">
+                      <button
+                        onClick={increaseQuantity}
+                        className="w-9 h-9 flex items-center justify-center text-[#2d4a35] hover:bg-[#eef5f0] transition-colors"
+                      >
                         <Plus size={13} />
                       </button>
                     </div>
@@ -1328,15 +1487,51 @@ export default function ProductCustomization({
                     <span className="text-base">${(price * quantity).toFixed(2)}</span>
                   </div>
 
+                  {/* ── REQUIREMENTS BAR ── */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {REQUIREMENTS.map(({ key, label, done }) => (
+                      <span
+                        key={key}
+                        className={cn(
+                          "flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all",
+                          done
+                            ? "bg-[#eaf3de] text-[#3b6d11] border-[#97c459]"
+                            : showValidationShake
+                              ? "bg-[#fdf0f0] text-[#e05555] border-[#f09595]"
+                              : "bg-white text-[#8fa989] border-[#dde8df]"
+                        )}
+                      >
+                        {done
+                          ? <Check size={9} />
+                          : <Circle size={9} className="opacity-50" />
+                        }
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* ── VALIDATION ERROR MESSAGE ── */}
+                  {validationError && (
+                    <div className="flex items-start gap-2 bg-[#fdf0f0] border border-[#f5c5c5] rounded-xl px-3 py-2.5">
+                      <AlertCircle size={13} className="text-[#e05555] flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-[#e05555] leading-relaxed">{validationError}</p>
+                    </div>
+                  )}
+
                   <div className="flex gap-2.5 pt-1">
+                    {/* ── ADD TO CART — disabled until all 3 requirements met ── */}
                     <button
-                      onClick={() => { if (requireLogin()) return; setShowCartModal(true); }}
+                      onClick={handleAddToCart}
                       className={cn(
                         "flex-1 h-11 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200",
-                        inCart
-                          ? "bg-[#e8f0ea] text-[#4a7a58] border border-[#c5d9ca]"
-                          : "bg-[#1f3526] text-white hover:bg-[#294832] shadow-md shadow-[#1f3526]/20"
-                      )}>
+                        showValidationShake && "animate-[shake_0.4s_ease-in-out]",
+                        !allRequirementsMet
+                          ? "bg-[#e8f0ea] text-[#8fa989] cursor-not-allowed"
+                          : inCart
+                            ? "bg-[#e8f0ea] text-[#4a7a58] border border-[#c5d9ca]"
+                            : "bg-[#1f3526] text-white hover:bg-[#294832] shadow-md shadow-[#1f3526]/20"
+                      )}
+                    >
                       <ShoppingCart size={15} />
                       {inCart ? "Added to Cart" : "Add to Cart"}
                     </button>
@@ -1349,12 +1544,16 @@ export default function ProductCustomization({
                         "w-11 h-11 rounded-2xl border flex items-center justify-center flex-shrink-0 transition-all duration-200",
                         wishlistLoading ? "opacity-50 cursor-not-allowed border-[#e2ece4]"
                           : inWishlist ? "border-[#f5c5c5] bg-[#fdf0f0] hover:bg-[#fde8e8]"
-                          : "border-[#dde8df] hover:border-[#f5c5c5] hover:bg-[#fdf0f0]"
-                      )}>
+                            : "border-[#dde8df] hover:border-[#f5c5c5] hover:bg-[#fdf0f0]"
+                      )}
+                    >
                       {wishlistLoading
                         ? <Loader2 size={15} className="animate-spin text-[#8fa989]" />
-                        : <Heart size={15} fill={inWishlist ? "#e05555" : "none"}
-                            className={inWishlist ? "text-[#e05555]" : "text-[#7a9882]"} />
+                        : <Heart
+                          size={15}
+                          fill={inWishlist ? "#e05555" : "none"}
+                          className={inWishlist ? "text-[#e05555]" : "text-[#7a9882]"}
+                        />
                       }
                     </button>
                   </div>
@@ -1362,6 +1561,7 @@ export default function ProductCustomization({
               </div>
             </div>
 
+            {/* ── AddToCartModal ── */}
             <AddToCartModal
               open={showCartModal}
               onClose={() => setShowCartModal(false)}
@@ -1370,7 +1570,9 @@ export default function ProductCustomization({
               price={price}
               name={name}
               initialQuantity={quantity}
-              onSuccess={() => { setInCart(true); onReload?.(); }}
+              customization={customizationJson}
+              canvasBlob={canvasBlob}
+              onSuccess={() => { setInCart(true); refreshCart(); onReload?.(); }}
             />
 
             {/* ══ RIGHT: Controls ══ */}
@@ -1379,16 +1581,18 @@ export default function ProductCustomization({
                 <div className="flex border-b border-[#edf4ef]">
                   {([
                     { key: "image", icon: ImageIcon, label: "Upload Image" },
-                    { key: "text",  icon: Type,      label: "Custom Text"  },
+                    { key: "text", icon: Type, label: "Custom Text" },
                   ] as const).map(({ key, icon: Icon, label }) => (
-                    <button key={key}
+                    <button
+                      key={key}
                       onClick={() => { if (requireLogin()) return; setActiveTab(key); }}
                       className={cn(
                         "flex-1 flex items-center justify-center gap-2 h-12 text-sm font-semibold transition-all border-b-2",
                         activeTab === key
                           ? "text-[#2d4a35] border-[#2d4a35] bg-[#f4f9f5]"
                           : "text-[#8fa989] border-transparent hover:bg-[#f8fbf9]"
-                      )}>
+                      )}
+                    >
                       <Icon size={15} />
                       {label}
                     </button>
@@ -1402,8 +1606,10 @@ export default function ProductCustomization({
                     <div className="space-y-5">
                       <input ref={fileRef} type="file" accept="image/*" onChange={handleUpload} className="hidden" />
                       {!logoImg ? (
-                        <div onClick={() => { if (requireLogin()) return; fileRef.current?.click(); }}
-                          className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-[#c5d9ca] cursor-pointer hover:border-[#2d4a35] hover:bg-[#f4f9f5] transition-all group">
+                        <div
+                          onClick={() => { if (requireLogin()) return; fileRef.current?.click(); }}
+                          className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-[#c5d9ca] cursor-pointer hover:border-[#2d4a35] hover:bg-[#f4f9f5] transition-all group"
+                        >
                           <div className="w-12 h-12 rounded-2xl bg-[#e8f0ea] flex items-center justify-center group-hover:bg-[#d5e8d8] transition-colors">
                             <Upload size={22} className="text-[#2d4a35]" />
                           </div>
@@ -1423,27 +1629,35 @@ export default function ProductCustomization({
                               <p className="text-[10px] text-[#8fa989]">Drag on canvas to reposition</p>
                             </div>
                             <div className="flex gap-1.5">
-                              <button onClick={() => fileRef.current?.click()}
-                                className="w-8 h-8 rounded-lg border border-[#dde8df] flex items-center justify-center hover:bg-white transition-colors text-[#6b8070]">
+                              <button
+                                onClick={() => fileRef.current?.click()}
+                                className="w-8 h-8 rounded-lg border border-[#dde8df] flex items-center justify-center hover:bg-white transition-colors text-[#6b8070]"
+                              >
                                 <Upload size={13} />
                               </button>
-                              <button onClick={() => { setLogoSrc(null); setLogoImg(null); }}
-                                className="w-8 h-8 rounded-lg border border-[#f5c5c5] flex items-center justify-center hover:bg-[#fdf0f0] transition-colors text-[#e05555]">
+                              <button
+                                onClick={() => { setLogoSrc(null); setLogoImg(null); }}
+                                className="w-8 h-8 rounded-lg border border-[#f5c5c5] flex items-center justify-center hover:bg-[#fdf0f0] transition-colors text-[#e05555]"
+                              >
                                 <Trash2 size={13} />
                               </button>
                             </div>
                           </div>
                           <div className="p-4 space-y-4">
-                            <Slider label="Size"     value={logoSize}                  min={40}  max={280} unit="px" onChange={setLogoSize}                       />
-                            <Slider label="Rotation" value={logoRotation}              min={0}   max={360} unit="°"  onChange={setLogoRotation}                   />
-                            <Slider label="Opacity"  value={Math.round(logoOpacity*100)} min={10} max={100} unit="%" onChange={(v) => setLogoOpacity(v / 100)}  />
+                            <Slider label="Size" value={logoSize} min={40} max={280} unit="px" onChange={setLogoSize} />
+                            <Slider label="Rotation" value={logoRotation} min={0} max={360} unit="°" onChange={setLogoRotation} />
+                            <Slider label="Opacity" value={Math.round(logoOpacity * 100)} min={10} max={100} unit="%" onChange={(v) => setLogoOpacity(v / 100)} />
                             <div className="flex gap-2 pt-1">
-                              <button onClick={() => setLogoRotation((p) => (p - 15 + 360) % 360)}
-                                className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors">
+                              <button
+                                onClick={() => setLogoRotation((p) => (p - 15 + 360) % 360)}
+                                className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                              >
                                 <RotateCcw size={13} /> Rotate Left
                               </button>
-                              <button onClick={() => setLogoRotation((p) => (p + 15) % 360)}
-                                className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors">
+                              <button
+                                onClick={() => setLogoRotation((p) => (p + 15) % 360)}
+                                className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                              >
                                 <RotateCw size={13} /> Rotate Right
                               </button>
                             </div>
@@ -1458,10 +1672,12 @@ export default function ProductCustomization({
                     <div className="space-y-5">
                       <div>
                         <SectionLabel>Your Text</SectionLabel>
-                        <input type="text" value={customText}
+                        <input
+                          type="text" value={customText}
                           onChange={(e) => setCustomText(e.target.value)}
                           placeholder="Type something..."
-                          className="w-full h-11 rounded-xl border border-[#dde8df] px-4 text-sm outline-none focus:ring-2 focus:ring-[#2d4a35] focus:border-transparent transition-all bg-[#f8fbf9]" />
+                          className="w-full h-11 rounded-xl border border-[#dde8df] px-4 text-sm outline-none focus:ring-2 focus:ring-[#2d4a35] focus:border-transparent transition-all bg-[#f8fbf9]"
+                        />
                       </div>
 
                       <Divider />
@@ -1470,14 +1686,17 @@ export default function ProductCustomization({
                         <SectionLabel>Font Family</SectionLabel>
                         <div className="grid grid-cols-2 gap-2">
                           {FONTS.map((f) => (
-                            <button key={f.value} onClick={() => setFontFamily(f.value)}
+                            <button
+                              key={f.value}
+                              onClick={() => setFontFamily(f.value)}
                               style={{ fontFamily: f.value }}
                               className={cn(
                                 "h-10 rounded-xl border text-sm transition-all px-3 text-left truncate",
                                 fontFamily === f.value
                                   ? "border-[#2d4a35] bg-[#f4f9f5] text-[#2d4a35] font-semibold"
                                   : "border-[#e2ece4] text-[#4a5568] hover:border-[#c5d9ca] hover:bg-[#f8fbf9]"
-                              )}>
+                              )}
+                            >
                               {f.label}
                             </button>
                           ))}
@@ -1490,17 +1709,20 @@ export default function ProductCustomization({
                         <SectionLabel>Style</SectionLabel>
                         <div className="flex gap-2">
                           {([
-                            { key: "bold",   label: "B",  active: textBold,   toggle: () => setTextBold((p) => !p),   style: "font-bold" },
-                            { key: "italic", label: "I",  active: textItalic, toggle: () => setTextItalic((p) => !p), style: "italic"    },
-                            { key: "shadow", label: "Sh", active: textShadow, toggle: () => setTextShadow((p) => !p), style: ""          },
+                            { key: "bold", label: "B", active: textBold, toggle: () => setTextBold((p) => !p), style: "font-bold" },
+                            { key: "italic", label: "I", active: textItalic, toggle: () => setTextItalic((p) => !p), style: "italic" },
+                            { key: "shadow", label: "Sh", active: textShadow, toggle: () => setTextShadow((p) => !p), style: "" },
                           ] as const).map(({ key, label, active, toggle, style }) => (
-                            <button key={key} onClick={toggle}
+                            <button
+                              key={key}
+                              onClick={toggle}
                               className={cn(
                                 "w-10 h-10 rounded-xl border text-sm transition-all", style,
                                 active
                                   ? "border-[#2d4a35] bg-[#2d4a35] text-white"
                                   : "border-[#e2ece4] text-[#4a5568] hover:border-[#c5d9ca]"
-                              )}>
+                              )}
+                            >
                               {label}
                             </button>
                           ))}
@@ -1513,17 +1735,22 @@ export default function ProductCustomization({
                         <SectionLabel>Text Color</SectionLabel>
                         <div className="flex items-center gap-2.5">
                           {PRESET_COLORS.map((c) => (
-                            <button key={c} onClick={() => setTextColor(c)}
+                            <button
+                              key={c}
+                              onClick={() => setTextColor(c)}
                               style={{ background: c }}
                               className={cn(
                                 "w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 flex-shrink-0",
                                 textColor === c ? "border-[#2d4a35] scale-110" : "border-white shadow-sm"
-                              )} />
+                              )}
+                            />
                           ))}
                           <div className="relative ml-auto">
-                            <input type="color" value={textColor}
+                            <input
+                              type="color" value={textColor}
                               onChange={(e) => setTextColor(e.target.value)}
-                              className="w-8 h-8 rounded-xl border border-[#dde8df] cursor-pointer p-0.5 bg-white" />
+                              className="w-8 h-8 rounded-xl border border-[#dde8df] cursor-pointer p-0.5 bg-white"
+                            />
                           </div>
                         </div>
                       </div>
@@ -1532,18 +1759,22 @@ export default function ProductCustomization({
 
                       <div className="space-y-4">
                         <SectionLabel>Adjustments</SectionLabel>
-                        <Slider label="Font Size" value={textSize}                      min={12}  max={96}  unit="px" onChange={setTextSize}                      />
-                        <Slider label="Rotation"  value={textRotation}                  min={0}   max={360} unit="°"  onChange={setTextRotation}                  />
-                        <Slider label="Opacity"   value={Math.round(textOpacity * 100)} min={10}  max={100} unit="%" onChange={(v) => setTextOpacity(v / 100)}   />
+                        <Slider label="Font Size" value={textSize} min={12} max={96} unit="px" onChange={setTextSize} />
+                        <Slider label="Rotation" value={textRotation} min={0} max={360} unit="°" onChange={setTextRotation} />
+                        <Slider label="Opacity" value={Math.round(textOpacity * 100)} min={10} max={100} unit="%" onChange={(v) => setTextOpacity(v / 100)} />
                       </div>
 
                       <div className="flex gap-2">
-                        <button onClick={() => setTextRotation((p) => (p - 15 + 360) % 360)}
-                          className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors">
+                        <button
+                          onClick={() => setTextRotation((p) => (p - 15 + 360) % 360)}
+                          className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                        >
                           <RotateCcw size={13} /> Rotate Left
                         </button>
-                        <button onClick={() => setTextRotation((p) => (p + 15) % 360)}
-                          className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors">
+                        <button
+                          onClick={() => setTextRotation((p) => (p + 15) % 360)}
+                          className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                        >
                           <RotateCw size={13} /> Rotate Right
                         </button>
                       </div>
@@ -1574,6 +1805,17 @@ export default function ProductCustomization({
           </div>
         </div>
       </div>
+
+      {/* ── Shake keyframe (inject once) ── */}
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%       { transform: translateX(-4px); }
+          40%       { transform: translateX(4px); }
+          60%       { transform: translateX(-4px); }
+          80%       { transform: translateX(4px); }
+        }
+      `}</style>
     </>
   );
 }
