@@ -1,4 +1,4 @@
-import OrderedItemCard from "./OrderedItemCard";
+// import OrderedItemCard from "./OrderedItemCard";
 import type { CartItem } from "@/contexts/CartContext";
 
 interface Props {
