@@ -6,7 +6,7 @@ import TrackLookup from "@/components/trackorder/TrackLookup";
 import OrderStatusCard from "@/components/trackorder/OrderStatusCard";
 import OrderProgress from "@/components/trackorder/OrderProgress";
 import ShipmentDetails from "@/components/trackorder/ShipmentDetails";
-import OrderedItems from "@/components/trackorder/OrderedItems";
+// import OrderedItems from "@/components/trackorder/OrderedItems";
 import OrderPriceSummary from "@/components/trackorder/OrderPriceSummary";
 import OrderSupport from "@/components/trackorder/OrderSupport";
 import NoOrderState from "@/components/trackorder/NoOrderState";
