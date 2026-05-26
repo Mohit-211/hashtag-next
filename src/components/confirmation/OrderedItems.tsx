@@ -14,11 +14,11 @@ export default function OrderedItems({ items }: Props) {
         Items Ordered
       </p>
 
-      <div className="space-y-4">
+      {/* <div className="space-y-4">
         {items.map((item) => (
           <OrderedItemCard key={item.id} item={item} />
         ))}
-      </div>
+      </div> */}
     </div>
   );
 }
