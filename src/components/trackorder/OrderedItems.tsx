@@ -33,13 +33,13 @@ export default function OrderedItems({ items }: OrderedItemsProps) {
               key={item.id}
               className="bg-card border border-border rounded-xl p-4 flex gap-4"
             >
-              <Image
+              {/* <Image
                 src={item.image}
                 alt={item.name}
                 width={64}
                 height={64}
                 className="w-16 h-16 rounded-lg object-cover"
-              />
+              /> */}
 
               <div className="flex-1">
                 <div className="flex justify-between">

@@ -49,7 +49,7 @@ const orderId="HB00000001"
           paymentMethod={order?.paymentMethod ?? "card"}
         />
 
-        <OrderedItems items={order?.items ?? []} />
+        {/* <OrderedItems items={order?.items ?? []} /> */}
 
         {order && <PriceSummary order={order} />}
 
