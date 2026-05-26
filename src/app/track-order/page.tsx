@@ -34,7 +34,7 @@ export default function TrackOrder() {
             <OrderStatusCard order={displayOrder} />
             <OrderProgress status={displayOrder.status} />
             <ShipmentDetails order={displayOrder} />
-            <OrderedItems items={displayOrder.items} />
+            {/* <OrderedItems items={displayOrder.items} /> */}
             <OrderPriceSummary order={displayOrder} />
             <OrderSupport />
           </div>
