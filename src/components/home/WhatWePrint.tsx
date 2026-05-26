@@ -1,38 +1,37 @@
 import CategoryCard from "@/components/common/CategoryCard";
-
 const categories = [
   {
-    image: "/assets/apparel.jpg",
+    image: "/assets/HomeImage/apparel.png",
     title: "Apparel Printing",
     count: 24,
   },
   {
-    image: "/assets/business-card.jpg",
+    image: "/assets/HomeImage/business cards.png",
     title: "Business Cards",
     count: 12,
   },
   {
-    image: "/assets/flyers.jpg",
+    image: "/assets/HomeImage/flyers.png",
     title: "Flyers & Brochures",
     count: 18,
   },
   {
-    image: "/assets/banner.jpg",
+    image: "/assets/HomeImage/banners.png",
     title: "Banners & Signs",
     count: 9,
   },
   {
-    image: "/assets/stickers.jpg",
+    image: "/assets/HomeImage/stickers.png",
     title: "Stickers & Labels",
     count: 14,
   },
   {
-    image: "/assets/promo.jpg",
+    image: "/assets/HomeImage/promo item.png",
     title: "Promo Items",
     count: 11,
   },
   {
-    image: "/assets/tradeshow.jpg",
+    image: "/assets/HomeImage/trade show displays.png",
     title: "Trade Show Displays",
     count: 6,
   },
