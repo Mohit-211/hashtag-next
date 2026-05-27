@@ -121,13 +121,14 @@ export default function ProductGallery({
           {/* Main Image */}
           <div className="relative flex-1 min-w-0 flex flex-col gap-3">
             <div
-              className={`
-                relative aspect-square rounded-2xl overflow-hidden bg-[#f5f3f0] group
-                border border-[#ece8e2]
-                transition-all duration-300
-                hover:shadow-[0_12px_48px_rgba(45,74,53,0.12)]
-                ${zoomed ? "cursor-zoom-out" : "cursor-zoom-in"}
-              `}
+            className={`
+  relative aspect-square rounded-2xl overflow-hidden bg-white group
+  border border-[#ece8e2]
+  transition-all duration-300
+
+  hover:shadow-[0_12px_48px_rgba(45,74,53,0.12)]
+  ${zoomed ? "cursor-zoom-out" : "cursor-zoom-in"}
+`}
               onClick={() => setZoomed((z) => !z)}
             >
               <ProxyImage

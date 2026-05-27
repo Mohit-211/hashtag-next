@@ -1,50 +1,51 @@
 "use client";
 
+import { GetPaymentHistoryApi } from "@/api/operations/payment.api";
 import PaymentHistoryCard, { Payment } from "@/components/Paymenthistorycard/Paymenthistorycard";
 import React, { useEffect, useState, useCallback } from "react";
 // import { GetPaymentHistoryApi } from "@/api/payment.api"; // ← uncomment to use real API
 
 // ─── Mock data matching your API response shape ────────────────────────────
-const MOCK_RESPONSE = {
-  success: true,
-  status: 200,
-  message: "Payment history fetched successfully",
-  data: {
-    total: 1,
-    current_page: 1,
-    total_pages: 1,
-    payments: [
-      {
-        payment_id: 2,
-        transaction_id: "lmCyzYQuLqgA3nxwuxFrzL7dMmIZY",
-        amount: 794,
-        currency: "USD",
-        created_at: "2026-05-25T09:35:45.000Z",
-        order: {
-          order_id: 2,
-          order_number: "ORD-1779701717386",
-          total_amount: 793.52,
-          shipping_amount: 228.32,
-          payment_status: "SUCCESS" as const,
-          shipment_status: "SUCCESS" as const,
-          tracking_number: "1ZXXXXXXXXXXXXXXXX",
-          tracking_url:
-            "http://wwwapps.ups.com/WebTracking/processRequest?HTMLVersion=5.0&Requester=NES&AgreeToTermsAndConditions=yes&loc=en_US&tracknum=1ZXXXXXXXXXXXXXXXX",
-          preview: {
-            product_name:
-              "Russell Outdoors Camo Snapback Trucker Cap RU900",
-            original_image:
-              "https://cdnm.sanmar.com/imglib/mresjpg/2023/f5/RU900_mossyoakdna_khaki_flat_left.jpg",
-            customized_image:
-              "https://node.hashtagbillionaire.com/images/images-1779701438019.png",
-            total_items: 24,
-            print_method: "DTF",
-          },
-        },
-      },
-    ],
-  },
-};
+// const MOCK_RESPONSE = {
+//   success: true,
+//   status: 200,
+//   message: "Payment history fetched successfully",
+//   data: {
+//     total: 1,
+//     current_page: 1,
+//     total_pages: 1,
+//     payments: [
+//       {
+//         payment_id: 2,
+//         transaction_id: "lmCyzYQuLqgA3nxwuxFrzL7dMmIZY",
+//         amount: 794,
+//         currency: "USD",
+//         created_at: "2026-05-25T09:35:45.000Z",
+//         order: {
+//           order_id: 2,
+//           order_number: "ORD-1779701717386",
+//           total_amount: 793.52,
+//           shipping_amount: 228.32,
+//           payment_status: "SUCCESS" as const,
+//           shipment_status: "SUCCESS" as const,
+//           tracking_number: "1ZXXXXXXXXXXXXXXXX",
+//           tracking_url:
+//             "http://wwwapps.ups.com/WebTracking/processRequest?HTMLVersion=5.0&Requester=NES&AgreeToTermsAndConditions=yes&loc=en_US&tracknum=1ZXXXXXXXXXXXXXXXX",
+//           preview: {
+//             product_name:
+//               "Russell Outdoors Camo Snapback Trucker Cap RU900",
+//             original_image:
+//               "https://cdnm.sanmar.com/imglib/mresjpg/2023/f5/RU900_mossyoakdna_khaki_flat_left.jpg",
+//             customized_image:
+//               "https://node.hashtagbillionaire.com/images/images-1779701438019.png",
+//             total_items: 24,
+//             print_method: "DTF",
+//           },
+//         },
+//       },
+//     ],
+//   },
+// };
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface PaginationMeta {
@@ -186,25 +187,24 @@ export default function PaymentHistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      // ── Real API call (uncomment when ready) ──────────────────────────────
-      // const res = await GetPaymentHistoryApi({ page, limit: 10 });
-      // if (!res?.success) throw new Error(res?.message || "Failed to fetch");
-      // setPayments(res.data.payments);
-      // setMeta({
-      //   total: res.data.total,
-      //   current_page: res.data.current_page,
-      //   total_pages: res.data.total_pages,
-      // });
-
-      // ── Mock (remove once real API is connected) ──────────────────────────
-      await new Promise((r) => setTimeout(r, 800)); // simulate network
-      const res = MOCK_RESPONSE;
-      setPayments(res.data.payments as Payment[]);
+      const res = await GetPaymentHistoryApi({ page, limit: 10 });
+      if (!res?.success) throw new Error(res?.message || "Failed to fetch");
+      setPayments(res.data.payments);
       setMeta({
         total: res.data.total,
         current_page: res.data.current_page,
         total_pages: res.data.total_pages,
       });
+
+      // ── Mock (remove once real API is connected) ──────────────────────────
+      // await new Promise((r) => setTimeout(r, 800)); // simulate network
+      // const res = MOCK_RESPONSE;
+      // setPayments(res.data.payments as Payment[]);
+      // setMeta({
+      //   total: res.data.total,
+      //   current_page: res.data.current_page,
+      //   total_pages: res.data.total_pages,
+      // });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
