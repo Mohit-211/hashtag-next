@@ -81,11 +81,53 @@ const PRINT_LOCATIONS = [
 
 type MaterialId = "embroidery" | "dtf" | "screenprint" | "dtg";
 
-const MATERIALS: { id: MaterialId; label: string; desc: string; badge: string; emoji: string }[] = [
-  { id: "embroidery", label: "Embroidery", desc: "Thread-stitched branding. Premium, durable, professional finish on any fabric.", badge: "All Fabrics", emoji: "🧵" },
-  { id: "dtf", label: "DTF Print", desc: "Direct-to-Film transfer. Full colour, no minimums, vibrant finish.", badge: "No Minimum", emoji: "🖨️" },
-  { id: "screenprint", label: "Screen Print", desc: "Classic ink-on-fabric. Best for bulk runs, bold solid colours.", badge: "Min 50 pcs", emoji: "🎨" },
-  { id: "dtg", label: "DTG Print", desc: "Direct-to-Garment. Photographic detail on 100% cotton only.", badge: "Cotton Only", emoji: "👕" },
+interface Material {
+  id: MaterialId;
+  label: string;
+  boldDesc: string;
+  bestFor: string;
+  minLabel: string;
+  badge: string;
+  iconUrl: string;
+}
+
+const MATERIALS: Material[] = [
+  {
+    id: "embroidery",
+    label: "Embroidery",
+    boldDesc: "Premium, durable, thread-stitched branding.",
+    bestFor: "Polos, jackets, uniforms",
+    minLabel: "No minimums",
+    badge: "All Fabrics",
+    iconUrl: "/icons/embroidery.png",
+  },
+  {
+    id: "dtf",
+    label: "DTF Print",
+    boldDesc: "Full-color Direct-to-Film transfers.",
+    bestFor: "Small runs, multi-color logos",
+    minLabel: "No minimums",
+    badge: "No Minimum",
+    iconUrl: "/icons/dtf.png",
+  },
+  {
+    id: "screenprint",
+    label: "Screen Print",
+    boldDesc: "Bold, solid colors for bulk orders.",
+    bestFor: "Tees, hoodies, bulk orders",
+    minLabel: "50 pcs",
+    badge: "Min 50 pcs",
+    iconUrl: "/icons/screenprint.png",
+  },
+  {
+    id: "dtg",
+    label: "DTG Print",
+    boldDesc: "Photo-quality prints on cotton garments.",
+    bestFor: "100% cotton tees",
+    minLabel: "No minimums",
+    badge: "Cotton Only",
+    iconUrl: "/icons/dtg.png",
+  },
 ];
 
 /* ─── Pricing tables ─────────────────────────────────────────────────────── */
@@ -229,7 +271,14 @@ function drawAll({
   ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, size, size);
-  if (productImg) ctx.drawImage(productImg, 0, 0, size, size);
+  if (productImg) {
+    const scale = Math.min(size / productImg.naturalWidth, size / productImg.naturalHeight);
+    const drawW = productImg.naturalWidth * scale;
+    const drawH = productImg.naturalHeight * scale;
+    const offsetX = (size - drawW) / 2;
+    const offsetY = (size - drawH) / 2;
+    ctx.drawImage(productImg, offsetX, offsetY, drawW, drawH);
+  }
   if (logo) {
     ctx.save();
     ctx.globalAlpha = logoOpacity;
@@ -290,7 +339,7 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
    PRICING TABLE COMPONENTS
 ══════════════════════════════════════════════════════════════════════════ */
 
-function EmbroideryPricingTable({ activeLocation }: { activeLocation: string | null }) {
+function EmbroideryPricingTable({ activeLocations }: { activeLocations: string[] }) {
   return (
     <div className="mt-4 rounded-2xl border border-[#dde8df] overflow-hidden">
       <div className="bg-[#1a2e1e] px-4 py-2.5 flex items-center gap-2">
@@ -313,8 +362,8 @@ function EmbroideryPricingTable({ activeLocation }: { activeLocation: string | n
           <tbody>
             {EMB_ROWS.map((row, i) => {
               const isActive =
-                activeLocation === row.key ||
-                (activeLocation === "sleeve-right" && row.key === "sleeve-left");
+                activeLocations.includes(row.key) ||
+                (activeLocations.includes("sleeve-right") && row.key === "sleeve-left");
               return (
                 <tr
                   key={row.key}
@@ -346,7 +395,7 @@ function EmbroideryPricingTable({ activeLocation }: { activeLocation: string | n
       </div>
       <div className="bg-[#f4f9f5] px-4 py-2 border-t border-[#dde8df]">
         <p className="text-[10px] text-[#8fa989]">
-          💡 Second location? Double the per-location price. &nbsp;|&nbsp; Oversized Back requires a custom quote.
+          💡 Each location is priced separately and added together. &nbsp;|&nbsp; Oversized Back requires a custom quote.
         </p>
       </div>
     </div>
@@ -615,7 +664,15 @@ export default function ProductCustomization({
   const [showValidationShake, setShowValidationShake] = useState(false);
 
   /* ─── Selections ─── */
-  const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+
+  /* ─── Toggle a location on/off ─── */
+  const toggleLocation = (id: string) => {
+    setSelectedLocations((prev) =>
+      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]
+    );
+  };
+
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
   const [showPriceTable, setShowPriceTable] = useState(false);
   const [spColorCount, setSpColorCount] = useState<"1 Color" | "2 Color" | "3 Color">("1 Color");
@@ -663,20 +720,18 @@ export default function ProductCustomization({
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ─── Validation helper ─── */
-  const getMissingRequirements = () => {
+  const getMissingRequirements = useCallback(() => {
     const missing: string[] = [];
-    if (!selectedLocation) missing.push("a print location");
+    if (selectedLocations.length === 0) missing.push("a print location");
     if (!selectedMaterial) missing.push("a print method");
-    if (quantity < 1)      missing.push("a valid quantity");
+    if (quantity < 1) missing.push("a valid quantity");
     return missing;
-  };
-
-  const requirementsMet = !selectedLocation === false && !selectedMaterial === false && quantity >= 1;
+  }, [selectedLocations, selectedMaterial, quantity]);
 
   const REQUIREMENTS = [
-    { key: "loc", label: "Print location", done: !!selectedLocation },
-    { key: "mat", label: "Print method",   done: !!selectedMaterial },
-    { key: "qty", label: "Item count",     done: quantity >= 1 },
+    { key: "loc", label: "Print location", done: selectedLocations.length > 0 },
+    { key: "mat", label: "Print method", done: !!selectedMaterial },
+    { key: "qty", label: "Item count", done: quantity >= 1 },
   ];
 
   /* ─── Load product image ─── */
@@ -816,7 +871,7 @@ export default function ProductCustomization({
     }
   };
 
-  /* ─── Download only — no cart side-effect ─── */
+  /* ─── Download only ─── */
   const handleConfirmDownload = () => {
     if (!previewDataUrl) return;
     const link = document.createElement("a");
@@ -837,35 +892,43 @@ export default function ProductCustomization({
     if (!selectedMaterial) return null;
 
     if (selectedMaterial === "embroidery") {
-      if (!selectedLocation || selectedLocation === "oversized") return null;
-      const row = EMB_PRICES[selectedLocation];
-      if (!row) return null;
+      if (selectedLocations.length === 0) return null;
+      // If any location is oversized (quote-only), return null
+      if (selectedLocations.includes("oversized")) return null;
       const tierIdx = EMB_TIERS.findIndex((t) => quantity >= t.min && quantity <= t.max);
-      const base = tierIdx >= 0 ? row[tierIdx] : row[row.length - 1];
+      let total = 0;
+      for (const locId of selectedLocations) {
+        const row = EMB_PRICES[locId];
+        if (!row) return null;
+        const base = tierIdx >= 0 ? row[tierIdx] : row[row.length - 1];
+        total += base * quantity;
+      }
       const digitizing = quantity <= 11 ? 35 : 0;
-      return base * quantity + digitizing;
+      return total + digitizing;
     }
 
     if (selectedMaterial === "dtf") {
+      if (selectedLocations.length === 0) return null;
       const tierIdx = DTF_TIERS.findIndex((t, i) =>
         quantity >= t && (i === DTF_TIERS.length - 1 || quantity < DTF_TIERS[i + 1])
       );
       const unitPrice = tierIdx >= 0 ? DTF_PRICES[tierIdx] : DTF_PRICES[DTF_PRICES.length - 1];
-      return unitPrice * quantity;
+      return unitPrice * quantity * selectedLocations.length;
     }
 
     if (selectedMaterial === "screenprint") {
-      if (quantity < 50) return null;
+      if (quantity < 50 || selectedLocations.length === 0) return null;
       const tierIdx = quantity >= 100 ? 1 : 0;
-      return SP_PRICES[spColorCount][tierIdx] * quantity;
+      return SP_PRICES[spColorCount][tierIdx] * quantity * selectedLocations.length;
     }
 
     if (selectedMaterial === "dtg") {
+      if (selectedLocations.length === 0) return null;
       const tierIdx = DTG_TIERS.findIndex((t, i) =>
         quantity >= t.min && (i === DTG_TIERS.length - 1 || quantity < DTG_TIERS[i + 1].min)
       );
       const unitPrice = tierIdx >= 0 ? DTG_PRICES[dtgStyle][tierIdx] : DTG_PRICES[dtgStyle][DTG_PRICES[dtgStyle].length - 1];
-      return unitPrice * quantity;
+      return unitPrice * quantity * selectedLocations.length;
     }
 
     return null;
@@ -885,8 +948,7 @@ export default function ProductCustomization({
   const buildCustomizationPayload = (): string => {
     const payload: Record<string, unknown> = {
       print_method: selectedMaterial?.toUpperCase() ?? null,
-      locations: selectedLocation ? [{ id: selectedLocation }] : [],
-      quantity,
+      locations: selectedLocations.map((id) => ({ location: id })),
     };
     if (selectedMaterial === "screenprint") {
       payload.color_count = spColorCount;
@@ -897,22 +959,17 @@ export default function ProductCustomization({
     if (customText.trim()) {
       payload.custom_text = customText.trim();
     }
-    if (logoSrc) {
-      payload.has_logo = true;
-    }
     return JSON.stringify(payload);
   };
 
-  /* ─── Add to cart — validates all three required fields first ─── */
+
+  /* ─── Add to cart ─── */
   const handleAddToCart = async () => {
     if (requireLogin()) return;
 
     const missing = getMissingRequirements();
     if (missing.length > 0) {
-      setValidationError(
-        `Please select ${missing.join(", ")} before adding to cart.`
-      );
-      // Shake effect
+      setValidationError(`Please select ${missing.join(", ")} before adding to cart.`);
       setShowValidationShake(true);
       setTimeout(() => setShowValidationShake(false), 600);
       return;
@@ -926,12 +983,14 @@ export default function ProductCustomization({
     setShowCartModal(true);
   };
 
-  // Clear validation error when user completes each requirement
+  /* ─── Clear validation when requirements met ─── */
   useEffect(() => {
     if (validationError && getMissingRequirements().length === 0) {
       setValidationError(null);
     }
-  }, [selectedLocation, selectedMaterial, quantity]);
+  }, [selectedLocations, selectedMaterial, quantity, validationError, getMissingRequirements]);
+
+
 
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-2">{children}</p>
@@ -943,8 +1002,8 @@ export default function ProductCustomization({
     setShowPriceTable(true);
   };
 
-  /* ─── Computed: all requirements satisfied ─── */
-  const allRequirementsMet = !!selectedLocation && !!selectedMaterial && quantity >= 1;
+  /* ─── All requirements satisfied ─── */
+  const allRequirementsMet = selectedLocations.length > 0 && !!selectedMaterial && quantity >= 1;
 
   return (
     <>
@@ -1044,13 +1103,15 @@ export default function ProductCustomization({
         <div className="px-5 py-4 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0] flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">1</div>
           <div>
-            <p className="text-sm font-bold text-[#1a2e1e]">Print Location</p>
+            <p className="text-sm font-bold text-[#1a2e1e]">Choose Print Location</p>
             <p className="text-[10px] text-[#8aaa90]">Where should we print on the garment?</p>
           </div>
-          {selectedLocation ? (
+          {selectedLocations.length > 0 ? (
             <span className="ml-auto text-xs font-semibold text-[#2d4a35] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
               <Check size={10} />
-              {PRINT_LOCATIONS.find((l) => l.id === selectedLocation)?.label}
+              {selectedLocations.length === 1
+                ? PRINT_LOCATIONS.find((l) => l.id === selectedLocations[0])?.label
+                : `${selectedLocations.length} locations`}
             </span>
           ) : (
             <span className="ml-auto text-xs font-semibold text-[#e05555] bg-[#fdf0f0] px-2.5 py-1 rounded-full">
@@ -1070,58 +1131,58 @@ export default function ProductCustomization({
 
               {/* LEFT CHEST */}
               <circle cx="115" cy="145" r="22"
-                onClick={() => setSelectedLocation("left-chest")}
+                onClick={() => toggleLocation("left-chest")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocation === "left-chest" ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocation === "left-chest" ? 0.9 : 0.7}
-                stroke={selectedLocation === "left-chest" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("left-chest") ? "#2d4a35" : "#e8f0ea"}
+                fillOpacity={selectedLocations.includes("left-chest") ? 0.9 : 0.7}
+                stroke={selectedLocations.includes("left-chest") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
               />
-              <text x="115" y="141" textAnchor="middle" fontSize="9" fill={selectedLocation === "left-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
-              <text x="115" y="152" textAnchor="middle" fontSize="9" fill={selectedLocation === "left-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
+              <text x="115" y="141" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("left-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
+              <text x="115" y="152" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("left-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
 
               {/* RIGHT CHEST */}
               <circle cx="205" cy="145" r="22"
-                onClick={() => setSelectedLocation("right-chest")}
+                onClick={() => toggleLocation("right-chest")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocation === "right-chest" ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocation === "right-chest" ? 0.9 : 0.7}
-                stroke={selectedLocation === "right-chest" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("right-chest") ? "#2d4a35" : "#e8f0ea"}
+                fillOpacity={selectedLocations.includes("right-chest") ? 0.9 : 0.7}
+                stroke={selectedLocations.includes("right-chest") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
               />
-              <text x="205" y="141" textAnchor="middle" fontSize="9" fill={selectedLocation === "right-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
-              <text x="205" y="152" textAnchor="middle" fontSize="9" fill={selectedLocation === "right-chest" ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
+              <text x="205" y="141" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("right-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
+              <text x="205" y="152" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("right-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
 
               {/* FULL FRONT */}
               <rect x="122" y="175" width="76" height="60" rx="10"
-                onClick={() => setSelectedLocation("full-front")}
+                onClick={() => toggleLocation("full-front")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocation === "full-front" ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocation === "full-front" ? 0.9 : 0.7}
-                stroke={selectedLocation === "full-front" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("full-front") ? "#2d4a35" : "#e8f0ea"}
+                fillOpacity={selectedLocations.includes("full-front") ? 0.9 : 0.7}
+                stroke={selectedLocations.includes("full-front") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
               />
-              <text x="160" y="200" textAnchor="middle" fontSize="9" fill={selectedLocation === "full-front" ? "#fff" : "#2d4a35"} fontWeight="600">Full</text>
-              <text x="160" y="213" textAnchor="middle" fontSize="9" fill={selectedLocation === "full-front" ? "#fff" : "#2d4a35"} fontWeight="600">Front</text>
+              <text x="160" y="200" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("full-front") ? "#fff" : "#2d4a35"} fontWeight="600">Full</text>
+              <text x="160" y="213" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("full-front") ? "#fff" : "#2d4a35"} fontWeight="600">Front</text>
 
               {/* LEFT SLEEVE */}
               <ellipse cx="42" cy="110" rx="20" ry="26"
-                onClick={() => setSelectedLocation("sleeve-left")}
+                onClick={() => toggleLocation("sleeve-left")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocation === "sleeve-left" ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocation === "sleeve-left" ? 0.9 : 0.7}
-                stroke={selectedLocation === "sleeve-left" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("sleeve-left") ? "#2d4a35" : "#e8f0ea"}
+                fillOpacity={selectedLocations.includes("sleeve-left") ? 0.9 : 0.7}
+                stroke={selectedLocations.includes("sleeve-left") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
               />
-              <text x="42" y="106" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-left" ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
-              <text x="42" y="117" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-left" ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
+              <text x="42" y="106" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-left") ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
+              <text x="42" y="117" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-left") ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
 
               {/* RIGHT SLEEVE */}
               <ellipse cx="278" cy="110" rx="20" ry="26"
-                onClick={() => setSelectedLocation("sleeve-right")}
+                onClick={() => toggleLocation("sleeve-right")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocation === "sleeve-right" ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocation === "sleeve-right" ? 0.9 : 0.7}
-                stroke={selectedLocation === "sleeve-right" ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("sleeve-right") ? "#2d4a35" : "#e8f0ea"}
+                fillOpacity={selectedLocations.includes("sleeve-right") ? 0.9 : 0.7}
+                stroke={selectedLocations.includes("sleeve-right") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
               />
-              <text x="278" y="106" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-right" ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
-              <text x="278" y="117" textAnchor="middle" fontSize="8" fill={selectedLocation === "sleeve-right" ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
+              <text x="278" y="106" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-right") ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
+              <text x="278" y="117" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-right") ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
             </svg>
           </div>
 
@@ -1136,21 +1197,57 @@ export default function ProductCustomization({
             ].map((loc) => (
               <button
                 key={loc.id}
-                onClick={() => setSelectedLocation(loc.id)}
+                onClick={() => toggleLocation(loc.id)}
                 className={cn(
-                  "h-10 rounded-xl border text-xs font-semibold transition-all px-3",
-                  selectedLocation === loc.id
+                  "h-10 rounded-xl border text-xs font-semibold transition-all px-3 flex items-center justify-center gap-1.5",
+                  selectedLocations.includes(loc.id)
                     ? "border-[#2d4a35] bg-[#2d4a35] text-white"
                     : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
                 )}
               >
+                {selectedLocations.includes(loc.id) && <Check size={11} />}
                 {loc.label}
               </button>
             ))}
           </div>
 
-          {!selectedLocation && (
-            <p className="text-xs text-[#b0c4b5] text-center mt-3">Click a location on the shirt or select below</p>
+          {/* ── Multi-select hint ── */}
+          <p className="text-xs text-[#b0c4b5] text-center mt-3">
+            {selectedLocations.length === 0
+              ? "Tap locations to select — you can choose multiple"
+              : `${selectedLocations.length} location${selectedLocations.length > 1 ? "s" : ""} selected · tap again to deselect`}
+          </p>
+
+          {/* ── Selected location chips ── */}
+          {selectedLocations.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {selectedLocations.map((id) => {
+                const loc = PRINT_LOCATIONS.find((l) => l.id === id);
+                return (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 bg-[#2d4a35] text-white text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  >
+                    {loc?.label ?? id}
+                    <button
+                      onClick={() => toggleLocation(id)}
+                      className="ml-0.5 hover:opacity-70 transition-opacity"
+                      aria-label={`Remove ${loc?.label}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                );
+              })}
+              {selectedLocations.length > 1 && (
+                <button
+                  onClick={() => setSelectedLocations([])}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-[#dde8df] text-[#8fa989] hover:bg-[#f4f9f5] transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -1162,7 +1259,7 @@ export default function ProductCustomization({
         <div className="px-5 py-4 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0] flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">2</div>
           <div>
-            <p className="text-sm font-bold text-[#1a2e1e]">Print Method</p>
+            <p className="text-sm font-bold text-[#1a2e1e]">Choose decoration Method</p>
             <p className="text-[10px] text-[#8aaa90]">Select the decoration technique</p>
           </div>
           {selectedMaterial ? (
@@ -1177,30 +1274,69 @@ export default function ProductCustomization({
           )}
         </div>
 
+        {/* ── UPDATED MATERIAL CARDS ── */}
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {MATERIALS.map((mat) => (
             <button
               key={mat.id}
               onClick={() => handleSelectMaterial(mat.id)}
               className={cn(
-                "relative text-left rounded-2xl border-2 p-4 transition-all",
+                "relative text-left rounded-2xl border-2 p-4 transition-all duration-200",
                 selectedMaterial === mat.id
-                  ? "border-[#2d4a35] bg-[#f4f9f5]"
-                  : "border-[#e2ece4] hover:border-[#b5cebb] hover:bg-[#f8fbf9]"
+                  ? "border-[#2d4a35] bg-[#f4f9f5] shadow-sm"
+                  : "border-[#e2ece4] bg-white hover:border-[#b5cebb] hover:bg-[#f8fbf9]"
               )}
             >
-              <span className="absolute top-3 right-3 text-[9px] font-bold uppercase tracking-wider bg-[#e8f0ea] text-[#2d4a35] px-2 py-0.5 rounded-full">
-                {mat.badge}
-              </span>
-              <div className="text-2xl mb-2">{mat.emoji}</div>
-              <p className={cn("text-sm font-bold mb-1", selectedMaterial === mat.id ? "text-[#1a2e1e]" : "text-[#374151]")}>
-                {mat.label}
+              {/* Header: icon + title */}
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#eef5f0] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  <img
+                    src={mat.iconUrl}
+                    alt={mat.label}
+                    className="w-6 h-6 object-contain"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      target.style.display = "none";
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `<span class="text-lg">${mat.id === "embroidery" ? "🧵"
+                            : mat.id === "dtf" ? "🖨️"
+                              : mat.id === "screenprint" ? "🎨"
+                                : "👕"
+                          }</span>`;
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-sm font-bold text-[#1a2e1e]">{mat.label}</p>
+              </div>
+
+              {/* Bold description */}
+              <p className="text-[12px] font-semibold text-[#2d4a35] leading-snug mb-2">
+                {mat.boldDesc}
               </p>
-              <p className="text-[11px] text-[#8fa989] leading-snug">{mat.desc}</p>
+
+              {/* Best for */}
+              <p className="text-[11px] text-[#6b7280] leading-relaxed">
+                <span className="font-semibold text-[#374151]">Best for:</span> {mat.bestFor}
+              </p>
+
+              {/* Min */}
+              <p className="text-[11px] text-[#6b7280] mt-0.5">
+                <span className="font-semibold text-[#374151]">Min:</span> {mat.minLabel}
+              </p>
+
+              {/* Selected checkmark badge */}
+              {selectedMaterial === mat.id && (
+                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#2d4a35] flex items-center justify-center">
+                  <Check size={11} className="text-white" />
+                </div>
+              )}
             </button>
           ))}
         </div>
 
+        {/* ── EMBROIDERY NOTES ── */}
         {selectedMaterial === "embroidery" && (
           <div className="px-5 pb-2">
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
@@ -1214,6 +1350,7 @@ export default function ProductCustomization({
           </div>
         )}
 
+        {/* ── SCREEN PRINT COLOR COUNT ── */}
         {selectedMaterial === "screenprint" && (
           <div className="px-5 pb-2">
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
@@ -1239,6 +1376,7 @@ export default function ProductCustomization({
           </div>
         )}
 
+        {/* ── DTG PRINT AREA ── */}
         {selectedMaterial === "dtg" && (
           <div className="px-5 pb-2">
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
@@ -1264,6 +1402,7 @@ export default function ProductCustomization({
           </div>
         )}
 
+        {/* ── PRICE TABLE TOGGLE ── */}
         {selectedMaterial && (
           <div className="px-5 pb-5">
             <button
@@ -1282,7 +1421,7 @@ export default function ProductCustomization({
 
             {showPriceTable && (
               <div>
-                {selectedMaterial === "embroidery" && <EmbroideryPricingTable activeLocation={selectedLocation} />}
+                {selectedMaterial === "embroidery" && <EmbroideryPricingTable activeLocations={selectedLocations} />}
                 {selectedMaterial === "dtf" && <DTFPricingTable qty={quantity} />}
                 {selectedMaterial === "screenprint" && <ScreenPrintPricingTable qty={quantity} activeColor={spColorCount} />}
                 {selectedMaterial === "dtg" && <DTGPricingTable qty={quantity} activeStyle={dtgStyle} />}
@@ -1299,7 +1438,7 @@ export default function ProductCustomization({
         <div className="px-5 py-4 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0] flex items-center gap-3">
           <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">3</div>
           <div>
-            <p className="text-sm font-bold text-[#1a2e1e]">Item Count</p>
+            <p className="text-sm font-bold text-[#1a2e1e]">Choose Quantity</p>
             <p className="text-[10px] text-[#8aaa90]">How many pieces do you need?</p>
           </div>
           <span className="ml-auto text-xs font-bold text-[#1a2e1e] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
@@ -1359,7 +1498,7 @@ export default function ProductCustomization({
             <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4 space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-3">Estimated Print Cost</p>
 
-              {selectedMaterial === "embroidery" && quantity <= 11 && selectedLocation !== "oversized" && (
+              {selectedMaterial === "embroidery" && quantity <= 11 && !selectedLocations.includes("oversized") && selectedLocations.length > 0 && (
                 <div className="flex justify-between text-xs text-[#8fa989]">
                   <span>Digitizing fee (1–11 pcs)</span>
                   <span className="font-semibold text-[#4a7a58]">+$35.00</span>
@@ -1370,12 +1509,35 @@ export default function ProductCustomization({
                 <p className="text-xs text-amber-600 font-semibold">⚠️ Screen print requires a minimum of 50 pieces.</p>
               )}
 
-              {selectedMaterial === "embroidery" && selectedLocation === "oversized" ? (
+              {selectedMaterial === "embroidery" && selectedLocations.includes("oversized") ? (
                 <p className="text-xs text-[#2d4a35] font-semibold">Oversized back — please request a quote.</p>
               ) : printPrice !== null ? (
                 <>
+                  {selectedLocations.length > 1 && (
+                    <div className="space-y-1 pb-2 border-b border-[#e2ece4]">
+                      {selectedLocations.map((id) => {
+                        const loc = PRINT_LOCATIONS.find((l) => l.id === id);
+                        return (
+                          <div key={id} className="flex justify-between text-xs text-[#6b7280]">
+                            <span>{loc?.label ?? id}</span>
+                            <span className="font-medium text-[#4a5568]">
+                              {selectedMaterial === "embroidery" ? (() => {
+                                const row = EMB_PRICES[id];
+                                if (!row) return "—";
+                                const tierIdx = EMB_TIERS.findIndex((t) => quantity >= t.min && quantity <= t.max);
+                                const base = tierIdx >= 0 ? row[tierIdx] : row[row.length - 1];
+                                return `$${(base * quantity).toFixed(2)}`;
+                              })() : "included"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs text-[#6b7280]">Print cost ({quantity} pcs)</span>
+                    <span className="text-xs text-[#6b7280]">
+                      Print cost ({quantity} pcs{selectedLocations.length > 1 ? `, ${selectedLocations.length} locations` : ""})
+                    </span>
                     <span className="text-lg font-bold text-[#1a2e1e]">${printPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-xs text-[#8fa989] pt-1 border-t border-[#e2ece4]">
@@ -1383,15 +1545,16 @@ export default function ProductCustomization({
                     <span className="font-semibold text-[#4a7a58]">${(printPrice / quantity).toFixed(2)}/pc</span>
                   </div>
                   <p className="text-[10px] text-[#b0c4b5] pt-1">
-                    * Garment cost is separate. For a second print location, double the print cost
-                    (${(printPrice / quantity).toFixed(2)} × 2 = ${((printPrice / quantity) * 2).toFixed(2)}/pc).
+                    * Garment cost is separate. Prices shown are for all {selectedLocations.length > 1 ? `${selectedLocations.length} selected locations` : "the selected location"} combined.
                   </p>
                 </>
               ) : (
                 <p className="text-xs text-[#b0c4b5]">
-                  {selectedMaterial === "embroidery"
-                    ? "Select a print location above to see embroidery pricing."
-                    : "Select a method above to see pricing."}
+                  {selectedLocations.length === 0
+                    ? "Select a print location above to see pricing."
+                    : selectedMaterial === "embroidery"
+                      ? "Select a print location above to see embroidery pricing."
+                      : "Select a method above to see pricing."}
                 </p>
               )}
             </div>
@@ -1482,9 +1645,48 @@ export default function ProductCustomization({
                     </div>
                   </div>
 
-                  <div className="flex justify-between items-center font-bold text-[#1a2e1e] pt-1 border-t border-[#edf4ef]">
-                    <span className="text-sm">Total</span>
-                    <span className="text-base">${(price * quantity).toFixed(2)}</span>
+                  <div className="pt-1 border-t border-[#edf4ef] space-y-1.5">
+                    <div className="flex justify-between items-center text-sm text-[#6b7280]">
+                      <span>Garment cost</span>
+                      <span className="font-medium text-[#1a2e1e]">${(price * quantity).toFixed(2)}</span>
+                    </div>
+                    {printPrice !== null && !selectedLocations.includes("oversized") && (
+                      <div className="flex justify-between items-center text-sm text-[#6b7280]">
+                        <span>
+                          Decoration
+                          {selectedMaterial === "embroidery" && quantity <= 11
+                            ? " (incl. $35 digitizing)"
+                            : selectedLocations.length > 1
+                            ? ` (${selectedLocations.length} locations)`
+                            : ""}
+                        </span>
+                        <span className="font-medium text-[#1a2e1e]">${printPrice.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {selectedLocations.includes("oversized") && selectedMaterial === "embroidery" && (
+                      <div className="flex justify-between items-center text-sm text-[#e05555]">
+                        <span>Decoration (Oversized)</span>
+                        <span className="font-medium">Quote required</span>
+                      </div>
+                    )}
+                    {selectedMaterial === "screenprint" && quantity < 50 && (
+                      <div className="text-[10px] text-amber-600 font-semibold">
+                        ⚠ Screen print needs 50+ pcs
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center font-bold text-[#1a2e1e] pt-1.5 border-t border-[#edf4ef]">
+                      <span className="text-sm">Estimated Total</span>
+                      <span className="text-base">
+                        {selectedLocations.includes("oversized") && selectedMaterial === "embroidery"
+                          ? `$${(price * quantity).toFixed(2)} + quote`
+                          : `$${(price * quantity + (printPrice ?? 0)).toFixed(2)}`}
+                      </span>
+                    </div>
+                    {printPrice !== null && !selectedLocations.includes("oversized") && (
+                      <p className="text-[10px] text-[#b0c4b5]">
+                        ${(( price * quantity + printPrice) / quantity).toFixed(2)}/pc all-in · decoration only ${(printPrice / quantity).toFixed(2)}/pc
+                      </p>
+                    )}
                   </div>
 
                   {/* ── REQUIREMENTS BAR ── */}
@@ -1519,7 +1721,7 @@ export default function ProductCustomization({
                   )}
 
                   <div className="flex gap-2.5 pt-1">
-                    {/* ── ADD TO CART — disabled until all 3 requirements met ── */}
+                    {/* ── ADD TO CART ── */}
                     <button
                       onClick={handleAddToCart}
                       className={cn(
@@ -1806,7 +2008,7 @@ export default function ProductCustomization({
         </div>
       </div>
 
-      {/* ── Shake keyframe (inject once) ── */}
+      {/* ── Shake keyframe ── */}
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }

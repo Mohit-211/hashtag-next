@@ -91,7 +91,7 @@ export default function Header() {
   };
 
   return (
-   <header className="sticky top-0 z-50 bg-gray-200/95 backdrop-blur border-b border-gray-200">
+   <header className="sticky top-0 z-50 bg-gray-500/50 backdrop-blur border-b border-gray-500">
       <div className="container flex h-16 items-center justify-between gap-4">
         {/* Logo */}
         <Link
@@ -99,10 +99,10 @@ export default function Header() {
           className="flex items-center shrink-0"
         >
           <Image
-            src="/logo_header.png"
+            src="/logo_footer.png"
             alt="HashtagBillionaire"
             width={180}
-            height={40}
+            height={30}
             priority
             className="h-12 w-auto"
           />
@@ -117,7 +117,7 @@ export default function Header() {
               className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 pathname === link.href
                   ? "text-primary-foreground bg-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  : "  hover:text-foreground hover:bg-secondary"
               }`}
             >
               {link.label}
@@ -180,7 +180,7 @@ export default function Header() {
                     transition
                   "
                 >
-                  <span className="text-xs text-muted-foreground max-w-[80px] truncate">
+                  <span className="text-xs   max-w-[80px] truncate">
                     {user?.name?.split(" ")[0] ||
                       "Account"}
                   </span>
@@ -205,7 +205,7 @@ export default function Header() {
                         {user?.name || "User"}
                       </p>
 
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-xs   truncate">
                         {user?.email || ""}
                       </p>
                     </div>
@@ -281,7 +281,7 @@ export default function Header() {
                 className={`px-3 py-2 text-sm rounded-md ${
                   pathname === link.href
                     ? "bg-primary text-white"
-                    : "text-muted-foreground hover:bg-secondary"
+                    : "  hover:bg-secondary"
                 }`}
               >
                 {link.label}

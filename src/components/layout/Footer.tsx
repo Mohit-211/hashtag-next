@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-200/95 border-t border-gray-200">
+    <footer className="bg-gray-500/50 border-t border-gray-500">
       <div className="container py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
@@ -37,7 +37,7 @@ export default function Footer() {
                           ? "/"
                           : `/${item.toLowerCase().replace(" ", "-")}`
                       }
-                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      className="  hover:text-foreground transition-colors"
                     >
                       {item}
                     </Link>
@@ -57,7 +57,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/privacy-policy"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="  hover:text-foreground transition-colors"
                 >
                   Privacy Policy
                 </Link>
@@ -66,7 +66,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/terms"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="  hover:text-foreground transition-colors"
                 >
                   Terms of Service
                 </Link>
@@ -75,7 +75,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="/shippingreturns"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  className="  hover:text-foreground transition-colors"
                 >
                   Refund Policy
                 </Link>
@@ -89,14 +89,14 @@ export default function Footer() {
               Contact
             </h4>
 
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm  ">
               hello@hashtagbillionaire.com
             </p>
           </div>
         </div>
 
         <div className="mt-10 pt-6 border-t border-border">
-          <p className="text-xs text-muted-foreground text-center">
+          <p className="text-xs   text-center">
             © {new Date().getFullYear()} HashtagBillionaire. All rights
             reserved.
           </p>
