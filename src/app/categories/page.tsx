@@ -113,13 +113,118 @@ const styles = `
   transform:rotate(180deg);
 }
 
-.cat-topbar{
-  padding:20px 24px;
-  background:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  border-bottom:1px solid #eee;
+.cat-topbar {
+  padding: 20px 24px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.cat-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cat-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cat-heading {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #111;
+}
+
+.cat-count {
+  color: #777;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.active-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 8px 14px;
+  border-radius: 999px;
+
+  background: #f5f5f5;
+  color: #111;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.active-filter-pill button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  color: #666;
+}
+
+.cat-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sort-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.sort-select {
+  height: 42px;
+  min-width: 190px;
+
+  padding: 0 14px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.sort-select:hover,
+.sort-select:focus {
+  border-color: #111;
+}
+
+@media (max-width: 768px) {
+  .cat-topbar {
+    padding: 16px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cat-topbar-right {
+    width: 100%;
+  }
+
+  .sort-select {
+    width: 100%;
+  }
+
+  .cat-heading {
+    font-size: 22px;
+  }
 }
 
 .cat-heading{
@@ -173,15 +278,148 @@ const styles = `
   font-size:12px;
   margin-left:10px;
 }
-   /* ── Search inside tab bar ── */
+  
+/* ── Search wrap ── */
+.cat-tabs-search-wrap {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.cat-tabs-search-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 10px 0px;
+}
+
+.cat-tabs-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+}
+
+.cat-tabs-search {
+  height: 34px;
+  width: 220px;
+  padding: 0 34px 0 34px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+
+  background: #f9fafb;
+  color: #111;
+  font-size: 13px;
+
+  outline: none;
+  transition: border-color .2s, box-shadow .2s, width .2s, background .2s;
+}
+
+.cat-tabs-search::placeholder {
+  color: #9ca3af;
+  font-size: 12.5px;
+}
+
+.cat-tabs-search:hover {
+  border-color: #d1d5db;
+  background: #fff;
+}
+
+.cat-tabs-search:focus {
+  border-color: #374151;
+  background: #fff;
+  width: 250px;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.07);
+}
+
+/* Clear button */
+.cat-tabs-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+}
+.cat-tabs-search-clear:hover { color: #111; }
+
+@media (max-width: 768px) {
+  .cat-tabs-search-wrap { width: 100%; padding: 8px 12px; }
+  .cat-tabs-search { width: 100%; }
+  .cat-tabs-search:focus { width: 100%; }
+}
+
+.cat-tabs-search-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 200px;
+}
+
+.cat-tabs-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #888;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.cat-tabs-search {
+  width: 100%;
+  height: 44px;
+  padding: 0 16px 0 44px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+
+  background: #fff;
+  color: #111827;
+  font-size: 14px;
+  font-weight: 500;
+
+  transition: all 0.25s ease;
+  outline: none;
+}
+
+.cat-tabs-search::placeholder {
+  color: #9ca3af;
+}
+
+.cat-tabs-search:hover {
+  border-color: #d1d5db;
+}
+
+.cat-tabs-search:focus {
+  border-color: #111827;
+  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+}
+
+@media (max-width: 768px) {
   .cat-tabs-search-wrap {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    padding: 0 0 0 12px;
-    border-left: 1px solid var(--border-faint);
-    flex-shrink: 0;
+    width: 100%;
+    margin-top: 12px;
   }
+
+  .cat-tabs-search-inner {
+    width: 100%;
+  }
+}
+
   .cat-tabs-search-inner {
     position: relative;
     display: flex;
@@ -618,7 +856,7 @@ export default function Categories() {
       brandCategory;
   };
 
- const handleClearFilter = () => {
+  const handleClearFilter = () => {
     const allCategory: Category = { id: null, name: "All" };
     activeCategoryRef.current = allCategory;
     setActiveCategory(allCategory);
@@ -667,12 +905,11 @@ export default function Categories() {
               return (
                 <div
                   key={cat.id}
-                  className={`cat-tab ${
-                    isActive ||
+                  className={`cat-tab ${isActive ||
                     brandMenuOpen
-                      ? "active"
-                      : ""
-                  }`}
+                    ? "active"
+                    : ""
+                    }`}
                   onMouseEnter={() =>
                     setBrandMenuOpen(true)
                   }
@@ -690,11 +927,10 @@ export default function Categories() {
                     {cat.name}
 
                     <svg
-                      className={`brand-chevron ${
-                        brandMenuOpen
-                          ? "open"
-                          : ""
-                      }`}
+                      className={`brand-chevron ${brandMenuOpen
+                        ? "open"
+                        : ""
+                        }`}
                       width="10"
                       height="10"
                       viewBox="0 0 24 24"
@@ -840,12 +1076,12 @@ export default function Categories() {
                                     ".2s",
                                   background:
                                     activeBrandSlug ===
-                                    brand.slug
+                                      brand.slug
                                       ? "#111"
                                       : "#fff",
                                   color:
                                     activeBrandSlug ===
-                                    brand.slug
+                                      brand.slug
                                       ? "#fff"
                                       : "#111",
                                 }}
@@ -857,7 +1093,7 @@ export default function Categories() {
                                     borderRadius: 12,
                                     background:
                                       activeBrandSlug ===
-                                      brand.slug
+                                        brand.slug
                                         ? "#fff"
                                         : "#f3f3f3",
                                     display:
@@ -903,11 +1139,10 @@ export default function Categories() {
             return (
               <div
                 key={cat.id}
-                className={`cat-tab ${
-                  isActive
-                    ? "active"
-                    : ""
-                }`}
+                className={`cat-tab ${isActive
+                  ? "active"
+                  : ""
+                  }`}
                 onClick={() =>
                   handleCategorySelect(cat)
                 }
@@ -917,94 +1152,86 @@ export default function Categories() {
             );
           })}
         </div>
-      
- <div className="cat-tabs-search-wrap">
-            <div className="cat-tabs-search-inner">
-              <span className="cat-tabs-search-icon" aria-hidden="true">
-                <SearchIcon/>
-              </span>
-              <input
-                type="search"
-                className="cat-tabs-search"
-                placeholder="Filter categories…"
-                value={categorySearch}
-                onChange={(e) => setCategorySearch(e.target.value)}
-                aria-label="Filter categories"
-              />
-            </div>
-          </div>
-          </div>
+
+       <div className="cat-tabs-search-wrap">
+  <div className="cat-tabs-search-inner">
+    <span className="cat-tabs-search-icon" aria-hidden="true">
+      <SearchIcon size={15} />
+    </span>
+    <input
+      type="search"
+      className="cat-tabs-search"
+      placeholder="Filter categories…"
+      value={categorySearch}
+      onChange={(e) => setCategorySearch(e.target.value)}
+      aria-label="Filter categories"
+    />
+    {categorySearch && (
+      <button
+        className="cat-tabs-search-clear"
+        aria-label="Clear search"
+        onClick={() => { setCategorySearch(""); handleClearFilter(); }}
+      >
+        ×
+      </button>
+    )}
+  </div>
+</div>
+      </div>
       {/* Top */}
       <div className="cat-topbar">
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <h1 className="cat-heading">
-            {activeBrandSlug
-              ? brandlist.find(
-                  (b) =>
-                    b.slug ===
-                    activeBrandSlug
+        <div className="cat-topbar-left">
+          <div className="cat-title-wrap">
+            <h1 className="cat-heading">
+              {activeBrandSlug
+                ? brandlist.find(
+                  (b) => b.slug === activeBrandSlug
                 )?.name
-              : activeCategory.name}
-          </h1>
+                : activeCategory.name}
+            </h1>
 
-          <span className="cat-count">
-            {total_products} items
-          </span>
+            <span className="cat-count">
+              {total_products} items
+            </span>
+          </div>
 
-          {(activeCategory.id !== null ||
-            activeBrandSlug) && (
+          {(activeCategory.id !== null || activeBrandSlug) && (
             <span className="active-filter-pill">
               {activeBrandSlug
                 ? brandlist.find(
-                    (b) =>
-                      b.slug ===
-                      activeBrandSlug
-                  )?.name
+                  (b) => b.slug === activeBrandSlug
+                )?.name
                 : activeCategory.name}
 
-              <button
-                onClick={
-                  handleClearFilter
-                }
-              >
+              <button onClick={handleClearFilter}>
                 ×
               </button>
             </span>
           )}
         </div>
 
-        <select
-          value={sortBy}
-          onChange={(e) =>
-            setSortBy(
-              e.target
-                .value as SortOption["value"]
-            )
-          }
-          style={{
-            height: 40,
-            borderRadius: 10,
-            border:
-              "1px solid #ddd",
-            padding: "0 12px",
-            outline: "none",
-          }}
-        >
-          {sortOptions.map((item) => (
-            <option
-              key={item.value}
-              value={item.value}
-            >
-              {item.label}
-            </option>
-          ))}
-        </select>
+        <div className="cat-topbar-right">
+          <label className="sort-label">Sort By</label>
+
+          <select
+            value={sortBy}
+            onChange={(e) =>
+              setSortBy(
+                e.target.value as SortOption["value"]
+              )
+            }
+            className="sort-select"
+          >
+            {sortOptions.map((item) => (
+              <option
+                key={item.value}
+                value={item.value}
+              >
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Products */}

@@ -1,4 +1,5 @@
 // components/product/ProductCustomization.tsx
+// HASHTAG BILLIONAIRE THEME — Dark / Yellow-Gold / Industrial
 
 "use client";
 
@@ -206,8 +207,8 @@ const FONTS = [
 ];
 
 const PRESET_COLORS = [
-  "#1a1a1a", "#ffffff", "#e05555", "#2d7dd2",
-  "#2d4a35", "#f5a623", "#9b59b6", "#1abc9c",
+  "#1a1a1a", "#ffffff", "#F5C400", "#e05555",
+  "#2d7dd2", "#f5a623", "#9b59b6", "#1abc9c",
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -323,13 +324,14 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
   return (
     <div>
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-xs font-medium text-[#6b7280]">{label}</span>
-        <span className="text-xs font-semibold text-[#1a2e1e] tabular-nums">{value}{unit}</span>
+        <span className="text-xs font-medium text-gray-600">{label}</span>
+        <span className="text-xs font-semibold text-[#F5C400] tabular-nums">{value}{unit}</span>
       </div>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-[#dde8df] accent-[#2d4a35] cursor-pointer"
+        className="w-full h-1.5 rounded-full appearance-none bg-[#2a2a2a] accent-[#F5C400] cursor-pointer"
+        style={{ accentColor: "#F5C400" }}
       />
     </div>
   );
@@ -341,19 +343,19 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
 
 function EmbroideryPricingTable({ activeLocations }: { activeLocations: string[] }) {
   return (
-    <div className="mt-4 rounded-2xl border border-[#dde8df] overflow-hidden">
-      <div className="bg-[#1a2e1e] px-4 py-2.5 flex items-center gap-2">
-        <Table2 size={13} className="text-[#8aaa90]" />
-        <p className="text-[11px] font-bold uppercase tracking-widest text-[#8aaa90]">Embroidery Price Per Location</p>
-        <span className="ml-auto text-[10px] text-[#8aaa90]">+ $35 digitizing fee for 1–11 pcs</span>
+    <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white px-4 py-2.5 flex items-center gap-2 border-b border-[#F5C400]/30">
+        <Table2 size={13} className="text-[#F5C400]" />
+        <p className="text-[11px] font-bold uppercase tracking-widest text-[#F5C400]">Embroidery Price Per Location</p>
+        <span className="ml-auto text-[10px] text-gray-500">+ $35 digitizing fee for 1–11 pcs</span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto bg-gray-50">
         <table className="w-full text-xs border-collapse min-w-[560px]">
           <thead>
-            <tr className="bg-[#e8f0ea]">
-              <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-40">Location</th>
+            <tr className="bg-gray-100">
+              <th className="text-left px-3 py-2 font-bold text-[#F5C400] border-b border-r border-gray-200 w-40">Location</th>
               {EMB_TIERS.map((t) => (
-                <th key={t.label} className="px-2 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] text-center whitespace-nowrap">
+                <th key={t.label} className="px-2 py-2 font-bold text-gray-600 border-b border-r border-gray-200 text-center whitespace-nowrap">
                   {t.label}
                 </th>
               ))}
@@ -368,20 +370,20 @@ function EmbroideryPricingTable({ activeLocations }: { activeLocations: string[]
                 <tr
                   key={row.key}
                   className={cn(
-                    "border-b border-[#edf4ef] transition-colors",
-                    isActive ? "bg-[#2d4a35]/10" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
+                    "border-b border-[#1e1e1e] transition-colors",
+                    isActive ? "bg-[#F5C400]/10" : i % 2 === 0 ? "bg-gray-50" : "bg-white"
                   )}
                 >
-                  <td className={cn("px-3 py-2 font-semibold border-r border-[#edf4ef]", isActive ? "text-[#1a2e1e]" : "text-[#374151]")}>
-                    {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#2d4a35] mr-1.5 mb-0.5" />}
+                  <td className={cn("px-3 py-2 font-semibold border-r border-[#1e1e1e]", isActive ? "text-[#F5C400]" : "text-gray-600")}>
+                    {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#F5C400] mr-1.5 mb-0.5" />}
                     {row.label}
                   </td>
                   {row.prices.map((p, j) => (
                     <td
                       key={j}
                       className={cn(
-                        "px-2 py-2 text-center border-r border-[#edf4ef] font-medium",
-                        p === "quote" ? "text-[#e05555] text-[10px]" : isActive ? "text-[#1a2e1e] font-bold" : "text-[#4a5568]"
+                        "px-2 py-2 text-center border-r border-[#1e1e1e] font-medium",
+                        p === "quote" ? "text-[#e05555] text-[10px]" : isActive ? "text-[#F5C400] font-bold" : "text-gray-500"
                       )}
                     >
                       {p === "quote" ? "Quote" : `$${p}`}
@@ -393,8 +395,8 @@ function EmbroideryPricingTable({ activeLocations }: { activeLocations: string[]
           </tbody>
         </table>
       </div>
-      <div className="bg-[#f4f9f5] px-4 py-2 border-t border-[#dde8df]">
-        <p className="text-[10px] text-[#8fa989]">
+      <div className="bg-white px-4 py-2 border-t border-gray-200">
+        <p className="text-[10px] text-gray-500">
           💡 Each location is priced separately and added together. &nbsp;|&nbsp; Oversized Back requires a custom quote.
         </p>
       </div>
@@ -407,53 +409,53 @@ function DTFPricingTable({ qty }: { qty: number }) {
     qty >= t && (i === DTF_TIERS.length - 1 || qty < DTF_TIERS[i + 1])
   );
   return (
-    <div className="mt-4 rounded-2xl border border-[#dde8df] overflow-hidden">
-      <div className="bg-[#1a2e1e] px-4 py-2.5 flex items-center gap-2">
-        <Table2 size={13} className="text-[#8aaa90]" />
-        <p className="text-[11px] font-bold uppercase tracking-widest text-[#8aaa90]">DTF Print Pricing</p>
-        <span className="ml-auto text-[10px] text-[#8aaa90]">No minimum order</span>
+    <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white px-4 py-2.5 flex items-center gap-2 border-b border-[#F5C400]/30">
+        <Table2 size={13} className="text-[#F5C400]" />
+        <p className="text-[11px] font-bold uppercase tracking-widest text-[#F5C400]">DTF Print Pricing</p>
+        <span className="ml-auto text-[10px] text-gray-500">No minimum order</span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto bg-gray-50">
         <table className="w-full text-xs border-collapse min-w-[480px]">
           <thead>
-            <tr className="bg-[#e8f0ea]">
-              <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-24">Method</th>
+            <tr className="bg-gray-100">
+              <th className="text-left px-3 py-2 font-bold text-[#F5C400] border-b border-r border-gray-200 w-24">Method</th>
               {DTF_TIER_LABELS.map((lbl, i) => (
                 <th
                   key={lbl}
                   className={cn(
-                    "px-2 py-2 font-bold border-b border-r border-[#d0e4d5] text-center whitespace-nowrap",
-                    activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
+                    "px-2 py-2 font-bold border-b border-r border-gray-200 text-center whitespace-nowrap",
+                    activeTier === i ? "text-[#F5C400] bg-[#F5C400]/10" : "text-gray-600"
                   )}
                 >
-                  {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#2d4a35] mx-auto mb-0.5" />}
+                  {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#F5C400] mx-auto mb-0.5" />}
                   {lbl}
                 </th>
               ))}
-              <th className="px-2 py-2 font-bold text-[#1a2e1e] border-b border-[#d0e4d5] text-center">More</th>
+              <th className="px-2 py-2 font-bold text-gray-600 border-b border-gray-200 text-center">More</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="bg-white">
-              <td className="px-3 py-3 font-bold text-[#1a2e1e] border-r border-[#edf4ef]">DTF</td>
+            <tr className="bg-gray-50">
+              <td className="px-3 py-3 font-bold text-[#F5C400] border-r border-[#1e1e1e]">DTF</td>
               {DTF_PRICES.map((p, i) => (
                 <td
                   key={i}
                   className={cn(
-                    "px-2 py-3 text-center border-r border-[#edf4ef] font-medium",
-                    activeTier === i ? "text-[#2d4a35] font-bold text-sm bg-[#2d4a35]/5" : "text-[#4a5568]"
+                    "px-2 py-3 text-center border-r border-[#1e1e1e] font-medium",
+                    activeTier === i ? "text-[#F5C400] font-bold text-sm bg-[#F5C400]/5" : "text-gray-500"
                   )}
                 >
                   ${p}.00
                 </td>
               ))}
-              <td className="px-2 py-3 text-center text-[#e05555] text-[10px] font-semibold">Send Inquiry</td>
+              <td className="px-2 py-3 text-center text-[#e05555] text-[10px] font-semibold">Inquiry</td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div className="bg-[#f4f9f5] px-4 py-2 border-t border-[#dde8df]">
-        <p className="text-[10px] text-[#8fa989]">
+      <div className="bg-white px-4 py-2 border-t border-gray-200">
+        <p className="text-[10px] text-gray-500">
           💡 Prices are per piece. Your current quantity ({qty}) is highlighted above.
         </p>
       </div>
@@ -464,30 +466,30 @@ function DTFPricingTable({ qty }: { qty: number }) {
 function ScreenPrintPricingTable({ qty, activeColor }: { qty: number; activeColor: string }) {
   const activeTier = qty >= 100 ? 1 : qty >= 50 ? 0 : -1;
   return (
-    <div className="mt-4 rounded-2xl border border-[#dde8df] overflow-hidden">
-      <div className="bg-[#1a2e1e] px-4 py-2.5 flex items-center gap-2">
-        <Table2 size={13} className="text-[#8aaa90]" />
-        <p className="text-[11px] font-bold uppercase tracking-widest text-[#8aaa90]">Screen Print Pricing</p>
-        <span className="ml-auto text-[10px] text-[#8aaa90]">Minimum 50 pieces</span>
+    <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white px-4 py-2.5 flex items-center gap-2 border-b border-[#F5C400]/30">
+        <Table2 size={13} className="text-[#F5C400]" />
+        <p className="text-[11px] font-bold uppercase tracking-widest text-[#F5C400]">Screen Print Pricing</p>
+        <span className="ml-auto text-[10px] text-gray-500">Minimum 50 pieces</span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto bg-gray-50">
         <table className="w-full text-xs border-collapse min-w-[360px]">
           <thead>
-            <tr className="bg-[#e8f0ea]">
-              <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-28">Colors</th>
+            <tr className="bg-gray-100">
+              <th className="text-left px-3 py-2 font-bold text-[#F5C400] border-b border-r border-gray-200 w-28">Colors</th>
               {SP_TIERS.map((t, i) => (
                 <th
                   key={t.label}
                   className={cn(
-                    "px-3 py-2 font-bold border-b border-r border-[#d0e4d5] text-center",
-                    activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
+                    "px-3 py-2 font-bold border-b border-r border-gray-200 text-center",
+                    activeTier === i ? "text-[#F5C400] bg-[#F5C400]/10" : "text-gray-600"
                   )}
                 >
-                  {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#2d4a35] mx-auto mb-0.5" />}
+                  {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#F5C400] mx-auto mb-0.5" />}
                   {t.label}
                 </th>
               ))}
-              <th className="px-3 py-2 font-bold text-[#1a2e1e] border-b border-[#d0e4d5] text-center">More</th>
+              <th className="px-3 py-2 font-bold text-gray-600 border-b border-gray-200 text-center">More</th>
             </tr>
           </thead>
           <tbody>
@@ -497,34 +499,34 @@ function ScreenPrintPricingTable({ qty, activeColor }: { qty: number; activeColo
                 <tr
                   key={colorKey}
                   className={cn(
-                    "border-b border-[#edf4ef]",
-                    isActiveColor ? "bg-[#2d4a35]/5" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
+                    "border-b border-[#1e1e1e]",
+                    isActiveColor ? "bg-[#F5C400]/5" : i % 2 === 0 ? "bg-gray-50" : "bg-white"
                   )}
                 >
-                  <td className={cn("px-3 py-2.5 font-semibold border-r border-[#edf4ef]", isActiveColor ? "text-[#1a2e1e]" : "text-[#374151]")}>
-                    {isActiveColor && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#2d4a35] mr-1.5 mb-0.5" />}
+                  <td className={cn("px-3 py-2.5 font-semibold border-r border-[#1e1e1e]", isActiveColor ? "text-[#F5C400]" : "text-gray-600")}>
+                    {isActiveColor && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#F5C400] mr-1.5 mb-0.5" />}
                     {colorKey}
                   </td>
                   {prices.map((p, j) => (
                     <td
                       key={j}
                       className={cn(
-                        "px-3 py-2.5 text-center border-r border-[#edf4ef] font-medium",
-                        activeTier === j && isActiveColor ? "text-[#2d4a35] font-bold text-sm" : "text-[#4a5568]"
+                        "px-3 py-2.5 text-center border-r border-[#1e1e1e] font-medium",
+                        activeTier === j && isActiveColor ? "text-[#F5C400] font-bold text-sm" : "text-gray-500"
                       )}
                     >
                       ${p.toFixed(2)}
                     </td>
                   ))}
-                  <td className="px-3 py-2.5 text-center text-[#e05555] text-[10px] font-semibold">Send Inquiry</td>
+                  <td className="px-3 py-2.5 text-center text-[#e05555] text-[10px] font-semibold">Inquiry</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      <div className="bg-[#f4f9f5] px-4 py-2 border-t border-[#dde8df]">
-        <p className="text-[10px] text-[#8fa989]">
+      <div className="bg-white px-4 py-2 border-t border-gray-200">
+        <p className="text-[10px] text-gray-500">
           💡 Prices are per piece. Minimum 50 pcs.{" "}
           {qty < 50 ? `You need ${50 - qty} more pieces to qualify.` : `Your qty (${qty}) qualifies.`}
         </p>
@@ -538,26 +540,26 @@ function DTGPricingTable({ qty, activeStyle }: { qty: number; activeStyle: strin
     qty >= t.min && (i === DTG_TIERS.length - 1 || qty < DTG_TIERS[i + 1].min)
   );
   return (
-    <div className="mt-4 rounded-2xl border border-[#dde8df] overflow-hidden">
-      <div className="bg-[#1a2e1e] px-4 py-2.5 flex items-center gap-2">
-        <Table2 size={13} className="text-[#8aaa90]" />
-        <p className="text-[11px] font-bold uppercase tracking-widest text-[#8aaa90]">DTG Print Pricing</p>
-        <span className="ml-auto text-[10px] text-[#8aaa90]">100% cotton only</span>
+    <div className="mt-4 rounded-2xl border border-gray-200 overflow-hidden">
+      <div className="bg-white px-4 py-2.5 flex items-center gap-2 border-b border-[#F5C400]/30">
+        <Table2 size={13} className="text-[#F5C400]" />
+        <p className="text-[11px] font-bold uppercase tracking-widest text-[#F5C400]">DTG Print Pricing</p>
+        <span className="ml-auto text-[10px] text-gray-500">100% cotton only</span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto bg-gray-50">
         <table className="w-full text-xs border-collapse min-w-[420px]">
           <thead>
-            <tr className="bg-[#e8f0ea]">
-              <th className="text-left px-3 py-2 font-bold text-[#1a2e1e] border-b border-r border-[#d0e4d5] w-40">Print Area</th>
+            <tr className="bg-gray-100">
+              <th className="text-left px-3 py-2 font-bold text-[#F5C400] border-b border-r border-gray-200 w-40">Print Area</th>
               {DTG_TIERS.map((t, i) => (
                 <th
                   key={t.label}
                   className={cn(
-                    "px-2 py-2 font-bold border-b border-r border-[#d0e4d5] text-center",
-                    activeTier === i ? "text-[#2d4a35] bg-[#2d4a35]/10" : "text-[#1a2e1e]"
+                    "px-2 py-2 font-bold border-b border-r border-gray-200 text-center",
+                    activeTier === i ? "text-[#F5C400] bg-[#F5C400]/10" : "text-gray-600"
                   )}
                 >
-                  {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#2d4a35] mx-auto mb-0.5" />}
+                  {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#F5C400] mx-auto mb-0.5" />}
                   {t.label}
                 </th>
               ))}
@@ -570,20 +572,20 @@ function DTGPricingTable({ qty, activeStyle }: { qty: number; activeStyle: strin
                 <tr
                   key={styleKey}
                   className={cn(
-                    "border-b border-[#edf4ef]",
-                    isActive ? "bg-[#2d4a35]/5" : i % 2 === 0 ? "bg-white" : "bg-[#f8fbf9]"
+                    "border-b border-[#1e1e1e]",
+                    isActive ? "bg-[#F5C400]/5" : i % 2 === 0 ? "bg-gray-50" : "bg-white"
                   )}
                 >
-                  <td className={cn("px-3 py-2.5 font-semibold border-r border-[#edf4ef]", isActive ? "text-[#1a2e1e]" : "text-[#374151]")}>
-                    {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#2d4a35] mr-1.5 mb-0.5" />}
+                  <td className={cn("px-3 py-2.5 font-semibold border-r border-[#1e1e1e]", isActive ? "text-[#F5C400]" : "text-gray-600")}>
+                    {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#F5C400] mr-1.5 mb-0.5" />}
                     {styleKey}
                   </td>
                   {prices.map((p, j) => (
                     <td
                       key={j}
                       className={cn(
-                        "px-2 py-2.5 text-center border-r border-[#edf4ef] font-medium",
-                        activeTier === j && isActive ? "text-[#2d4a35] font-bold text-sm" : "text-[#4a5568]"
+                        "px-2 py-2.5 text-center border-r border-[#1e1e1e] font-medium",
+                        activeTier === j && isActive ? "text-[#F5C400] font-bold text-sm" : "text-gray-500"
                       )}
                     >
                       ${p}
@@ -595,8 +597,8 @@ function DTGPricingTable({ qty, activeStyle }: { qty: number; activeStyle: strin
           </tbody>
         </table>
       </div>
-      <div className="bg-[#f4f9f5] px-4 py-2 border-t border-[#dde8df]">
-        <p className="text-[10px] text-[#8fa989]">
+      <div className="bg-white px-4 py-2 border-t border-gray-200">
+        <p className="text-[10px] text-gray-500">
           💡 Prices are per piece. Your current quantity ({qty}) is highlighted above.
         </p>
       </div>
@@ -893,7 +895,6 @@ export default function ProductCustomization({
 
     if (selectedMaterial === "embroidery") {
       if (selectedLocations.length === 0) return null;
-      // If any location is oversized (quote-only), return null
       if (selectedLocations.includes("oversized")) return null;
       const tierIdx = EMB_TIERS.findIndex((t) => quantity >= t.min && quantity <= t.max);
       let total = 0;
@@ -962,7 +963,6 @@ export default function ProductCustomization({
     return JSON.stringify(payload);
   };
 
-
   /* ─── Add to cart ─── */
   const handleAddToCart = async () => {
     if (requireLogin()) return;
@@ -990,12 +990,11 @@ export default function ProductCustomization({
     }
   }, [selectedLocations, selectedMaterial, quantity, validationError, getMissingRequirements]);
 
-
-
+  /* ─── Sub-components ─── */
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-2">{children}</p>
+    <p className="text-[10px] font-bold uppercase tracking-widest text-[#F5C400]/70 mb-2">{children}</p>
   );
-  const Divider = () => <div className="h-px bg-[#edf4ef] my-4" />;
+  const Divider = () => <div className="h-px bg-[#2a2a2a] my-4" />;
 
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
@@ -1009,30 +1008,30 @@ export default function ProductCustomization({
     <>
       {/* ── LOGIN MODAL ── */}
       {showLoginModal && (
-        <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl border border-[#e8e4df]">
+        <div className="fixed inset-0 z-[999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl border border-gray-200">
             <div className="flex items-start justify-between mb-1">
-              <div className="w-10 h-10 rounded-2xl bg-[#e8f0ea] flex items-center justify-center mb-4">
+              <div className="w-10 h-10 rounded-xl bg-[#F5C400]/10 border border-[#F5C400]/20 flex items-center justify-center mb-4">
                 <span className="text-lg">🔒</span>
               </div>
-              <button onClick={() => setShowLoginModal(false)} className="text-[#8fa989] hover:text-[#2d4a35]">
+              <button onClick={() => setShowLoginModal(false)} className="text-gray-500 hover:text-[#F5C400]">
                 <X size={18} />
               </button>
             </div>
-            <h2 className="text-lg font-bold text-[#1a2e1f] mb-1.5">Sign in to continue</h2>
-            <p className="text-sm text-[#8fa989] leading-relaxed mb-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-1.5">Sign in to continue</h2>
+            <p className="text-sm text-gray-500 leading-relaxed mb-6">
               Login to customize products, save to wishlist, and add to cart.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="flex-1 h-11 rounded-xl border border-[#dde8df] text-sm font-semibold text-[#6b8070] hover:bg-[#f0f6f1] transition-colors"
+                className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-100 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={() => router.push("/login")}
-                className="flex-1 h-11 rounded-xl bg-[#2d4a35] text-white text-sm font-bold hover:bg-[#1f3526] transition-colors"
+                className="flex-1 h-11 rounded-xl bg-[#F5C400] text-black text-sm font-bold hover:bg-[#e6b800] transition-colors"
               >
                 Sign In
               </button>
@@ -1043,22 +1042,22 @@ export default function ProductCustomization({
 
       {/* ── PREVIEW MODAL ── */}
       {showPreviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl border border-gray-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
               <div className="flex items-center gap-2">
-                <Eye size={18} />
-                <h3 className="font-bold text-lg">Preview Design</h3>
+                <Eye size={18} className="text-[#F5C400]" />
+                <h3 className="font-bold text-lg text-gray-900">Preview Design</h3>
               </div>
               <button
                 onClick={() => setShowPreviewModal(false)}
-                className="w-10 h-10 rounded-xl border flex items-center justify-center hover:bg-gray-50"
+                className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-100 text-gray-500 hover:text-gray-900"
               >
                 <X size={16} />
               </button>
             </div>
             <div className="p-5">
-              <div className="w-full aspect-square rounded-2xl border border-[#e5ece7] bg-white overflow-hidden relative">
+              <div className="w-full aspect-square rounded-xl border border-gray-200 bg-white overflow-hidden relative">
                 {previewError ? (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <AlertCircle size={40} />
@@ -1067,8 +1066,8 @@ export default function ProductCustomization({
                 ) : previewDataUrl ? (
                   <img src={previewDataUrl} alt="Preview" className="w-full h-full object-contain" />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="animate-spin" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+                    <Loader2 className="animate-spin text-[#F5C400]" />
                   </div>
                 )}
               </div>
@@ -1076,7 +1075,7 @@ export default function ProductCustomization({
             <div className="flex gap-3 p-5 pt-0">
               <button
                 onClick={() => setShowPreviewModal(false)}
-                className="flex-1 h-12 rounded-2xl border hover:bg-gray-50 font-semibold"
+                className="flex-1 h-12 rounded-xl border border-gray-200 hover:bg-gray-100 font-semibold text-gray-600"
               >
                 Cancel
               </button>
@@ -1084,8 +1083,10 @@ export default function ProductCustomization({
                 onClick={handleConfirmDownload}
                 disabled={!previewDataUrl}
                 className={cn(
-                  "flex-1 h-12 rounded-2xl text-white font-bold flex items-center justify-center gap-2",
-                  previewDataUrl ? "bg-[#1f3526] hover:bg-[#294832]" : "bg-gray-300 cursor-not-allowed"
+                  "flex-1 h-12 rounded-xl font-bold flex items-center justify-center gap-2",
+                  previewDataUrl
+                    ? "bg-[#F5C400] text-black hover:bg-[#e6b800]"
+                    : "bg-[#2a2a2a] text-gray-500 cursor-not-allowed"
                 )}
               >
                 <ImageDown size={18} />
@@ -1099,22 +1100,22 @@ export default function ProductCustomization({
       {/* ══════════════════════════════════════════════════════════════
            SECTION 1 — PRINT LOCATION
       ══════════════════════════════════════════════════════════════ */}
-      <div className="rounded-3xl border border-[#e2ece4] bg-white shadow-sm overflow-hidden mb-5">
-        <div className="px-5 py-4 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0] flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">1</div>
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-5">
+        <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-[#F5C400] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">1</div>
           <div>
-            <p className="text-sm font-bold text-[#1a2e1e]">Choose Print Location</p>
-            <p className="text-[10px] text-[#8aaa90]">Where should we print on the garment?</p>
+            <p className="text-sm font-bold text-gray-900">Choose Print Location</p>
+            <p className="text-[10px] text-gray-500">Where should we print on the garment?</p>
           </div>
           {selectedLocations.length > 0 ? (
-            <span className="ml-auto text-xs font-semibold text-[#2d4a35] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
+            <span className="ml-auto text-xs font-semibold text-black bg-[#F5C400] px-2.5 py-1 rounded-full flex items-center gap-1">
               <Check size={10} />
               {selectedLocations.length === 1
                 ? PRINT_LOCATIONS.find((l) => l.id === selectedLocations[0])?.label
                 : `${selectedLocations.length} locations`}
             </span>
           ) : (
-            <span className="ml-auto text-xs font-semibold text-[#e05555] bg-[#fdf0f0] px-2.5 py-1 rounded-full">
+            <span className="ml-auto text-xs font-semibold text-[#e05555] bg-[#e05555]/10 border border-[#e05555]/30 px-2.5 py-1 rounded-full">
               Required
             </span>
           )}
@@ -1125,64 +1126,64 @@ export default function ProductCustomization({
             <svg viewBox="0 0 320 360" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
               <path
                 d="M100 40 L60 80 L20 70 L10 130 L60 140 L60 320 L260 320 L260 140 L310 130 L300 70 L260 80 L220 40 Q180 65 160 65 Q140 65 100 40Z"
-                fill="#f0f5f1" stroke="#c5d9ca" strokeWidth="2"
+                fill="#1a1a1a" stroke="#2a2a2a" strokeWidth="2"
               />
-              <path d="M100 40 Q130 80 160 82 Q190 80 220 40" fill="#dde8df" stroke="#b5cebb" strokeWidth="1.5" />
+              <path d="M100 40 Q130 80 160 82 Q190 80 220 40" fill="#222222" stroke="#333333" strokeWidth="1.5" />
 
               {/* LEFT CHEST */}
               <circle cx="115" cy="145" r="22"
                 onClick={() => toggleLocation("left-chest")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocations.includes("left-chest") ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocations.includes("left-chest") ? 0.9 : 0.7}
-                stroke={selectedLocations.includes("left-chest") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("left-chest") ? "#F5C400" : "#2a2a2a"}
+                fillOpacity={selectedLocations.includes("left-chest") ? 1 : 0.8}
+                stroke={selectedLocations.includes("left-chest") ? "#F5C400" : "#444444"} strokeWidth="1.5"
               />
-              <text x="115" y="141" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("left-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
-              <text x="115" y="152" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("left-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
+              <text x="115" y="141" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("left-chest") ? "#000" : "#9ca3af"} fontWeight="600">Left</text>
+              <text x="115" y="152" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("left-chest") ? "#000" : "#9ca3af"} fontWeight="600">Chest</text>
 
               {/* RIGHT CHEST */}
               <circle cx="205" cy="145" r="22"
                 onClick={() => toggleLocation("right-chest")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocations.includes("right-chest") ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocations.includes("right-chest") ? 0.9 : 0.7}
-                stroke={selectedLocations.includes("right-chest") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("right-chest") ? "#F5C400" : "#2a2a2a"}
+                fillOpacity={selectedLocations.includes("right-chest") ? 1 : 0.8}
+                stroke={selectedLocations.includes("right-chest") ? "#F5C400" : "#444444"} strokeWidth="1.5"
               />
-              <text x="205" y="141" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("right-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
-              <text x="205" y="152" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("right-chest") ? "#fff" : "#2d4a35"} fontWeight="600">Chest</text>
+              <text x="205" y="141" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("right-chest") ? "#000" : "#9ca3af"} fontWeight="600">Right</text>
+              <text x="205" y="152" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("right-chest") ? "#000" : "#9ca3af"} fontWeight="600">Chest</text>
 
               {/* FULL FRONT */}
               <rect x="122" y="175" width="76" height="60" rx="10"
                 onClick={() => toggleLocation("full-front")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocations.includes("full-front") ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocations.includes("full-front") ? 0.9 : 0.7}
-                stroke={selectedLocations.includes("full-front") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("full-front") ? "#F5C400" : "#2a2a2a"}
+                fillOpacity={selectedLocations.includes("full-front") ? 1 : 0.8}
+                stroke={selectedLocations.includes("full-front") ? "#F5C400" : "#444444"} strokeWidth="1.5"
               />
-              <text x="160" y="200" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("full-front") ? "#fff" : "#2d4a35"} fontWeight="600">Full</text>
-              <text x="160" y="213" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("full-front") ? "#fff" : "#2d4a35"} fontWeight="600">Front</text>
+              <text x="160" y="200" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("full-front") ? "#000" : "#9ca3af"} fontWeight="600">Full</text>
+              <text x="160" y="213" textAnchor="middle" fontSize="9" fill={selectedLocations.includes("full-front") ? "#000" : "#9ca3af"} fontWeight="600">Front</text>
 
               {/* LEFT SLEEVE */}
               <ellipse cx="42" cy="110" rx="20" ry="26"
                 onClick={() => toggleLocation("sleeve-left")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocations.includes("sleeve-left") ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocations.includes("sleeve-left") ? 0.9 : 0.7}
-                stroke={selectedLocations.includes("sleeve-left") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("sleeve-left") ? "#F5C400" : "#2a2a2a"}
+                fillOpacity={selectedLocations.includes("sleeve-left") ? 1 : 0.8}
+                stroke={selectedLocations.includes("sleeve-left") ? "#F5C400" : "#444444"} strokeWidth="1.5"
               />
-              <text x="42" y="106" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-left") ? "#fff" : "#2d4a35"} fontWeight="600">Left</text>
-              <text x="42" y="117" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-left") ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
+              <text x="42" y="106" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-left") ? "#000" : "#9ca3af"} fontWeight="600">Left</text>
+              <text x="42" y="117" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-left") ? "#000" : "#9ca3af"} fontWeight="600">Sleeve</text>
 
               {/* RIGHT SLEEVE */}
               <ellipse cx="278" cy="110" rx="20" ry="26"
                 onClick={() => toggleLocation("sleeve-right")}
                 className="cursor-pointer transition-all"
-                fill={selectedLocations.includes("sleeve-right") ? "#2d4a35" : "#e8f0ea"}
-                fillOpacity={selectedLocations.includes("sleeve-right") ? 0.9 : 0.7}
-                stroke={selectedLocations.includes("sleeve-right") ? "#1a2e1e" : "#a3c5ab"} strokeWidth="1.5"
+                fill={selectedLocations.includes("sleeve-right") ? "#F5C400" : "#2a2a2a"}
+                fillOpacity={selectedLocations.includes("sleeve-right") ? 1 : 0.8}
+                stroke={selectedLocations.includes("sleeve-right") ? "#F5C400" : "#444444"} strokeWidth="1.5"
               />
-              <text x="278" y="106" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-right") ? "#fff" : "#2d4a35"} fontWeight="600">Right</text>
-              <text x="278" y="117" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-right") ? "#fff" : "#2d4a35"} fontWeight="600">Sleeve</text>
+              <text x="278" y="106" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-right") ? "#000" : "#9ca3af"} fontWeight="600">Right</text>
+              <text x="278" y="117" textAnchor="middle" fontSize="8" fill={selectedLocations.includes("sleeve-right") ? "#000" : "#9ca3af"} fontWeight="600">Sleeve</text>
             </svg>
           </div>
 
@@ -1201,8 +1202,8 @@ export default function ProductCustomization({
                 className={cn(
                   "h-10 rounded-xl border text-xs font-semibold transition-all px-3 flex items-center justify-center gap-1.5",
                   selectedLocations.includes(loc.id)
-                    ? "border-[#2d4a35] bg-[#2d4a35] text-white"
-                    : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
+                    ? "border-[#F5C400] bg-[#F5C400] text-black"
+                    : "border-gray-200 text-gray-600 hover:border-[#F5C400]/50 hover:bg-gray-100 hover:text-gray-900"
                 )}
               >
                 {selectedLocations.includes(loc.id) && <Check size={11} />}
@@ -1211,14 +1212,12 @@ export default function ProductCustomization({
             ))}
           </div>
 
-          {/* ── Multi-select hint ── */}
-          <p className="text-xs text-[#b0c4b5] text-center mt-3">
+          <p className="text-xs text-[#4b5563] text-center mt-3">
             {selectedLocations.length === 0
               ? "Tap locations to select — you can choose multiple"
               : `${selectedLocations.length} location${selectedLocations.length > 1 ? "s" : ""} selected · tap again to deselect`}
           </p>
 
-          {/* ── Selected location chips ── */}
           {selectedLocations.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
               {selectedLocations.map((id) => {
@@ -1226,12 +1225,12 @@ export default function ProductCustomization({
                 return (
                   <span
                     key={id}
-                    className="inline-flex items-center gap-1 bg-[#2d4a35] text-white text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                    className="inline-flex items-center gap-1 bg-[#F5C400] text-black text-[11px] font-bold px-2.5 py-1 rounded-full"
                   >
                     {loc?.label ?? id}
                     <button
                       onClick={() => toggleLocation(id)}
-                      className="ml-0.5 hover:opacity-70 transition-opacity"
+                      className="ml-0.5 hover:opacity-60 transition-opacity"
                       aria-label={`Remove ${loc?.label}`}
                     >
                       <X size={10} />
@@ -1242,7 +1241,7 @@ export default function ProductCustomization({
               {selectedLocations.length > 1 && (
                 <button
                   onClick={() => setSelectedLocations([])}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-[#dde8df] text-[#8fa989] hover:bg-[#f4f9f5] transition-colors"
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100 transition-colors"
                 >
                   Clear all
                 </button>
@@ -1255,41 +1254,39 @@ export default function ProductCustomization({
       {/* ══════════════════════════════════════════════════════════════
            SECTION 2 — PRINT METHOD + INLINE PRICING TABLE
       ══════════════════════════════════════════════════════════════ */}
-      <div className="rounded-3xl border border-[#e2ece4] bg-white shadow-sm overflow-hidden mb-5">
-        <div className="px-5 py-4 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0] flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">2</div>
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-5">
+        <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-[#F5C400] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">2</div>
           <div>
-            <p className="text-sm font-bold text-[#1a2e1e]">Choose decoration Method</p>
-            <p className="text-[10px] text-[#8aaa90]">Select the decoration technique</p>
+            <p className="text-sm font-bold text-gray-900">Choose Decoration Method</p>
+            <p className="text-[10px] text-gray-500">Select the decoration technique</p>
           </div>
           {selectedMaterial ? (
-            <span className="ml-auto text-xs font-semibold text-[#2d4a35] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
+            <span className="ml-auto text-xs font-bold text-black bg-[#F5C400] px-2.5 py-1 rounded-full flex items-center gap-1">
               <Check size={10} />
               {MATERIALS.find((m) => m.id === selectedMaterial)?.label}
             </span>
           ) : (
-            <span className="ml-auto text-xs font-semibold text-[#e05555] bg-[#fdf0f0] px-2.5 py-1 rounded-full">
+            <span className="ml-auto text-xs font-semibold text-[#e05555] bg-[#e05555]/10 border border-[#e05555]/30 px-2.5 py-1 rounded-full">
               Required
             </span>
           )}
         </div>
 
-        {/* ── UPDATED MATERIAL CARDS ── */}
         <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {MATERIALS.map((mat) => (
             <button
               key={mat.id}
               onClick={() => handleSelectMaterial(mat.id)}
               className={cn(
-                "relative text-left rounded-2xl border-2 p-4 transition-all duration-200",
+                "relative text-left rounded-xl border-2 p-4 transition-all duration-200",
                 selectedMaterial === mat.id
-                  ? "border-[#2d4a35] bg-[#f4f9f5] shadow-sm"
-                  : "border-[#e2ece4] bg-white hover:border-[#b5cebb] hover:bg-[#f8fbf9]"
+                  ? "border-[#F5C400] bg-[#F5C400]/5"
+                  : "border-gray-200 bg-gray-50 hover:border-[#F5C400]/40 hover:bg-gray-100"
               )}
             >
-              {/* Header: icon + title */}
               <div className="flex items-center gap-2.5 mb-2.5">
-                <div className="w-9 h-9 rounded-xl bg-[#eef5f0] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                <div className="w-9 h-9 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
                   <img
                     src={mat.iconUrl}
                     alt={mat.label}
@@ -1308,53 +1305,31 @@ export default function ProductCustomization({
                     }}
                   />
                 </div>
-                <p className="text-sm font-bold text-[#1a2e1e]">{mat.label}</p>
+                <p className={cn("text-sm font-bold", selectedMaterial === mat.id ? "text-[#F5C400]" : "text-gray-900")}>{mat.label}</p>
               </div>
-
-              {/* Bold description */}
-              <p className="text-[12px] font-semibold text-[#2d4a35] leading-snug mb-2">
-                {mat.boldDesc}
+              <p className="text-[12px] font-semibold text-gray-600 leading-snug mb-2">{mat.boldDesc}</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                <span className="font-semibold text-gray-600">Best for:</span> {mat.bestFor}
               </p>
-
-              {/* Best for */}
-              <p className="text-[11px] text-[#6b7280] leading-relaxed">
-                <span className="font-semibold text-[#374151]">Best for:</span> {mat.bestFor}
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                <span className="font-semibold text-gray-600">Min:</span> {mat.minLabel}
               </p>
-
-              {/* Min */}
-              <p className="text-[11px] text-[#6b7280] mt-0.5">
-                <span className="font-semibold text-[#374151]">Min:</span> {mat.minLabel}
-              </p>
-
-              {/* Selected checkmark badge */}
               {selectedMaterial === mat.id && (
-                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#2d4a35] flex items-center justify-center">
-                  <Check size={11} className="text-white" />
+                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F5C400] flex items-center justify-center">
+                  <Check size={11} className="text-black" />
                 </div>
               )}
             </button>
           ))}
         </div>
 
-        {/* ── EMBROIDERY NOTES ── */}
-        {selectedMaterial === "embroidery" && (
-          <div className="px-5 pb-2">
-            <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-2">Embroidery Notes</p>
-              <ul className="space-y-1">
-                <li className="text-[11px] text-[#4a7a58]">• Orders of 1–11 pieces include a <span className="font-semibold">$35 digitizing fee</span></li>
-                <li className="text-[11px] text-[#4a7a58]">• Oversized back is <span className="font-semibold">quote only</span></li>
-                <li className="text-[11px] text-[#4a7a58]">• Second location doubles the print cost</li>
-              </ul>
-            </div>
-          </div>
-        )}
+     
 
         {/* ── SCREEN PRINT COLOR COUNT ── */}
         {selectedMaterial === "screenprint" && (
           <div className="px-5 pb-2">
-            <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-3">Number of Colours</p>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#F5C400]/70 mb-3">Number of Colours</p>
               <div className="flex gap-2">
                 {(["1 Color", "2 Color", "3 Color"] as const).map((c) => (
                   <button
@@ -1363,15 +1338,15 @@ export default function ProductCustomization({
                     className={cn(
                       "flex-1 h-9 rounded-xl border text-xs font-semibold transition-all",
                       spColorCount === c
-                        ? "border-[#2d4a35] bg-[#2d4a35] text-white"
-                        : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
+                        ? "border-[#F5C400] bg-[#F5C400] text-black"
+                        : "border-gray-200 text-gray-600 hover:border-[#F5C400]/50"
                     )}
                   >
                     {c}
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-[#b0c4b5] mt-2">Minimum order: 50 pieces</p>
+              <p className="text-[10px] text-[#4b5563] mt-2">Minimum order: 50 pieces</p>
             </div>
           </div>
         )}
@@ -1379,8 +1354,8 @@ export default function ProductCustomization({
         {/* ── DTG PRINT AREA ── */}
         {selectedMaterial === "dtg" && (
           <div className="px-5 pb-2">
-            <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-3">Print Area</p>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#F5C400]/70 mb-3">Print Area</p>
               <div className="grid grid-cols-2 gap-2">
                 {(Object.keys(DTG_PRICES) as (keyof typeof DTG_PRICES)[]).map((s) => (
                   <button
@@ -1389,15 +1364,15 @@ export default function ProductCustomization({
                     className={cn(
                       "h-9 rounded-xl border text-xs font-semibold transition-all px-2",
                       dtgStyle === s
-                        ? "border-[#2d4a35] bg-[#2d4a35] text-white"
-                        : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
+                        ? "border-[#F5C400] bg-[#F5C400] text-black"
+                        : "border-gray-200 text-gray-600 hover:border-[#F5C400]/50"
                     )}
                   >
                     {s}
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-[#b0c4b5] mt-2">100% cotton garments only</p>
+              <p className="text-[10px] text-[#4b5563] mt-2">100% cotton garments only</p>
             </div>
           </div>
         )}
@@ -1407,15 +1382,15 @@ export default function ProductCustomization({
           <div className="px-5 pb-5">
             <button
               onClick={() => setShowPriceTable((p) => !p)}
-              className="w-full mt-2 flex items-center justify-between h-10 px-4 rounded-2xl border border-[#dde8df] bg-[#f4f9f5] hover:bg-[#eef5f0] transition-colors"
+              className="w-full mt-2 flex items-center justify-between h-10 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
             >
-              <div className="flex items-center gap-2 text-xs font-bold text-[#2d4a35]">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#F5C400]">
                 <Table2 size={14} />
                 View Full Price Table
               </div>
               {showPriceTable
-                ? <ChevronUp size={15} className="text-[#2d4a35]" />
-                : <ChevronDown size={15} className="text-[#2d4a35]" />
+                ? <ChevronUp size={15} className="text-[#F5C400]" />
+                : <ChevronDown size={15} className="text-[#F5C400]" />
               }
             </button>
 
@@ -1434,15 +1409,15 @@ export default function ProductCustomization({
       {/* ══════════════════════════════════════════════════════════════
            SECTION 3 — ITEM COUNT + PRICING SUMMARY
       ══════════════════════════════════════════════════════════════ */}
-      <div className="rounded-3xl border border-[#e2ece4] bg-white shadow-sm overflow-hidden mb-5">
-        <div className="px-5 py-4 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0] flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">3</div>
+      {/* <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-5">
+        <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-[#F5C400] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">3</div>
           <div>
-            <p className="text-sm font-bold text-[#1a2e1e]">Choose Quantity</p>
-            <p className="text-[10px] text-[#8aaa90]">How many pieces do you need?</p>
+            <p className="text-sm font-bold text-gray-900">Choose Quantity</p>
+            <p className="text-[10px] text-gray-500">How many pieces do you need?</p>
           </div>
-          <span className="ml-auto text-xs font-bold text-[#1a2e1e] bg-[#e8f0ea] px-2.5 py-1 rounded-full flex items-center gap-1">
-            <Check size={10} className="text-[#2d4a35]" />
+          <span className="ml-auto text-xs font-bold text-black bg-[#F5C400] px-2.5 py-1 rounded-full flex items-center gap-1">
+            <Check size={10} />
             {quantity} {quantity === 1 ? "pc" : "pcs"}
           </span>
         </div>
@@ -1453,10 +1428,10 @@ export default function ProductCustomization({
               onClick={() => setQuantity((p) => Math.max(1, p - 1))}
               disabled={quantity <= 1}
               className={cn(
-                "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
+                "w-12 h-12 rounded-xl border-2 flex items-center justify-center transition-all",
                 quantity <= 1
-                  ? "border-[#e2ece4] text-[#c5d9ca] cursor-not-allowed"
-                  : "border-[#2d4a35] text-[#2d4a35] hover:bg-[#f4f9f5]"
+                  ? "border-[#1e1e1e] text-[#3a3a3a] cursor-not-allowed"
+                  : "border-[#F5C400]/50 text-[#F5C400] hover:bg-[#F5C400]/10"
               )}
             >
               <Minus size={16} />
@@ -1465,13 +1440,13 @@ export default function ProductCustomization({
               <input
                 type="number" min={1} value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-full text-center text-3xl font-bold text-[#1a2e1e] border-0 outline-none bg-transparent"
+                className="w-full text-center text-3xl font-bold text-gray-900 border-0 outline-none bg-transparent"
               />
-              <p className="text-[10px] text-[#8fa989] mt-0.5">pieces</p>
+              <p className="text-[10px] text-gray-500 mt-0.5">pieces</p>
             </div>
             <button
               onClick={() => setQuantity((p) => p + 1)}
-              className="w-12 h-12 rounded-2xl border-2 border-[#2d4a35] text-[#2d4a35] hover:bg-[#f4f9f5] flex items-center justify-center transition-all"
+              className="w-12 h-12 rounded-xl border-2 border-[#F5C400]/50 text-[#F5C400] hover:bg-[#F5C400]/10 flex items-center justify-center transition-all"
             >
               <Plus size={16} />
             </button>
@@ -1485,8 +1460,8 @@ export default function ProductCustomization({
                 className={cn(
                   "h-8 px-3 rounded-xl border text-xs font-semibold transition-all",
                   quantity === q
-                    ? "border-[#2d4a35] bg-[#2d4a35] text-white"
-                    : "border-[#dde8df] text-[#4a7a58] hover:border-[#2d4a35] hover:bg-[#f4f9f5]"
+                    ? "border-[#F5C400] bg-[#F5C400] text-black"
+                    : "border-gray-200 text-gray-500 hover:border-[#F5C400]/50 hover:text-gray-900"
                 )}
               >
                 {q}
@@ -1495,32 +1470,32 @@ export default function ProductCustomization({
           </div>
 
           {selectedMaterial && (
-            <div className="rounded-2xl border border-[#dde8df] bg-[#f8fbf9] p-4 space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-3">Estimated Print Cost</p>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#F5C400]/70 mb-3">Estimated Print Cost</p>
 
               {selectedMaterial === "embroidery" && quantity <= 11 && !selectedLocations.includes("oversized") && selectedLocations.length > 0 && (
-                <div className="flex justify-between text-xs text-[#8fa989]">
+                <div className="flex justify-between text-xs text-gray-500">
                   <span>Digitizing fee (1–11 pcs)</span>
-                  <span className="font-semibold text-[#4a7a58]">+$35.00</span>
+                  <span className="font-semibold text-gray-600">+$35.00</span>
                 </div>
               )}
 
               {selectedMaterial === "screenprint" && quantity < 50 && (
-                <p className="text-xs text-amber-600 font-semibold">⚠️ Screen print requires a minimum of 50 pieces.</p>
+                <p className="text-xs text-amber-500 font-semibold">⚠️ Screen print requires a minimum of 50 pieces.</p>
               )}
 
               {selectedMaterial === "embroidery" && selectedLocations.includes("oversized") ? (
-                <p className="text-xs text-[#2d4a35] font-semibold">Oversized back — please request a quote.</p>
+                <p className="text-xs text-[#F5C400] font-semibold">Oversized back — please request a quote.</p>
               ) : printPrice !== null ? (
                 <>
                   {selectedLocations.length > 1 && (
-                    <div className="space-y-1 pb-2 border-b border-[#e2ece4]">
+                    <div className="space-y-1 pb-2 border-b border-gray-200">
                       {selectedLocations.map((id) => {
                         const loc = PRINT_LOCATIONS.find((l) => l.id === id);
                         return (
-                          <div key={id} className="flex justify-between text-xs text-[#6b7280]">
+                          <div key={id} className="flex justify-between text-xs text-gray-500">
                             <span>{loc?.label ?? id}</span>
-                            <span className="font-medium text-[#4a5568]">
+                            <span className="font-medium text-gray-600">
                               {selectedMaterial === "embroidery" ? (() => {
                                 const row = EMB_PRICES[id];
                                 if (!row) return "—";
@@ -1535,21 +1510,21 @@ export default function ProductCustomization({
                     </div>
                   )}
                   <div className="flex justify-between items-baseline">
-                    <span className="text-xs text-[#6b7280]">
+                    <span className="text-xs text-gray-500">
                       Print cost ({quantity} pcs{selectedLocations.length > 1 ? `, ${selectedLocations.length} locations` : ""})
                     </span>
-                    <span className="text-lg font-bold text-[#1a2e1e]">${printPrice.toFixed(2)}</span>
+                    <span className="text-lg font-bold text-[#F5C400]">${printPrice.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-[#8fa989] pt-1 border-t border-[#e2ece4]">
+                  <div className="flex justify-between text-xs text-gray-500 pt-1 border-t border-gray-200">
                     <span>Unit print price</span>
-                    <span className="font-semibold text-[#4a7a58]">${(printPrice / quantity).toFixed(2)}/pc</span>
+                    <span className="font-semibold text-gray-600">${(printPrice / quantity).toFixed(2)}/pc</span>
                   </div>
-                  <p className="text-[10px] text-[#b0c4b5] pt-1">
+                  <p className="text-[10px] text-[#4b5563] pt-1">
                     * Garment cost is separate. Prices shown are for all {selectedLocations.length > 1 ? `${selectedLocations.length} selected locations` : "the selected location"} combined.
                   </p>
                 </>
               ) : (
-                <p className="text-xs text-[#b0c4b5]">
+                <p className="text-xs text-[#4b5563]">
                   {selectedLocations.length === 0
                     ? "Select a print location above to see pricing."
                     : selectedMaterial === "embroidery"
@@ -1561,20 +1536,20 @@ export default function ProductCustomization({
           )}
 
           {!selectedMaterial && (
-            <p className="text-xs text-[#b0c4b5] text-center">Select a print method above to see pricing</p>
+            <p className="text-xs text-[#4b5563] text-center">Select a print method above to see pricing</p>
           )}
         </div>
-      </div>
+      </div> */}
 
       {/* ══════════════════════════════════════════════════════════════
            SECTION 4 — DESIGN CUSTOMIZER
       ══════════════════════════════════════════════════════════════ */}
-      <div className="rounded-3xl border border-[#e2ece4] bg-white shadow-sm overflow-hidden mb-5">
-        <div className="px-5 py-4 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0] flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">4</div>
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-5">
+        <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
+          <div className="w-7 h-7 rounded-lg bg-[#F5C400] flex items-center justify-center text-black text-sm font-bold flex-shrink-0">4</div>
           <div>
-            <p className="text-sm font-bold text-[#1a2e1e]">Design Your Product</p>
-            <p className="text-[10px] text-[#8aaa90]">Upload a logo or add custom text · drag to reposition</p>
+            <p className="text-sm font-bold text-gray-900">Design Your Product</p>
+            <p className="text-[10px] text-gray-500">Upload a logo or add custom text · drag to reposition</p>
           </div>
         </div>
 
@@ -1583,27 +1558,27 @@ export default function ProductCustomization({
 
             {/* ══ LEFT: Canvas ══ */}
             <div className="w-full xl:w-[480px] xl:sticky xl:top-[72px] flex-shrink-0">
-              <div className="rounded-3xl border border-[#e2ece4] bg-white overflow-hidden shadow-sm">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#edf4ef] bg-gradient-to-r from-[#f4f9f5] to-[#eef5f0]">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-sm">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-[#2d4a35] flex items-center justify-center">
-                      <Sparkles size={13} className="text-white" />
+                    <div className="w-7 h-7 rounded-lg bg-[#F5C400] flex items-center justify-center">
+                      <Sparkles size={13} className="text-black" />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-[#1a2e1e]">Live Preview</p>
-                      <p className="text-[10px] text-[#8aaa90]">Drag to reposition</p>
+                      <p className="text-xs font-bold text-gray-900">Live Preview</p>
+                      <p className="text-[10px] text-gray-500">Drag to reposition</p>
                     </div>
                   </div>
                   <button
                     onClick={handleOpenPreview}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-[#1f3526] text-white text-xs font-semibold hover:bg-[#294832] transition-colors"
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-[#F5C400] text-black text-xs font-bold hover:bg-[#e6b800] transition-colors"
                   >
                     <Download size={13} />
                     Export
                   </button>
                 </div>
 
-                <div className="p-3 bg-[#f8faf9]">
+                <div className="p-3">
                   <canvas
                     ref={canvasRef}
                     width={CANVAS_SIZE} height={CANVAS_SIZE}
@@ -1611,47 +1586,47 @@ export default function ProductCustomization({
                     onMouseMove={handleCanvasMouseMove}
                     onMouseUp={stopDrag}
                     onMouseLeave={stopDrag}
-                    className="w-full h-auto rounded-2xl block border border-[#e2ece4]"
+                    className="w-full h-auto rounded-xl block border border-gray-200"
                     style={{ cursor: getCursor() }}
                   />
                 </div>
 
-                <div className="px-5 pb-5 pt-2 space-y-3 border-t border-[#edf4ef]">
+                <div className="px-5 pb-5 pt-2 space-y-3 border-t border-gray-200">
                   <div className="flex justify-between items-center text-sm pt-2">
-                    <span className="text-[#6b7280] truncate max-w-[60%]">{name}</span>
-                    <span className="font-bold text-[#1a2e1e]">${price.toFixed(2)}</span>
+                    <span className="text-gray-500 truncate max-w-[60%]">{name}</span>
+                    <span className="font-bold text-gray-900">${price.toFixed(2)}</span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-[#6b7280]">Quantity</span>
-                    <div className="flex items-center rounded-xl border border-[#dde8df] bg-[#f8faf9] overflow-hidden">
+                    <span className="text-sm font-medium text-gray-500">Quantity</span>
+                    <div className="flex items-center rounded-xl border border-gray-200  overflow-hidden">
                       <button
                         onClick={decreaseQuantity}
                         disabled={quantity <= 1}
                         className={cn(
                           "w-9 h-9 flex items-center justify-center transition-colors",
-                          quantity <= 1 ? "text-[#c5d9ca] cursor-not-allowed" : "text-[#2d4a35] hover:bg-[#eef5f0]"
+                          quantity <= 1 ? "text-[#2a2a2a] cursor-not-allowed" : "text-[#F5C400] hover:bg-gray-100"
                         )}
                       >
                         <Minus size={13} />
                       </button>
-                      <span className="w-8 text-center text-sm font-bold text-[#1a2e1e] select-none">{quantity}</span>
+                      <span className="w-8 text-center text-sm font-bold text-gray-900 select-none">{quantity}</span>
                       <button
                         onClick={increaseQuantity}
-                        className="w-9 h-9 flex items-center justify-center text-[#2d4a35] hover:bg-[#eef5f0] transition-colors"
+                        className="w-9 h-9 flex items-center justify-center text-[#F5C400] hover:bg-gray-100 transition-colors"
                       >
                         <Plus size={13} />
                       </button>
                     </div>
                   </div>
 
-                  <div className="pt-1 border-t border-[#edf4ef] space-y-1.5">
-                    <div className="flex justify-between items-center text-sm text-[#6b7280]">
+                  <div className="pt-1 border-t border-gray-200 space-y-1.5">
+                    <div className="flex justify-between items-center text-sm text-gray-500">
                       <span>Garment cost</span>
-                      <span className="font-medium text-[#1a2e1e]">${(price * quantity).toFixed(2)}</span>
+                      <span className="font-medium text-gray-900">${(price * quantity).toFixed(2)}</span>
                     </div>
                     {printPrice !== null && !selectedLocations.includes("oversized") && (
-                      <div className="flex justify-between items-center text-sm text-[#6b7280]">
+                      <div className="flex justify-between items-center text-sm text-gray-500">
                         <span>
                           Decoration
                           {selectedMaterial === "embroidery" && quantity <= 11
@@ -1660,7 +1635,7 @@ export default function ProductCustomization({
                             ? ` (${selectedLocations.length} locations)`
                             : ""}
                         </span>
-                        <span className="font-medium text-[#1a2e1e]">${printPrice.toFixed(2)}</span>
+                        <span className="font-medium text-gray-900">${printPrice.toFixed(2)}</span>
                       </div>
                     )}
                     {selectedLocations.includes("oversized") && selectedMaterial === "embroidery" && (
@@ -1670,21 +1645,21 @@ export default function ProductCustomization({
                       </div>
                     )}
                     {selectedMaterial === "screenprint" && quantity < 50 && (
-                      <div className="text-[10px] text-amber-600 font-semibold">
+                      <div className="text-[10px] text-amber-500 font-semibold">
                         ⚠ Screen print needs 50+ pcs
                       </div>
                     )}
-                    <div className="flex justify-between items-center font-bold text-[#1a2e1e] pt-1.5 border-t border-[#edf4ef]">
+                    <div className="flex justify-between items-center font-bold text-gray-900 pt-1.5 border-t border-gray-200">
                       <span className="text-sm">Estimated Total</span>
-                      <span className="text-base">
+                      <span className="text-base text-[#F5C400]">
                         {selectedLocations.includes("oversized") && selectedMaterial === "embroidery"
                           ? `$${(price * quantity).toFixed(2)} + quote`
                           : `$${(price * quantity + (printPrice ?? 0)).toFixed(2)}`}
                       </span>
                     </div>
                     {printPrice !== null && !selectedLocations.includes("oversized") && (
-                      <p className="text-[10px] text-[#b0c4b5]">
-                        ${(( price * quantity + printPrice) / quantity).toFixed(2)}/pc all-in · decoration only ${(printPrice / quantity).toFixed(2)}/pc
+                      <p className="text-[10px] text-[#4b5563]">
+                        ${((price * quantity + printPrice) / quantity).toFixed(2)}/pc all-in · decoration only ${(printPrice / quantity).toFixed(2)}/pc
                       </p>
                     )}
                   </div>
@@ -1697,10 +1672,10 @@ export default function ProductCustomization({
                         className={cn(
                           "flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all",
                           done
-                            ? "bg-[#eaf3de] text-[#3b6d11] border-[#97c459]"
+                            ? "bg-[#F5C400]/10 text-[#F5C400] border-[#F5C400]/40"
                             : showValidationShake
-                              ? "bg-[#fdf0f0] text-[#e05555] border-[#f09595]"
-                              : "bg-white text-[#8fa989] border-[#dde8df]"
+                              ? "bg-[#e05555]/10 text-[#e05555] border-[#e05555]/30"
+                              : "bg-gray-100 text-gray-500 border-gray-200"
                         )}
                       >
                         {done
@@ -1714,7 +1689,7 @@ export default function ProductCustomization({
 
                   {/* ── VALIDATION ERROR MESSAGE ── */}
                   {validationError && (
-                    <div className="flex items-start gap-2 bg-[#fdf0f0] border border-[#f5c5c5] rounded-xl px-3 py-2.5">
+                    <div className="flex items-start gap-2 bg-[#e05555]/10 border border-[#e05555]/30 rounded-xl px-3 py-2.5">
                       <AlertCircle size={13} className="text-[#e05555] flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-[#e05555] leading-relaxed">{validationError}</p>
                     </div>
@@ -1725,13 +1700,13 @@ export default function ProductCustomization({
                     <button
                       onClick={handleAddToCart}
                       className={cn(
-                        "flex-1 h-11 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200",
+                        "flex-1 h-11 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200",
                         showValidationShake && "animate-[shake_0.4s_ease-in-out]",
                         !allRequirementsMet
-                          ? "bg-[#e8f0ea] text-[#8fa989] cursor-not-allowed"
+                          ? "bg-gray-100 text-[#4b5563] cursor-not-allowed border border-gray-200"
                           : inCart
-                            ? "bg-[#e8f0ea] text-[#4a7a58] border border-[#c5d9ca]"
-                            : "bg-[#1f3526] text-white hover:bg-[#294832] shadow-md shadow-[#1f3526]/20"
+                            ? "bg-gray-100 text-[#F5C400] border border-[#F5C400]/30"
+                            : "bg-[#F5C400] text-black hover:bg-[#e6b800] shadow-lg shadow-[#F5C400]/10"
                       )}
                     >
                       <ShoppingCart size={15} />
@@ -1743,18 +1718,18 @@ export default function ProductCustomization({
                       disabled={wishlistLoading}
                       title={inWishlist ? "Remove from wishlist" : "Save to wishlist"}
                       className={cn(
-                        "w-11 h-11 rounded-2xl border flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                        wishlistLoading ? "opacity-50 cursor-not-allowed border-[#e2ece4]"
-                          : inWishlist ? "border-[#f5c5c5] bg-[#fdf0f0] hover:bg-[#fde8e8]"
-                            : "border-[#dde8df] hover:border-[#f5c5c5] hover:bg-[#fdf0f0]"
+                        "w-11 h-11 rounded-xl border flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                        wishlistLoading ? "opacity-50 cursor-not-allowed border-gray-200"
+                          : inWishlist ? "border-[#e05555]/40 bg-[#e05555]/10 hover:bg-[#e05555]/20"
+                            : "border-gray-200 hover:border-[#e05555]/40 hover:bg-[#e05555]/10"
                       )}
                     >
                       {wishlistLoading
-                        ? <Loader2 size={15} className="animate-spin text-[#8fa989]" />
+                        ? <Loader2 size={15} className="animate-spin text-gray-500" />
                         : <Heart
                           size={15}
                           fill={inWishlist ? "#e05555" : "none"}
-                          className={inWishlist ? "text-[#e05555]" : "text-[#7a9882]"}
+                          className={inWishlist ? "text-[#e05555]" : "text-gray-500"}
                         />
                       }
                     </button>
@@ -1779,8 +1754,8 @@ export default function ProductCustomization({
 
             {/* ══ RIGHT: Controls ══ */}
             <div className="flex-1 min-w-0">
-              <div className="rounded-3xl border border-[#e2ece4] bg-white overflow-hidden shadow-sm">
-                <div className="flex border-b border-[#edf4ef]">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shadow-sm">
+                <div className="flex border-b border-gray-200">
                   {([
                     { key: "image", icon: ImageIcon, label: "Upload Image" },
                     { key: "text", icon: Type, label: "Custom Text" },
@@ -1791,8 +1766,8 @@ export default function ProductCustomization({
                       className={cn(
                         "flex-1 flex items-center justify-center gap-2 h-12 text-sm font-semibold transition-all border-b-2",
                         activeTab === key
-                          ? "text-[#2d4a35] border-[#2d4a35] bg-[#f4f9f5]"
-                          : "text-[#8fa989] border-transparent hover:bg-[#f8fbf9]"
+                          ? "text-[#F5C400] border-[#F5C400] bg-[#F5C400]/5"
+                          : "text-gray-500 border-transparent hover:bg-white hover:text-gray-600"
                       )}
                     >
                       <Icon size={15} />
@@ -1810,55 +1785,55 @@ export default function ProductCustomization({
                       {!logoImg ? (
                         <div
                           onClick={() => { if (requireLogin()) return; fileRef.current?.click(); }}
-                          className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-[#c5d9ca] cursor-pointer hover:border-[#2d4a35] hover:bg-[#f4f9f5] transition-all group"
+                          className="flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#F5C400]/50 hover:bg-gray-100 transition-all group"
                         >
-                          <div className="w-12 h-12 rounded-2xl bg-[#e8f0ea] flex items-center justify-center group-hover:bg-[#d5e8d8] transition-colors">
-                            <Upload size={22} className="text-[#2d4a35]" />
+                          <div className="w-12 h-12 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center group-hover:border-[#F5C400]/30 transition-colors">
+                            <Upload size={22} className="text-[#F5C400]" />
                           </div>
                           <div className="text-center">
-                            <p className="font-semibold text-[#2d4a35] text-sm">Click to upload logo</p>
-                            <p className="text-xs text-[#8fa989] mt-0.5">PNG, JPG, SVG — max 10MB</p>
+                            <p className="font-semibold text-gray-900 text-sm">Click to upload logo</p>
+                            <p className="text-xs text-gray-500 mt-0.5">PNG, JPG, SVG — max 10MB</p>
                           </div>
                         </div>
                       ) : (
-                        <div className="rounded-2xl border border-[#e2ece4] overflow-hidden">
-                          <div className="flex items-center gap-3 p-3 bg-[#f4f9f5] border-b border-[#e2ece4]">
-                            <div className="w-12 h-12 rounded-xl border border-[#dde8df] bg-white overflow-hidden flex-shrink-0">
+                        <div className="rounded-xl border border-gray-200 overflow-hidden">
+                          <div className="flex items-center gap-3 p-3 bg-white border-b border-gray-200">
+                            <div className="w-12 h-12 rounded-xl border border-gray-200 bg-white overflow-hidden flex-shrink-0">
                               <img src={logoSrc!} alt="Logo" className="w-full h-full object-contain" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-[#2d4a35]">Logo uploaded</p>
-                              <p className="text-[10px] text-[#8fa989]">Drag on canvas to reposition</p>
+                              <p className="text-xs font-semibold text-[#F5C400]">Logo uploaded</p>
+                              <p className="text-[10px] text-gray-500">Drag on canvas to reposition</p>
                             </div>
                             <div className="flex gap-1.5">
                               <button
                                 onClick={() => fileRef.current?.click()}
-                                className="w-8 h-8 rounded-lg border border-[#dde8df] flex items-center justify-center hover:bg-white transition-colors text-[#6b8070]"
+                                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-100 transition-colors text-gray-600"
                               >
                                 <Upload size={13} />
                               </button>
                               <button
                                 onClick={() => { setLogoSrc(null); setLogoImg(null); }}
-                                className="w-8 h-8 rounded-lg border border-[#f5c5c5] flex items-center justify-center hover:bg-[#fdf0f0] transition-colors text-[#e05555]"
+                                className="w-8 h-8 rounded-lg border border-[#e05555]/30 flex items-center justify-center hover:bg-[#e05555]/10 transition-colors text-[#e05555]"
                               >
                                 <Trash2 size={13} />
                               </button>
                             </div>
                           </div>
-                          <div className="p-4 space-y-4">
+                          <div className="p-4 space-y-4 bg-gray-50">
                             <Slider label="Size" value={logoSize} min={40} max={280} unit="px" onChange={setLogoSize} />
                             <Slider label="Rotation" value={logoRotation} min={0} max={360} unit="°" onChange={setLogoRotation} />
                             <Slider label="Opacity" value={Math.round(logoOpacity * 100)} min={10} max={100} unit="%" onChange={(v) => setLogoOpacity(v / 100)} />
                             <div className="flex gap-2 pt-1">
                               <button
                                 onClick={() => setLogoRotation((p) => (p - 15 + 360) % 360)}
-                                className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                                className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                               >
                                 <RotateCcw size={13} /> Rotate Left
                               </button>
                               <button
                                 onClick={() => setLogoRotation((p) => (p + 15) % 360)}
-                                className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                                className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                               >
                                 <RotateCw size={13} /> Rotate Right
                               </button>
@@ -1878,7 +1853,7 @@ export default function ProductCustomization({
                           type="text" value={customText}
                           onChange={(e) => setCustomText(e.target.value)}
                           placeholder="Type something..."
-                          className="w-full h-11 rounded-xl border border-[#dde8df] px-4 text-sm outline-none focus:ring-2 focus:ring-[#2d4a35] focus:border-transparent transition-all bg-[#f8fbf9]"
+                          className="w-full h-11 rounded-xl border border-gray-200 px-4 text-sm text-gray-900 placeholder-[#4b5563] outline-none focus:ring-2 focus:ring-[#F5C400]/50 focus:border-transparent transition-all"
                         />
                       </div>
 
@@ -1895,8 +1870,8 @@ export default function ProductCustomization({
                               className={cn(
                                 "h-10 rounded-xl border text-sm transition-all px-3 text-left truncate",
                                 fontFamily === f.value
-                                  ? "border-[#2d4a35] bg-[#f4f9f5] text-[#2d4a35] font-semibold"
-                                  : "border-[#e2ece4] text-[#4a5568] hover:border-[#c5d9ca] hover:bg-[#f8fbf9]"
+                                  ? "border-[#F5C400] bg-[#F5C400]/10 text-[#F5C400] font-semibold"
+                                  : "border-gray-200 text-gray-600 hover:border-[#F5C400]/30 hover:bg-gray-100"
                               )}
                             >
                               {f.label}
@@ -1921,8 +1896,8 @@ export default function ProductCustomization({
                               className={cn(
                                 "w-10 h-10 rounded-xl border text-sm transition-all", style,
                                 active
-                                  ? "border-[#2d4a35] bg-[#2d4a35] text-white"
-                                  : "border-[#e2ece4] text-[#4a5568] hover:border-[#c5d9ca]"
+                                  ? "border-[#F5C400] bg-[#F5C400] text-black"
+                                  : "border-gray-200 text-gray-600 hover:border-[#F5C400]/30"
                               )}
                             >
                               {label}
@@ -1943,7 +1918,7 @@ export default function ProductCustomization({
                               style={{ background: c }}
                               className={cn(
                                 "w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 flex-shrink-0",
-                                textColor === c ? "border-[#2d4a35] scale-110" : "border-white shadow-sm"
+                                textColor === c ? "border-[#F5C400] scale-110" : "border-gray-200 shadow-sm"
                               )}
                             />
                           ))}
@@ -1951,7 +1926,7 @@ export default function ProductCustomization({
                             <input
                               type="color" value={textColor}
                               onChange={(e) => setTextColor(e.target.value)}
-                              className="w-8 h-8 rounded-xl border border-[#dde8df] cursor-pointer p-0.5 bg-white"
+                              className="w-8 h-8 rounded-xl border border-gray-200 cursor-pointer p-0.5 bg-gray-50"
                             />
                           </div>
                         </div>
@@ -1969,28 +1944,28 @@ export default function ProductCustomization({
                       <div className="flex gap-2">
                         <button
                           onClick={() => setTextRotation((p) => (p - 15 + 360) % 360)}
-                          className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                          className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                         >
                           <RotateCcw size={13} /> Rotate Left
                         </button>
                         <button
                           onClick={() => setTextRotation((p) => (p + 15) % 360)}
-                          className="flex-1 h-9 rounded-xl border border-[#dde8df] flex items-center justify-center gap-1.5 text-xs font-semibold text-[#4a7a58] hover:bg-[#f4f9f5] transition-colors"
+                          className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
                         >
                           <RotateCw size={13} /> Rotate Right
                         </button>
                       </div>
 
                       {customText.trim() && (
-                        <div className="rounded-xl border border-[#e2ece4] p-3 bg-[#f8fbf9]">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#8fa989] mb-2">Preview</p>
+                        <div className="rounded-xl border border-gray-200 p-3 ">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[#F5C400]/70 mb-2">Preview</p>
                           <p style={{
                             fontFamily,
                             fontSize: Math.min(textSize, 28),
                             color: textColor,
                             fontWeight: textBold ? 700 : 400,
                             fontStyle: textItalic ? "italic" : "normal",
-                            textShadow: textShadow ? "2px 2px 4px rgba(0,0,0,0.3)" : "none",
+                            textShadow: textShadow ? "2px 2px 4px rgba(0,0,0,0.5)" : "none",
                             opacity: textOpacity,
                             lineHeight: 1.3,
                             wordBreak: "break-all",

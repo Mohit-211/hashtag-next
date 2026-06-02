@@ -223,7 +223,7 @@ export default function ProductDetail({ id }: { id: string }) {
   /* ── skeleton ── */
   if (loading) {
     return (
-      <section className="min-h-screen bg-[#f8f6f2] py-10">
+      <section className="min-h-screen  py-10">
         <div className="container mx-auto max-w-7xl px-4">
           <div className="animate-pulse grid lg:grid-cols-2 gap-12">
             {/* gallery skeleton */}
@@ -288,7 +288,7 @@ export default function ProductDetail({ id }: { id: string }) {
 
   /* ───────────────────────────────────────────────── render */
   return (
-    <div className="min-h-screen bg-[#f8f6f2]">
+    <div className="min-h-screen">
 
       {/* ── LOGIN MODAL ── */}
       {showLoginModal && (

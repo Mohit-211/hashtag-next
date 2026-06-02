@@ -154,7 +154,7 @@ export default function ProductGallery({
               )}
 
               {/* Fullscreen button */}
-              <button
+              {/* <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -164,7 +164,7 @@ export default function ProductGallery({
                 title="View fullscreen"
               >
                 <Maximize2 className="w-3.5 h-3.5 text-[#2d4a35]" />
-              </button>
+              </button> */}
 
               {/* Prev / Next arrows */}
               {images.length > 1 && (
