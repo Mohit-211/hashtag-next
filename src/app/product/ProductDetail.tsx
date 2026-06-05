@@ -6,13 +6,8 @@ import {
   Heart,
   Sparkles,
   Loader2,
-  Minus,
-  Plus,
   X,
   ChevronRight,
-  CheckCircle2,
-  Truck,
-  RotateCcw,
   Shield,
 } from "lucide-react";
 import ProductGallery from "@/components/product/ProductGallery";
@@ -105,13 +100,8 @@ export default function ProductDetail({ id }: { id: string }) {
   const { wishlist, addToWishlist, removeItem, fetchWishlist } = useWishlist();
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
-  /* quantity */
+  /* quantity — kept for AddToCartModal */
   const [quantity, setQuantity] = useState(1);
-  const decreaseQuantity = () => setQuantity((p) => Math.max(1, p - 1));
-  const increaseQuantity = () => {
-    if (variantData?.max_order_quantity && quantity >= variantData.max_order_quantity) return;
-    setQuantity((p) => p + 1);
-  };
 
   /* wishlist item */
   const wishlistItem = wishlist.find(
@@ -223,30 +213,28 @@ export default function ProductDetail({ id }: { id: string }) {
   /* ── skeleton ── */
   if (loading) {
     return (
-      <section className="min-h-screen  py-10">
+      <section className="min-h-screen py-10">
         <div className="container mx-auto max-w-7xl px-4">
-          <div className="animate-pulse grid lg:grid-cols-2 gap-12">
-            {/* gallery skeleton */}
+          <div className="animate-pulse grid lg:grid-cols-2 gap-10">
             <div className="space-y-3">
-              <div className="aspect-[4/5] rounded-2xl bg-gradient-to-br from-[#ede9e3] to-[#e0dbd2]" />
+              <div className="aspect-[4/5]" style={{ background: "#e2e2e2" }} />
               <div className="flex gap-2">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="w-16 h-16 rounded-xl bg-[#e0dbd2]" />
+                  <div key={i} className="w-16 h-16" style={{ background: "#e2e2e2" }} />
                 ))}
               </div>
             </div>
-            {/* info skeleton */}
             <div className="space-y-5 pt-4">
-              <div className="h-3 w-1/3 rounded-full bg-[#e0dbd2]" />
-              <div className="h-9 w-4/5 rounded-xl bg-[#e0dbd2]" />
-              <div className="h-7 w-1/4 rounded-xl bg-[#e0dbd2]" />
+              <div className="h-3 w-1/3" style={{ background: "#e2e2e2" }} />
+              <div className="h-9 w-4/5" style={{ background: "#e2e2e2" }} />
+              <div className="h-7 w-1/4" style={{ background: "#e2e2e2" }} />
               <div className="space-y-2 pt-2">
-                <div className="h-3 w-full rounded-full bg-[#e0dbd2]" />
-                <div className="h-3 w-5/6 rounded-full bg-[#e0dbd2]" />
-                <div className="h-3 w-3/4 rounded-full bg-[#e0dbd2]" />
+                <div className="h-3 w-full" style={{ background: "#e2e2e2" }} />
+                <div className="h-3 w-5/6" style={{ background: "#e2e2e2" }} />
+                <div className="h-3 w-3/4" style={{ background: "#e2e2e2" }} />
               </div>
-              <div className="h-12 w-full rounded-2xl bg-[#e0dbd2]" />
-              <div className="h-12 w-full rounded-2xl bg-[#d4cfc7]" />
+              <div className="h-[52px] w-full" style={{ background: "#ccc" }} />
+              <div className="h-[52px] w-full" style={{ background: "#ccc" }} />
             </div>
           </div>
         </div>
@@ -256,16 +244,30 @@ export default function ProductDetail({ id }: { id: string }) {
 
   if (!product) {
     return (
-      <section className="min-h-[60vh] flex items-center justify-center bg-[#f8f6f2]">
+      <section
+        className="min-h-[60vh] flex items-center justify-center"
+        style={{ background: "#f5f5f5" }}
+      >
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 mx-auto rounded-full bg-[#e8e4de] flex items-center justify-center">
-            <ShoppingCart size={24} className="text-[#9e9589]" />
+          <div
+            className="w-16 h-16 mx-auto flex items-center justify-center"
+            style={{ background: "#111" }}
+          >
+            <ShoppingCart size={24} color="#f0c419" />
           </div>
-          <p className="text-lg font-semibold text-[#1f3526]">Product not found</p>
-          <p className="text-sm text-[#8a8279]">This item may have been removed or is unavailable.</p>
+          <p
+            className="text-lg font-bold tracking-widest uppercase"
+            style={{ color: "#111", fontFamily: "var(--font-heading)" }}
+          >
+            Product Not Found
+          </p>
+          <p className="text-sm" style={{ color: "#666" }}>
+            This item may have been removed or is unavailable.
+          </p>
           <button
             onClick={() => router.push("/categories")}
-            className="mt-2 text-sm text-[#1f3526] underline underline-offset-4 hover:opacity-70 transition-opacity"
+            className="mt-2 text-sm font-semibold underline underline-offset-4 hover:opacity-60 transition-opacity"
+            style={{ color: "#111" }}
           >
             Browse all products
           </button>
@@ -279,9 +281,9 @@ export default function ProductDetail({ id }: { id: string }) {
   const displayAttachments =
     variantData?.images && variantData.images.length > 0
       ? variantData.images.map((img) => ({
-          ...img,
-          url: img.file_name?.startsWith("http") ? img.file_name : `${BASE_URL}${img.file_uri}`,
-        }))
+        ...img,
+        url: img.file_name?.startsWith("http") ? img.file_name : `${BASE_URL}${img.file_uri}`,
+      }))
       : product?.attachments || [];
   const category = product?.categories?.[0]?.parent_categories?.[0];
   const isLowStock = variantData?.stock != null && variantData.stock > 0 && variantData.stock <= 5;
@@ -291,80 +293,79 @@ export default function ProductDetail({ id }: { id: string }) {
     <div className="min-h-screen">
 
       {/* ── LOGIN MODAL ── */}
-      {showLoginModal && (
-        <div className="fixed inset-0 z-[999] bg-black/40 backdrop-blur-md flex items-end sm:items-center justify-center p-4 sm:p-6">
-          <div
-            className="w-full max-w-sm rounded-3xl bg-white p-7 shadow-2xl"
-            style={{ boxShadow: "0 32px 80px -12px rgba(31,53,38,0.25)" }}
-          >
-            {/* close */}
-            <button
-              onClick={() => setShowLoginModal(false)}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-[#f0ece6] flex items-center justify-center text-[#6b7280] hover:bg-[#e5e0d8] transition-colors"
-            >
-              <X size={14} />
-            </button>
+     {showLoginModal && (
+  <div
+    className="fixed inset-0 z-[999] flex items-center justify-center"
+    style={{
+      background: "rgba(0,0,0,0.4)",
+    }}
+  >
+    <div className="text-center">
+      <h3 className="text-lg font-semibold mb-4">
+        Sign in to continue
+      </h3>
 
-            {/* icon */}
-            <div className="w-14 h-14 rounded-2xl bg-[#f0f7f2] flex items-center justify-center mb-5">
-              <Shield size={24} className="text-[#1f3526]" />
-            </div>
+      <div className="flex gap-3 justify-center">
+        <button
+          onClick={() => router.push("/login")}
+          className="px-5 py-2 bg-black text-white"
+        >
+          Sign In
+        </button>
 
-            <h2 className="text-xl font-bold text-[#1f3526] tracking-tight mb-2">
-              Sign in to continue
-            </h2>
-            <p className="text-sm text-[#7a7368] leading-6 mb-7">
-              Access your cart, wishlist, and customization tools by signing into your account.
-            </p>
-
-            <div className="space-y-3">
-              <button
-                onClick={() => router.push("/login")}
-                className="w-full h-12 rounded-2xl bg-[#1f3526] text-white text-sm font-semibold tracking-wide hover:bg-[#2d4e37] active:scale-[0.98] transition-all duration-150"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => setShowLoginModal(false)}
-                className="w-full h-12 rounded-2xl border border-[#dbe6de] text-[#1f3526] text-sm font-medium hover:bg-[#f0f7f2] active:scale-[0.98] transition-all duration-150"
-              >
-                Continue browsing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        <button
+          onClick={() => setShowLoginModal(false)}
+          className="px-5 py-2 border border-black"
+        >
+          Continue Browsing
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ── BREADCRUMB ── */}
-      <div className="border-b border-[#ece8e2] bg-white/80 backdrop-blur-sm sticky top-0 z-20">
-        <div className="container mx-auto max-w-7xl px-4">
-          <div className="flex items-center gap-1.5 py-3.5 text-xs text-[#9e9589]">
-            <a href="/" className="hover:text-[#1f3526] transition-colors">Home</a>
-            <ChevronRight size={12} className="shrink-0 opacity-50" />
-            <a href="/categories" className="hover:text-[#1f3526] transition-colors">Products</a>
-            {category?.name && (
-              <>
-                <ChevronRight size={12} className="shrink-0 opacity-50" />
-                <a href={`/categories/${category.id}`} className="hover:text-[#1f3526] transition-colors">
-                  {category.name}
-                </a>
-              </>
-            )}
-            <ChevronRight size={12} className="shrink-0 opacity-50" />
-            <span className="text-[#1f3526] font-medium truncate max-w-[160px] sm:max-w-xs">
-              {product.name}
-            </span>
-          </div>
-        </div>
-      </div>
+ <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
+  <div className="container mx-auto max-w-7xl px-4">
+    <nav className="flex items-center gap-2 py-3 text-sm">
+      <a href="/" className="text-gray-500 hover:text-black">
+        Home
+      </a>
+
+      <ChevronRight size={14} className="text-gray-300" />
+
+      <a href="/categories" className="text-gray-500 hover:text-black">
+        Products
+      </a>
+
+      {category?.name && (
+        <>
+          <ChevronRight size={14} className="text-gray-300" />
+          <a
+            href={`/categories/${category.id}`}
+            className="text-gray-500 hover:text-black"
+          >
+            {category.name}
+          </a>
+        </>
+      )}
+
+      <ChevronRight size={14} className="text-gray-300" />
+
+      <span className="font-semibold text-black truncate">
+        {product.name}
+      </span>
+    </nav>
+  </div>
+</div>
 
       {/* ── MAIN CONTENT ── */}
-      <section className="py-10 lg:py-16">
+      <section className="py-8 lg:py-14">
         <div className="container mx-auto max-w-7xl px-4">
-          <div className="grid lg:grid-cols-[55%_45%] gap-10 xl:gap-16">
+          <div className="grid lg:grid-cols-[55%_45%] gap-8 xl:gap-14">
 
             {/* ── GALLERY ── */}
-            <div className="lg:sticky lg:top-[72px] self-start">
+            <div className="lg:sticky lg:top-[50px] self-start">
               <ProductGallery
                 attachments={displayAttachments}
                 onActiveChange={setActiveGalleryIndex}
@@ -372,16 +373,23 @@ export default function ProductDetail({ id }: { id: string }) {
             </div>
 
             {/* ── RIGHT PANEL ── */}
-            <div className="space-y-7">
+            <div className="flex flex-col gap-5">
 
               {/* category pill */}
               {category?.name && (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold tracking-widest uppercase text-[#4a7a58] bg-[#eef7f1] px-3 py-1.5 rounded-full">
+                <span
+                  className="inline-flex items-center gap-1.5 self-start text-xs font-bold tracking-widest uppercase px-3 py-1.5"
+                  style={{
+                    background: "#f0c419",
+                    color: "#111",
+                    fontFamily: "var(--font-heading)",
+                  }}
+                >
                   {category.name}
                 </span>
               )}
 
-              {/* product info */}
+              {/* product info — UNCHANGED */}
               <ProductInfo
                 name={product.name}
                 price={displayPrice}
@@ -399,45 +407,87 @@ export default function ProductDetail({ id }: { id: string }) {
 
               {/* low stock badge */}
               {isLowStock && (
-                <div className="flex items-center gap-2 bg-[#fff8ed] border border-[#fde5b4] rounded-2xl px-4 py-3">
-                  <div className="w-2 h-2 rounded-full bg-[#f59e0b] animate-pulse" />
-                  <p className="text-xs font-semibold text-[#92640a]">
+                <div
+                  className="flex items-center gap-2 px-4 py-3"
+                  style={{
+                    background: "#fff8ed",
+                    borderLeft: "3px solid #f59e0b",
+                  }}
+                >
+                  <div
+                    className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
+                    style={{ background: "#f59e0b" }}
+                  />
+                  <p
+                    className="text-xs font-bold"
+                    style={{ color: "#92640a", fontFamily: "var(--font-heading)" }}
+                  >
                     Only {variantData?.stock} left in stock — order soon
                   </p>
                 </div>
               )}
 
               {/* ── ACTION BUTTONS ── */}
-              <div className="space-y-3 pt-1">
+              <div className="flex flex-col gap-3 pt-1">
+
+                {/* Wishlist */}
+                <button
+                  onClick={handleWishlist}
+                  disabled={wishlistLoading}
+                  className={cn(
+                    "w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]"
+                  )}
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    background: inWishlist ? "#111" : "transparent",
+                    color: inWishlist ? "#f0c419" : "#111",
+                    border: "2px solid #111",
+                  }}
+                >
+                  {wishlistLoading ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Heart
+                      size={16}
+                      fill={inWishlist ? "#f0c419" : "none"}
+                      color={inWishlist ? "#f0c419" : "#111"}
+                    />
+                  )}
+                  {inWishlist ? "Saved to Wishlist" : "Add to Wishlist"}
+                </button>
+
                 {/* Customize */}
                 <button
                   onClick={handleCustomize}
                   disabled={customizeLoading}
                   className={cn(
-                    "group w-full h-13 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2.5 transition-all duration-200 border-2 border-[#1f3526]",
-                    customizeLoading
-                      ? "bg-[#1f3526] text-white cursor-not-allowed opacity-80"
-                      : "bg-white text-[#1f3526] hover:bg-[#1f3526] hover:text-white active:scale-[0.98]"
+                    "group w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]",
+                    customizeLoading ? "opacity-80 cursor-not-allowed" : ""
                   )}
-                  style={{ height: "52px" }}
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    background: "#f0c419",
+                    color: "#111",
+                    border: "none",
+                  }}
                 >
                   {customizeLoading ? (
-                    <span className="flex items-center gap-2">
+                    <>
                       <Spin className="animate-spin" />
-                      Preparing customizer…
-                    </span>
+                      <span>Preparing customizer…</span>
+                    </>
                   ) : (
                     <>
-                      <Sparkles size={16} className="transition-transform duration-300 group-hover:rotate-12" />
+                      <Sparkles
+                        size={16}
+                        className="transition-transform duration-300 group-hover:rotate-12"
+                      />
                       Customize This Product
                     </>
                   )}
                 </button>
-
-             
               </div>
 
-             
             </div>
           </div>
 
@@ -453,7 +503,7 @@ export default function ProductDetail({ id }: { id: string }) {
         </div>
       </section>
 
-      {/* ── ADD TO CART MODAL ── */}
+      {/* ── ADD TO CART MODAL — kept for internal use ── */}
       {variantData && (
         <AddToCartModal
           open={showCartModal}

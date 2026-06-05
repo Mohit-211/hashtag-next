@@ -15,7 +15,6 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT: "product",
   PRODUCT_DETAIL: (id: string) => `product/${id}`,
   PRODUCT_DETAIL_GUEST: (id: string) => `product/guest/${id}`,
-
   PRODUCT_CATEGORY: "product-category/get-parent-categories",
   PRODUCT_VARIANT: "product/get-variant",
 };
@@ -56,4 +55,8 @@ export const PAYMENT_ENDPOINTS = {
   SQUARE_CONFIG: "/payment/square/config",
   CREATE_PAYMENT: "/payment/square/create-payment",
   PAYMENT_HISTORY: "/payment/history",
+};
+export const BRAND_ENDPOINTS = {
+  GET_ALL: "/brand/website-brands",
+  
 };

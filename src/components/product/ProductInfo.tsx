@@ -56,7 +56,6 @@ export default function ProductInfo({
   variantSku?: string | null;
   variantLoading?: boolean;
 }) {
-  // Unique colors — fall back to first word of color name as a CSS color
   const colors = useMemo(() => {
     const map = new Map<string, string>();
 
@@ -76,7 +75,6 @@ export default function ProductInfo({
     }));
   }, [variants]);
 
-  // Available sizes for selected color
   const availableSizeIds = useMemo(() => {
     if (!selectedColor) return new Set<number>();
 
@@ -87,81 +85,57 @@ export default function ProductInfo({
     );
   }, [selectedColor, variants]);
 
-  const rating = 4.2;
-  const reviewCount = 128;
-
   return (
-    <div className="space-y-5">
-      {/* Eyebrow + Name */}
+    <div className="space-y-6">
+      {/* Header */}
       <div>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#4a7a58]">
+        <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#CFAF2E]">
+          <span className="w-4 h-px bg-[#CFAF2E]" />
           Premium Apparel
         </span>
 
-        <h1 className="font-heading text-[2rem] leading-[1.15] font-bold text-foreground mt-1">
+        <h1 className="mt-2 text-[2rem] leading-[1.15] font-bold text-[#111111]">
           {name}
         </h1>
       </div>
 
-      {/* do not remove we will impliment later */}
-      {/* Rating */}
-      {/* <div className="flex items-center gap-2">
-        <div className="flex items-center gap-0.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star
-              key={i}
-              className={`h-3.5 w-3.5 ${
-                i < Math.floor(rating)
-                  ? "fill-amber-500 text-amber-500"
-                  : i < rating
-                  ? "fill-amber-300 text-amber-300"
-                  : "fill-border text-border"
-              }`}
-            />
-          ))}
-        </div>
-
-        <span className="text-xs text-muted-foreground">
-          {rating} · {reviewCount} reviews
-        </span>
-      </div> */}
-
       {/* Price */}
       <div className="flex items-baseline gap-3">
-        <p className="font-heading text-[2rem] font-bold text-foreground">
+        <p className="text-[2rem] font-bold text-[#111111]">
           ${price}
         </p>
       </div>
 
-      <div className="h-px bg-border" />
+      <div className="h-px bg-[#E5E5E5]" />
 
-      {/* Colors */}
+      {/* Color Selection */}
       {colors.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-2.5">
-            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
               Color
             </p>
 
-            <p className="text-sm text-foreground font-medium">
+            <p className="text-sm font-semibold text-[#111111]">
               {selectedColor || "Select a color"}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap gap-3">
             {colors.map((item) => (
               <button
                 key={item.color}
                 title={item.color}
                 onClick={() => onColorChange(item.color)}
-                className={`relative w-9 h-9 rounded-full border-2 transition-all duration-150 hover:scale-110 ${
+                className={`relative w-10 h-10 rounded-full border-2 transition-all duration-200 hover:scale-110 ${
                   selectedColor === item.color
-                    ? "border-foreground ring-2 ring-background ring-offset-2 ring-offset-foreground/10 scale-105"
-                    : "border-transparent"
+                    ? "border-[#111111] ring-2 ring-[#E8D03A] scale-105"
+                    : "border-[#E5E5E5]"
                 }`}
                 style={{
                   backgroundColor: item.color_code,
-                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
+                  boxShadow:
+                    "inset 0 0 0 1px rgba(0,0,0,0.12)",
                 }}
               />
             ))}
@@ -169,11 +143,11 @@ export default function ProductInfo({
         </div>
       )}
 
-      {/* Sizes */}
+      {/* Size Selection */}
       {sizes.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-2.5">
-            <p className="text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
               Size
             </p>
           </div>
@@ -183,19 +157,22 @@ export default function ProductInfo({
               const available =
                 !selectedColor || availableSizeIds.has(size.id);
 
-              const isActive = selectedSize?.id === size.id;
+              const isActive =
+                selectedSize?.id === size.id;
 
               return (
                 <button
                   key={size.id}
-                  onClick={() => available && onSizeChange(size)}
+                  onClick={() =>
+                    available && onSizeChange(size)
+                  }
                   disabled={!available}
-                  className={`min-w-[48px] px-3.5 py-2 text-sm font-medium rounded-lg border transition-all duration-150 ${
+                  className={`min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 ${
                     isActive
-                      ? "bg-[#2d4a35] text-white border-[#2d4a35]"
+                      ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
                       : available
-                      ? "bg-background text-foreground border-border hover:border-[#4a7a58] hover:text-[#4a7a58] hover:bg-[#e8f0ea]"
-                      : "bg-muted/30 text-muted-foreground/40 border-border/40 cursor-not-allowed line-through"
+                      ? "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
+                      : "bg-[#F5F5F5] text-[#BDBDBD] border-[#E5E5E5] cursor-not-allowed line-through"
                   }`}
                 >
                   {size.name}
@@ -204,23 +181,21 @@ export default function ProductInfo({
             })}
           </div>
 
-          {selectedColor && availableSizeIds.size === 0 && (
-            <p className="text-xs text-red-500 mt-2">
-              No sizes available for this color.
-            </p>
-          )}
+          {selectedColor &&
+            availableSizeIds.size === 0 && (
+              <p className="text-xs text-[#C0392B] font-medium mt-3">
+                No sizes available for this color.
+              </p>
+            )}
         </div>
       )}
 
-      {/* Description preview */}
-      {/* {description && (
-        <p
-          className="text-sm text-muted-foreground leading-relaxed line-clamp-3"
-          dangerouslySetInnerHTML={{
-            __html: DOMPurify.sanitize(description),
-          }}
-        />
-      )} */}
+  
+      
+
+     
+
+    
     </div>
   );
 }

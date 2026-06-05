@@ -48,7 +48,7 @@ interface CartContextType {
 
   pending_order: PendingOrder | null;
 
-  refreshCart: () => void;
+   refreshCart: () => Promise<void>;
 
   addItem: (item: CartItem) => void;
 }
@@ -90,84 +90,67 @@ export const CartProvider = ({
     );
 
   // ✅ FETCH CART
-  const fetchCart = useCallback(
-    async () => {
-      if (!isLoggedIn) {
-        setItems([]);
-        setPendingOrder(null);
-        return;
-      }
-
-      try {
-        const res =
-          await GetAllCartItemsApi();
-
-        const data =
-          res?.data?.data || res?.data;
-
-        console.log(
-          "🛒 Cart API Response:",
-          data
-        );
-
-        // ✅ SAVE PENDING ORDER
-        setPendingOrder(
-          data?.pending_order || null
-        );
-
-        // ✅ FORMAT ITEMS
-        const formatted = (
-          data?.items || []
-        ).map((item: any) => ({
-          id: String(
-            item.product_id
-          ),
-
-          name:
-            item.name ||
-            item.product_name,
-
-          image:
-            item.logo_image ||
-            "/placeholder.png",
-
-          logo_image:
-            item.logo_image ||
-            "/placeholder.png",
-
-          basePrice:
-            Number(item.price) || 0,
-
-          quantity:
-            Number(item.quantity) || 1,
-
-          cart_id: item.cart_id,
-
-          customization: {
-            uploadedImage: null,
-
-            placements: [],
-
-            uploadFee:
-              Number(
-                item.customization_price
-              ) || 0,
-          },
-        }));
-
-        setItems(formatted);
-      } catch (err) {
-        console.error(
-          "❌ Cart fetch error:",
-          err
-        );
-
-        setItems([]);
-        setPendingOrder(null);
-      }
-    },
-    [isLoggedIn]
+const fetchCart = useCallback(async () => {
+  const token = localStorage.getItem(
+    "hastagBillionaire"
   );
+
+  if (!token) {
+    setItems([]);
+    setPendingOrder(null);
+    return;
+  }
+
+  try {
+    const res = await GetAllCartItemsApi();
+
+    const data =
+      res?.data?.data || res?.data;
+
+    setPendingOrder(
+      data?.pending_order || null
+    );
+
+    const formatted = (
+      data?.items || []
+    ).map((item: any) => ({
+      id: String(item.product_id),
+      name:
+        item.name ||
+        item.product_name,
+      image:
+        item.logo_image ||
+        "/placeholder.png",
+      logo_image:
+        item.logo_image ||
+        "/placeholder.png",
+      basePrice:
+        Number(item.price) || 0,
+      quantity:
+        Number(item.quantity) || 1,
+      cart_id: item.cart_id,
+      customization: {
+        uploadedImage: null,
+        placements: [],
+        uploadFee:
+          Number(
+            item.customization_price
+          ) || 0,
+      },
+    }));
+
+    setItems(formatted);
+
+    console.log(
+      "Updated Cart Items:",
+      formatted
+    );
+  } catch (err) {
+    console.error(err);
+    setItems([]);
+    setPendingOrder(null);
+  }
+}, []);
 
   // ✅ INITIAL FETCH
   useEffect(() => {

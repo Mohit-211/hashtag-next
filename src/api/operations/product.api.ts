@@ -7,6 +7,7 @@ export interface ProductQueryParams {
   limit?: number;
   search?: string;
   category_id?: number | string;
+  brand_id?: number | string;
 }
 
 export const AllProductsApi = (params?: ProductQueryParams) => {

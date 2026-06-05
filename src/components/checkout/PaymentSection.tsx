@@ -16,6 +16,7 @@ import {
   GetSquareConfigApi,
   SquareConfig,
 } from "@/api/operations/payment.api";
+import { useCart } from "@/contexts/CartContext";
 
 export type SquareMethod =
   | "CARD"
@@ -180,7 +181,7 @@ export default function PaymentSection({
       try {
         if (selectedMethod === "CARD") {
           const card = await paymentsRef.current.card();
-          await card.attach("#sq-card-container");
+          await card?.attach("#sq-card-container");
           cardRef.current = card;
           console.log("✅ [PaymentSection] Card widget mounted");
 
@@ -265,8 +266,25 @@ export default function PaymentSection({
       setPaymentLoading(false);
     }
   };
+const { refreshCart } = useCart();
 
-  const handleCardPay = () => tokenizeAndPay(cardRef, "CARD");
+
+const handleCardPay = async () => {
+  try {
+    await tokenizeAndPay(
+      cardRef,
+      "CARD"
+    );
+
+    await refreshCart();
+
+    console.log(
+      "Cart refreshed successfully"
+    );
+  } catch (err) {
+    console.error(err);
+  }
+};
   const handleGooglePay = () => tokenizeAndPay(googlePayRef, "GOOGLE_PAY");
   const handleApplePay = () => tokenizeAndPay(applePayRef, "APPLE_PAY");
 

@@ -44,6 +44,12 @@ export default function Header() {
   const router = useRouter();
 
   const { totalItems } = useCart();
+  useEffect(() => {
+  console.log(
+    "Header Cart Count:",
+    totalItems
+  );
+}, [totalItems]);
   const { wishlistCount } = useWishlist();
 
   const { user, logout } = useAuth();

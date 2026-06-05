@@ -12,6 +12,8 @@ import {
   ProductCategoryApi,
 } from "@/api/operations/product.api";
 
+import { GetAllBrandsApi } from "@/api/operations/brand.api";
+
 import type {
   Category,
   Product,
@@ -20,11 +22,19 @@ import type {
   ProductCategoryApiResponse,
 } from "@/data/typesproduct";
 
-import {
-  brandlist,
-  BRAND_TAB_NAME,
-} from "../../components/categories/Brands";
+import { BRAND_TAB_NAME } from "../../components/categories/Brands";
 import { SearchIcon } from "lucide-react";
+import Image from "next/image";
+
+// ─────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────
+interface Brand {
+  logo: string;
+  id: number | string;
+  name: string;
+  slug: string;
+}
 
 // ─────────────────────────────────────────────────────────────
 // Constants
@@ -117,7 +127,6 @@ const styles = `
   padding: 20px 24px;
   background: #fff;
   border-bottom: 1px solid #eee;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -156,10 +165,8 @@ const styles = `
   display: inline-flex;
   align-items: center;
   gap: 8px;
-
   padding: 8px 14px;
   border-radius: 999px;
-
   background: #f5f5f5;
   color: #111;
   font-size: 14px;
@@ -190,11 +197,9 @@ const styles = `
 .sort-select {
   height: 42px;
   min-width: 190px;
-
   padding: 0 14px;
   border: 1px solid #ddd;
   border-radius: 10px;
-
   background: #fff;
   font-size: 14px;
   cursor: pointer;
@@ -225,17 +230,6 @@ const styles = `
   .cat-heading {
     font-size: 22px;
   }
-}
-
-.cat-heading{
-  font-size:24px;
-  font-weight:700;
-  margin:0;
-}
-
-.cat-count{
-  font-size:13px;
-  color:#888;
 }
 
 .products-area{
@@ -278,8 +272,16 @@ const styles = `
   font-size:12px;
   margin-left:10px;
 }
-  
-/* ── Search wrap ── */
+
+.active-filter-pill button{
+  border:none;
+  background:none;
+  color:#fff;
+  cursor:pointer;
+  font-size:16px;
+  line-height:1;
+}
+
 .cat-tabs-search-wrap {
   margin-left: auto;
   flex-shrink: 0;
@@ -290,34 +292,38 @@ const styles = `
   display: flex;
   align-items: center;
   padding: 10px 0px;
+  width: 200px;
 }
 
 .cat-tabs-search-icon {
   position: absolute;
-  left: 11px;
+  left: 9px;
   top: 50%;
   transform: translateY(-50%);
   color: #9ca3af;
   pointer-events: none;
   display: flex;
   align-items: center;
-  font-size: 15px;
 }
 
 .cat-tabs-search {
-  height: 34px;
-  width: 220px;
-  padding: 0 34px 0 34px;
-
+  height: 32px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-
-  background: #f9fafb;
+  padding: 0 10px 0 30px;
+  font-size: 12.5px;
   color: #111;
-  font-size: 13px;
-
+  background: #f9fafb;
   outline: none;
-  transition: border-color .2s, box-shadow .2s, width .2s, background .2s;
+  width: 155px;
+  transition: border-color 0.18s, width 0.2s;
+}
+
+.cat-tabs-search:focus {
+  border-color: #374151;
+  background: #fff;
+  width: 195px;
+  box-shadow: 0 0 0 3px rgba(17,24,39,0.07);
 }
 
 .cat-tabs-search::placeholder {
@@ -325,19 +331,6 @@ const styles = `
   font-size: 12.5px;
 }
 
-.cat-tabs-search:hover {
-  border-color: #d1d5db;
-  background: #fff;
-}
-
-.cat-tabs-search:focus {
-  border-color: #374151;
-  background: #fff;
-  width: 250px;
-  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.07);
-}
-
-/* Clear button */
 .cat-tabs-search-clear {
   position: absolute;
   right: 10px;
@@ -353,127 +346,32 @@ const styles = `
   font-size: 15px;
   line-height: 1;
 }
-.cat-tabs-search-clear:hover { color: #111; }
 
-@media (max-width: 768px) {
-  .cat-tabs-search-wrap { width: 100%; padding: 8px 12px; }
-  .cat-tabs-search { width: 100%; }
-  .cat-tabs-search:focus { width: 100%; }
-}
-
-.cat-tabs-search-inner {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 200px;
-}
-
-.cat-tabs-search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #888;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-}
-
-.cat-tabs-search {
-  width: 100%;
-  height: 44px;
-  padding: 0 16px 0 44px;
-
-  border: 1px solid #e5e7eb;
-  border-radius: 999px;
-
-  background: #fff;
-  color: #111827;
-  font-size: 14px;
-  font-weight: 500;
-
-  transition: all 0.25s ease;
-  outline: none;
-}
-
-.cat-tabs-search::placeholder {
-  color: #9ca3af;
-}
-
-.cat-tabs-search:hover {
-  border-color: #d1d5db;
-}
-
-.cat-tabs-search:focus {
-  border-color: #111827;
-  box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.08);
+.cat-tabs-search-clear:hover {
+  color: #111;
 }
 
 @media (max-width: 768px) {
   .cat-tabs-search-wrap {
     width: 100%;
-    margin-top: 12px;
+    padding: 8px 12px;
   }
 
   .cat-tabs-search-inner {
     width: 100%;
   }
-}
 
-  .cat-tabs-search-inner {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  .cat-tabs-search-icon {
-    position: absolute;
-    left: 9px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--ink-faint);
-    pointer-events: none;
-    display: flex;
-  }
   .cat-tabs-search {
-    height: 32px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0 10px 0 30px;
-    font-size: 12.5px;
-    font-family: var(--font-sans);
-    color: var(--ink);
-    background: var(--bg);
-    outline: none;
-    width: 155px;
-    transition: border-color 0.18s, width 0.2s;
+    width: 100%;
   }
+
   .cat-tabs-search:focus {
-    border-color: var(--ink-soft);
-    width: 195px;
-    background: #fff;
+    width: 100%;
   }
-  .cat-tabs-search::placeholder { color: var(--ink-faint); }
-
-
-.active-filter-pill button{
-  border:none;
-  background:none;
-  color:#fff;
-  cursor:pointer;
-  font-size:16px;
-  line-height:1;
-}
-
-@media(max-width:768px){
 
   .products-area{
     padding:16px;
   }
-
-  .cat-topbar{
-    padding:16px;
-  }
-
 }
 `;
 
@@ -485,63 +383,47 @@ export default function Categories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categorySearch, setCategorySearch] = useState("");
   const [categoryLoading, setCategoryLoading] = useState(false);
+  const [brandList, setBrandList] = useState<Brand[]>([]);
 
-  const [activeCategory, setActiveCategory] =
-    useState<Category>({
-      id: null,
-      name: "All",
-    });
+  const [activeCategory, setActiveCategory] = useState<Category>({
+    id: null,
+    name: "All",
+  });
 
-  const [sortBy, setSortBy] =
-    useState<SortOption["value"]>("popular");
+  const [sortBy, setSortBy] = useState<SortOption["value"]>("popular");
+
   const categorySearchInitRef = useRef(false);
 
   const [page, setPage] = useState(1);
-
-  const [hasMore, setHasMore] =
-    useState(true);
-
-  const [productLoading, setProductLoading] =
-    useState(false);
-
-  const [productGridLoading, setProductGridLoading] =
-    useState(false);
-
-  const [initialLoading, setInitialLoading] =
-    useState(true);
-
-  const [total_products, setTotalProducts] =
-    useState(0);
-
-  const [brandMenuOpen, setBrandMenuOpen] =
-    useState(false);
-
-  const [activeBrandSlug, setActiveBrandSlug] =
-    useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [productLoading, setProductLoading] = useState(false);
+  const [productGridLoading, setProductGridLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [total_products, setTotalProducts] = useState(0);
+  const [brandMenuOpen, setBrandMenuOpen] = useState(false);
+  const [activeBrand, setActiveBrand] = useState<Brand | null>(null);
 
   const fetchingRef = useRef(false);
-
   const pageRef = useRef(1);
-
   const hasMoreRef = useRef(true);
-
-  const activeCategoryRef =
-    useRef<Category>(activeCategory);
-
-  const sortByRef =
-    useRef<SortOption["value"]>(sortBy);
+  const activeCategoryRef = useRef<Category>(activeCategory);
+  const sortByRef = useRef<SortOption["value"]>(sortBy);
+  const activeBrandRef = useRef<Brand | null>(null);
 
   // ─────────────────────────────────────────────────────────
   // Sync refs
   // ─────────────────────────────────────────────────────────
   useEffect(() => {
-    activeCategoryRef.current =
-      activeCategory;
+    activeCategoryRef.current = activeCategory;
   }, [activeCategory]);
 
   useEffect(() => {
     sortByRef.current = sortBy;
   }, [sortBy]);
+
+  useEffect(() => {
+    activeBrandRef.current = activeBrand;
+  }, [activeBrand]);
 
   // ─────────────────────────────────────────────────────────
   // Sort
@@ -551,64 +433,63 @@ export default function Categories() {
     sort: SortOption["value"]
   ): Product[] => {
     const copy = [...data];
-
-    if (sort === "price-asc") {
+    if (sort === "price-asc")
       return copy.sort(
-        (a, b) =>
-          Number(a.price ?? 0) -
-          Number(b.price ?? 0)
+        (a, b) => Number(a.price ?? 0) - Number(b.price ?? 0)
       );
-    }
-
-    if (sort === "price-desc") {
+    if (sort === "price-desc")
       return copy.sort(
-        (a, b) =>
-          Number(b.price ?? 0) -
-          Number(a.price ?? 0)
+        (a, b) => Number(b.price ?? 0) - Number(a.price ?? 0)
       );
-    }
-
     return copy;
   };
+
+  // ─────────────────────────────────────────────────────────
+  // Brands API
+  // ─────────────────────────────────────────────────────────
+  const fetchBrands = useCallback(async () => {
+    try {
+      const res = await GetAllBrandsApi();
+      const raw = Array.isArray(res?.data?.data?.data)
+        ? res.data.data.data
+        : Array.isArray(res?.data?.data)
+          ? res.data.data
+          : [];
+      console.log(res, "res")
+      const formatted: Brand[] = raw.map((b: any) => ({
+        id: b.id,
+        name: b.name ?? b.brand_name ?? "",
+        slug: b.slug ?? "",
+        logo: b.logo_url ?? null,
+      }));
+
+      setBrandList(formatted);
+    } catch (error) {
+      console.error("Error fetching brands:", error);
+    }
+  }, []);
 
   // ─────────────────────────────────────────────────────────
   // Categories API
   // ─────────────────────────────────────────────────────────
   const fetchCategories = useCallback(async () => {
     try {
-      const res: ProductCategoryApiResponse =
-        await ProductCategoryApi({
-          page: 1,
-          limit: CATEGORY_LIMIT,
-        });
+      const res: ProductCategoryApiResponse = await ProductCategoryApi({
+        page: 1,
+        limit: CATEGORY_LIMIT,
+      });
 
-      const raw = Array.isArray(
-        res?.data?.data?.data
-      )
+      const raw = Array.isArray(res?.data?.data?.data)
         ? res.data.data.data
         : [];
 
-      const formatted: Category[] = raw.map(
-        (cat: any) => ({
-          id: cat.id,
+      const formatted: Category[] = raw.map((cat: any) => ({
+        id: cat.id,
+        name: cat.title ?? cat.name ?? cat.category_name ?? "",
+        slug: cat.slug,
+      }));
 
-          name:
-            cat.title ||
-            cat.name ||
-            cat.category_name ||
-            "",
-
-          slug: cat.slug,
-        })
-      );
-
-      setCategories([
-        {
-          id: null,
-          name: "All",
-        },
-        ...formatted,
-      ]);
+      setCategories([{ id: null, name: "All" }, ...formatted]);
     } catch (error) {
       console.error(error);
     }
@@ -623,57 +504,40 @@ export default function Categories() {
       isLoadMore: boolean,
       category: Category,
       sort: SortOption["value"],
-      brandSlug?: string | null
+      brand: Brand | null
     ) => {
       try {
         setProductLoading(true);
 
-        const res: ProductApiResponse =
-          await AllProductsApi({
-            page: pageNumber,
-            limit:
-              pageNumber === 1
-                ? INITIAL_LIMIT
-                : LOAD_MORE_LIMIT,
+        const brandOrCategoryPayload = brand
+          ? { brand_id: brand.id }
+          : category.id !== null
+            ? { category_id: category.id }
+            : {};
 
-            ...(category.id !== null && {
-              category_id: category.id,
-            }),
+        const res: ProductApiResponse = await AllProductsApi({
+          page: pageNumber,
+          limit: pageNumber === 1 ? INITIAL_LIMIT : LOAD_MORE_LIMIT,
+          ...brandOrCategoryPayload,
+        });
 
-            ...(brandSlug && {
-              brand_slug: brandSlug,
-            }),
-          });
-
-        const raw = Array.isArray(
-          res?.data?.data?.data
-        )
+        const raw = Array.isArray(res?.data?.data?.data)
           ? res.data.data.data
           : [];
 
-        const sorted = sortProducts(
-          raw,
-          sort
-        );
+        const sorted = sortProducts(raw, sort);
 
         setProducts((prev) =>
-          isLoadMore
-            ? [...prev, ...sorted]
-            : sorted
+          isLoadMore ? [...prev, ...sorted] : sorted
         );
 
-        setTotalProducts(
-          res?.data?.data?.pagination?.total ?? 0
-        );
+        setTotalProducts(res?.data?.data?.pagination?.total ?? 0);
 
         const more =
           raw.length ===
-          (pageNumber === 1
-            ? INITIAL_LIMIT
-            : LOAD_MORE_LIMIT);
+          (pageNumber === 1 ? INITIAL_LIMIT : LOAD_MORE_LIMIT);
 
         setHasMore(more);
-
         hasMoreRef.current = more;
       } catch (error) {
         console.error(error);
@@ -691,49 +555,33 @@ export default function Categories() {
   // ─────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
+      fetchBrands(),
       fetchCategories(),
-
-      fetchProducts(
-        1,
-        false,
-        {
-          id: null,
-          name: "All",
-        },
-        "popular"
-      ),
+      fetchProducts(1, false, { id: null, name: "All" }, "popular", null),
     ]);
-  }, [fetchCategories, fetchProducts]);
+  }, [fetchBrands, fetchCategories, fetchProducts]);
 
   // ─────────────────────────────────────────────────────────
-  // Category Change
+  // Category / Sort / Brand Change
   // ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (initialLoading) return;
 
     setProductGridLoading(true);
-
-    fetchProducts(
-      1,
-      false,
-      activeCategory,
-      sortBy,
-      activeBrandSlug
-    );
-
+    fetchProducts(1, false, activeCategory, sortBy, activeBrand);
     pageRef.current = 1;
-
     setPage(1);
-  }, [
-    activeCategory,
-    sortBy,
-    activeBrandSlug,
-  ]);
+  }, [activeCategory, sortBy, activeBrand]);
+
+  // ─────────────────────────────────────────────────────────
+  // Category Search
+  // ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!categorySearchInitRef.current) {
       categorySearchInitRef.current = true;
       return;
     }
+
     const runSearch = async () => {
       try {
         setCategoryLoading(true);
@@ -742,8 +590,10 @@ export default function Categories() {
           limit: CATEGORY_LIMIT,
           search: categorySearch,
         });
-        const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
-        const formatted: Category[] = raw.map((cat) => ({
+        const raw = Array.isArray(res?.data?.data?.data)
+          ? res.data.data.data
+          : [];
+        const formatted: Category[] = raw.map((cat: any) => ({
           id: cat.id,
           name: cat.name ?? cat.category_name ?? cat.title ?? "Unnamed",
         }));
@@ -761,41 +611,26 @@ export default function Categories() {
         setCategoryLoading(false);
       }
     };
+
     if (categorySearch.trim()) runSearch();
   }, [categorySearch]);
+
   // ─────────────────────────────────────────────────────────
   // Infinite Scroll
   // ─────────────────────────────────────────────────────────
   useEffect(() => {
     const handleScroll = async () => {
-      if (
-        fetchingRef.current ||
-        !hasMoreRef.current ||
-        productLoading
-      ) {
-        return;
-      }
+      if (fetchingRef.current || !hasMoreRef.current || productLoading) return;
 
       const scrollTop = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const fullHeight = document.documentElement.scrollHeight;
 
-      const windowHeight =
-        window.innerHeight;
-
-      const fullHeight =
-        document.documentElement
-          .scrollHeight;
-
-      if (
-        scrollTop + windowHeight >=
-        fullHeight - 200
-      ) {
+      if (scrollTop + windowHeight >= fullHeight - 200) {
         fetchingRef.current = true;
 
-        const nextPage =
-          pageRef.current + 1;
-
+        const nextPage = pageRef.current + 1;
         pageRef.current = nextPage;
-
         setPage(nextPage);
 
         await fetchProducts(
@@ -803,64 +638,40 @@ export default function Categories() {
           true,
           activeCategoryRef.current,
           sortByRef.current,
-          activeBrandSlug
+          activeBrandRef.current
         );
 
         fetchingRef.current = false;
       }
     };
 
-    window.addEventListener(
-      "scroll",
-      handleScroll,
-      {
-        passive: true,
-      }
-    );
-
-    return () =>
-      window.removeEventListener(
-        "scroll",
-        handleScroll
-      );
-  }, [
-    fetchProducts,
-    activeBrandSlug,
-    productLoading,
-  ]);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [fetchProducts, productLoading]);
 
   // ─────────────────────────────────────────────────────────
   // Handlers
   // ─────────────────────────────────────────────────────────
-  const handleCategorySelect = (
-    cat: Category
-  ) => {
-    setActiveBrandSlug(null);
-
+  const handleCategorySelect = (cat: Category) => {
+    setActiveBrand(null);
+    activeBrandRef.current = null;
     setActiveCategory(cat);
-
     activeCategoryRef.current = cat;
   };
 
-  const handleBrandSelect = (
-    slug: string,
-    brandCategory: Category
-  ) => {
-    setActiveBrandSlug(slug);
-
+  const handleBrandSelect = (brand: Brand) => {
+    setActiveBrand(brand);
+    activeBrandRef.current = brand;
     setBrandMenuOpen(false);
-
-    setActiveCategory(brandCategory);
-
-    activeCategoryRef.current =
-      brandCategory;
   };
+
 
   const handleClearFilter = () => {
     const allCategory: Category = { id: null, name: "All" };
     activeCategoryRef.current = allCategory;
     setActiveCategory(allCategory);
-    setActiveBrandSlug(null);
+    setActiveBrand(null);
+    activeBrandRef.current = null;
     if (categorySearch !== "") setCategorySearch("");
   };
 
@@ -885,348 +696,257 @@ export default function Categories() {
   // ─────────────────────────────────────────────────────────
   // UI
   // ─────────────────────────────────────────────────────────
+  console.log(brandList, "brandList")
   return (
     <div className="cat-root">
       <style>{styles}</style>
 
       {/* Tabs */}
       <div className="cat-tabs-wrap">
-        <div className="cat-tabs-inner">
+        <div className="cat-tabs-wrap">
+          <div className="cat-tabs-inner">
+            {/* Categories */}
+              <div
+              className={`cat-tab ${brandMenuOpen ? "active" : ""}`}
+              onMouseEnter={() => setBrandMenuOpen(true)}
+              onMouseLeave={() => setBrandMenuOpen(false)}
+              style={{ position: "relative" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                Brand
 
-          {categories.map((cat) => {
-            const isBrand =
-              cat.name === BRAND_TAB_NAME;
-
-            const isActive =
-              activeCategory.id === cat.id;
-
-            // BRAND TAB
-            if (isBrand) {
-              return (
-                <div
-                  key={cat.id}
-                  className={`cat-tab ${isActive ||
-                    brandMenuOpen
-                    ? "active"
-                    : ""
-                    }`}
-                  onMouseEnter={() =>
-                    setBrandMenuOpen(true)
-                  }
-                  onMouseLeave={() =>
-                    setBrandMenuOpen(false)
-                  }
+                <svg
+                  className={`brand-chevron ${brandMenuOpen ? "open" : ""}`}
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
                 >
-                  <div
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </div>
+
+              {/* Mega Menu */}
+              <div
+                style={{
+                  position: "fixed",
+                  top: "52px",
+                  left: 0,
+                  width: "100%",
+                  background: "#fff",
+                  borderBottom: "1px solid #e5e7eb",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
+                  opacity: brandMenuOpen ? 1 : 0,
+                  visibility: brandMenuOpen ? "visible" : "hidden",
+                  transform: brandMenuOpen
+                    ? "translateY(0)"
+                    : "translateY(-6px)",
+                  transition:
+                    "opacity .22s ease, transform .22s ease, visibility .22s",
+                  zIndex: 999,
+                  pointerEvents: brandMenuOpen ? "auto" : "none",
+                }}
+              >
+                {/* Header */}
+                <div
+                  style={{
+                    borderBottom: "1px solid #f0f0f0",
+                    padding: "14px 32px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#111",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
                     }}
                   >
-                    {cat.name}
+                    Shop by Brand
+                  </span>
 
-                    <svg
-                      className={`brand-chevron ${brandMenuOpen
-                        ? "open"
-                        : ""
-                        }`}
-                      width="10"
-                      height="10"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                  </div>
+                  <span style={{ fontSize: 12, color: "#aaa" }}>
+                    {brandList.length} brands
+                  </span>
+                </div>
 
-                  {/* MEGA MENU */}
-                  <div
-                    style={{
-                      position: "fixed",
-                      top: "110px",
-                      left: 0,
-                      width: "100%",
-                      background: "#fff",
-                      borderTop:
-                        "1px solid #eee",
-                      borderBottom:
-                        "1px solid #eee",
-                      opacity:
-                        brandMenuOpen
-                          ? 1
-                          : 0,
-                      visibility:
-                        brandMenuOpen
-                          ? "visible"
-                          : "hidden",
-                      transform:
-                        brandMenuOpen
-                          ? "translateY(0px)"
-                          : "translateY(10px)",
-                      transition:
-                        "all .25s ease",
-                      zIndex: 999,
-                      pointerEvents:
-                        brandMenuOpen
-                          ? "auto"
-                          : "none",
-                    }}
-                  >
+                {/* Brands */}
+                <div
+                  style={{
+                    width: "100%",
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    scrollbarWidth: "none",
+                    padding: "20px 32px 24px",
+                  }}
+                >
+                  {brandList.length === 0 ? (
+                    <div style={{ display: "flex", gap: 14 }}>
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            flexShrink: 0,
+                            width: 130,
+                            height: 90,
+                            borderRadius: 14,
+                            background:
+                              "linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)",
+                            backgroundSize: "200% 100%",
+                            animation: "shimmer 1.4s infinite",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
                     <div
                       style={{
-                        maxWidth: 1300,
-                        margin:
-                          "0 auto",
-                        padding:
-                          "40px 30px",
-                        display: "grid",
-                        gridTemplateColumns:
-                          "220px 1fr",
-                        gap: 40,
+                        display: "flex",
+                        gap: 14,
+                        width: "max-content",
                       }}
                     >
-                      {/* LEFT */}
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color:
-                              "#999",
-                            marginBottom: 20,
-                            textTransform:
-                              "uppercase",
-                          }}
-                        >
-                          Featured
-                        </div>
+                      {brandList.map((brand) => {
+                        const isSelected = activeBrand?.id === brand.id;
 
-                        <div
-                          style={{
-                            display:
-                              "flex",
-                            flexDirection:
-                              "column",
-                            gap: 16,
-                          }}
-                        >
-                          <div>
-                            Popular
-                          </div>
-                          <div>
-                            New Arrivals
-                          </div>
-                          <div>
-                            Trending
-                          </div>
-                          <div>
-                            Best Seller
-                          </div>
-                        </div>
-                      </div>
+                        return (
+                          <div
+                            key={brand.id}
+                            onClick={() => handleBrandSelect(brand)}
+                            style={{
+                              flexShrink: 0,
+                              width: 130,
+                              cursor: "pointer",
+                              padding: "14px 12px",
+                              border: `1.5px solid ${isSelected ? "#111" : "#eee"
+                                }`,
+                              borderRadius: 14,
+                              background: isSelected ? "#111" : "#fff",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 48,
+                                height: 48,
+                                position: "relative",
+                                margin: "0 auto 10px",
+                              }}
+                            >
+                              <Image
+                                src={brand.logo}
+                                alt={brand.name}
+                                fill
+                                style={{ objectFit: "contain" }}
+                              />
+                            </div>
 
-                      {/* RIGHT */}
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color:
-                              "#999",
-                            marginBottom: 20,
-                            textTransform:
-                              "uppercase",
-                          }}
-                        >
-                          Shop By Brand
-                        </div>
-
-                        <div
-                          style={{
-                            display:
-                              "grid",
-                            gridTemplateColumns:
-                              "repeat(4,1fr)",
-                            gap: 18,
-                          }}
-                        >
-                          {brandlist.map(
-                            (brand) => (
-                              <div
-                                key={
-                                  brand.id
-                                }
-                                onClick={() =>
-                                  handleBrandSelect(
-                                    brand.slug,
-                                    cat
-                                  )
-                                }
-                                style={{
-                                  cursor:
-                                    "pointer",
-                                  padding: 14,
-                                  border:
-                                    "1px solid #eee",
-                                  borderRadius: 14,
-                                  transition:
-                                    ".2s",
-                                  background:
-                                    activeBrandSlug ===
-                                      brand.slug
-                                      ? "#111"
-                                      : "#fff",
-                                  color:
-                                    activeBrandSlug ===
-                                      brand.slug
-                                      ? "#fff"
-                                      : "#111",
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    width: 42,
-                                    height: 42,
-                                    borderRadius: 12,
-                                    background:
-                                      activeBrandSlug ===
-                                        brand.slug
-                                        ? "#fff"
-                                        : "#f3f3f3",
-                                    display:
-                                      "flex",
-                                    alignItems:
-                                      "center",
-                                    justifyContent:
-                                      "center",
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    marginBottom: 12,
-                                    color:
-                                      "#111",
-                                  }}
-                                >
-                                  {brandInitials(
-                                    brand.name
-                                  )}
-                                </div>
-
-                                <div
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: 500,
-                                  }}
-                                >
-                                  {
-                                    brand.name
-                                  }
-                                </div>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </div>
+                            <div
+                              style={{
+                                textAlign: "center",
+                                fontSize: 13,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {brand.name}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
+                  )}
                 </div>
-              );
-            }
-
-            // NORMAL CATEGORY
-            return (
-              <div
-                key={cat.id}
-                className={`cat-tab ${isActive
-                  ? "active"
-                  : ""
-                  }`}
-                onClick={() =>
-                  handleCategorySelect(cat)
-                }
-              >
-                {cat.name}
               </div>
-            );
-          })}
-        </div>
+            </div>
+            {categories
+              .filter((cat) => cat.name !== BRAND_TAB_NAME)
+              .map((cat) => {
+                const isActive = activeCategory.id === cat.id;
 
-       <div className="cat-tabs-search-wrap">
-  <div className="cat-tabs-search-inner">
-    <span className="cat-tabs-search-icon" aria-hidden="true">
-      <SearchIcon size={15} />
-    </span>
-    <input
-      type="search"
-      className="cat-tabs-search"
-      placeholder="Filter categories…"
-      value={categorySearch}
-      onChange={(e) => setCategorySearch(e.target.value)}
-      aria-label="Filter categories"
-    />
-    {categorySearch && (
-      <button
-        className="cat-tabs-search-clear"
-        aria-label="Clear search"
-        onClick={() => { setCategorySearch(""); handleClearFilter(); }}
-      >
-        ×
-      </button>
-    )}
-  </div>
-</div>
+                return (
+                  <div
+                    key={cat.id}
+                    className={`cat-tab ${isActive ? "active" : ""}`}
+                    onClick={() => handleCategorySelect(cat)}
+                  >
+                    {cat.name}
+                  </div>
+                );
+              })}
+
+            {/* Brand Tab */}
+          
+          </div>
+
+          {/* Search */}
+          <div className="cat-tabs-search-wrap">
+            <div className="cat-tabs-search-inner">
+              <span className="cat-tabs-search-icon">
+                <SearchIcon size={15} />
+              </span>
+
+              <input
+                type="search"
+                className="cat-tabs-search"
+                placeholder="Filter categories…"
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+              />
+
+              {categorySearch && (
+                <button
+                  className="cat-tabs-search-clear"
+                  onClick={() => {
+                    setCategorySearch("");
+                    handleClearFilter();
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
-      {/* Top */}
+
+      {/* Top bar */}
       <div className="cat-topbar">
         <div className="cat-topbar-left">
           <div className="cat-title-wrap">
             <h1 className="cat-heading">
-              {activeBrandSlug
-                ? brandlist.find(
-                  (b) => b.slug === activeBrandSlug
-                )?.name
-                : activeCategory.name}
+              {activeBrand ? activeBrand.name : activeCategory.name}
             </h1>
-
-            <span className="cat-count">
-              {total_products} items
-            </span>
+            <span className="cat-count">{total_products} items</span>
           </div>
 
-          {(activeCategory.id !== null || activeBrandSlug) && (
+          {(activeCategory.id !== null || activeBrand) && (
             <span className="active-filter-pill">
-              {activeBrandSlug
-                ? brandlist.find(
-                  (b) => b.slug === activeBrandSlug
-                )?.name
-                : activeCategory.name}
-
-              <button onClick={handleClearFilter}>
-                ×
-              </button>
+              {activeBrand ? activeBrand.name : activeCategory.name}
+              <button onClick={handleClearFilter}>×</button>
             </span>
           )}
         </div>
 
         <div className="cat-topbar-right">
           <label className="sort-label">Sort By</label>
-
           <select
             value={sortBy}
-            onChange={(e) =>
-              setSortBy(
-                e.target.value as SortOption["value"]
-              )
-            }
+            onChange={(e) => setSortBy(e.target.value as SortOption["value"])}
             className="sort-select"
           >
             {sortOptions.map((item) => (
-              <option
-                key={item.value}
-                value={item.value}
-              >
+              <option key={item.value} value={item.value}>
                 {item.label}
               </option>
             ))}
@@ -1237,36 +957,21 @@ export default function Categories() {
       {/* Products */}
       <div className="products-area">
         {productGridLoading ? (
-          <div
-            style={{
-              display: "flex",
-              justifyContent:
-                "center",
-              padding: "100px 0",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "center", padding: "100px 0" }}>
             <div className="spinner" />
           </div>
         ) : products.length > 0 ? (
           <>
-            <ProductGrid
-              products={products}
-            />
-
-            {productLoading &&
-              page > 1 && (
-                <div className="products-load-more">
-                  <div className="spinner" />
-                  Loading more...
-                </div>
-              )}
+            <ProductGrid products={products} />
+            {productLoading && page > 1 && (
+              <div className="products-load-more">
+                <div className="spinner" />
+                Loading more...
+              </div>
+            )}
           </>
         ) : (
-          <EmptyProducts
-            reset={
-              handleClearFilter
-            }
-          />
+          <EmptyProducts reset={handleClearFilter} />
         )}
       </div>
     </div>

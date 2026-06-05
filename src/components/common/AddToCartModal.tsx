@@ -14,6 +14,8 @@ interface AddToCartModalProps {
   price: number;
   name: string;
   initialQuantity?: number;
+  printPricePerPiece?: number;
+  digitizingFee?: number;
   onSuccess?: () => void;
   customization?: string;
   canvasBlob?: Blob | null;
@@ -27,6 +29,8 @@ export default function AddToCartModal({
   price,
   name,
   initialQuantity = 1,
+  printPricePerPiece = 0,
+  digitizingFee = 0,
   onSuccess,
   customization,
   canvasBlob,
@@ -42,7 +46,6 @@ export default function AddToCartModal({
       setQuantity(initialQuantity);
       setError(null);
       setSuccess(false);
-      // slight delay so CSS transition fires
       requestAnimationFrame(() => setVisible(true));
     } else {
       setVisible(false);
@@ -51,13 +54,13 @@ export default function AddToCartModal({
 
   if (!open) return null;
 
+  const garmentTotal    = price * quantity;
+  const decorationTotal = printPricePerPiece * quantity;
+  const grandTotal      = garmentTotal + decorationTotal + digitizingFee;
+
   const parsedCustomization = (() => {
     if (!customization) return null;
-    try {
-      return JSON.parse(customization);
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(customization); } catch { return null; }
   })();
 
   const methodLabel = parsedCustomization?.print_method
@@ -66,8 +69,6 @@ export default function AddToCartModal({
   const locationLabel = parsedCustomization?.locations?.[0]?.id
     ? parsedCustomization.locations[0].id.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
     : null;
-
-  const total = price * quantity;
 
   const handleAddToCart = async () => {
     try {
@@ -82,10 +83,7 @@ export default function AddToCartModal({
       });
       setSuccess(true);
       onSuccess?.();
-      setTimeout(() => {
-        setSuccess(false);
-        onClose();
-      }, 1600);
+      setTimeout(() => { setSuccess(false); onClose(); }, 1600);
     } catch (err: any) {
       setError(err?.response?.data?.message || err?.message || "Something went wrong. Please try again.");
     } finally {
@@ -98,7 +96,6 @@ export default function AddToCartModal({
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: "rgba(10,20,13,0.65)", backdropFilter: "blur(8px)" }}
     >
-      {/* Sheet slides up on mobile, scales in on desktop */}
       <div
         className={cn(
           "w-full sm:max-w-[420px] bg-white overflow-hidden transition-all duration-300 ease-out",
@@ -114,7 +111,6 @@ export default function AddToCartModal({
               <div className="w-20 h-20 rounded-full bg-[#e8f5ec] flex items-center justify-center mb-4">
                 <CheckCircle2 size={40} className="text-[#2d6a45]" strokeWidth={1.8} />
               </div>
-              {/* Ripple rings */}
               <div className="absolute inset-0 rounded-full border-2 border-[#2d6a45]/20 animate-ping" />
             </div>
             <p className="text-xl font-bold text-[#1a2e1e] tracking-tight">Added to cart!</p>
@@ -125,11 +121,8 @@ export default function AddToCartModal({
         {/* ═══ DARK HERO HEADER ═══ */}
         <div
           className="relative px-6 pt-6 pb-5 overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, #1a2e1e 0%, #2d4a35 55%, #1e3828 100%)",
-          }}
+          style={{ background: "linear-gradient(135deg, #1a2e1e 0%, #2d4a35 55%, #1e3828 100%)" }}
         >
-          {/* Subtle texture dots */}
           <div
             className="absolute inset-0 opacity-[0.04]"
             style={{
@@ -137,9 +130,9 @@ export default function AddToCartModal({
               backgroundSize: "20px 20px",
             }}
           />
-          {/* Glow blob */}
           <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-[#4a7a58]/30 blur-2xl" />
 
+          {/* Title row */}
           <div className="relative flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center backdrop-blur-sm">
@@ -158,21 +151,36 @@ export default function AddToCartModal({
             </button>
           </div>
 
-          {/* Price display inside header */}
-          <div className="relative mt-5 flex items-end justify-between">
-            <div>
-              <p className="text-[11px] text-white/40 font-medium mb-0.5">Order total</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-black text-white tracking-tight">${total.toFixed(2)}</span>
-                {quantity > 1 && (
-                  <span className="text-[12px] text-white/40 font-medium pb-0.5">${price.toFixed(2)} × {quantity}</span>
-                )}
-              </div>
+          {/* Price breakdown */}
+          <div className="relative mt-5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-white/50">Garment ({quantity} × ${price.toFixed(2)})</span>
+              <span className="text-[12px] text-white/80 font-bold">${garmentTotal.toFixed(2)}</span>
             </div>
-            {/* Per-piece pill */}
-            <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-xl px-3 py-1.5">
-              <Package size={12} className="text-white/50" />
-              <span className="text-[11px] text-white/70 font-semibold">${price.toFixed(2)}/pc</span>
+
+            {decorationTotal > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-white/50">Decoration ({quantity} × ${printPricePerPiece.toFixed(2)})</span>
+                <span className="text-[12px] text-white/80 font-bold">${decorationTotal.toFixed(2)}</span>
+              </div>
+            )}
+
+            {digitizingFee > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-white/50">Digitizing fee (one-time)</span>
+                <span className="text-[12px] text-white/80 font-bold">${digitizingFee.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-white/10 flex items-end justify-between">
+              <div>
+                <p className="text-[11px] text-white/40 font-medium mb-0.5">Order total</p>
+                <span className="text-3xl font-black text-white tracking-tight">${grandTotal.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-xl px-3 py-1.5">
+                <Package size={12} className="text-white/50" />
+                <span className="text-[11px] text-white/70 font-semibold">${(grandTotal / quantity).toFixed(2)}/pc</span>
+              </div>
             </div>
           </div>
         </div>
@@ -180,7 +188,7 @@ export default function AddToCartModal({
         {/* ═══ BODY ═══ */}
         <div className="px-6 pt-5 pb-2 space-y-4">
 
-          {/* Customization pill — only if present */}
+          {/* Customization pill */}
           {parsedCustomization && (
             <div className="flex items-center gap-3 rounded-2xl border border-[#d5e8da] bg-gradient-to-r from-[#f0f8f2] to-[#eaf5ed] px-4 py-3">
               <div className="w-8 h-8 rounded-xl bg-[#2d4a35] flex items-center justify-center flex-shrink-0">
@@ -200,10 +208,10 @@ export default function AddToCartModal({
             </div>
           )}
 
-          {/* ── Quantity control ── */}
+          {/* Quantity control */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#9aafA0]">Quantity</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#9aafa0]">Quantity</p>
               {quantity !== initialQuantity && (
                 <button
                   onClick={() => setQuantity(initialQuantity)}
@@ -221,9 +229,7 @@ export default function AddToCartModal({
                 disabled={quantity <= 1}
                 className={cn(
                   "w-12 h-14 flex items-center justify-center flex-shrink-0 transition-all",
-                  quantity <= 1
-                    ? "text-[#c5d9ca] cursor-not-allowed"
-                    : "text-[#2d4a35] hover:bg-[#e8f0ea] active:scale-90"
+                  quantity <= 1 ? "text-[#c5d9ca] cursor-not-allowed" : "text-[#2d4a35] hover:bg-[#e8f0ea] active:scale-90"
                 )}
               >
                 <Minus size={16} strokeWidth={2.5} />
@@ -251,9 +257,9 @@ export default function AddToCartModal({
               </button>
             </div>
 
-            {/* Quick-select row */}
+            {/* Quick-select presets matching customizer tier breakpoints */}
             <div className="flex gap-1.5 mt-2.5 flex-wrap">
-              {[1, 6, 12, 24, 48].map((q) => (
+              {[1, 12, 24, 36, 72, 144].map((q) => (
                 <button
                   key={q}
                   onClick={() => setQuantity(q)}
@@ -281,7 +287,6 @@ export default function AddToCartModal({
 
         {/* ═══ FOOTER ═══ */}
         <div className="px-6 pb-6 pt-3 flex flex-col gap-2.5">
-          {/* Main CTA */}
           <button
             onClick={handleAddToCart}
             disabled={loading || success}
@@ -295,12 +300,10 @@ export default function AddToCartModal({
                 : "bg-[#1a2e1e] hover:bg-[#243d28] active:scale-[0.98] shadow-lg shadow-[#1a2e1e]/30"
             )}
           >
-            {/* Shine effect on hover */}
             {!loading && !success && (
-              <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300"
-                style={{
-                  background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.07) 50%, transparent 60%)",
-                }}
+              <div
+                className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300"
+                style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.07) 50%, transparent 60%)" }}
               />
             )}
             {success ? (
@@ -311,12 +314,11 @@ export default function AddToCartModal({
               <>
                 <ShoppingCart size={17} strokeWidth={1.8} />
                 Add to Cart
-                <span className="ml-auto text-white/60 text-sm font-semibold">${total.toFixed(2)}</span>
+                <span className="ml-auto text-white/60 text-sm font-semibold">${grandTotal.toFixed(2)}</span>
               </>
             )}
           </button>
 
-          {/* Cancel — text only, understated */}
           <button
             onClick={onClose}
             className="w-full h-10 text-[13px] font-semibold text-[#8fa989] hover:text-[#2d4a35] transition-colors"

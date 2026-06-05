@@ -23,7 +23,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ProductGallery({
   attachments = [],
-  badge = "New Arrival",
+
   onActiveChange,
 }: Props) {
   const [active, setActive] = useState(0);
@@ -146,12 +146,7 @@ export default function ProductGallery({
               {/* Subtle vignette */}
               <div className="absolute inset-0 shadow-[inset_0_0_60px_rgba(0,0,0,0.04)] pointer-events-none rounded-2xl" />
 
-              {/* Badge */}
-              {badge && (
-                <span className="absolute top-3.5 left-3.5 bg-[#2d4a35] text-white text-[9px] font-bold uppercase tracking-[0.12em] px-3 py-1.5 rounded-full z-10 shadow-lg">
-                  {badge}
-                </span>
-              )}
+          
 
               {/* Fullscreen button */}
               {/* <button
