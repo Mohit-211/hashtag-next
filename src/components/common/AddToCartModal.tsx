@@ -1,8 +1,17 @@
-// components/common/AddToCartModal.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { X, ShoppingCart, Loader2, CheckCircle2, Plus, Minus, Sparkles, Package, RotateCcw } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  X,
+  ShoppingCart,
+  Loader2,
+  CheckCircle,
+  Plus,
+  Minus,
+  Sparkles,
+  Package,
+  RotateCcw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
 
@@ -20,6 +29,8 @@ interface AddToCartModalProps {
   customization?: string;
   canvasBlob?: Blob | null;
 }
+
+const PRESETS = [1, 12, 24, 36, 72, 144];
 
 export default function AddToCartModal({
   open,
@@ -52,23 +63,42 @@ export default function AddToCartModal({
     }
   }, [open, initialQuantity]);
 
-  if (!open) return null;
-
-  const garmentTotal    = price * quantity;
+  const garmentTotal = price * quantity;
   const decorationTotal = printPricePerPiece * quantity;
-  const grandTotal      = garmentTotal + decorationTotal + digitizingFee;
+  const grandTotal = garmentTotal + decorationTotal + digitizingFee;
+  const perPiece = grandTotal / quantity;
 
   const parsedCustomization = (() => {
     if (!customization) return null;
-    try { return JSON.parse(customization); } catch { return null; }
+    try {
+      return JSON.parse(customization);
+    } catch {
+      return null;
+    }
   })();
 
   const methodLabel = parsedCustomization?.print_method
-    ? parsedCustomization.print_method.charAt(0) + parsedCustomization.print_method.slice(1).toLowerCase()
+    ? parsedCustomization.print_method.charAt(0).toUpperCase() +
+      parsedCustomization.print_method.slice(1).toLowerCase()
     : null;
+
   const locationLabel = parsedCustomization?.locations?.[0]?.id
-    ? parsedCustomization.locations[0].id.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+    ? parsedCustomization.locations[0].id
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, (c: string) => c.toUpperCase())
     : null;
+
+  const customizationDetail =
+    [methodLabel, locationLabel].filter(Boolean).join(" · ") ||
+    "Customized product";
+
+  const handleQuantityInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = parseInt(e.target.value) || 1;
+      setQuantity(Math.max(1, val));
+    },
+    []
+  );
 
   const handleAddToCart = async () => {
     try {
@@ -83,139 +113,176 @@ export default function AddToCartModal({
       });
       setSuccess(true);
       onSuccess?.();
-      setTimeout(() => { setSuccess(false); onClose(); }, 1600);
+      setTimeout(() => {
+        setSuccess(false);
+        onClose();
+      }, 1600);
     } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || "Something went wrong. Please try again.");
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Something went wrong. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  if (!open) return null;
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add to cart"
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: "rgba(10,20,13,0.65)", backdropFilter: "blur(8px)" }}
+      style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
     >
       <div
         className={cn(
-          "w-full sm:max-w-[420px] bg-white overflow-hidden transition-all duration-300 ease-out",
-          "rounded-t-[2rem] sm:rounded-[2rem]",
-          "shadow-[0_-8px_40px_rgba(0,0,0,0.18)] sm:shadow-[0_20px_80px_rgba(0,0,0,0.28)]",
-          visible ? "translate-y-0 opacity-100 scale-100" : "translate-y-8 opacity-0 sm:scale-95"
+          "relative w-full sm:max-w-[400px] bg-white overflow-hidden",
+          "rounded-t-[20px] sm:rounded-[20px]",
+          "shadow-[0_-4px_32px_rgba(0,0,0,0.12)] sm:shadow-[0_8px_48px_rgba(0,0,0,0.18)]",
+          "transition-all duration-300 ease-out",
+          visible
+            ? "translate-y-0 opacity-100 sm:scale-100"
+            : "translate-y-6 opacity-0 sm:scale-95"
         )}
       >
-        {/* ═══ SUCCESS OVERLAY ═══ */}
-        {success && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white rounded-[2rem]">
-            <div className="relative">
-              <div className="w-20 h-20 rounded-full bg-[#e8f5ec] flex items-center justify-center mb-4">
-                <CheckCircle2 size={40} className="text-[#2d6a45]" strokeWidth={1.8} />
-              </div>
-              <div className="absolute inset-0 rounded-full border-2 border-[#2d6a45]/20 animate-ping" />
-            </div>
-            <p className="text-xl font-bold text-[#1a2e1e] tracking-tight">Added to cart!</p>
-            <p className="text-sm text-[#8fa989] mt-1">{quantity} × {name}</p>
-          </div>
-        )}
-
-        {/* ═══ DARK HERO HEADER ═══ */}
+        {/* ── SUCCESS OVERLAY ── */}
         <div
-          className="relative px-6 pt-6 pb-5 overflow-hidden"
-          style={{ background: "linear-gradient(135deg, #1a2e1e 0%, #2d4a35 55%, #1e3828 100%)" }}
+          className={cn(
+            "absolute inset-0 z-10 flex flex-col items-center justify-center gap-3",
+            "bg-white rounded-[20px] transition-opacity duration-250",
+            success ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
         >
-          <div
-            className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
-            }}
-          />
-          <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-[#4a7a58]/30 blur-2xl" />
+          <div className="w-16 h-16 rounded-full bg-[#F5D800] flex items-center justify-center">
+            <CheckCircle size={30} className="text-[#111111]" strokeWidth={2} />
+          </div>
+          <p className="text-lg font-medium text-[#111111]">Added to cart!</p>
+          <p className="text-sm text-[#111111]/50">
+            {quantity} × {name}
+          </p>
+        </div>
 
+        {/* ── HEADER ── */}
+        <div className="bg-[#F5D800] px-5 pt-5 pb-4">
           {/* Title row */}
-          <div className="relative flex items-start justify-between">
+          <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center backdrop-blur-sm">
-                <ShoppingCart size={18} className="text-white" strokeWidth={1.8} />
+              <div className="w-9 h-9 rounded-[10px] bg-[#111111] flex items-center justify-center flex-shrink-0">
+                <ShoppingCart size={16} className="text-[#F5D800]" strokeWidth={2.2} />
               </div>
               <div>
-                <p className="text-[11px] font-semibold text-white/50 uppercase tracking-[0.12em] mb-0.5">Confirm Order</p>
-                <p className="text-base font-bold text-white leading-tight tracking-tight">{name}</p>
+                <p className="text-[10px] font-medium text-[#111111]/50 uppercase tracking-[0.16em] mb-0.5">
+                  Confirm order
+                </p>
+                <p className="text-[15px] font-medium text-[#111111] leading-tight">
+                  {name}
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-all"
+              aria-label="Close"
+              className="w-8 h-8 rounded-[8px] bg-[#111111]/10 border border-[#111111]/15 flex items-center justify-center text-[#111111]/50 hover:text-[#111111] hover:bg-[#111111]/18 transition-all"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           </div>
 
           {/* Price breakdown */}
-          <div className="relative mt-5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] text-white/50">Garment ({quantity} × ${price.toFixed(2)})</span>
-              <span className="text-[12px] text-white/80 font-bold">${garmentTotal.toFixed(2)}</span>
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] text-[#111111]/50">
+                Garment ({quantity} × ${price.toFixed(2)})
+              </span>
+              <span className="text-[11px] font-medium text-[#111111]/80">
+                ${garmentTotal.toFixed(2)}
+              </span>
             </div>
 
             {decorationTotal > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-white/50">Decoration ({quantity} × ${printPricePerPiece.toFixed(2)})</span>
-                <span className="text-[12px] text-white/80 font-bold">${decorationTotal.toFixed(2)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-[#111111]/50">
+                  Decoration ({quantity} × ${printPricePerPiece.toFixed(2)})
+                </span>
+                <span className="text-[11px] font-medium text-[#111111]/80">
+                  ${decorationTotal.toFixed(2)}
+                </span>
               </div>
             )}
 
             {digitizingFee > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-white/50">Digitizing fee (one-time)</span>
-                <span className="text-[12px] text-white/80 font-bold">${digitizingFee.toFixed(2)}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-[11px] text-[#111111]/50">
+                  Digitizing fee (one-time)
+                </span>
+                <span className="text-[11px] font-medium text-[#111111]/80">
+                  ${digitizingFee.toFixed(2)}
+                </span>
               </div>
             )}
 
-            <div className="pt-2 border-t border-white/10 flex items-end justify-between">
+            {/* Total */}
+            <div className="flex items-end justify-between border-t border-[#111111]/15 pt-3 mt-2">
               <div>
-                <p className="text-[11px] text-white/40 font-medium mb-0.5">Order total</p>
-                <span className="text-3xl font-black text-white tracking-tight">${grandTotal.toFixed(2)}</span>
+                <p className="text-[10px] font-medium text-[#111111]/40 uppercase tracking-[0.1em] mb-1">
+                  Order total
+                </p>
+                <p className="text-[32px] font-medium text-[#111111] leading-none">
+                  ${grandTotal.toFixed(2)}
+                </p>
               </div>
-              <div className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-xl px-3 py-1.5">
-                <Package size={12} className="text-white/50" />
-                <span className="text-[11px] text-white/70 font-semibold">${(grandTotal / quantity).toFixed(2)}/pc</span>
+              <div className="flex items-center gap-1.5 bg-[#111111]/10 border border-[#111111]/15 rounded-[10px] px-2.5 py-1.5">
+                <Package size={12} className="text-[#111111]" />
+                <span className="text-[11px] font-medium text-[#111111]">
+                  ${perPiece.toFixed(2)}/pc
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* ═══ BODY ═══ */}
-        <div className="px-6 pt-5 pb-2 space-y-4">
+        {/* Divider */}
+        <div className="h-[1.5px] bg-[#111111]" />
+
+        {/* ── BODY ── */}
+        <div className="px-5 pt-4 pb-2 space-y-4 bg-white">
 
           {/* Customization pill */}
           {parsedCustomization && (
-            <div className="flex items-center gap-3 rounded-2xl border border-[#d5e8da] bg-gradient-to-r from-[#f0f8f2] to-[#eaf5ed] px-4 py-3">
-              <div className="w-8 h-8 rounded-xl bg-[#2d4a35] flex items-center justify-center flex-shrink-0">
-                <Sparkles size={14} className="text-white" />
+            <div className="flex items-center gap-3 rounded-[12px] border border-black/10 bg-black/[0.03] px-3.5 py-2.5">
+              <div className="w-8 h-8 rounded-[9px] bg-[#111111] flex items-center justify-center flex-shrink-0">
+                <Sparkles size={13} className="text-[#F5D800]" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-bold text-[#1a3020] tracking-wide">Custom Design</p>
-                <p className="text-[11px] text-[#4a7a58] truncate mt-0.5">
-                  {[methodLabel, locationLabel].filter(Boolean).join("  ·  ") || "Customized product"}
+                <p className="text-[10px] font-medium text-[#111111] uppercase tracking-[0.08em]">
+                  Custom design
+                </p>
+                <p className="text-[11px] text-[#111111]/50 truncate mt-0.5">
+                  {customizationDetail}
                 </p>
               </div>
               {canvasBlob && (
-                <span className="flex-shrink-0 text-[10px] font-bold text-[#2d4a35] bg-white border border-[#b8d9c0] px-2.5 py-1 rounded-full">
+                <span className="flex-shrink-0 text-[10px] font-medium text-[#F5D800] bg-[#111111] px-2 py-1 rounded-full">
                   PNG ✓
                 </span>
               )}
             </div>
           )}
 
-          {/* Quantity control */}
+          {/* Quantity */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#9aafa0]">Quantity</p>
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#111111]/40">
+                Quantity
+              </p>
               {quantity !== initialQuantity && (
                 <button
                   onClick={() => setQuantity(initialQuantity)}
-                  className="flex items-center gap-1 text-[10px] text-[#2d4a35] font-semibold hover:underline"
+                  className="flex items-center gap-1 text-[10px] font-medium text-[#111111] hover:underline"
                 >
                   <RotateCcw size={10} />
                   Reset to {initialQuantity}
@@ -223,51 +290,57 @@ export default function AddToCartModal({
               )}
             </div>
 
-            <div className="flex items-center bg-[#f4f8f5] rounded-2xl border border-[#ddeae0] overflow-hidden">
+            {/* Stepper */}
+            <div className="flex items-center border border-black/10 rounded-[12px] overflow-hidden bg-black/[0.025]">
               <button
                 onClick={() => setQuantity((p) => Math.max(1, p - 1))}
                 disabled={quantity <= 1}
+                aria-label="Decrease quantity"
                 className={cn(
-                  "w-12 h-14 flex items-center justify-center flex-shrink-0 transition-all",
-                  quantity <= 1 ? "text-[#c5d9ca] cursor-not-allowed" : "text-[#2d4a35] hover:bg-[#e8f0ea] active:scale-90"
+                  "w-12 h-[52px] flex items-center justify-center flex-shrink-0 transition-all",
+                  quantity <= 1
+                    ? "text-black/15 cursor-not-allowed"
+                    : "text-[#111111] hover:bg-black/6 active:scale-90"
                 )}
               >
-                <Minus size={16} strokeWidth={2.5} />
+                <Minus size={15} strokeWidth={2.5} />
               </button>
 
-              <div className="flex-1 flex flex-col items-center justify-center py-1">
+              <div className="flex-1 flex flex-col items-center justify-center border-x border-black/10 py-1">
                 <input
                   type="number"
                   min={1}
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-full text-center text-[28px] font-black text-[#1a2e1e] border-0 outline-none bg-transparent leading-none"
+                  onChange={handleQuantityInput}
+                  aria-label="Quantity"
+                  className="w-full text-center text-[26px] font-medium text-[#111111] bg-transparent border-0 outline-none leading-none"
                   style={{ fontVariantNumeric: "tabular-nums" }}
                 />
-                <p className="text-[10px] text-[#a0b8a6] font-medium mt-0.5">
+                <p className="text-[10px] text-black/30 mt-0.5">
                   {quantity === initialQuantity ? "from your selection" : "adjusted"}
                 </p>
               </div>
 
               <button
                 onClick={() => setQuantity((p) => p + 1)}
-                className="w-12 h-14 flex items-center justify-center flex-shrink-0 text-[#2d4a35] hover:bg-[#e8f0ea] active:scale-90 transition-all"
+                aria-label="Increase quantity"
+                className="w-12 h-[52px] flex items-center justify-center flex-shrink-0 text-[#111111] hover:bg-black/6 active:scale-90 transition-all"
               >
-                <Plus size={16} strokeWidth={2.5} />
+                <Plus size={15} strokeWidth={2.5} />
               </button>
             </div>
 
-            {/* Quick-select presets matching customizer tier breakpoints */}
-            <div className="flex gap-1.5 mt-2.5 flex-wrap">
-              {[1, 12, 24, 36, 72, 144].map((q) => (
+            {/* Presets */}
+            <div className="flex gap-1.5 mt-2 flex-wrap">
+              {PRESETS.map((q) => (
                 <button
                   key={q}
                   onClick={() => setQuantity(q)}
                   className={cn(
-                    "h-7 px-3 rounded-lg text-[11px] font-bold transition-all",
+                    "h-7 px-3 rounded-[8px] text-[11px] font-medium transition-all",
                     quantity === q
-                      ? "bg-[#2d4a35] text-white"
-                      : "bg-[#f0f5f1] text-[#4a7a58] hover:bg-[#e3ede5] border border-[#ddeae0]"
+                      ? "bg-[#111111] text-[#F5D800]"
+                      : "bg-black/5 text-black/40 border border-black/8 hover:text-[#111111] hover:bg-black/8"
                   )}
                 >
                   {q}
@@ -278,50 +351,52 @@ export default function AddToCartModal({
 
           {/* Error */}
           {error && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-              <div className="w-4 h-4 rounded-full bg-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-red-700 font-medium leading-relaxed">{error}</p>
+            <div className="flex items-start gap-2.5 rounded-[10px] border border-red-300/50 bg-red-50 px-3.5 py-3">
+              <div className="w-3.5 h-3.5 rounded-full bg-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[12px] text-red-600 leading-relaxed">{error}</p>
             </div>
           )}
         </div>
 
-        {/* ═══ FOOTER ═══ */}
-        <div className="px-6 pb-6 pt-3 flex flex-col gap-2.5">
+        {/* ── FOOTER ── */}
+        <div className="px-5 pb-5 pt-3 flex flex-col gap-2 bg-white">
           <button
             onClick={handleAddToCart}
             disabled={loading || success}
             className={cn(
-              "relative w-full h-[54px] rounded-2xl text-white font-bold text-[15px] tracking-tight",
-              "flex items-center justify-center gap-2.5 overflow-hidden transition-all duration-200",
-              success
-                ? "bg-emerald-500"
-                : loading
-                ? "bg-[#2d4a35]/60 cursor-not-allowed"
-                : "bg-[#1a2e1e] hover:bg-[#243d28] active:scale-[0.98] shadow-lg shadow-[#1a2e1e]/30"
+              "relative w-full h-[52px] rounded-[14px] text-[14px] font-medium",
+              "flex items-center justify-between px-4 gap-2 transition-all duration-200",
+              loading || success
+                ? "bg-black/10 text-black/30 cursor-not-allowed"
+                : "bg-[#111111] text-[#F5D800] hover:bg-[#222222] hover:-translate-y-px active:scale-[0.98]"
             )}
           >
-            {!loading && !success && (
-              <div
-                className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300"
-                style={{ background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.07) 50%, transparent 60%)" }}
-              />
-            )}
             {success ? (
-              <><CheckCircle2 size={18} strokeWidth={2} /> Added to cart!</>
+              <>
+                <CheckCircle size={16} strokeWidth={2} />
+                Added to cart!
+              </>
             ) : loading ? (
-              <><Loader2 size={17} className="animate-spin" /> Processing...</>
+              <>
+                <Loader2 size={15} className="animate-spin" />
+                Processing...
+              </>
             ) : (
               <>
-                <ShoppingCart size={17} strokeWidth={1.8} />
-                Add to Cart
-                <span className="ml-auto text-white/60 text-sm font-semibold">${grandTotal.toFixed(2)}</span>
+                <span className="flex items-center gap-2 flex-1 justify-start">
+                  <ShoppingCart size={15} strokeWidth={2.2} />
+                  Add to cart
+                </span>
+                <span className="text-[#F5D800]/50 text-[13px]">
+                  ${grandTotal.toFixed(2)}
+                </span>
               </>
             )}
           </button>
 
           <button
             onClick={onClose}
-            className="w-full h-10 text-[13px] font-semibold text-[#8fa989] hover:text-[#2d4a35] transition-colors"
+            className="w-full h-9 text-[13px] text-black/30 hover:text-black/60 transition-colors rounded-[10px]"
           >
             Cancel
           </button>

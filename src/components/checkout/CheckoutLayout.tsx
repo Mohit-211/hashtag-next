@@ -14,6 +14,7 @@ import {
 import {
   CreateOrderApi,
   CreateShipmentLabelApi,
+  GetAllOrderApi,
 } from "@/api/operations/order.api";
 
 import { GetAddressApi } from "@/api/operations/address.api";
@@ -94,7 +95,7 @@ export default function CheckoutLayout() {
 
   const [selectedRate, setSelectedRate] =
     useState<ShippingRate | null>(null);
-
+  console.log(selectedRate, "selectedRate")
   const [processing, setProcessing] =
     useState(false);
 
@@ -167,7 +168,7 @@ export default function CheckoutLayout() {
 
           setSelectedAddressId(
             defaultAddress?.id ??
-              list[0].id
+            list[0].id
           );
         }
       } catch (err) {
@@ -215,74 +216,53 @@ export default function CheckoutLayout() {
     },
     []
   );
+  const fetchOrders = async () => {
+    try {
+      const response = await GetAllOrderApi();
+      const orderData = response?.data?.data?.data || [];
+    } catch (error) {
+      console.error("Failed to fetch orders:", error);
+    } finally {
+    }
+  };
 
   // ─────────────────────────────────────────────
   // CONFIRM SHIPPING
   // ─────────────────────────────────────────────
-  const handleConfirmShipping =
-    useCallback(async () => {
-      try {
-        setOrderError(null);
-        setProcessing(true);
+const handleConfirmShipping = useCallback(async () => {
+  try {
+    setOrderError(null);
+    setProcessing(true);
 
-        if (!selectedAddressId) {
-          throw new Error(
-            "Please select address"
-          );
-        }
+    if (!selectedAddressId) throw new Error("Please select address");
+    if (!selectedRate) throw new Error("Please select shipping");
 
-        if (!selectedRate) {
-          throw new Error(
-            "Please select shipping"
-          );
-        }
+    const orderResponse = await CreateOrderApi({
+      address_id: selectedAddressId,
+      selected_service_code: selectedRate.service_code,
+      selected_carrier_code: selectedRate.carrier_code,
+      shipping_amount: selectedRate.price ?? 0,
+    });
 
-        const orderResponse =
-          await CreateOrderApi({
-            address_id:
-              selectedAddressId,
+    const orderId = orderResponse?.data?.data?.id;
+    if (!orderId) throw new Error("Order creation failed");
 
-            selected_service_code:
-              selectedRate.service_code,
+    setCreatedOrderId(orderId);
 
-            selected_carrier_code:
-              selectedRate.carrier_code,
+    await CreateShipmentLabelApi({ order_id: orderId });
 
-            shipping_amount:
-              selectedRate.price ?? 0,
-          });
+    await refreshCart(); // ← replaces fetchOrders(), actually updates OrderSummary
 
-        const orderId =
-          orderResponse?.data?.data?.id;
-
-        if (!orderId) {
-          throw new Error(
-            "Order creation failed"
-          );
-        }
-
-        setCreatedOrderId(orderId);
-
-        await CreateShipmentLabelApi({
-          order_id: orderId,
-        });
-
-        setStep("payment");
-      } catch (err: any) {
-        console.error(err);
-
-        setOrderError(
-          err?.response?.data?.message ||
-            err?.message ||
-            "Something went wrong"
-        );
-      } finally {
-        setProcessing(false);
-      }
-    }, [
-      selectedAddressId,
-      selectedRate,
-    ]);
+    setStep("payment");
+  } catch (err: any) {
+    console.error(err);
+    setOrderError(
+      err?.response?.data?.message || err?.message || "Something went wrong"
+    );
+  } finally {
+    setProcessing(false);
+  }
+}, [selectedAddressId, selectedRate, refreshCart]); // ← add refreshCart to deps
 
   // ─────────────────────────────────────────────
   // PLACE ORDER
@@ -342,8 +322,8 @@ export default function CheckoutLayout() {
 
       setOrderError(
         err?.response?.data?.message ||
-          err?.message ||
-          "Payment failed"
+        err?.message ||
+        "Payment failed"
       );
 
       setStep("payment");

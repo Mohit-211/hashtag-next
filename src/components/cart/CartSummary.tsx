@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-
+import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -18,70 +18,56 @@ export default function CartSummary({
 }: Props) {
   const router = useRouter();
 
-  const finalTotal = grandTotal;
-
-  const handleCheckout = () => {
-    // ✅ direct redirect to checkout page
-    router.push("/checkout");
-  };
-
   return (
     <div className="lg:col-span-1">
-      <div className="sticky top-24 bg-card border border-border rounded-xl p-6 space-y-4">
+      <div className="sticky top-24 bg-card border border-border rounded-2xl p-6 space-y-5">
         
-        {/* Heading */}
-        <h2 className="font-heading font-bold text-lg">
+        <h2 className="font-heading text-xl font-semibold tracking-tight">
           Order Summary
         </h2>
 
-        {/* Price Details */}
-        <div className="space-y-2">
+        {/* Line items */}
+        <div className="space-y-2.5">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Subtotal</span>
-
-            <span>${subtotal}</span>
+            <span>${subtotal.toFixed(2)}</span>
           </div>
 
           {customizationTotal > 0 && (
             <div className="flex justify-between text-sm text-muted-foreground">
               <span>Customization</span>
-
-              <span>
-                +${customizationTotal}
-              </span>
+              <span className="text-primary">+${customizationTotal.toFixed(2)}</span>
             </div>
           )}
+
+         
         </div>
 
-        {/* Total */}
-        <div className="border-t border-border pt-3 flex justify-between font-heading font-bold">
-          <span>Total</span>
+        {/* Divider */}
+        <div className="border-t border-border" />
 
-          <span className="text-primary text-xl">
-            ${finalTotal}
+        {/* Total */}
+        <div className="flex justify-between items-baseline">
+          <span className="font-medium text-base">Total</span>
+          <span className="font-heading text-2xl font-bold">
+            ${grandTotal.toFixed(2)}
           </span>
         </div>
 
-        {/* Buttons */}
-        <div className="space-y-2 pt-2">
+
+        {/* CTAs */}
+        <div className="space-y-2 pt-1">
           <Button
             variant="hero"
             size="lg"
             className="w-full"
-            onClick={handleCheckout}
+            onClick={() => router.push("/checkout")}
           >
-            Proceed to Checkout
+            Proceed to Checkout →
           </Button>
 
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="w-full"
-          >
-            <Link href="/categories">
-              Continue Shopping
-            </Link>
+          <Button asChild variant="outline" size="lg" className="w-full">
+            <Link href="/categories">Continue Shopping</Link>
           </Button>
         </div>
       </div>

@@ -162,9 +162,9 @@ export default function AddressSection() {
         <div className="flex items-center gap-2.5">
           <MapPin className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-base font-semibold">Saved Addresses</h2>
-          {addresses.length > 0 && (
+          {addresses?.length > 0 && (
             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground border">
-              {addresses.length}
+              {addresses?.length}
             </span>
           )}
         </div>
@@ -204,7 +204,7 @@ export default function AddressSection() {
       )}
 
       {/* Empty State */}
-      {addresses.length === 0 && !showForm && (
+      {addresses?.length === 0 && !showForm && (
         <div className="flex flex-col items-center justify-center py-12 rounded-lg border border-dashed gap-3">
           <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
             <MapPin className="h-4.5 w-4.5 text-muted-foreground" />

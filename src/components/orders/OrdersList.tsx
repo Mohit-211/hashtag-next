@@ -60,7 +60,7 @@ export default function OrdersList({ orders }: OrdersListProps) {
       </div>
     );
   }
-
+console.log(orders,"orede")
   return (
     <div className="space-y-3">
       {orders.map((order) => {

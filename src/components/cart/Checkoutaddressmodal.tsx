@@ -299,7 +299,7 @@ const { refreshCart } = useCart();
               {/* Add Address Form */}
               {!loadingAddresses && showAddForm && (
                 <div className="space-y-2">
-                  {addresses.length > 0 && (
+                  {addresses?.length > 0 && (
                     <button
                       type="button"
                       onClick={() => {
@@ -317,7 +317,7 @@ const { refreshCart } = useCart();
                     setFormData={setFormData}
                     onSave={handleSaveAddress}
                     onCancel={() => {
-                      if (addresses.length > 0) {
+                      if (addresses?.length > 0) {
                         setShowAddForm(false);
                         setFormData(emptyForm);
                       } else {

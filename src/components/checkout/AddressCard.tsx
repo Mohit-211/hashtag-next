@@ -1,65 +1,40 @@
 "use client";
+import { Check } from "lucide-react";
 
-import { Check, Home, Building2 } from "lucide-react";
+interface Props {
+  address: any;
+  selected: boolean;
+  onSelect: () => void;
+}
 
-export default function AddressCard({ address, selected, onSelect }: any) {
+export default function AddressCard({ address, selected, onSelect }: Props) {
   return (
-    <button
+    <div
       onClick={onSelect}
-      className={`w-full rounded-2xl border-2 p-5 text-left transition-all duration-200 group ${
-        selected
-          ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 shadow-md shadow-violet-100 dark:shadow-violet-900/20"
-          : "border-slate-200 dark:border-slate-700 hover:border-violet-300 dark:hover:border-violet-700 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-      }`}
+      className={`flex gap-3 px-4 py-3.5 cursor-pointer transition-all border-l-[3px]
+        ${selected
+          ? "bg-[#FFFEF5] border border-[#E8CE00] border-l-[#F5D800]"
+          : "bg-[#FAFAFA] border border-[#E0DFDB] border-l-transparent hover:border-[#CDCCC8] hover:bg-white"
+        }`}
     >
-      <div className="flex items-start gap-4">
-        {/* Radio indicator */}
-        <div
-          className={`mt-0.5 h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${
-            selected
-              ? "border-violet-500 bg-violet-500"
-              : "border-slate-300 dark:border-slate-600"
-          }`}
-        >
-          {selected && <Check className="h-3 w-3 text-white stroke-[3]" />}
-        </div>
-
-        {/* Icon */}
-        <div
-          className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-200 ${
-            selected
-              ? "bg-violet-100 dark:bg-violet-900/50"
-              : "bg-slate-100 dark:bg-slate-800"
-          }`}
-        >
-          {address.is_default ? (
-            <Home className={`h-5 w-5 ${selected ? "text-violet-600 dark:text-violet-400" : "text-slate-500 dark:text-slate-400"}`} />
-          ) : (
-            <Building2 className={`h-5 w-5 ${selected ? "text-violet-600 dark:text-violet-400" : "text-slate-500 dark:text-slate-400"}`} />
-          )}
-        </div>
-
-        {/* Details */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className={`font-semibold text-sm ${selected ? "text-violet-900 dark:text-violet-100" : "text-slate-800 dark:text-slate-200"}`}>
-              {address.name}
-            </p>
-            {address.is_default && (
-              <span className="text-[11px] font-semibold bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full border border-violet-200 dark:border-violet-700">
-                Default
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 truncate">{address.line1}</p>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {address.city}, {address.state} {address.zip}
-          </p>
-          {address.phone && (
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{address.phone}</p>
-          )}
-        </div>
+      <div className={`w-5 h-5 flex items-center justify-center shrink-0 mt-0.5 rounded-sm border transition-all
+        ${selected ? "bg-[#1A1A1A] border-[#1A1A1A]" : "border-[#CDCCC8]"}`}>
+        {selected && <Check className="h-3 w-3 text-white stroke-[3]" />}
       </div>
-    </button>
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-sm text-[#1A1A1A]">{address.name}</span>
+          {address.is_default && (
+            <span className="bg-[#F5D800] text-[#1A1A1A] font-bold text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded-sm">
+              Default
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-[#6B6B6B] mt-1 leading-relaxed">
+          {address.line1}{address.line2 ? `, ${address.line2}` : ""}<br />
+          {address.city}, {address.state} {address.zip}, {address.country}
+        </p>
+      </div>
+    </div>
   );
 }

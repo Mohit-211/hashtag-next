@@ -1,12 +1,10 @@
 "use client";
-
 import React, {
   useState,
   useRef,
   useCallback,
   useEffect,
 } from "react";
-
 import {
   Upload,
   RotateCw,
@@ -33,7 +31,6 @@ import {
   Zap,
   TrendingUp,
 } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import AddToCartModal from "@/components/common/AddToCartModal";
@@ -41,7 +38,6 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
-
 interface Props {
   productId: number;
   variantId: number;
@@ -163,9 +159,10 @@ const EMB_PRICES: Record<string, number[]> = {
   "oversized": [0, 0, 0, 0, 0, 0, 0],
 };
 
-const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
-const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
+/* ─── FIX: DTF tiers use reduce() so 144+ always resolves correctly ── */
 const DTF_TIER_LABELS = ["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"];
+const DTF_TIERS       = [1,       12,      24,      36,      72,      96,       144];
+const DTF_PRICES      = [15,      12,      10,      9,       7,       5,        5];
 
 const SP_TIERS = [{ label: "50–99", min: 50 }, { label: "100+", min: 100 }];
 const SP_PRICES: Record<string, number[]> = {
@@ -204,7 +201,6 @@ const PRESET_COLORS = [
 ];
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
-
 const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
   try {
     const proxied = `/api/proxy-image?url=${encodeURIComponent(url)}`;
@@ -233,7 +229,6 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
   });
 
 /* ─── Draw Function ──────────────────────────────────────────────────────── */
-
 interface DrawParams {
   ctx: CanvasRenderingContext2D;
   size: number;
@@ -282,7 +277,12 @@ function drawAll({ ctx, size, productImg, logo, logoPos, logoSize, logoRotation,
     const style = textItalic ? "italic" : "normal";
     ctx.font = `${style} ${weight} ${textSize}px ${fontFamily}`;
     ctx.fillStyle = textColor;
-    if (textShadow) { ctx.shadowColor = "rgba(0,0,0,0.4)"; ctx.shadowBlur = 6; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2; }
+    if (textShadow) {
+      ctx.shadowColor = "rgba(0,0,0,0.4)";
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 2;
+      ctx.shadowOffsetY = 2;
+    }
     const metrics = ctx.measureText(text);
     const tw = metrics.width;
     const th = textSize;
@@ -294,7 +294,6 @@ function drawAll({ ctx, size, productImg, logo, logoPos, logoSize, logoRotation,
 }
 
 /* ─── Slider ─────────────────────────────────────────────────────────────── */
-
 function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
   label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void;
 }) {
@@ -314,7 +313,6 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
 }
 
 /* ─── Section Header ─────────────────────────────────────────────────────── */
-
 function SectionHeader({ step, title, subtitle, status }: {
   step: number; title: string; subtitle: string;
   status: "required" | "done" | "optional";
@@ -344,7 +342,6 @@ function SectionHeader({ step, title, subtitle, status }: {
 /* ══════════════════════════════════════════════════════════════════════════
    PRICING TABLE COMPONENTS
 ══════════════════════════════════════════════════════════════════════════ */
-
 function EmbroideryPricingTable({ activeLocations }: { activeLocations: string[] }) {
   return (
     <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
@@ -390,8 +387,11 @@ function EmbroideryPricingTable({ activeLocations }: { activeLocations: string[]
   );
 }
 
+/* ─── FIX: DTFPricingTable — removed bogus "More/Inquiry" column,
+         activeTier now uses reduce() so 144+ always highlights correctly ── */
 function DTFPricingTable({ qty }: { qty: number }) {
-  const activeTier = DTF_TIERS.findIndex((t, i) => qty >= t && (i === DTF_TIERS.length - 1 || qty < DTF_TIERS[i + 1]));
+  const activeTier = DTF_TIERS.reduce((found, t, i) => (qty >= t ? i : found), 0);
+
   return (
     <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
       <div className="bg-gray-50 px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
@@ -405,27 +405,42 @@ function DTFPricingTable({ qty }: { qty: number }) {
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-20">Method</th>
               {DTF_TIER_LABELS.map((lbl, i) => (
-                <th key={lbl} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center whitespace-nowrap", activeTier === i ? "text-[#b89000] bg-[#F5C400]/8" : "text-gray-500")}>
-                  {activeTier === i && <span className="block w-1 h-1 rounded-full bg-[#F5C400] mx-auto mb-0.5" />}
+                <th key={lbl} className={cn(
+                  "px-2 py-2 font-bold border-r border-gray-100 text-center whitespace-nowrap",
+                  activeTier === i ? "text-[#b89000] bg-[#F5C400]/8" : "text-gray-500"
+                )}>
+                  {activeTier === i && (
+                    <span className="block w-1 h-1 rounded-full bg-[#F5C400] mx-auto mb-0.5" />
+                  )}
                   {lbl}
                 </th>
               ))}
-              <th className="px-2 py-2 font-bold text-gray-400 text-center">More</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td className="px-3 py-3 font-bold text-[#b89000] border-r border-gray-200">DTF</td>
               {DTF_PRICES.map((p, i) => (
-                <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium", activeTier === i ? "text-[#b89000] font-bold text-sm bg-[#F5C400]/5" : "text-gray-500")}>${p}.00</td>
+                <td key={i} className={cn(
+                  "px-2 py-3 text-center border-r border-gray-100 font-medium",
+                  activeTier === i
+                    ? "text-[#b89000] font-bold text-sm bg-[#F5C400]/5"
+                    : "text-gray-500"
+                )}>
+                  ${p}.00
+                </td>
               ))}
-              <td className="px-2 py-3 text-center text-[#e05555] text-[10px] font-semibold">Inquiry</td>
             </tr>
           </tbody>
         </table>
       </div>
       <div className="bg-gray-50 px-4 py-2 border-t border-gray-200">
-        <p className="text-[10px] text-gray-400">Prices per piece · Your current quantity ({qty}) is highlighted</p>
+        <p className="text-[10px] text-gray-400">
+          Prices per piece · Your current quantity ({qty}) is highlighted ·{" "}
+          <span className="font-semibold text-[#b89000]">
+            ${DTF_PRICES[activeTier]}.00/pc
+          </span>
+        </p>
       </div>
     </div>
   );
@@ -483,7 +498,10 @@ function ScreenPrintPricingTable({ qty, activeColor }: { qty: number; activeColo
 }
 
 function DTGPricingTable({ qty, activeStyle }: { qty: number; activeStyle: string }) {
-  const activeTier = DTG_TIERS.findIndex((t, i) => qty >= t.min && (i === DTG_TIERS.length - 1 || qty < DTG_TIERS[i + 1].min));
+  const activeTier = DTG_TIERS.reduce(
+    (found, t, i) => (qty >= t.min ? i : found),
+    0
+  );
   return (
     <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden">
       <div className="bg-gray-50 px-4 py-2.5 flex items-center gap-2 border-b border-gray-200">
@@ -530,12 +548,10 @@ function DTGPricingTable({ qty, activeStyle }: { qty: number; activeStyle: strin
 }
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
-
 export default function ProductCustomization({
   productId, variantId, price, name, productImage, is_in_cart = false, onReload,
 }: Props) {
   const router = useRouter();
-
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -568,7 +584,10 @@ export default function ProductCustomization({
   const [showValidationShake, setShowValidationShake] = useState(false);
 
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const toggleLocation = (id: string) => setSelectedLocations((prev) => prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]);
+  const toggleLocation = (id: string) =>
+    setSelectedLocations((prev) =>
+      prev.includes(id) ? prev.filter((l) => l !== id) : [...prev, id]
+    );
 
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
   const [showPriceTable, setShowPriceTable] = useState(false);
@@ -656,14 +675,22 @@ export default function ProductCustomization({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onloadend = () => { setLogoSrc(reader.result as string); setLogoPos({ x: 190, y: 190 }); setLogoRotation(0); setLogoSize(120); };
+    reader.onloadend = () => {
+      setLogoSrc(reader.result as string);
+      setLogoPos({ x: 190, y: 190 });
+      setLogoRotation(0);
+      setLogoSize(120);
+    };
     reader.readAsDataURL(file);
   };
 
   const getCanvasPoint = (e: React.MouseEvent) => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
-    return { x: (e.clientX - rect.left) * (CANVAS_SIZE / rect.width), y: (e.clientY - rect.top) * (CANVAS_SIZE / rect.height) };
+    return {
+      x: (e.clientX - rect.left) * (CANVAS_SIZE / rect.width),
+      y: (e.clientY - rect.top) * (CANVAS_SIZE / rect.height),
+    };
   };
 
   const isOverLogo = (pt: { x: number; y: number }) =>
@@ -684,9 +711,15 @@ export default function ProductCustomization({
     if (!dragging) return;
     const pt = getCanvasPoint(e);
     if (dragging === "logo") {
-      setLogoPos({ x: Math.max(0, Math.min(CANVAS_SIZE - logoSize, pt.x - dragOffset.x)), y: Math.max(0, Math.min(CANVAS_SIZE - logoSize, pt.y - dragOffset.y)) });
+      setLogoPos({
+        x: Math.max(0, Math.min(CANVAS_SIZE - logoSize, pt.x - dragOffset.x)),
+        y: Math.max(0, Math.min(CANVAS_SIZE - logoSize, pt.y - dragOffset.y)),
+      });
     } else if (dragging === "text") {
-      setTextPos({ x: Math.max(0, Math.min(CANVAS_SIZE - 40, pt.x - dragOffset.x)), y: Math.max(textSize, Math.min(CANVAS_SIZE, pt.y - dragOffset.y)) });
+      setTextPos({
+        x: Math.max(0, Math.min(CANVAS_SIZE - 40, pt.x - dragOffset.x)),
+        y: Math.max(textSize, Math.min(CANVAS_SIZE, pt.y - dragOffset.y)),
+      });
     }
   }, [dragging, dragOffset, logoSize, textSize]);
 
@@ -698,7 +731,8 @@ export default function ProductCustomization({
     setShowPreviewModal(true);
     try {
       const offscreen = document.createElement("canvas");
-      offscreen.width = CANVAS_SIZE * 2; offscreen.height = CANVAS_SIZE * 2;
+      offscreen.width = CANVAS_SIZE * 2;
+      offscreen.height = CANVAS_SIZE * 2;
       const ctx = offscreen.getContext("2d");
       if (!ctx) return;
       ctx.scale(2, 2);
@@ -716,41 +750,58 @@ export default function ProductCustomization({
     setShowPreviewModal(false);
   };
 
-  const getCursor = () => { if (dragging) return "grabbing"; if (logoImg || customText.trim()) return "grab"; return "default"; };
+  const getCursor = () => {
+    if (dragging) return "grabbing";
+    if (logoImg || customText.trim()) return "grab";
+    return "default";
+  };
 
+  /* ─── FIX: getPrintPrice uses reduce() for DTF so tier is always correct ── */
   const getPrintPrice = (): number | null => {
     if (!selectedMaterial) return null;
+
     if (selectedMaterial === "embroidery") {
       if (selectedLocations.length === 0 || selectedLocations.includes("oversized")) return null;
       const tierIdx = EMB_TIERS.findIndex((t) => quantity >= t.min && quantity <= t.max);
       let total = 0;
-      for (const locId of selectedLocations) { const row = EMB_PRICES[locId]; if (!row) return null; total += (tierIdx >= 0 ? row[tierIdx] : row[row.length - 1]) * quantity; }
+      for (const locId of selectedLocations) {
+        const row = EMB_PRICES[locId];
+        if (!row) return null;
+        total += (tierIdx >= 0 ? row[tierIdx] : row[row.length - 1]) * quantity;
+      }
       return total + (quantity <= 11 ? 35 : 0);
     }
+
     if (selectedMaterial === "dtf") {
       if (selectedLocations.length === 0) return null;
-      const tierIdx = DTF_TIERS.findIndex((t, i) => quantity >= t && (i === DTF_TIERS.length - 1 || quantity < DTF_TIERS[i + 1]));
-      return (tierIdx >= 0 ? DTF_PRICES[tierIdx] : DTF_PRICES[DTF_PRICES.length - 1]) * quantity * selectedLocations.length;
+      /* FIX: reduce guarantees a valid index even for qty >= 144 */
+      const tierIdx = DTF_TIERS.reduce((found, t, i) => (quantity >= t ? i : found), 0);
+      return DTF_PRICES[tierIdx] * quantity * selectedLocations.length;
     }
+
     if (selectedMaterial === "screenprint") {
       if (quantity < 50 || selectedLocations.length === 0) return null;
       return SP_PRICES[spColorCount][quantity >= 100 ? 1 : 0] * quantity * selectedLocations.length;
     }
+
     if (selectedMaterial === "dtg") {
       if (selectedLocations.length === 0) return null;
-      const tierIdx = DTG_TIERS.findIndex((t, i) => quantity >= t.min && (i === DTG_TIERS.length - 1 || quantity < DTG_TIERS[i + 1].min));
-      return (tierIdx >= 0 ? DTG_PRICES[dtgStyle][tierIdx] : DTG_PRICES[dtgStyle][DTG_PRICES[dtgStyle].length - 1]) * quantity * selectedLocations.length;
+      /* FIX: reduce for consistency */
+      const tierIdx = DTG_TIERS.reduce((found, t, i) => (quantity >= t.min ? i : found), 0);
+      return DTG_PRICES[dtgStyle][tierIdx] * quantity * selectedLocations.length;
     }
+
     return null;
   };
 
   const printPrice = getPrintPrice();
 
-  const getCanvasBlob = (): Promise<Blob | null> => new Promise((resolve) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return resolve(null);
-    canvas.toBlob((blob) => resolve(blob), "image/png", 1);
-  });
+  const getCanvasBlob = (): Promise<Blob | null> =>
+    new Promise((resolve) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return resolve(null);
+      canvas.toBlob((blob) => resolve(blob), "image/png", 1);
+    });
 
   const buildCustomizationPayload = (): string => {
     const payload: Record<string, unknown> = {
@@ -784,7 +835,11 @@ export default function ProductCustomization({
     if (validationError && getMissingRequirements().length === 0) setValidationError(null);
   }, [selectedLocations, selectedMaterial, quantity, validationError, getMissingRequirements]);
 
-  const handleSelectMaterial = (id: MaterialId) => { setSelectedMaterial(id); setShowPriceTable(true); };
+  const handleSelectMaterial = (id: MaterialId) => {
+    setSelectedMaterial(id);
+    setShowPriceTable(true);
+  };
+
   const allRequirementsMet = selectedLocations.length > 0 && !!selectedMaterial && quantity >= 1;
 
   const QTY_PRESETS = [
@@ -851,11 +906,16 @@ export default function ProductCustomization({
             <div className="p-5">
               <div className="w-full aspect-square rounded-xl border border-gray-100 bg-gray-50 overflow-hidden relative">
                 {previewError ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500"><AlertCircle size={40} /><p className="text-sm">Failed to generate preview</p></div>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
+                    <AlertCircle size={40} />
+                    <p className="text-sm">Failed to generate preview</p>
+                  </div>
                 ) : previewDataUrl ? (
                   <img src={previewDataUrl} alt="Preview" className="w-full h-full object-contain" />
                 ) : (
-                  <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin text-[#F5C400]" size={32} /></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="animate-spin text-[#F5C400]" size={32} />
+                  </div>
                 )}
               </div>
             </div>
@@ -882,7 +942,6 @@ export default function ProductCustomization({
           subtitle="Where should we print on the garment? Tap to select multiple."
           status={selectedLocations.length > 0 ? "done" : "required"}
         />
-
         <div className="p-5">
           {/* T-shirt SVG diagram */}
           <div className="relative mx-auto mb-4" style={{ maxWidth: 300 }}>
@@ -975,7 +1034,7 @@ export default function ProductCustomization({
       </div>
 
       {/* ══════════════════════════════════════════════════════════════
-           SECTION 2 — DECORATION METHOD (LEFT) + QUANTITY (RIGHT)
+           SECTION 2 — DECORATION METHOD + QUANTITY
       ══════════════════════════════════════════════════════════════ */}
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-4">
         <SectionHeader
@@ -984,10 +1043,7 @@ export default function ProductCustomization({
           subtitle="Pick a method on the left, set quantity on the right."
           status={selectedMaterial ? "done" : "required"}
         />
-
-        {/* ── SPLIT COLUMNS ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 md:divide-x md:divide-gray-100">
-
           {/* ── LEFT: DECORATION METHOD ── */}
           <div className="p-5">
             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Decoration method</p>
@@ -995,31 +1051,18 @@ export default function ProductCustomization({
               {MATERIALS.map((mat) => {
                 const isSelected = selectedMaterial === mat.id;
                 return (
-                  <button
-                    key={mat.id}
-                    onClick={() => handleSelectMaterial(mat.id)}
+                  <button key={mat.id} onClick={() => handleSelectMaterial(mat.id)}
                     className={cn(
                       "w-full text-left flex items-start gap-3 rounded-2xl border-2 p-3.5 transition-all duration-200 relative",
-                      isSelected
-                        ? "border-[#F5C400] bg-[#FFFBEA]"
-                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                    )}
-                  >
-                    {/* Check indicator */}
+                      isSelected ? "border-[#F5C400] bg-[#FFFBEA]" : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                    )}>
                     {isSelected && (
                       <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F5C400] flex items-center justify-center flex-shrink-0">
                         <Check size={11} className="text-black" />
                       </div>
                     )}
-                    {/* Icon */}
-                    <div className={cn(
-                      "w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 transition-all",
-                      isSelected ? "bg-[#F5C400]/20" : "bg-gray-100"
-                    )}>
-                      <img
-                        src={mat.iconUrl}
-                        alt={mat.label}
-                        className="w-5 h-5 object-contain"
+                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0 transition-all", isSelected ? "bg-[#F5C400]/20" : "bg-gray-100")}>
+                      <img src={mat.iconUrl} alt={mat.label} className="w-5 h-5 object-contain"
                         onError={(e) => {
                           const t = e.currentTarget as HTMLImageElement;
                           t.style.display = "none";
@@ -1028,18 +1071,10 @@ export default function ProductCustomization({
                         }}
                       />
                     </div>
-                    {/* Text */}
                     <div className="flex-1 min-w-0 pr-5">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className={cn("text-sm font-black leading-tight", isSelected ? "text-gray-900" : "text-gray-800")}>
-                          {mat.label}
-                        </p>
-                        <span className={cn(
-                          "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                          isSelected ? "bg-[#F5C400] text-black" : "bg-gray-100 text-gray-500"
-                        )}>
-                          {mat.badge}
-                        </span>
+                        <p className={cn("text-sm font-black leading-tight", isSelected ? "text-gray-900" : "text-gray-800")}>{mat.label}</p>
+                        <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5C400] text-black" : "bg-gray-100 text-gray-500")}>{mat.badge}</span>
                       </div>
                       <p className="text-[11px] text-gray-500 leading-snug mt-0.5">{mat.boldDesc}</p>
                       <p className="text-[10px] text-gray-400 mt-0.5">{mat.bestFor}</p>
@@ -1049,15 +1084,13 @@ export default function ProductCustomization({
               })}
             </div>
 
-            {/* Screen print colour count */}
             {selectedMaterial === "screenprint" && (
               <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Number of Colours</p>
                 <div className="flex gap-2">
                   {(["1 Color", "2 Color", "3 Color"] as const).map((c) => (
                     <button key={c} onClick={() => setSpColorCount(c)}
-                      className={cn(
-                        "flex-1 h-10 rounded-xl border-2 text-xs font-bold transition-all",
+                      className={cn("flex-1 h-10 rounded-xl border-2 text-xs font-bold transition-all",
                         spColorCount === c ? "border-[#F5C400] bg-[#F5C400] text-black" : "border-gray-200 text-gray-600 bg-white hover:border-gray-300"
                       )}>
                       {c}
@@ -1068,29 +1101,25 @@ export default function ProductCustomization({
               </div>
             )}
 
-            {/* DTG print area */}
-            {selectedMaterial === "dtg" && (
+            {(selectedMaterial === "dtg" || selectedMaterial === "dtf") && (
               <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Print Area</p>
                 <div className="grid grid-cols-2 gap-2">
                   {(Object.keys(DTG_PRICES) as (keyof typeof DTG_PRICES)[]).map((s) => (
                     <button key={s} onClick={() => setDtgStyle(s)}
-                      className={cn(
-                        "h-10 rounded-xl border-2 text-xs font-bold transition-all px-2",
+                      className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all px-2",
                         dtgStyle === s ? "border-[#F5C400] bg-[#F5C400] text-black" : "border-gray-200 text-gray-600 bg-white hover:border-gray-300"
                       )}>
                       {s}
                     </button>
                   ))}
                 </div>
-                <p className="text-[10px] text-gray-400 mt-2">100% cotton garments only</p>
               </div>
             )}
           </div>
 
           {/* ── RIGHT: QUANTITY ── */}
           <div className="p-5 border-t border-gray-100 md:border-t-0">
-            {/* Header row */}
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Quantity</p>
@@ -1102,50 +1131,35 @@ export default function ProductCustomization({
               </div>
             </div>
 
-            {/* Stepper */}
             <div className="flex items-center bg-gray-50 rounded-2xl border-2 border-gray-200 overflow-hidden mb-3 focus-within:border-[#F5C400] transition-colors">
-              <button
-                onClick={decreaseQuantity}
-                disabled={quantity <= 1}
-                className={cn(
-                  "w-14 h-14 flex items-center justify-center transition-all text-xl font-black flex-shrink-0",
+              <button onClick={decreaseQuantity} disabled={quantity <= 1}
+                className={cn("w-14 h-14 flex items-center justify-center transition-all text-xl font-black flex-shrink-0",
                   quantity <= 1 ? "text-gray-300 cursor-not-allowed" : "text-[#F5C400] hover:bg-[#F5C400]/10 active:scale-95"
                 )}>
                 <Minus size={18} />
               </button>
-              <input
-                type="number"
-                min={1}
-                value={quantity}
+              <input type="number" min={1} value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="flex-1 text-center text-3xl font-black text-gray-900 border-0 outline-none bg-transparent py-3"
-              />
-              <button
-                onClick={increaseQuantity}
+                className="flex-1 text-center text-3xl font-black text-gray-900 border-0 outline-none bg-transparent py-3" />
+              <button onClick={increaseQuantity}
                 className="w-14 h-14 flex items-center justify-center text-[#F5C400] hover:bg-[#F5C400]/10 active:scale-95 transition-all flex-shrink-0">
                 <Plus size={18} />
               </button>
             </div>
 
-            {/* Quick-select presets — 4 per row */}
             <div className="grid grid-cols-4 gap-1.5 mb-3">
               {QTY_PRESETS.map(({ q, hint, accent }) => {
                 const isActive = quantity === q;
                 return (
-                  <button
-                    key={q}
-                    onClick={() => setQuantity(q)}
+                  <button key={q} onClick={() => setQuantity(q)}
                     className={cn(
                       "flex flex-col items-center justify-center rounded-xl border-2 py-2.5 px-1 transition-all duration-150",
-                      isActive
-                        ? "border-[#F5C400] bg-[#F5C400]"
-                        : accent
-                          ? "border-[#F5C400]/40 bg-[#FFFBEA] hover:border-[#F5C400] hover:bg-[#FFF5C0]"
+                      isActive ? "border-[#F5C400] bg-[#F5C400]"
+                        : accent ? "border-[#F5C400]/40 bg-[#FFFBEA] hover:border-[#F5C400] hover:bg-[#FFF5C0]"
                           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                     )}>
                     <span className={cn("text-sm font-black leading-none", isActive ? "text-black" : "text-gray-800")}>{q}</span>
-                    <span className={cn(
-                      "text-[9px] font-bold mt-1 leading-none text-center",
+                    <span className={cn("text-[9px] font-bold mt-1 leading-none text-center",
                       isActive ? "text-black/60" : accent ? "text-[#b89000]" : "text-gray-400"
                     )}>{hint}</span>
                   </button>
@@ -1153,18 +1167,11 @@ export default function ProductCustomization({
               })}
             </div>
 
-            {/* Contextual hint */}
             {selectedMaterial === "screenprint" && quantity < 50 ? (
               <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
                 <AlertCircle size={15} className="text-amber-500 flex-shrink-0" />
-                <p className="text-xs font-semibold text-amber-700 flex-1">
-                  Screen print needs at least 50 pieces — {50 - quantity} more.
-                </p>
-                <button
-                  onClick={() => setQuantity(50)}
-                  className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0">
-                  Set 50
-                </button>
+                <p className="text-xs font-semibold text-amber-700 flex-1">Screen print needs at least 50 pieces — {50 - quantity} more.</p>
+                <button onClick={() => setQuantity(50)} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0">Set 50</button>
               </div>
             ) : selectedMaterial && quantity < 144 ? (
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5">
@@ -1185,11 +1192,10 @@ export default function ProductCustomization({
           </div>
         </div>
 
-        {/* ── PRICE TABLE TOGGLE (full width, below both columns) ── */}
+        {/* ── PRICE TABLE TOGGLE ── */}
         {selectedMaterial && (
           <div className="px-5 pb-5 border-t border-gray-100 pt-4">
-            <button
-              onClick={() => setShowPriceTable((p) => !p)}
+            <button onClick={() => setShowPriceTable((p) => !p)}
               className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
               <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
                 <Table2 size={14} className="text-[#F5C400]" />
@@ -1197,7 +1203,6 @@ export default function ProductCustomization({
               </div>
               {showPriceTable ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
             </button>
-
             {showPriceTable && (
               <div>
                 {selectedMaterial === "embroidery" && <EmbroideryPricingTable activeLocations={selectedLocations} />}
@@ -1215,14 +1220,11 @@ export default function ProductCustomization({
       ══════════════════════════════════════════════════════════════ */}
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-4">
         <SectionHeader step={3} title="Upload Logo / Add Text" subtitle="Upload a logo or add custom text — drag to reposition on the canvas." status="optional" />
-
         <div className="p-5">
           <div className="flex flex-col xl:flex-row gap-5 items-start">
-
             {/* ── Canvas card ── */}
             <div className="w-full xl:w-[460px] xl:sticky xl:top-[72px] flex-shrink-0">
               <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-                {/* Canvas header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-[#F5C400] flex items-center justify-center">
@@ -1233,13 +1235,10 @@ export default function ProductCustomization({
                       <p className="text-[10px] text-gray-400">Drag elements to reposition</p>
                     </div>
                   </div>
-                  <button onClick={handleOpenPreview}
-                    className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition-colors">
+                  <button onClick={handleOpenPreview} className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition-colors">
                     <Download size={12} /> Export
                   </button>
                 </div>
-
-                {/* Canvas */}
                 <div className="p-3 bg-[#fafafa]">
                   <canvas ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE}
                     onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove}
@@ -1254,7 +1253,6 @@ export default function ProductCustomization({
                     <span className="text-sm text-gray-500 truncate max-w-[65%]">{name}</span>
                     <span className="text-sm font-black text-gray-900">${price.toFixed(2)} / pc</span>
                   </div>
-
                   <div className="bg-gray-50 rounded-xl border border-gray-200 p-3 space-y-2">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-500">Garment ({quantity} pcs)</span>
@@ -1307,7 +1305,6 @@ export default function ProductCustomization({
                     ))}
                   </div>
 
-                  {/* Validation error */}
                   {validationError && (
                     <div className="flex items-start gap-2 bg-[#e05555]/8 border border-[#e05555]/20 rounded-xl px-3 py-2.5">
                       <AlertCircle size={13} className="text-[#e05555] flex-shrink-0 mt-0.5" />
@@ -1350,25 +1347,29 @@ export default function ProductCustomization({
 
             {/* AddToCartModal */}
             <AddToCartModal
-  open={showCartModal} onClose={() => setShowCartModal(false)}
-  productId={productId} variantId={variantId} price={price} name={name}
-  initialQuantity={quantity}
-  printPricePerPiece={
-    printPrice
-      ? (selectedMaterial === "embroidery" && quantity <= 11
-          ? (printPrice - 35) / quantity
-          : printPrice / quantity)
-      : 0
-  }
-  digitizingFee={selectedMaterial === "embroidery" && quantity <= 11 ? 35 : 0}
-  customization={customizationJson} canvasBlob={canvasBlob}
-  onSuccess={() => { setInCart(true); refreshCart(); onReload?.(); }}
-/>
+              open={showCartModal}
+              onClose={() => setShowCartModal(false)}
+              productId={productId}
+              variantId={variantId}
+              price={price}
+              name={name}
+              initialQuantity={quantity}
+              printPricePerPiece={
+                printPrice
+                  ? (selectedMaterial === "embroidery" && quantity <= 11
+                    ? (printPrice - 35) / quantity
+                    : printPrice / quantity)
+                  : 0
+              }
+              digitizingFee={selectedMaterial === "embroidery" && quantity <= 11 ? 35 : 0}
+              customization={customizationJson}
+              canvasBlob={canvasBlob}
+              onSuccess={() => { setInCart(true); refreshCart(); onReload?.(); }}
+            />
 
             {/* ── Controls panel ── */}
             <div className="flex-1 min-w-0">
               <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-                {/* Tabs */}
                 <div className="flex border-b border-gray-100">
                   {([
                     { key: "image", icon: ImageIcon, label: "Upload Logo" },
@@ -1438,24 +1439,21 @@ export default function ProductCustomization({
                           placeholder="Type something..."
                           className="w-full h-11 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder-gray-300 outline-none focus:border-[#F5C400] transition-all" />
                       </div>
-
                       <div className="h-px bg-gray-100" />
-
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Font</p>
                         <div className="grid grid-cols-2 gap-2">
                           {FONTS.map((f) => (
                             <button key={f.value} onClick={() => setFontFamily(f.value)} style={{ fontFamily: f.value }}
                               className={cn("h-10 rounded-xl border-2 text-sm transition-all px-3 text-left truncate",
-                                fontFamily === f.value ? "border-[#F5C400] bg-[#FFFBEA] text-[#b89000] font-bold" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50")}>
+                                fontFamily === f.value ? "border-[#F5C400] bg-[#FFFBEA] text-[#b89000] font-bold" : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                              )}>
                               {f.label}
                             </button>
                           ))}
                         </div>
                       </div>
-
                       <div className="h-px bg-gray-100" />
-
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Style</p>
                         <div className="flex gap-2">
@@ -1466,30 +1464,28 @@ export default function ProductCustomization({
                           ] as const).map(({ key, label, active, toggle, cls }) => (
                             <button key={key} onClick={toggle}
                               className={cn("h-10 px-4 rounded-xl border-2 text-sm transition-all", cls,
-                                active ? "border-[#F5C400] bg-[#F5C400] text-black" : "border-gray-200 text-gray-600 hover:border-gray-300")}>
+                                active ? "border-[#F5C400] bg-[#F5C400] text-black" : "border-gray-200 text-gray-600 hover:border-gray-300"
+                              )}>
                               {label}
                             </button>
                           ))}
                         </div>
                       </div>
-
                       <div className="h-px bg-gray-100" />
-
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Color</p>
                         <div className="flex items-center gap-2 flex-wrap">
                           {PRESET_COLORS.map((c) => (
                             <button key={c} onClick={() => setTextColor(c)} style={{ background: c }}
                               className={cn("w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 flex-shrink-0",
-                                textColor === c ? "border-[#F5C400] scale-110 ring-2 ring-[#F5C400]/30" : "border-gray-200 shadow-sm")} />
+                                textColor === c ? "border-[#F5C400] scale-110 ring-2 ring-[#F5C400]/30" : "border-gray-200 shadow-sm"
+                              )} />
                           ))}
                           <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)}
                             className="w-8 h-8 rounded-xl border border-gray-200 cursor-pointer p-0.5 bg-white ml-auto" />
                         </div>
                       </div>
-
                       <div className="h-px bg-gray-100" />
-
                       <div className="space-y-4">
                         <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Adjustments</p>
                         <Slider label="Font Size" value={textSize} min={12} max={96} unit="px" onChange={setTextSize} />
@@ -1500,7 +1496,6 @@ export default function ProductCustomization({
                           <button onClick={() => setTextRotation((p) => (p + 15) % 360)} className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"><RotateCw size={13} /> Right</button>
                         </div>
                       </div>
-
                       {customText.trim() && (
                         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Preview</p>
@@ -1530,5 +1525,3 @@ export default function ProductCustomization({
     </>
   );
 }
-
-

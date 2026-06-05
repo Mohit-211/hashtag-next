@@ -193,3 +193,6 @@
 button{
   cursor: pointer !important;
 }
+.sq-card-wrapper .sq-card-message{
+  margin:0 !important;
+}

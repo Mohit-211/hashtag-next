@@ -234,10 +234,10 @@ export default function OrderCard({
 
   const orderDate = rawDate
     ? new Date(rawDate).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
     : "N/A";
 
   const orderStatus = (
@@ -270,19 +270,18 @@ export default function OrderCard({
       (acc, item) =>
         acc +
         (item.pricing_breakdown?.customization_price ?? 0) *
-          item.quantity,
+        item.quantity,
       0
     ) ?? 0;
-
+  console.log("Customization Total:", detail);
   return (
     <div
       className={`
         bg-card border border-border/70 rounded-2xl overflow-hidden
         transition-all duration-300
-        ${
-          expanded
-            ? "shadow-lg shadow-black/5 dark:shadow-black/20 border-border"
-            : "shadow-sm hover:shadow-md hover:shadow-black/5 dark:hover:shadow-black/15 hover:border-border"
+        ${expanded
+          ? "shadow-lg shadow-black/5 dark:shadow-black/20 border-border"
+          : "shadow-sm hover:shadow-md hover:shadow-black/5 dark:hover:shadow-black/15 hover:border-border"
         }
       `}
     >
@@ -397,10 +396,9 @@ export default function OrderCard({
           <div
             className={`
               h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200
-              ${
-                expanded
-                  ? "bg-foreground/10"
-                  : "bg-muted group-hover:bg-muted/80"
+              ${expanded
+                ? "bg-foreground/10"
+                : "bg-muted group-hover:bg-muted/80"
               }
             `}
           >
@@ -541,11 +539,10 @@ export default function OrderCard({
                   </span>
 
                   <span
-                    className={`ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full border ${
-                      detail.payment_status === "SUCCESS"
+                    className={`ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full border ${detail.payment_status === "SUCCESS"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                         : "bg-amber-50 text-amber-700 border-amber-200"
-                    }`}
+                      }`}
                   >
                     {detail.payment_status}
                   </span>

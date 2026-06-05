@@ -77,13 +77,13 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
           placeholder="Password"
         />
         <div className="flex justify-between items-center">
-          <label className="flex items-center gap-2">
+          {/* <label className="flex items-center gap-2">
             <Checkbox
               checked={remember}
               onCheckedChange={(v) => setRemember(!!v)}
             />
             <span className="text-sm text-muted-foreground">Remember me</span>
-          </label>
+          </label> */}
           <button
             type="button"
             onClick={() => router.push("/send-otp")}

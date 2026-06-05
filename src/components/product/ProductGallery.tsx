@@ -83,7 +83,7 @@ export default function ProductGallery({
         <div className="flex gap-3 w-full">
           {/* Vertical Thumbnails */}
           {images.length > 1 && (
-            <div className="flex flex-col gap-2 overflow-y-auto max-h-[520px] flex-shrink-0 pr-1 scrollbar-none">
+            <div className="flex flex-col pt-2 gap-2 overflow-y-auto max-h-[520px] flex-shrink-0 pr-1 scrollbar-none">
               {images.map((img, i) => (
                 <button
                   type="button"

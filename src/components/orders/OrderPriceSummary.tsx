@@ -14,6 +14,7 @@ interface OrderPriceSummaryProps {
 }
 
 export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
+  console.log("OrderPriceSummary:", order);
   const subtotal = Number(order?.subtotal || 0);
   const customizationTotal = Number(order?.customizationTotal || 0);
   const shippingCost = Number(order?.shippingCost || 0);
