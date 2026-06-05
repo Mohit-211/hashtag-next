@@ -189,7 +189,7 @@ export default function Saved() {
 
                   <div className="flex items-center justify-between gap-2 mt-3">
                     <span className="font-semibold text-base">
-                      ₹{item.price.toLocaleString("en-IN")}
+                      ${item.price.toLocaleString("en-IN")}
                     </span>
 
                     {/* Move to cart */}

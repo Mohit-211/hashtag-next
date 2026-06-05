@@ -339,7 +339,7 @@ function StarRating({ rating }: { rating: number }) {
 function formatINR(val: number | string) {
   const n = Number(val);
   if (!n) return null;
-  return "₹" + n.toLocaleString("en-IN");
+  return "$" + n.toLocaleString("en-IN");
 }
 
 function getDiscount(price: number | string, original: number | string) {
@@ -460,7 +460,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
         {/* Price */}
         <div className="pg-price-row">
           {price && <span className="pg-price">{price}</span>}
-          {original && <span className="pg-original">{original}</span>}
+          {/* {original && <span className="pg-original">{original}</span>} */}
           {discount && <span className="pg-discount-pct">{discount}</span>}
         </div>
 

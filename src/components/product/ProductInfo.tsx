@@ -42,6 +42,8 @@ export default function ProductInfo({
   variantStock,
   variantSku,
   variantLoading,
+  brandName,
+  brandLogo,
 }: {
   name: string;
   price: number;
@@ -55,29 +57,24 @@ export default function ProductInfo({
   variantStock?: number | null;
   variantSku?: string | null;
   variantLoading?: boolean;
+  brandName?: string | null;
+  brandLogo?: string | null;
 }) {
   const colors = useMemo(() => {
     const map = new Map<string, string>();
-
     variants.forEach((v) => {
       if (!map.has(v.color)) {
         const code =
           v.color_code ??
           v.color.split(/[\/,\s]+/)[0].trim().toLowerCase();
-
         map.set(v.color, code);
       }
     });
-
-    return Array.from(map, ([color, color_code]) => ({
-      color,
-      color_code,
-    }));
+    return Array.from(map, ([color, color_code]) => ({ color, color_code }));
   }, [variants]);
 
   const availableSizeIds = useMemo(() => {
     if (!selectedColor) return new Set<number>();
-
     return new Set(
       variants
         .filter((v) => v.color === selectedColor && v.is_active)
@@ -89,6 +86,26 @@ export default function ProductInfo({
     <div className="space-y-6">
       {/* Header */}
       <div>
+        {/* Brand row */}
+        {brandName && (
+          <div className="flex items-center gap-2 mb-3">
+            {brandLogo ? (
+              <img
+                src={brandLogo}
+                alt={brandName}
+                className="w-7 h-7 rounded-md object-contain border border-[#E5E5E5] bg-white p-0.5"
+              />
+            ) : (
+              <span className="w-7 h-7 rounded-md border border-[#E5E5E5] bg-[#F5F5F5] flex items-center justify-center text-[10px] font-bold text-[#888] uppercase tracking-wide select-none">
+                {brandName.slice(0, 2)}
+              </span>
+            )}
+            <span className="text-[13px] font-semibold text-[#444] tracking-tight">
+              {brandName}
+            </span>
+          </div>
+        )}
+
         <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#CFAF2E]">
           <span className="w-4 h-px bg-[#CFAF2E]" />
           Premium Apparel
@@ -101,9 +118,7 @@ export default function ProductInfo({
 
       {/* Price */}
       <div className="flex items-baseline gap-3">
-        <p className="text-[2rem] font-bold text-[#111111]">
-          ${price}
-        </p>
+        <p className="text-[2rem] font-bold text-[#111111]">${price}</p>
       </div>
 
       <div className="h-px bg-[#E5E5E5]" />
@@ -115,7 +130,6 @@ export default function ProductInfo({
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
               Color
             </p>
-
             <p className="text-sm font-semibold text-[#111111]">
               {selectedColor || "Select a color"}
             </p>
@@ -134,8 +148,7 @@ export default function ProductInfo({
                 }`}
                 style={{
                   backgroundColor: item.color_code,
-                  boxShadow:
-                    "inset 0 0 0 1px rgba(0,0,0,0.12)",
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
                 }}
               />
             ))}
@@ -154,18 +167,13 @@ export default function ProductInfo({
 
           <div className="flex flex-wrap gap-2">
             {sizes.map((size) => {
-              const available =
-                !selectedColor || availableSizeIds.has(size.id);
-
-              const isActive =
-                selectedSize?.id === size.id;
+              const available = !selectedColor || availableSizeIds.has(size.id);
+              const isActive = selectedSize?.id === size.id;
 
               return (
                 <button
                   key={size.id}
-                  onClick={() =>
-                    available && onSizeChange(size)
-                  }
+                  onClick={() => available && onSizeChange(size)}
                   disabled={!available}
                   className={`min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 ${
                     isActive
@@ -181,21 +189,13 @@ export default function ProductInfo({
             })}
           </div>
 
-          {selectedColor &&
-            availableSizeIds.size === 0 && (
-              <p className="text-xs text-[#C0392B] font-medium mt-3">
-                No sizes available for this color.
-              </p>
-            )}
+          {selectedColor && availableSizeIds.size === 0 && (
+            <p className="text-xs text-[#C0392B] font-medium mt-3">
+              No sizes available for this color.
+            </p>
+          )}
         </div>
       )}
-
-  
-      
-
-     
-
-    
     </div>
   );
 }

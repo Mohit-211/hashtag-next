@@ -55,6 +55,7 @@ interface Variant {
   size_details: Size;
 }
 interface Product {
+  brand: any;
   id: string;
   name: string;
   price: number;
@@ -211,6 +212,7 @@ export default function ProductDetail({ id }: { id: string }) {
   };
 
   /* ── skeleton ── */
+  console.log(product,"product")
   if (loading) {
     return (
       <section className="min-h-screen py-10">
@@ -403,6 +405,8 @@ export default function ProductDetail({ id }: { id: string }) {
                 variantStock={variantData?.stock ?? null}
                 variantSku={variantData?.sku ?? null}
                 variantLoading={false}
+                brandName={product?.brand?.name}
+                brandLogo={product?.brand?.logo_url}
               />
 
               {/* low stock badge */}

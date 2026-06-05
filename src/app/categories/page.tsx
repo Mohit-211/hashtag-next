@@ -23,7 +23,7 @@ import type {
 } from "@/data/typesproduct";
 
 import { BRAND_TAB_NAME } from "../../components/categories/Brands";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, SlidersHorizontal, ChevronDown, X } from "lucide-react";
 import Image from "next/image";
 
 // ─────────────────────────────────────────────────────────────
@@ -59,320 +59,436 @@ function brandInitials(name: string) {
 // Styles
 // ─────────────────────────────────────────────────────────────
 const styles = `
-*{
-  box-sizing:border-box;
-}
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
 
-.cat-root{
-  background:#fafafa;
-  min-height:100vh;
-}
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
 
-.cat-tabs-wrap{
-  position:sticky;
-  top:0;
-  z-index:100;
-  background:#fff;
-  display:flex;
-  border-bottom:1px solid #eee;
-}
+  .cat-root {
+    background: #f5f4f1;
+    min-height: 100vh;
+    font-family: 'DM Sans', sans-serif;
+  }
 
-.cat-tabs-inner{
-  display:flex;
-  align-items:center;
-  overflow-x:auto;
-  scrollbar-width:none;
-  padding:0 10px;
-}
+  /* ── STICKY NAV ── */
+  .cat-nav {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    background: #fff;
+    border-bottom: 1px solid #ebebeb;
+  }
 
-.cat-tabs-inner::-webkit-scrollbar{
-  display:none;
-}
+  .cat-nav-row {
+    display: flex;
+    align-items: stretch;
+    height: 52px;
+  }
 
-.cat-tab{
-  position:relative;
-  height:52px;
-  display:flex;
-  align-items:center;
-  gap:5px;
-  padding:0 18px;
-  cursor:pointer;
-  font-size:14px;
-  color:#666;
-  white-space:nowrap;
-  transition:.2s;
-  border-bottom:2px solid transparent;
-  flex-shrink:0;
-}
+  /* ── TABS ── */
+  .cat-tabs-scroll {
+    display: flex;
+    align-items: stretch;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex: 1;
+    min-width: 0;
+  }
+  .cat-tabs-scroll::-webkit-scrollbar { display: none; }
 
-.cat-tab:hover{
-  color:#111;
-}
+  .cat-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 20px;
+    font-size: 13.5px;
+    font-weight: 400;
+    color: #888;
+    white-space: nowrap;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .18s, border-color .18s;
+    flex-shrink: 0;
+    letter-spacing: -0.01em;
+  }
+  .cat-tab:hover { color: #111; }
+  .cat-tab.active {
+    color: #111;
+    font-weight: 600;
+    border-bottom-color: #111;
+  }
 
-.cat-tab.active{
-  color:#111;
-  border-bottom-color:#111;
-  font-weight:600;
-}
+  /* ── BRAND TAB ── */
+  .brand-tab-wrap {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .brand-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 52px;
+    padding: 0 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 400;
+    color: #888;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: color .18s;
+    white-space: nowrap;
+    letter-spacing: -0.01em;
+  }
+  .brand-tab-btn:hover { color: #111; }
+  .brand-tab-btn.active {
+    color: #111;
+    font-weight: 600;
+    border-bottom-color: #111;
+  }
+  .brand-chevron {
+    transition: transform .22s cubic-bezier(.4,0,.2,1);
+    color: currentColor;
+  }
+  .brand-chevron.open { transform: rotate(180deg); }
 
-.brand-chevron{
-  transition:.2s;
-}
+  /* ── BRAND MEGA MENU ── */
+  .brand-mega {
+    position: fixed;
+    top: 52px;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    border-bottom: 1px solid #ebebeb;
+    box-shadow: 0 12px 40px -8px rgba(0,0,0,0.10);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity .2s ease, transform .2s ease, visibility .2s;
+    z-index: 199;
+    pointer-events: none;
+  }
+  .brand-mega.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .brand-mega-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 28px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .brand-mega-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #aaa;
+  }
+  .brand-mega-count {
+    font-size: 12px;
+    color: #bbb;
+  }
+  .brand-mega-list {
+    display: flex;
+    gap: 10px;
+    padding: 18px 28px 22px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .brand-mega-list::-webkit-scrollbar { display: none; }
 
-.brand-chevron.open{
-  transform:rotate(180deg);
-}
+  /* ── BRAND CARD ── */
+  .brand-card {
+    flex-shrink: 0;
+    width: 118px;
+    padding: 14px 12px 12px;
+    border: 1.5px solid #efefef;
+    border-radius: 14px;
+    background: #fafafa;
+    cursor: pointer;
+    text-align: center;
+    transition: border-color .18s, background .18s, transform .18s;
+  }
+  .brand-card:hover {
+    border-color: #ccc;
+    background: #fff;
+    transform: translateY(-2px);
+  }
+  .brand-card.selected {
+    border-color: #111;
+    background: #fff;
+    transform: translateY(-2px);
+  }
+  .brand-logo-wrap {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .brand-initials {
+    font-size: 13px;
+    font-weight: 700;
+    color: #555;
+    letter-spacing: -0.02em;
+  }
+  .brand-card-name {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #333;
+    line-height: 1.3;
+  }
+  .brand-card.selected .brand-card-name { color: #111; }
 
-.cat-topbar {
-  padding: 20px 24px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-}
+  /* shimmer */
+  @keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+  }
+  .shimmer-card {
+    flex-shrink: 0;
+    width: 118px;
+    height: 96px;
+    border-radius: 14px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 800px 100%;
+    animation: shimmer 1.5s infinite;
+  }
 
-.cat-topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
-}
+  /* ── NAV RIGHT: SEARCH ── */
+  .cat-search-wrap {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    border-left: 1px solid #f0f0f0;
+    flex-shrink: 0;
+  }
+  .cat-search-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .cat-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #bbb;
+    display: flex;
+    pointer-events: none;
+  }
+  .cat-search-input {
+    height: 34px;
+    width: 160px;
+    background: #f7f7f5;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 0 32px 0 32px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: #111;
+    outline: none;
+    transition: border-color .18s, width .2s, background .18s;
+  }
+  .cat-search-input:focus {
+    border-color: #111;
+    background: #fff;
+    width: 200px;
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  }
+  .cat-search-input::placeholder { color: #bbb; }
+  .cat-search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #bbb;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    line-height: 1;
+    transition: color .15s;
+  }
+  .cat-search-clear:hover { color: #333; }
 
-.cat-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.cat-heading {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  color: #111;
-}
-
-.cat-count {
-  color: #777;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.active-filter-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: #f5f5f5;
-  color: #111;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.active-filter-pill button {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  color: #666;
-}
-
-.cat-topbar-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.sort-label {
-  font-size: 14px;
-  color: #666;
-  font-weight: 500;
-}
-
-.sort-select {
-  height: 42px;
-  min-width: 190px;
-  padding: 0 14px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  background: #fff;
-  font-size: 14px;
-  cursor: pointer;
-  outline: none;
-  transition: all 0.2s ease;
-}
-
-.sort-select:hover,
-.sort-select:focus {
-  border-color: #111;
-}
-
-@media (max-width: 768px) {
+  /* ── TOP BAR ── */
   .cat-topbar {
-    padding: 16px;
-    flex-direction: column;
-    align-items: flex-start;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 28px;
+    flex-wrap: wrap;
   }
-
-  .cat-topbar-right {
-    width: 100%;
+  .cat-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
   }
-
-  .sort-select {
-    width: 100%;
-  }
-
   .cat-heading {
-    font-size: 22px;
+    margin: 0;
+    font-size: 26px;
+    font-weight: 600;
+    color: #111;
+    letter-spacing: -0.03em;
+    line-height: 1;
   }
-}
-
-.products-area{
-  padding:24px;
-}
-
-.spinner{
-  width:20px;
-  height:20px;
-  border:2px solid #ddd;
-  border-top-color:#111;
-  border-radius:50%;
-  animation:spin .7s linear infinite;
-}
-
-@keyframes spin{
-  to{
-    transform:rotate(360deg);
-  }
-}
-
-.products-load-more{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  gap:10px;
-  padding:30px 0;
-  color:#666;
-  font-size:14px;
-}
-
-.active-filter-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  background:#111;
-  color:#fff;
-  border-radius:999px;
-  padding:5px 12px;
-  font-size:12px;
-  margin-left:10px;
-}
-
-.active-filter-pill button{
-  border:none;
-  background:none;
-  color:#fff;
-  cursor:pointer;
-  font-size:16px;
-  line-height:1;
-}
-
-.cat-tabs-search-wrap {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.cat-tabs-search-inner {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding: 10px 0px;
-  width: 200px;
-}
-
-.cat-tabs-search-icon {
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  pointer-events: none;
-  display: flex;
-  align-items: center;
-}
-
-.cat-tabs-search {
-  height: 32px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 0 10px 0 30px;
-  font-size: 12.5px;
-  color: #111;
-  background: #f9fafb;
-  outline: none;
-  width: 155px;
-  transition: border-color 0.18s, width 0.2s;
-}
-
-.cat-tabs-search:focus {
-  border-color: #374151;
-  background: #fff;
-  width: 195px;
-  box-shadow: 0 0 0 3px rgba(17,24,39,0.07);
-}
-
-.cat-tabs-search::placeholder {
-  color: #9ca3af;
-  font-size: 12.5px;
-}
-
-.cat-tabs-search-clear {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #9ca3af;
-  display: flex;
-  align-items: center;
-  padding: 0;
-  font-size: 15px;
-  line-height: 1;
-}
-
-.cat-tabs-search-clear:hover {
-  color: #111;
-}
-
-@media (max-width: 768px) {
-  .cat-tabs-search-wrap {
-    width: 100%;
-    padding: 8px 12px;
+  .cat-count {
+    font-size: 13px;
+    color: #aaa;
+    font-weight: 400;
   }
 
-  .cat-tabs-search-inner {
-    width: 100%;
+  /* filter pill */
+  .filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 6px 5px 12px;
+    background: #111;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+  .filter-pill-remove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    padding: 0;
+    transition: background .15s;
+  }
+  .filter-pill-remove:hover { background: rgba(255,255,255,0.3); }
+
+  /* ── SORT ── */
+  .cat-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sort-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid #ebebeb;
+    border-radius: 10px;
+    padding: 0 4px 0 12px;
+    height: 40px;
+  }
+  .sort-icon {
+    color: #aaa;
+    display: flex;
+    flex-shrink: 0;
+  }
+  .sort-label {
+    font-size: 13px;
+    color: #888;
+    white-space: nowrap;
+    font-weight: 400;
+  }
+  .sort-select {
+    height: 100%;
+    border: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #111;
+    cursor: pointer;
+    outline: none;
+    padding-right: 6px;
+    min-width: 160px;
   }
 
-  .cat-tabs-search {
-    width: 100%;
+  /* ── PRODUCTS AREA ── */
+  .products-area {
+    padding: 0 28px 40px;
   }
 
-  .cat-tabs-search:focus {
-    width: 100%;
+  /* ── SPINNER ── */
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e0e0e0;
+    border-top-color: #111;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .products-load-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 32px 0;
+    color: #888;
+    font-size: 13.5px;
+    font-family: 'DM Sans', sans-serif;
   }
 
-  .products-area{
-    padding:16px;
+  /* ── FULL PAGE LOADING ── */
+  .full-page-loader {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: #f5f4f1;
   }
-}
+
+  /* ── GRID LOADING OVERLAY ── */
+  .grid-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 0;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    .cat-topbar {
+      padding: 14px 16px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .cat-topbar-right { width: 100%; }
+    .sort-wrap { width: 100%; }
+    .sort-select { flex: 1; min-width: 0; }
+    .cat-heading { font-size: 22px; }
+    .products-area { padding: 0 16px 32px; }
+    .brand-mega-list { padding: 14px 16px 18px; }
+    .brand-mega-head { padding: 10px 16px; }
+    .cat-search-wrap { padding: 0 10px; }
+    .cat-search-input { width: 120px; }
+    .cat-search-input:focus { width: 150px; }
+  }
 `;
 
 // ─────────────────────────────────────────────────────────────
@@ -413,34 +529,17 @@ export default function Categories() {
   // ─────────────────────────────────────────────────────────
   // Sync refs
   // ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    activeCategoryRef.current = activeCategory;
-  }, [activeCategory]);
-
-  useEffect(() => {
-    sortByRef.current = sortBy;
-  }, [sortBy]);
-
-  useEffect(() => {
-    activeBrandRef.current = activeBrand;
-  }, [activeBrand]);
+  useEffect(() => { activeCategoryRef.current = activeCategory; }, [activeCategory]);
+  useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
+  useEffect(() => { activeBrandRef.current = activeBrand; }, [activeBrand]);
 
   // ─────────────────────────────────────────────────────────
   // Sort
   // ─────────────────────────────────────────────────────────
-  const sortProducts = (
-    data: Product[],
-    sort: SortOption["value"]
-  ): Product[] => {
+  const sortProducts = (data: Product[], sort: SortOption["value"]): Product[] => {
     const copy = [...data];
-    if (sort === "price-asc")
-      return copy.sort(
-        (a, b) => Number(a.price ?? 0) - Number(b.price ?? 0)
-      );
-    if (sort === "price-desc")
-      return copy.sort(
-        (a, b) => Number(b.price ?? 0) - Number(a.price ?? 0)
-      );
+    if (sort === "price-asc") return copy.sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0));
+    if (sort === "price-desc") return copy.sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0));
     return copy;
   };
 
@@ -455,14 +554,12 @@ export default function Categories() {
         : Array.isArray(res?.data?.data)
           ? res.data.data
           : [];
-      console.log(res, "res")
       const formatted: Brand[] = raw.map((b: any) => ({
         id: b.id,
         name: b.name ?? b.brand_name ?? "",
         slug: b.slug ?? "",
         logo: b.logo_url ?? null,
       }));
-
       setBrandList(formatted);
     } catch (error) {
       console.error("Error fetching brands:", error);
@@ -478,17 +575,12 @@ export default function Categories() {
         page: 1,
         limit: CATEGORY_LIMIT,
       });
-
-      const raw = Array.isArray(res?.data?.data?.data)
-        ? res.data.data.data
-        : [];
-
+      const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
       const formatted: Category[] = raw.map((cat: any) => ({
         id: cat.id,
         name: cat.title ?? cat.name ?? cat.category_name ?? "",
         slug: cat.slug,
       }));
-
       setCategories([{ id: null, name: "All" }, ...formatted]);
     } catch (error) {
       console.error(error);
@@ -521,22 +613,13 @@ export default function Categories() {
           ...brandOrCategoryPayload,
         });
 
-        const raw = Array.isArray(res?.data?.data?.data)
-          ? res.data.data.data
-          : [];
-
+        const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
         const sorted = sortProducts(raw, sort);
 
-        setProducts((prev) =>
-          isLoadMore ? [...prev, ...sorted] : sorted
-        );
-
+        setProducts((prev) => isLoadMore ? [...prev, ...sorted] : sorted);
         setTotalProducts(res?.data?.data?.pagination?.total ?? 0);
 
-        const more =
-          raw.length ===
-          (pageNumber === 1 ? INITIAL_LIMIT : LOAD_MORE_LIMIT);
-
+        const more = raw.length === (pageNumber === 1 ? INITIAL_LIMIT : LOAD_MORE_LIMIT);
         setHasMore(more);
         hasMoreRef.current = more;
       } catch (error) {
@@ -566,7 +649,6 @@ export default function Categories() {
   // ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (initialLoading) return;
-
     setProductGridLoading(true);
     fetchProducts(1, false, activeCategory, sortBy, activeBrand);
     pageRef.current = 1;
@@ -590,9 +672,7 @@ export default function Categories() {
           limit: CATEGORY_LIMIT,
           search: categorySearch,
         });
-        const raw = Array.isArray(res?.data?.data?.data)
-          ? res.data.data.data
-          : [];
+        const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
         const formatted: Category[] = raw.map((cat: any) => ({
           id: cat.id,
           name: cat.name ?? cat.category_name ?? cat.title ?? "Unnamed",
@@ -628,11 +708,9 @@ export default function Categories() {
 
       if (scrollTop + windowHeight >= fullHeight - 200) {
         fetchingRef.current = true;
-
         const nextPage = pageRef.current + 1;
         pageRef.current = nextPage;
         setPage(nextPage);
-
         await fetchProducts(
           nextPage,
           true,
@@ -640,7 +718,6 @@ export default function Categories() {
           sortByRef.current,
           activeBrandRef.current
         );
-
         fetchingRef.current = false;
       }
     };
@@ -665,7 +742,6 @@ export default function Categories() {
     setBrandMenuOpen(false);
   };
 
-
   const handleClearFilter = () => {
     const allCategory: Category = { id: null, name: "All" };
     activeCategoryRef.current = allCategory;
@@ -680,15 +756,9 @@ export default function Categories() {
   // ─────────────────────────────────────────────────────────
   if (initialLoading) {
     return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-        }}
-      >
-        <div className="spinner" />
+      <div className="full-page-loader">
+        <style>{styles}</style>
+        <div className="spinner" style={{ width: 28, height: 28 }} />
       </div>
     );
   }
@@ -696,223 +766,105 @@ export default function Categories() {
   // ─────────────────────────────────────────────────────────
   // UI
   // ─────────────────────────────────────────────────────────
-  console.log(brandList, "brandList")
   return (
     <div className="cat-root">
       <style>{styles}</style>
 
-      {/* Tabs */}
-      <div className="cat-tabs-wrap">
-        <div className="cat-tabs-wrap">
-          <div className="cat-tabs-inner">
-            {/* Categories */}
-              <div
-              className={`cat-tab ${brandMenuOpen ? "active" : ""}`}
-              onMouseEnter={() => setBrandMenuOpen(true)}
-              onMouseLeave={() => setBrandMenuOpen(false)}
-              style={{ position: "relative" }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                Brand
+      {/* ── STICKY NAV ── */}
+      <div className="cat-nav">
+        <div className="cat-nav-row">
 
-                <svg
-                  className={`brand-chevron ${brandMenuOpen ? "open" : ""}`}
-                  width="10"
-                  height="10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
+          {/* Brand tab (hover trigger) */}
+          <div
+            className="brand-tab-wrap"
+            onMouseEnter={() => setBrandMenuOpen(true)}
+            onMouseLeave={() => setBrandMenuOpen(false)}
+          >
+            <button className={`brand-tab-btn ${brandMenuOpen || activeBrand ? "active" : ""}`}>
+              Brands
+              <ChevronDown
+                size={14}
+                className={`brand-chevron ${brandMenuOpen ? "open" : ""}`}
+              />
+            </button>
+
+            {/* Mega Menu */}
+            <div className={`brand-mega mt-16 ${brandMenuOpen ? "open" : ""}`}>
+              <div className="brand-mega-head">
+                <span className="brand-mega-title">Shop by brand</span>
+                <span className="brand-mega-count">{brandList.length} brands</span>
               </div>
 
-              {/* Mega Menu */}
-              <div
-                style={{
-                  position: "fixed",
-                  top: "52px",
-                  left: 0,
-                  width: "100%",
-                  background: "#fff",
-                  borderBottom: "1px solid #e5e7eb",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.08)",
-                  opacity: brandMenuOpen ? 1 : 0,
-                  visibility: brandMenuOpen ? "visible" : "hidden",
-                  transform: brandMenuOpen
-                    ? "translateY(0)"
-                    : "translateY(-6px)",
-                  transition:
-                    "opacity .22s ease, transform .22s ease, visibility .22s",
-                  zIndex: 999,
-                  pointerEvents: brandMenuOpen ? "auto" : "none",
-                }}
-              >
-                {/* Header */}
-                <div
-                  style={{
-                    borderBottom: "1px solid #f0f0f0",
-                    padding: "14px 32px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "#111",
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Shop by Brand
-                  </span>
-
-                  <span style={{ fontSize: 12, color: "#aaa" }}>
-                    {brandList.length} brands
-                  </span>
-                </div>
-
-                {/* Brands */}
-                <div
-                  style={{
-                    width: "100%",
-                    overflowX: "auto",
-                    overflowY: "hidden",
-                    scrollbarWidth: "none",
-                    padding: "20px 32px 24px",
-                  }}
-                >
-                  {brandList.length === 0 ? (
-                    <div style={{ display: "flex", gap: 14 }}>
-                      {Array.from({ length: 8 }).map((_, i) => (
+              <div className="brand-mega-list">
+                {brandList.length === 0
+                  ? Array.from({ length: 8 }).map((_, i) => (
+                      <div key={i} className="shimmer-card" />
+                    ))
+                  : brandList.map((brand) => {
+                      const isSelected = activeBrand?.id === brand.id;
+                      return (
                         <div
-                          key={i}
-                          style={{
-                            flexShrink: 0,
-                            width: 130,
-                            height: 90,
-                            borderRadius: 14,
-                            background:
-                              "linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)",
-                            backgroundSize: "200% 100%",
-                            animation: "shimmer 1.4s infinite",
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 14,
-                        width: "max-content",
-                      }}
-                    >
-                      {brandList.map((brand) => {
-                        const isSelected = activeBrand?.id === brand.id;
-
-                        return (
-                          <div
-                            key={brand.id}
-                            onClick={() => handleBrandSelect(brand)}
-                            style={{
-                              flexShrink: 0,
-                              width: 130,
-                              cursor: "pointer",
-                              padding: "14px 12px",
-                              border: `1.5px solid ${isSelected ? "#111" : "#eee"
-                                }`,
-                              borderRadius: 14,
-                              background: isSelected ? "#111" : "#fff",
-                            }}
-                          >
-                            <div
-                              style={{
-                                width: 48,
-                                height: 48,
-                                position: "relative",
-                                margin: "0 auto 10px",
-                              }}
-                            >
+                          key={brand.id}
+                          className={`brand-card ${isSelected ? "selected" : ""}`}
+                          onClick={() => handleBrandSelect(brand)}
+                        >
+                          <div className="brand-logo-wrap">
+                            {brand.logo ? (
                               <Image
                                 src={brand.logo}
                                 alt={brand.name}
                                 fill
-                                style={{ objectFit: "contain" }}
+                                style={{ objectFit: "contain", padding: 4 }}
                               />
-                            </div>
-
-                            <div
-                              style={{
-                                textAlign: "center",
-                                fontSize: 13,
-                                fontWeight: 600,
-                              }}
-                            >
-                              {brand.name}
-                            </div>
+                            ) : (
+                              <span className="brand-initials">
+                                {brandInitials(brand.name)}
+                              </span>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                          <div className="brand-card-name">{brand.name}</div>
+                        </div>
+                      );
+                    })}
               </div>
             </div>
+          </div>
+
+          {/* Category tabs */}
+          <div className="cat-tabs-scroll">
             {categories
               .filter((cat) => cat.name !== BRAND_TAB_NAME)
-              .map((cat) => {
-                const isActive = activeCategory.id === cat.id;
-
-                return (
-                  <div
-                    key={cat.id}
-                    className={`cat-tab ${isActive ? "active" : ""}`}
-                    onClick={() => handleCategorySelect(cat)}
-                  >
-                    {cat.name}
-                  </div>
-                );
-              })}
-
-            {/* Brand Tab */}
-          
+              .map((cat) => (
+                <div
+                  key={cat.id}
+                  className={`cat-tab ${activeCategory.id === cat.id && !activeBrand ? "active" : ""}`}
+                  onClick={() => handleCategorySelect(cat)}
+                >
+                  {cat.name}
+                </div>
+              ))}
           </div>
 
           {/* Search */}
-          <div className="cat-tabs-search-wrap">
-            <div className="cat-tabs-search-inner">
-              <span className="cat-tabs-search-icon">
-                <SearchIcon size={15} />
+          <div className="cat-search-wrap">
+            <div className="cat-search-inner">
+              <span className="cat-search-icon">
+                <SearchIcon size={14} />
               </span>
-
               <input
                 type="search"
-                className="cat-tabs-search"
+                className="cat-search-input"
                 placeholder="Filter categories…"
                 value={categorySearch}
                 onChange={(e) => setCategorySearch(e.target.value)}
               />
-
               {categorySearch && (
                 <button
-                  className="cat-tabs-search-clear"
-                  onClick={() => {
-                    setCategorySearch("");
-                    handleClearFilter();
-                  }}
+                  className="cat-search-clear"
+                  onClick={() => { setCategorySearch(""); handleClearFilter(); }}
+                  aria-label="Clear search"
                 >
-                  ×
+                  <X size={13} />
                 </button>
               )}
             </div>
@@ -920,45 +872,54 @@ export default function Categories() {
         </div>
       </div>
 
-      {/* Top bar */}
+      {/* ── TOP BAR ── */}
       <div className="cat-topbar">
         <div className="cat-topbar-left">
-          <div className="cat-title-wrap">
-            <h1 className="cat-heading">
-              {activeBrand ? activeBrand.name : activeCategory.name}
-            </h1>
-            <span className="cat-count">{total_products} items</span>
-          </div>
+          <h1 className="cat-heading">
+            {activeBrand ? activeBrand.name : activeCategory.name}
+          </h1>
+          <span className="cat-count">{total_products} items</span>
 
           {(activeCategory.id !== null || activeBrand) && (
-            <span className="active-filter-pill">
+            <span className="filter-pill">
               {activeBrand ? activeBrand.name : activeCategory.name}
-              <button onClick={handleClearFilter}>×</button>
+              <button
+                className="filter-pill-remove"
+                onClick={handleClearFilter}
+                aria-label="Remove filter"
+              >
+                <X size={11} />
+              </button>
             </span>
           )}
         </div>
 
         <div className="cat-topbar-right">
-          <label className="sort-label">Sort By</label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption["value"])}
-            className="sort-select"
-          >
-            {sortOptions.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
+          <div className="sort-wrap">
+            <span className="sort-icon">
+              <SlidersHorizontal size={14} />
+            </span>
+            <span className="sort-label">Sort:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption["value"])}
+              className="sort-select"
+            >
+              {sortOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Products */}
+      {/* ── PRODUCTS ── */}
       <div className="products-area">
         {productGridLoading ? (
-          <div style={{ display: "flex", justifyContent: "center", padding: "100px 0" }}>
-            <div className="spinner" />
+          <div className="grid-loading">
+            <div className="spinner" style={{ width: 28, height: 28 }} />
           </div>
         ) : products.length > 0 ? (
           <>
@@ -966,7 +927,7 @@ export default function Categories() {
             {productLoading && page > 1 && (
               <div className="products-load-more">
                 <div className="spinner" />
-                Loading more...
+                Loading more products…
               </div>
             )}
           </>
