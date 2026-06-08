@@ -5,6 +5,8 @@ import {
   ChevronLeft,
   AlertCircle,
   Loader2,
+  Clock,
+  Info,
 } from "lucide-react";
 
 import ShippingRateCard from "./ShippingRateCard";
@@ -37,7 +39,7 @@ export default function ShippingSection({
 }: Props) {
   return (
     <div className="rounded-3xl bg-white dark:bg-slate-900 p-6 lg:p-8 border border-slate-200 dark:border-slate-700 shadow-sm">
-      
+
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <div className="h-10 w-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
@@ -75,8 +77,7 @@ export default function ShippingSection({
               key={`${rate.carrier_code}-${rate.service_code}`}
               rate={rate}
               selected={
-                selectedRate?.service_code ===
-                rate.service_code
+                selectedRate?.service_code === rate.service_code
               }
               onSelect={() => setSelectedRate(rate)}
             />
@@ -99,6 +100,40 @@ export default function ShippingSection({
           </p>
         </div>
       )}
+
+      {/* ── DELIVERY NOTES ── */}
+      <div className="mt-5 space-y-3">
+
+        {/* Estimated Delivery */}
+        <div className="flex gap-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 px-4 py-3.5">
+          <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">
+              Estimated Delivery
+            </p>
+            <p className="text-xs text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
+              We strive to ship everything within <span className="font-medium">10 days</span> but some items do take longer. Please note that delivery times are estimates and may vary due to factors such as courier schedules, holidays, or remote delivery locations.
+            </p>
+          </div>
+        </div>
+
+        {/* Production Variability */}
+        <div className="flex gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3.5">
+          <Info className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">
+              Production Variability &amp; Unexpected Delays
+            </p>
+            <p className="text-xs text-amber-700/75 dark:text-amber-400/80 leading-relaxed">
+              Because many of our products are custom-made, occasional production delays may occur. Factors such as machine maintenance, needle breaks, garment defects, or the need to re-run an item to meet our quality standards can extend the normal processing timeline. These situations are rare, but they are a natural part of custom apparel production.
+            </p>
+            <p className="text-xs text-amber-700/75 dark:text-amber-400/80 leading-relaxed mt-2">
+              If your order is affected by an unexpected production delay, our team will notify you promptly with an updated timeline. We are committed to delivering high-quality products and will never ship an item that does not meet our standards.
+            </p>
+          </div>
+        </div>
+
+      </div>
 
       {/* Order error */}
       {orderError && (

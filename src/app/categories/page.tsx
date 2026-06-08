@@ -66,7 +66,7 @@ const styles = `
   }
 
   .cat-root {
-    background: #f5f4f1;
+    // background: #f5f4f1;
     min-height: 100vh;
     font-family: 'DM Sans', sans-serif;
   }
@@ -83,7 +83,7 @@ const styles = `
   .cat-nav-row {
     display: flex;
     align-items: stretch;
-    height: 52px;
+    height: 64spx;
   }
 
   /* ── TABS ── */
@@ -128,7 +128,7 @@ const styles = `
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 52px;
+    height: 64px;
     padding: 0 20px;
     font-family: 'DM Sans', sans-serif;
     font-size: 13.5px;
@@ -176,12 +176,16 @@ const styles = `
     transform: translateY(0);
     pointer-events: auto;
   }
+  .brand-mega-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 28px 24px;
+  }
   .brand-mega-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 28px;
-    border-bottom: 1px solid #f0f0f0;
+    margin-bottom: 16px;
   }
   .brand-mega-title {
     font-size: 10px;
@@ -194,61 +198,79 @@ const styles = `
     font-size: 12px;
     color: #bbb;
   }
-  .brand-mega-list {
-    display: flex;
-    gap: 10px;
-    padding: 18px 28px 22px;
-    overflow-x: auto;
-    scrollbar-width: none;
+
+  /* ── BRAND GRID ── */
+  .brand-mega-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #ddd transparent;
+    padding:5px
   }
-  .brand-mega-list::-webkit-scrollbar { display: none; }
+  .brand-mega-grid::-webkit-scrollbar {
+    width: 4px;
+  }
+  .brand-mega-grid::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .brand-mega-grid::-webkit-scrollbar-thumb {
+    background: #ddd;
+    border-radius: 99px;
+  }
 
   /* ── BRAND CARD ── */
   .brand-card {
-    flex-shrink: 0;
-    width: 118px;
-    padding: 14px 12px 12px;
+    padding: 8px 6px;
     border: 1.5px solid #efefef;
-    border-radius: 14px;
+    border-radius: 10px;
     background: #fafafa;
     cursor: pointer;
     text-align: center;
-    transition: border-color .18s, background .18s, transform .18s;
+    transition: border-color .18s, background .18s, transform .18s, box-shadow .18s;
   }
   .brand-card:hover {
     border-color: #ccc;
     background: #fff;
-    transform: translateY(-2px);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.06);
   }
   .brand-card.selected {
     border-color: #111;
     background: #fff;
-    transform: translateY(-2px);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.10);
   }
   .brand-logo-wrap {
-    width: 46px;
-    height: 46px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
     background: #fff;
     border: 1px solid #f0f0f0;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 10px;
+    margin: 0 auto 6px;
     overflow: hidden;
     position: relative;
   }
   .brand-initials {
-    font-size: 13px;
+    font-size: 10px;
     font-weight: 700;
     color: #555;
     letter-spacing: -0.02em;
   }
   .brand-card-name {
-    font-size: 12.5px;
+    font-size: 10px;
     font-weight: 500;
-    color: #333;
-    line-height: 1.3;
+    color: #444;
+    line-height: 1.25;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
   .brand-card.selected .brand-card-name { color: #111; }
 
@@ -258,10 +280,8 @@ const styles = `
     100% { background-position: 400px 0; }
   }
   .shimmer-card {
-    flex-shrink: 0;
-    width: 118px;
-    height: 96px;
-    border-radius: 14px;
+    height: 68px;
+    border-radius: 10px;
     background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
     background-size: 800px 100%;
     animation: shimmer 1.5s infinite;
@@ -459,7 +479,7 @@ const styles = `
     align-items: center;
     justify-content: center;
     min-height: 100vh;
-    background: #f5f4f1;
+    // background: #f5f4f1;
   }
 
   /* ── GRID LOADING OVERLAY ── */
@@ -483,8 +503,11 @@ const styles = `
     .sort-select { flex: 1; min-width: 0; }
     .cat-heading { font-size: 22px; }
     .products-area { padding: 0 16px 32px; }
-    .brand-mega-list { padding: 14px 16px 18px; }
-    .brand-mega-head { padding: 10px 16px; }
+    .brand-mega-inner { padding: 14px 16px 18px; }
+    .brand-mega-grid {
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      max-height: 220px;
+    }
     .cat-search-wrap { padding: 0 10px; }
     .cat-search-input { width: 120px; }
     .cat-search-input:focus { width: 150px; }
@@ -789,18 +812,19 @@ export default function Categories() {
             </button>
 
             {/* Mega Menu */}
-            <div className={`brand-mega mt-16 ${brandMenuOpen ? "open" : ""}`}>
-              <div className="brand-mega-head">
-                <span className="brand-mega-title">Shop by brand</span>
-                <span className="brand-mega-count">{brandList.length} brands</span>
-              </div>
+            <div className={`brand-mega ${brandMenuOpen ? "open" : ""}`}>
+              <div className="brand-mega-inner">
+                <div className="brand-mega-head">
+                  <span className="brand-mega-title">Shop by brand</span>
+                  <span className="brand-mega-count">{brandList.length} brands</span>
+                </div>
 
-              <div className="brand-mega-list">
-                {brandList.length === 0
-                  ? Array.from({ length: 8 }).map((_, i) => (
+                <div className="brand-mega-grid">
+                  {brandList.length === 0
+                    ? Array.from({ length: 20 }).map((_, i) => (
                       <div key={i} className="shimmer-card" />
                     ))
-                  : brandList.map((brand) => {
+                    : brandList.map((brand) => {
                       const isSelected = activeBrand?.id === brand.id;
                       return (
                         <div
@@ -826,6 +850,7 @@ export default function Categories() {
                         </div>
                       );
                     })}
+                </div>
               </div>
             </div>
           </div>

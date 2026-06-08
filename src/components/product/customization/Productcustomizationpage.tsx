@@ -45,7 +45,7 @@ export default function ProductCustomizationPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7]">
+    <div className="min-h-screen">
 
       {/* ── Breadcrumb / back bar ── */}
       <div className="border-b border-[#ece8e2] bg-white/70 backdrop-blur-sm sticky top-0 z-20">
@@ -67,7 +67,7 @@ export default function ProductCustomizationPage({
       </div>
 
       {/* ── Page header ── */}
-      <div className="bg-gradient-to-b from-[#eef5f0] to-[#faf9f7] border-b border-[#e2ece4] py-8">
+      <div className="border-b border-[#e2ece4] py-8">
         <div className="container max-w-5xl mx-auto px-4 text-center">
           <h1 className="text-2xl lg:text-3xl font-bold text-[#1a2e1e] mb-1">
             Customize Your Product
