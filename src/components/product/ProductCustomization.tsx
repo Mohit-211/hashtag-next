@@ -115,7 +115,7 @@ const MATERIALS: Material[] = [
     boldDesc: "Photo-quality prints on cotton garments.",
     bestFor: "100% cotton tees",
     minLabel: "No minimums",
-    badge: "Cotton Only",
+     badge: "No Minimum",
     iconUrl: "/icons/dtg.png",
   },
 ];
@@ -159,7 +159,6 @@ const EMB_PRICES: Record<string, number[]> = {
   "oversized": [0, 0, 0, 0, 0, 0, 0],
 };
 
-/* ─── FIX: DTF tiers use reduce() so 144+ always resolves correctly ── */
 const DTF_TIER_LABELS = ["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"];
 const DTF_TIERS       = [1,       12,      24,      36,      72,      96,       144];
 const DTF_PRICES      = [15,      12,      10,      9,       7,       5,        5];
@@ -227,6 +226,27 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
     img.onerror = reject;
     img.src = src;
   });
+
+function getImageBounds(
+  productImg: HTMLImageElement | null,
+  size: number
+): { x: number; y: number; width: number; height: number } {
+  if (!productImg) {
+    return { x: 0, y: 0, width: size, height: size };
+  }
+  const scale = Math.min(
+    size / productImg.naturalWidth,
+    size / productImg.naturalHeight
+  );
+  const drawW = productImg.naturalWidth * scale;
+  const drawH = productImg.naturalHeight * scale;
+  return {
+    x: (size - drawW) / 2,
+    y: (size - drawH) / 2,
+    width: drawW,
+    height: drawH,
+  };
+}
 
 /* ─── Draw Function ──────────────────────────────────────────────────────── */
 interface DrawParams {
@@ -387,8 +407,6 @@ function EmbroideryPricingTable({ activeLocations }: { activeLocations: string[]
   );
 }
 
-/* ─── FIX: DTFPricingTable — removed bogus "More/Inquiry" column,
-         activeTier now uses reduce() so 144+ always highlights correctly ── */
 function DTFPricingTable({ qty }: { qty: number }) {
   const activeTier = DTF_TIERS.reduce((found, t, i) => (qty >= t ? i : found), 0);
 
@@ -620,8 +638,11 @@ export default function ProductCustomization({
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
 
+  // ── QUANTITY — minimum is 50 when screen print is selected ──────────────
+  const qtyMin = selectedMaterial === "screenprint" ? 50 : 1;
   const [quantity, setQuantity] = useState(1);
-  const decreaseQuantity = () => setQuantity((p) => Math.max(1, p - 1));
+
+  const decreaseQuantity = () => setQuantity((p) => Math.max(qtyMin, p - 1));
   const increaseQuantity = () => setQuantity((p) => p + 1);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -638,7 +659,7 @@ export default function ProductCustomization({
   const REQUIREMENTS = [
     { key: "loc", label: "Print location", done: selectedLocations.length > 0 },
     { key: "mat", label: "Print method", done: !!selectedMaterial },
-    { key: "qty", label: "Quantity", done: quantity >= 1 },
+    { key: "qty", label: "Quantity", done: quantity >= qtyMin },
   ];
 
   useEffect(() => {
@@ -677,9 +698,13 @@ export default function ProductCustomization({
     const reader = new FileReader();
     reader.onloadend = () => {
       setLogoSrc(reader.result as string);
-      setLogoPos({ x: 190, y: 190 });
       setLogoRotation(0);
-      setLogoSize(120);
+      const defaultSize = 120;
+      setLogoSize(defaultSize);
+      const bounds = getImageBounds(productImg, CANVAS_SIZE);
+      const centreX = bounds.x + (bounds.width - defaultSize) / 2;
+      const centreY = bounds.y + (bounds.height - defaultSize) / 2;
+      setLogoPos({ x: centreX, y: centreY });
     };
     reader.readAsDataURL(file);
   };
@@ -711,9 +736,14 @@ export default function ProductCustomization({
     if (!dragging) return;
     const pt = getCanvasPoint(e);
     if (dragging === "logo") {
+      const bounds = getImageBounds(productImg, CANVAS_SIZE);
+      const minX = bounds.x;
+      const minY = bounds.y;
+      const maxX = bounds.x + bounds.width - logoSize;
+      const maxY = bounds.y + bounds.height - logoSize;
       setLogoPos({
-        x: Math.max(0, Math.min(CANVAS_SIZE - logoSize, pt.x - dragOffset.x)),
-        y: Math.max(0, Math.min(CANVAS_SIZE - logoSize, pt.y - dragOffset.y)),
+        x: Math.max(minX, Math.min(maxX, pt.x - dragOffset.x)),
+        y: Math.max(minY, Math.min(maxY, pt.y - dragOffset.y)),
       });
     } else if (dragging === "text") {
       setTextPos({
@@ -721,7 +751,7 @@ export default function ProductCustomization({
         y: Math.max(textSize, Math.min(CANVAS_SIZE, pt.y - dragOffset.y)),
       });
     }
-  }, [dragging, dragOffset, logoSize, textSize]);
+  }, [dragging, dragOffset, logoSize, textSize, productImg]);
 
   const stopDrag = () => setDragging(null);
 
@@ -756,10 +786,8 @@ export default function ProductCustomization({
     return "default";
   };
 
-  /* ─── FIX: getPrintPrice uses reduce() for DTF so tier is always correct ── */
   const getPrintPrice = (): number | null => {
     if (!selectedMaterial) return null;
-
     if (selectedMaterial === "embroidery") {
       if (selectedLocations.length === 0 || selectedLocations.includes("oversized")) return null;
       const tierIdx = EMB_TIERS.findIndex((t) => quantity >= t.min && quantity <= t.max);
@@ -771,26 +799,20 @@ export default function ProductCustomization({
       }
       return total + (quantity <= 11 ? 35 : 0);
     }
-
     if (selectedMaterial === "dtf") {
       if (selectedLocations.length === 0) return null;
-      /* FIX: reduce guarantees a valid index even for qty >= 144 */
       const tierIdx = DTF_TIERS.reduce((found, t, i) => (quantity >= t ? i : found), 0);
       return DTF_PRICES[tierIdx] * quantity * selectedLocations.length;
     }
-
     if (selectedMaterial === "screenprint") {
       if (quantity < 50 || selectedLocations.length === 0) return null;
       return SP_PRICES[spColorCount][quantity >= 100 ? 1 : 0] * quantity * selectedLocations.length;
     }
-
     if (selectedMaterial === "dtg") {
       if (selectedLocations.length === 0) return null;
-      /* FIX: reduce for consistency */
       const tierIdx = DTG_TIERS.reduce((found, t, i) => (quantity >= t.min ? i : found), 0);
       return DTG_PRICES[dtgStyle][tierIdx] * quantity * selectedLocations.length;
     }
-
     return null;
   };
 
@@ -835,12 +857,16 @@ export default function ProductCustomization({
     if (validationError && getMissingRequirements().length === 0) setValidationError(null);
   }, [selectedLocations, selectedMaterial, quantity, validationError, getMissingRequirements]);
 
+  // ── When screen print is selected, immediately bump qty to 50 if below ──
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
+    if (id === "screenprint" && quantity < 50) {
+      setQuantity(50);
+    }
   };
 
-  const allRequirementsMet = selectedLocations.length > 0 && !!selectedMaterial && quantity >= 1;
+  const allRequirementsMet = selectedLocations.length > 0 && !!selectedMaterial && quantity >= qtyMin;
 
   const QTY_PRESETS = [
     { q: 1, hint: "Sample" },
@@ -854,8 +880,6 @@ export default function ProductCustomization({
   ];
 
   const nextTierMsg = () => {
-    if (selectedMaterial === "screenprint" && quantity < 50)
-      return `Screen print needs at least 50 pieces — ${50 - quantity} more to qualify.`;
     if (quantity >= 144) return "Bulk rate unlocked — best price per piece.";
     const milestones = [12, 24, 36, 50, 72, 100, 144];
     for (const m of milestones) {
@@ -1132,48 +1156,67 @@ export default function ProductCustomization({
             </div>
 
             <div className="flex items-center bg-gray-50 rounded-2xl border-2 border-gray-200 overflow-hidden mb-3 focus-within:border-[#F5C400] transition-colors">
-              <button onClick={decreaseQuantity} disabled={quantity <= 1}
-                className={cn("w-14 h-14 flex items-center justify-center transition-all text-xl font-black flex-shrink-0",
-                  quantity <= 1 ? "text-gray-300 cursor-not-allowed" : "text-[#F5C400] hover:bg-[#F5C400]/10 active:scale-95"
-                )}>
+              {/* ── Minus button: disabled at the effective minimum ── */}
+              <button
+                onClick={decreaseQuantity}
+                disabled={quantity <= qtyMin}
+                className={cn(
+                  "w-14 h-14 flex items-center justify-center transition-all text-xl font-black flex-shrink-0",
+                  quantity <= qtyMin
+                    ? "text-gray-300 cursor-not-allowed"
+                    : "text-[#F5C400] hover:bg-[#F5C400]/10 active:scale-95"
+                )}
+              >
                 <Minus size={18} />
               </button>
-              <input type="number" min={1} value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                className="flex-1 text-center text-3xl font-black text-gray-900 border-0 outline-none bg-transparent py-3" />
+              <input
+                type="number"
+                min={qtyMin}
+                value={quantity}
+                onChange={(e) =>
+                  setQuantity(Math.max(qtyMin, parseInt(e.target.value) || qtyMin))
+                }
+                className="flex-1 text-center text-3xl font-black text-gray-900 border-0 outline-none bg-transparent py-3"
+              />
               <button onClick={increaseQuantity}
                 className="w-14 h-14 flex items-center justify-center text-[#F5C400] hover:bg-[#F5C400]/10 active:scale-95 transition-all flex-shrink-0">
                 <Plus size={18} />
               </button>
             </div>
 
+            {/* ── Preset quantity buttons: disable below 50 for screen print ── */}
             <div className="grid grid-cols-4 gap-1.5 mb-3">
               {QTY_PRESETS.map(({ q, hint, accent }) => {
                 const isActive = quantity === q;
+                const isBelowMin = selectedMaterial === "screenprint" && q < 50;
                 return (
-                  <button key={q} onClick={() => setQuantity(q)}
+                  <button
+                    key={q}
+                    onClick={() => { if (!isBelowMin) setQuantity(q); }}
+                    disabled={isBelowMin}
                     className={cn(
                       "flex flex-col items-center justify-center rounded-xl border-2 py-2.5 px-1 transition-all duration-150",
-                      isActive ? "border-[#F5C400] bg-[#F5C400]"
-                        : accent ? "border-[#F5C400]/40 bg-[#FFFBEA] hover:border-[#F5C400] hover:bg-[#FFF5C0]"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                    )}>
-                    <span className={cn("text-sm font-black leading-none", isActive ? "text-black" : "text-gray-800")}>{q}</span>
-                    <span className={cn("text-[9px] font-bold mt-1 leading-none text-center",
-                      isActive ? "text-black/60" : accent ? "text-[#b89000]" : "text-gray-400"
+                      isBelowMin
+                        ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                        : isActive
+                          ? "border-[#F5C400] bg-[#F5C400]"
+                          : accent
+                            ? "border-[#F5C400]/40 bg-[#FFFBEA] hover:border-[#F5C400] hover:bg-[#FFF5C0]"
+                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                    )}
+                  >
+                    <span className={cn("text-sm font-black leading-none", isActive && !isBelowMin ? "text-black" : "text-gray-800")}>{q}</span>
+                    <span className={cn(
+                      "text-[9px] font-bold mt-1 leading-none text-center",
+                      isActive && !isBelowMin ? "text-black/60" : accent ? "text-[#b89000]" : "text-gray-400"
                     )}>{hint}</span>
                   </button>
                 );
               })}
             </div>
 
-            {selectedMaterial === "screenprint" && quantity < 50 ? (
-              <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
-                <AlertCircle size={15} className="text-amber-500 flex-shrink-0" />
-                <p className="text-xs font-semibold text-amber-700 flex-1">Screen print needs at least 50 pieces — {50 - quantity} more.</p>
-                <button onClick={() => setQuantity(50)} className="text-xs font-black text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0">Set 50</button>
-              </div>
-            ) : selectedMaterial && quantity < 144 ? (
+            {/* ── Tier hint banner (screen print below-50 warning removed — now impossible) ── */}
+            {selectedMaterial && quantity < 144 ? (
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5">
                 <Zap size={13} className="text-[#F5C400] flex-shrink-0" />
                 <p className="text-xs text-gray-500 font-medium">{nextTierMsg()}</p>
@@ -1271,9 +1314,6 @@ export default function ProductCustomization({
                         <span>Decoration (Oversized)</span>
                         <span className="font-bold">Quote required</span>
                       </div>
-                    )}
-                    {selectedMaterial === "screenprint" && quantity < 50 && (
-                      <p className="text-[10px] text-amber-500 font-bold">⚠ Screen print requires 50+ pieces</p>
                     )}
                     <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                       <span className="text-sm font-bold text-gray-900">Estimated Total</span>
