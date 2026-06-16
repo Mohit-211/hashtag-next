@@ -136,22 +136,36 @@ export default function ProductInfo({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            {colors.map((item) => (
-              <button
-                key={item.color}
-                title={item.color}
-                onClick={() => onColorChange(item.color)}
-                className={`relative w-10 h-10 rounded-full border-2 transition-all duration-200 hover:scale-110 ${
-                  selectedColor === item.color
-                    ? "border-[#111111] ring-2 ring-[#E8D03A] scale-105"
-                    : "border-[#E5E5E5]"
-                }`}
-                style={{
-                  backgroundColor: item.color_code,
-                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
-                }}
-              />
-            ))}
+            {colors.map((item) => {
+              const colorCodes = item.color_code
+                ?.split(",")
+                .map((c) => c.trim())
+                .filter(Boolean);
+
+              const background =
+                colorCodes?.length > 1
+                  ? `linear-gradient(135deg, ${colorCodes.join(",")})`
+                  : colorCodes?.[0] || "#ccc";
+
+              return (
+                <button
+                  key={item.color}
+                  title={item.color}
+                  onClick={() => onColorChange(item.color)}
+                  className={`relative w-10 h-10 rounded-full  transition-all duration-200 hover:scale-110 ${selectedColor === item.color
+                      ? " scale-105"
+                      : "border-[#E5E5E5]"
+                    }`}
+                  style={{
+                    background:
+                      colorCodes?.length > 1 ? background : undefined,
+                    backgroundColor:
+                      colorCodes?.length === 1 ? colorCodes[0] : undefined,
+                    boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -175,13 +189,12 @@ export default function ProductInfo({
                   key={size.id}
                   onClick={() => available && onSizeChange(size)}
                   disabled={!available}
-                  className={`min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 ${
-                    isActive
-                      ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
-                      : available
+                  className={`min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 ${isActive
+                    ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
+                    : available
                       ? "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
                       : "bg-[#F5F5F5] text-[#BDBDBD] border-[#E5E5E5] cursor-not-allowed line-through"
-                  }`}
+                    }`}
                 >
                   {size.name}
                 </button>

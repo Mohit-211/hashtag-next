@@ -351,7 +351,7 @@ function getDiscount(price: number | string, original: number | string) {
 
 function ProductCard({ product, index }: { product: Product; index: number }) {
   const [saved, setSaved] = useState(false);
-
+console.log(product,"product")
   const imageUrl =
     Array.isArray(product.attachments) &&
     product.attachments.length > 0 &&

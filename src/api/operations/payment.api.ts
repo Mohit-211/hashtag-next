@@ -11,16 +11,12 @@ export interface SquareConfig {
 }
 
 export const GetSquareConfigApi = async (): Promise<SquareConfig> => {
-  console.log("⚙️ [payment.api] GetSquareConfigApi called");
 
   const res = await client.get(
     PAYMENT_ENDPOINTS.SQUARE_CONFIG
   );
 
-  console.log(
-    "⚙️ [payment.api] Square config response:",
-    res?.data
-  );
+  
 
   return res?.data?.data;
 };
@@ -45,10 +41,7 @@ export interface CreatePaymentPayload {
 export const CreatePaymentApi = async (
   payload: CreatePaymentPayload
 ) => {
-  console.log(
-    "💳 [payment.api] CreatePaymentApi called with:",
-    payload
-  );
+  
 
   if (
     payload.payment_mode !== "BANK_ACCOUNT" &&
@@ -64,10 +57,7 @@ export const CreatePaymentApi = async (
     payload
   );
 
-  console.log(
-    "💳 [payment.api] CreatePaymentApi response:",
-    response?.data
-  );
+
 
   return response;
 };
@@ -91,19 +81,12 @@ export const GetPaymentHistoryApi = async (
     limit = 10,
   } = params;
 
-  console.log(
-    "📜 [payment.api] GetPaymentHistoryApi called",
-    { page, limit }
-  );
 
   const response = await client.get(
     `${PAYMENT_ENDPOINTS.PAYMENT_HISTORY}?page=${page}&limit=${limit}`
   );
 
-  console.log(
-    "📜 [payment.api] Payment history response:",
-    response?.data
-  );
+ 
 
   return response?.data;
 };

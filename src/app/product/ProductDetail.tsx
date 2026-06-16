@@ -188,29 +188,14 @@ export default function ProductDetail({ id }: { id: string }) {
     }
   };
 
-  const handleCustomize = async () => {
-    if (!product || !variantData) return;
-    try {
-      setCustomizeLoading(true);
-      const slug = product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-      const image =
-        displayAttachments?.[activeGalleryIndex]?.file_uri ||
-        displayAttachments?.[0]?.file_uri || "";
-      const params = new URLSearchParams({
-        productId: product.id,
-        variantId: String(variantData.id),
-        price: String(displayPrice),
-        name: product.name,
-        image,
-      });
-      router.push(`/customization/${slug}?${params.toString()}`);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCustomizeLoading(false);
-    }
-  };
-
+ const handleCustomize = () => {
+  if (!product) return;
+  const slug = product.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  router.push(`/customization/${product.id}`);
+};
   /* ── skeleton ── */
   console.log(product,"product")
   if (loading) {

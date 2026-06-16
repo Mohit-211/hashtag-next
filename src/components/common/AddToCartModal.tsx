@@ -1,6 +1,5 @@
 "use client";
-
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   X,
   ShoppingCart,
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
-
 interface AddToCartModalProps {
   open: boolean;
   onClose: () => void;
@@ -26,12 +24,10 @@ interface AddToCartModalProps {
   printPricePerPiece?: number;
   digitizingFee?: number;
   onSuccess?: () => void;
-  customization?: string;
+  customization?: string; // ✅ string, not any[]
   canvasBlob?: Blob | null;
 }
-
 const PRESETS = [1, 12, 24, 36, 72, 144];
-
 export default function AddToCartModal({
   open,
   onClose,
@@ -51,7 +47,6 @@ export default function AddToCartModal({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
-
   useEffect(() => {
     if (open) {
       setQuantity(initialQuantity);
@@ -62,36 +57,33 @@ export default function AddToCartModal({
       setVisible(false);
     }
   }, [open, initialQuantity]);
-
   const garmentTotal = price * quantity;
   const decorationTotal = printPricePerPiece * quantity;
   const grandTotal = garmentTotal + decorationTotal + digitizingFee;
   const perPiece = grandTotal / quantity;
+const parsedCustomization = useMemo(() => {
+  if (!customization) return null;
+  try {
+    return JSON.parse(customization);
+  } catch {
+    return null;
+  }
+}, [customization]);
 
-  const parsedCustomization = (() => {
-    if (!customization) return null;
-    try {
-      return JSON.parse(customization);
-    } catch {
-      return null;
-    }
-  })();
 
-  const methodLabel = parsedCustomization?.print_method
-    ? parsedCustomization.print_method.charAt(0).toUpperCase() +
-      parsedCustomization.print_method.slice(1).toLowerCase()
-    : null;
+const locationLabel = parsedCustomization?.[0]?.locations?.[0]?.location  // ✅ array[0]
+  ? parsedCustomization[0].locations[0].location
+      .replace(/_/g, " ")           // ✅ underscore not hyphen
+      .replace(/\b\w/g, (c: string) => c.toUpperCase())
+  : null;
 
-  const locationLabel = parsedCustomization?.locations?.[0]?.id
-    ? parsedCustomization.locations[0].id
-        .replace(/-/g, " ")
-        .replace(/\b\w/g, (c: string) => c.toUpperCase())
-    : null;
-
+const methodLabel = parsedCustomization?.[0]?.print_method   // ✅ array[0]
+  ? parsedCustomization[0].print_method.charAt(0).toUpperCase() +
+    parsedCustomization[0].print_method.slice(1).toLowerCase()
+  : null;
   const customizationDetail =
     [methodLabel, locationLabel].filter(Boolean).join(" · ") ||
     "Customized product";
-
   const handleQuantityInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = parseInt(e.target.value) || 1;
@@ -99,37 +91,40 @@ export default function AddToCartModal({
     },
     []
   );
+const handleAddToCart = async () => {
+  console.log("Adding to cart with:", customization);
+  console.log(canvasBlob,"canvasBlob")
+  try {
+    setLoading(true);
+    setError(null);
 
-  const handleAddToCart = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      await AddToCartApi({
-        product_id: productId,
-        variant_id: variantId,
-        quantity,
-        customization: customization || undefined,
-        images: canvasBlob || undefined,
-      });
-      setSuccess(true);
-      onSuccess?.();
-      setTimeout(() => {
-        setSuccess(false);
-        onClose();
-      }, 1600);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Something went wrong. Please try again."
-      );
-    } finally {
-      setLoading(false);
+    const formData = new FormData();
+    formData.append("product_id", String(productId));
+    formData.append("customization", customization || "[]"); // ✅ JSON array string
+
+    if (canvasBlob) {
+      formData.append("images", canvasBlob); // ✅ binary file
     }
-  };
 
+    await AddToCartApi(formData); // ✅ pass FormData directly
+
+    setSuccess(true);
+    onSuccess?.();
+    setTimeout(() => {
+      setSuccess(false);
+      onClose();
+    }, 1600);
+  } catch (err: any) {
+    setError(
+      err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   if (!open) return null;
-
   return (
     <div
       role="dialog"
@@ -165,7 +160,6 @@ export default function AddToCartModal({
             {quantity} × {name}
           </p>
         </div>
-
         {/* ── HEADER ── */}
         <div className="bg-[#F5D800] px-5 pt-5 pb-4">
           {/* Title row */}
@@ -191,7 +185,6 @@ export default function AddToCartModal({
               <X size={14} />
             </button>
           </div>
-
           {/* Price breakdown */}
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
@@ -202,7 +195,6 @@ export default function AddToCartModal({
                 ${garmentTotal.toFixed(2)}
               </span>
             </div>
-
             {decorationTotal > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-[11px] text-[#111111]/50">
@@ -213,7 +205,6 @@ export default function AddToCartModal({
                 </span>
               </div>
             )}
-
             {digitizingFee > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-[11px] text-[#111111]/50">
@@ -224,7 +215,6 @@ export default function AddToCartModal({
                 </span>
               </div>
             )}
-
             {/* Total */}
             <div className="flex items-end justify-between border-t border-[#111111]/15 pt-3 mt-2">
               <div>
@@ -244,13 +234,10 @@ export default function AddToCartModal({
             </div>
           </div>
         </div>
-
         {/* Divider */}
         <div className="h-[1.5px] bg-[#111111]" />
-
         {/* ── BODY ── */}
         <div className="px-5 pt-4 pb-2 space-y-4 bg-white">
-
           {/* Customization pill */}
           {parsedCustomization && (
             <div className="flex items-center gap-3 rounded-[12px] border border-black/10 bg-black/[0.03] px-3.5 py-2.5">
@@ -272,7 +259,6 @@ export default function AddToCartModal({
               )}
             </div>
           )}
-
           {/* Quantity */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
@@ -289,7 +275,6 @@ export default function AddToCartModal({
                 </button>
               )}
             </div>
-
             {/* Stepper */}
             <div className="flex items-center border border-black/10 rounded-[12px] overflow-hidden bg-black/[0.025]">
               <button
@@ -305,7 +290,6 @@ export default function AddToCartModal({
               >
                 <Minus size={15} strokeWidth={2.5} />
               </button>
-
               <div className="flex-1 flex flex-col items-center justify-center border-x border-black/10 py-1">
                 <input
                   type="number"
@@ -320,7 +304,6 @@ export default function AddToCartModal({
                   {quantity === initialQuantity ? "from your selection" : "adjusted"}
                 </p>
               </div>
-
               <button
                 onClick={() => setQuantity((p) => p + 1)}
                 aria-label="Increase quantity"
@@ -329,7 +312,6 @@ export default function AddToCartModal({
                 <Plus size={15} strokeWidth={2.5} />
               </button>
             </div>
-
             {/* Presets */}
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {PRESETS.map((q) => (
@@ -348,7 +330,6 @@ export default function AddToCartModal({
               ))}
             </div>
           </div>
-
           {/* Error */}
           {error && (
             <div className="flex items-start gap-2.5 rounded-[10px] border border-red-300/50 bg-red-50 px-3.5 py-3">
@@ -357,7 +338,6 @@ export default function AddToCartModal({
             </div>
           )}
         </div>
-
         {/* ── FOOTER ── */}
         <div className="px-5 pb-5 pt-3 flex flex-col gap-2 bg-white">
           <button
@@ -393,7 +373,6 @@ export default function AddToCartModal({
               </>
             )}
           </button>
-
           <button
             onClick={onClose}
             className="w-full h-9 text-[13px] text-black/30 hover:text-black/60 transition-colors rounded-[10px]"

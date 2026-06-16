@@ -1,0 +1,197 @@
+  {/* STEP 1 — COLOR */}
+            <SectionCard step={1} title="Select Color" subtitle="Choose which color variant you want to customize." status={selectedColor ? "done" : "required"}>
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))" }}>
+                {colors.map(({ color }) => {
+                  const isSelected = selectedColor === color;
+                  const variant = product.variants.find(v => v.color === color);
+                  const img     = variant?.images?.[0];
+                  const imgUrl  = img?.file_uri?.startsWith("http")
+                    ? img.file_uri
+                    : img?.file_name?.startsWith("http")
+                      ? img.file_name
+                      : img?.file_uri ? `${BASE_URL}${img.file_uri}` : null;
+                  return (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={cn(
+                        "relative flex flex-col items-center gap-0 rounded-2xl border-2 overflow-hidden transition-all duration-200 text-left group justify-items-center",
+                        isSelected ? "border-[#F5D800] shadow-md shadow-[#F5D800]/20" : "border-gray-200 hover:border-[#F5D800]/50"
+                      )}
+                    >
+                      <div className="w-full aspect-square bg-gray-50 overflow-hidden">
+                        {imgUrl ? (
+                          <img src={imgUrl} alt={color} className="h-full object-cover transition-transform duration-300 group-hover:scale-105 justify-self-center " />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package size={24} className="text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+                      <div className={cn("w-full px-2.5 py-2 transition-colors", isSelected ? "bg-[#F5D800]" : "bg-white group-hover:bg-[#FFFBEA]")}>
+                        <p className={cn("text-[11px] font-bold leading-tight truncate", isSelected ? "text-black" : "text-gray-700")}>{color}</p>
+                      </div>
+                      {isSelected && (
+                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-[#F5D800] border-2 border-white flex items-center justify-center shadow-sm">
+                          <Check size={11} className="text-black" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </SectionCard>
+
+            {/* STEP 2 — SIZES & QUANTITIES */}
+            <SectionCard step={2} title="Select Sizes & Quantities" subtitle="Tap a size to select it, then adjust quantity. Mix multiple sizes in one order." status={activeSizes.length > 0 ? "done" : "required"}>
+              {selectedColor ? (
+                <>
+                  {colorVariants.length === 0 ? (
+                    <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                      <Package size={14} className="text-gray-300 flex-shrink-0" />
+                      <p className="text-xs text-gray-400">No sizes available for this color.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 mb-4">
+                        {colorVariants.map((v) => {
+                          const qty      = variantQty[v.id] ?? 0;
+                          const inStock  = v.stock > 0;
+                          const price    = Number(v.price);
+                          const isSelected = qty > 0;
+                          return (
+                            <div
+                              key={v.id}
+                              className={cn(
+                                "relative rounded-2xl border-2 transition-all duration-200 overflow-hidden",
+                                !inStock
+                                  ? "border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed"
+                                  : isSelected
+                                    ? "border-[#F5D800] bg-[#FFFBEA] shadow-md shadow-[#F5D800]/20"
+                                    : "border-dashed border-gray-300 bg-white hover:border-solid hover:border-[#F5D800] hover:bg-[#FFFBEA]/40 cursor-pointer"
+                              )}
+                            >
+                              {isSelected && (
+                                <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#F5D800] flex items-center justify-center">
+                                  <Check size={10} className="text-black" />
+                                </div>
+                              )}
+                              {!inStock && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-10">
+                                  <span className="text-[10px] font-bold text-gray-400 bg-white border border-gray-200 px-2 py-0.5 rounded-full">Out of Stock</span>
+                                </div>
+                              )}
+                              <button
+                                disabled={!inStock}
+                                onClick={() => { if (!inStock) return; setQty(v.id, qty > 0 ? 0 : 1); }}
+                                className="w-full px-3 pt-3 pb-2 text-left"
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={cn("text-lg font-black leading-none", isSelected ? "text-gray-900" : "text-gray-700")}>
+                                    {v.size_details?.name || v.size}
+                                  </span>
+                                </div>
+                                {v.size_details?.measurements && (
+                                  <p className="text-[10px] text-gray-400 leading-tight">{v.size_details.measurements}</p>
+                                )}
+                                <p className={cn("text-xs font-bold mt-1", isSelected ? "text-[#b89000]" : "text-gray-400")}>
+                                  ${price.toFixed(2)}/pc
+                                </p>
+                                {!isSelected && inStock && (
+                                  <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                                    <Plus size={9} className="text-gray-300" /> tap to select
+                                  </p>
+                                )}
+                                {isSelected && (
+                                  <p className="text-[10px] text-[#b89000] mt-1.5 flex items-center gap-1">
+                                    <Check size={9} /> selected
+                                  </p>
+                                )}
+                              </button>
+                              <div className={cn("transition-all duration-200 overflow-hidden", isSelected ? "max-h-20 opacity-100" : "max-h-0 opacity-0")}>
+                                <div className="px-2.5 pb-3">
+                                  <div className="flex items-center gap-1 bg-white rounded-xl border border-[#F5D800]/40 overflow-hidden">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setQty(v.id, qty - 1); }}
+                                      className={cn("w-8 h-8 flex items-center justify-center flex-shrink-0 transition-colors", qty <= 1 ? "text-gray-300" : "text-[#b89000] hover:bg-[#F5D800]/10")}
+                                    >
+                                      <Minus size={12} />
+                                    </button>
+                                    <input
+                                      type="number" min={0} value={qty}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={(e) => setQty(v.id, parseInt(e.target.value) || 0)}
+                                      className="flex-1 text-center text-sm font-black text-gray-900 border-0 outline-none bg-transparent py-1 w-0 min-w-0"
+                                    />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setQty(v.id, qty + 1); }}
+                                      className="w-8 h-8 flex items-center justify-center flex-shrink-0 text-[#b89000] hover:bg-[#F5D800]/10 transition-colors"
+                                    >
+                                      <Plus size={12} />
+                                    </button>
+                                  </div>
+                                  {qty > 0 && (
+                                    <p className="text-center text-[10px] font-bold text-[#b89000] mt-1.5">
+                                      ${(price * qty).toFixed(2)} subtotal
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Summary bar */}
+                      {totalQty > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-gray-900 rounded-2xl mb-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {activeSizes.map(({ variant_id, quantity }) => {
+                              const v = product.variants.find(vv => vv.id === variant_id);
+                              return v ? (
+                                <span key={variant_id} className="flex items-center gap-1 bg-white/10 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                  {v.size_details?.name || v.size}
+                                  <span className="text-[#F5D800]">×{quantity}</span>
+                                </span>
+                              ) : null;
+                            })}
+                          </div>
+                          <div className="flex-shrink-0 text-right ml-3">
+                            <p className="text-[10px] text-gray-400">{totalQty} pcs</p>
+                            <p className="text-sm font-black text-[#F5D800]">${(basePrice * totalQty).toFixed(2)}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quick-fill */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-gray-400 font-medium">Quick fill:</span>
+                        {[12, 24, 36, 50, 100].map(q => (
+                          <button
+                            key={q}
+                            onClick={() => {
+                              const updated: Record<number, number> = {};
+                              colorVariants.filter(v => v.stock > 0).forEach(v => { updated[v.id] = q; });
+                              setVariantQty(prev => ({ ...prev, ...updated }));
+                            }}
+                            className="text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 hover:border-[#F5D800] hover:text-[#b89000] hover:bg-[#FFFBEA] transition-all"
+                          >
+                            {q} each
+                          </button>
+                        ))}
+                        {totalQty > 0 && (
+                          <button onClick={() => setVariantQty({})} className="text-xs font-bold px-3 py-1.5 rounded-full border border-red-200 text-red-400 hover:bg-red-50 transition-all ml-auto">
+                            Clear all
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <div className="flex items-center gap-2 p-4 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <Palette size={14} className="text-gray-300 flex-shrink-0" />
+                  <p className="text-xs text-gray-400">Select a color above first</p>
+                </div>
+              )}
+            </SectionCard>
