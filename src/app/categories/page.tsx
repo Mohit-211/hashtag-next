@@ -49,10 +49,8 @@ interface GrandCategory {
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 const INITIAL_LIMIT   = 16;
-const LOAD_MORE_LIMIT = 32;
-const BATCH_SIZE      = 16;
+const LOAD_MORE_LIMIT = 16;
 const CATEGORY_LIMIT  = 50;
-const BRANDS_PER_PAGE = 15;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -139,9 +137,6 @@ const styles = `
   }
   .cat-tab-chevron.open { transform: rotate(180deg); opacity: 1; }
 
-  /* ── PARENT CATEGORY DROPDOWN
-     position:fixed so the sticky nav never clips it.
-     Coordinates set inline via React state.                ── */
   /* ── PARENT SUB-NAV BAR (horizontal, full width, below sticky nav) ── */
   .cat-subnav {
     position: fixed;
@@ -514,7 +509,7 @@ const styles = `
   }
   .filter-pill-remove:hover { background: rgba(255,255,255,0.3); }
 
-  /* ── SORT / VIEW CONTROLS ── */
+  /* ── SORT CONTROLS ── */
   .cat-topbar-right {
     display: flex;
     align-items: center;
@@ -545,41 +540,6 @@ const styles = `
     padding-right: 6px;
     min-width: 160px;
   }
-
-  .view-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .view-btn {
-    padding: 8px 16px;
-    background: #fff;
-    border: 1px solid #ebebeb;
-    border-radius: 8px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: #111;
-    cursor: pointer;
-    transition: border-color .18s, background .18s;
-    white-space: nowrap;
-  }
-  .view-btn:hover { border-color: #111; background: #f7f7f5; }
-  .view-btn.active { background: #111; color: #fff; border-color: #111; }
-  .limit-btn {
-    padding: 8px 14px;
-    background: #fff;
-    border: 1px solid #ebebeb;
-    border-radius: 8px;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: #555;
-    cursor: pointer;
-    transition: border-color .18s, background .18s, color .18s;
-  }
-  .limit-btn:hover { border-color: #111; color: #111; }
-  .limit-btn.active { background: #111; color: #fff; border-color: #111; }
 
   /* ── PRODUCTS AREA ── */
   .products-area { padding: 0 28px 40px; }
@@ -632,8 +592,6 @@ const styles = `
     .cat-topbar-right { width: 100%; flex-wrap: wrap; gap: 8px; }
     .sort-wrap { flex: 1; min-width: 120px; }
     .sort-select { flex: 1; min-width: 0; }
-    .view-controls { gap: 6px; }
-    .limit-btn, .view-btn { padding: 6px 12px; font-size: 12px; }
     .cat-heading { font-size: 22px; }
     .products-area { padding: 0 16px 32px; }
     .brand-mega-inner { padding: 14px 16px 18px; }
@@ -657,8 +615,6 @@ export default function Categories() {
   const [initialLoading, setInitialLoading]         = useState(true);
   const [page, setPage]                             = useState(1);
   const [hasMore, setHasMore]                       = useState(true);
-  const [itemLimit, setItemLimit]                   = useState<16 | 32>(16);
-  const [expandedCount, setExpandedCount]           = useState(0);
 
   // ── Grand Categories ──────────────────────────────────────────────────────
   const [categories, setCategories]         = useState<GrandCategory[]>([]);
@@ -667,13 +623,10 @@ export default function Categories() {
   const [categoryLoading, setCategoryLoading] = useState(false);
 
   // ── Active parent category (sub-filter under a grand category) ────────────
-  // When a parent is selected, we filter by parent.id instead of grand cat id
   const [activeParent, setActiveParent] = useState<ParentCategory | null>(null);
 
   // ── Brands ────────────────────────────────────────────────────────────────
   const [brandList, setBrandList]     = useState<Brand[]>([]);
-  const [brandPage, setBrandPage]     = useState(1);
-  const [brandHasMore, setBrandHasMore] = useState(true);
   const [brandLoading, setBrandLoading] = useState(false);
   const [brandMenuOpen, setBrandMenuOpen] = useState(false);
   const [activeBrand, setActiveBrand] = useState<Brand | null>(null);
@@ -713,12 +666,12 @@ export default function Categories() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // BRANDS
+  // BRANDS — load all brands
   // ─────────────────────────────────────────────────────────────────────────
-  const fetchBrands = useCallback(async (pageNumber: number, append: boolean) => {
+  const fetchBrands = useCallback(async () => {
     try {
       setBrandLoading(true);
-      const res = await GetAllBrandsApi(pageNumber, BRANDS_PER_PAGE);
+      const res = await GetAllBrandsApi(1, 1000); // Fetch up to 1000 brands
       const raw: any[] = Array.isArray(res?.data?.data?.data)
         ? res.data.data.data
         : Array.isArray(res?.data?.data)
@@ -732,8 +685,7 @@ export default function Categories() {
         logo: b?.logo_url ?? null,
       }));
 
-      setBrandHasMore(raw.length === BRANDS_PER_PAGE);
-      setBrandList((prev) => (append ? [...prev, ...formatted] : formatted));
+      setBrandList(formatted);
     } catch (err) {
       console.error("Error fetching brands:", err);
     } finally {
@@ -741,21 +693,8 @@ export default function Categories() {
     }
   }, []);
 
-  const handleBrandLoadMore = async () => {
-    const nextPage = brandPage + 1;
-    setBrandPage(nextPage);
-    await fetchBrands(nextPage, true);
-  };
-
-  const resetBrandMenu = () => {
-    setBrandPage(1);
-    setBrandHasMore(true);
-    fetchBrands(1, false);
-  };
-
   // ─────────────────────────────────────────────────────────────────────────
-  // CATEGORIES — fetch grand categories from new endpoint
-  // Response: { data: { data: { data: GrandCategory[], pagination: {...} } } }
+  // CATEGORIES
   // ─────────────────────────────────────────────────────────────────────────
   const fetchCategories = useCallback(async () => {
     try {
@@ -764,7 +703,6 @@ export default function Categories() {
         limit: CATEGORY_LIMIT,
       });
 
-      // Shape: res.data.data.data = array of grand categories
       const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
 
       const formatted: GrandCategory[] = raw.map((cat: any) => ({
@@ -787,8 +725,6 @@ export default function Categories() {
 
   // ─────────────────────────────────────────────────────────────────────────
   // PRODUCTS
-  // When a parent category is active, filter by parent.id (category_id)
-  // When a grand category is active (no parent), filter by grand cat id
   // ─────────────────────────────────────────────────────────────────────────
   const fetchProducts = useCallback(
     async (
@@ -813,7 +749,7 @@ export default function Categories() {
 
         const res: ProductApiResponse = await AllProductsApi({
           page:  pageNumber,
-          limit: pageNumber === 1 ? INITIAL_LIMIT : LOAD_MORE_LIMIT,
+          limit: LOAD_MORE_LIMIT,
           ...filterPayload,
         });
 
@@ -823,7 +759,7 @@ export default function Categories() {
         setProducts((prev) => (isLoadMore ? [...prev, ...sorted] : sorted));
         setTotalProducts(res?.data?.data?.pagination?.total ?? 0);
 
-        const more = raw.length === (pageNumber === 1 ? INITIAL_LIMIT : LOAD_MORE_LIMIT);
+        const more = raw.length === LOAD_MORE_LIMIT;
         setHasMore(more);
         hasMoreRef.current = more;
       } catch (err) {
@@ -842,7 +778,7 @@ export default function Categories() {
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
-      fetchBrands(1, false),
+      fetchBrands(),
       fetchCategories(),
       fetchProducts(1, false, { id: null, name: "All" }, null, "popular", null),
     ]);
@@ -896,7 +832,7 @@ export default function Categories() {
   }, [categorySearch]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Infinite scroll
+  // Infinite scroll — auto-load when user scrolls near bottom
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleScroll = async () => {
@@ -923,45 +859,9 @@ export default function Categories() {
   }, [fetchProducts, productLoading]);
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Show More / Less / Set Limit
-  // ─────────────────────────────────────────────────────────────────────────
-  const handleShowMore = async () => {
-    const newCount = expandedCount + BATCH_SIZE;
-    setExpandedCount(newCount);
-    if (newCount > products.length) {
-      const nextPage = pageRef.current + 1;
-      pageRef.current = nextPage;
-      setPage(nextPage);
-      await fetchProducts(
-        nextPage, true,
-        activeCategoryRef.current,
-        activeParentRef.current,
-        sortByRef.current,
-        activeBrandRef.current
-      );
-    }
-  };
-
-  const handleShowLess = () => {
-    setProducts((prev) => prev.slice(0, itemLimit));
-    setExpandedCount(0);
-    pageRef.current = 1;
-    setPage(1);
-  };
-
-  const handleSetLimit = (limit: 16 | 32) => {
-    setItemLimit(limit);
-    setExpandedCount(0);
-    setProducts((prev) => prev.slice(0, limit));
-    pageRef.current = 1;
-    setPage(1);
-  };
-
-  // ─────────────────────────────────────────────────────────────────────────
   // Category / Parent / Brand select / clear
   // ─────────────────────────────────────────────────────────────────────────
 
-  /** Clicking a grand category tab */
   const handleCategorySelect = (cat: GrandCategory) => {
     setActiveBrand(null);
     activeBrandRef.current = null;
@@ -971,14 +871,11 @@ export default function Categories() {
     activeCategoryRef.current = cat;
   };
 
-  /** Clicking a parent category in the dropdown */
   const handleParentSelect = (grandCat: GrandCategory, parent: ParentCategory) => {
     setActiveBrand(null);
     activeBrandRef.current = null;
-    // Set the grand category context (for display heading)
     setActiveCategory(grandCat);
     activeCategoryRef.current = grandCat;
-    // Set the parent filter
     setActiveParent(parent);
     activeParentRef.current = parent;
   };
@@ -1030,7 +927,7 @@ export default function Categories() {
       </div>
     );
   }
-console.log(products,"products====")
+
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -1046,10 +943,7 @@ console.log(products,"products====")
           <div
             className="brand-tab-wrap"
             onMouseEnter={() => setBrandMenuOpen(true)}
-            onMouseLeave={() => {
-              setBrandMenuOpen(false);
-              resetBrandMenu();
-            }}
+            onMouseLeave={() => setBrandMenuOpen(false)}
           >
             <button className={`brand-tab-btn ${brandMenuOpen || activeBrand ? "active" : ""}`}>
               Brands
@@ -1062,14 +956,13 @@ console.log(products,"products====")
                 <div className="brand-mega-head">
                   <span className="brand-mega-title">Shop by brand</span>
                   <span className="brand-mega-count">
-                    {brandList.length} brand{brandList.length !== 1 ? "s" : ""} shown
-                    {brandHasMore ? " · more available" : ""}
+                    {brandList.length} brand{brandList.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 
                 <div className="brand-mega-grid">
-                  {brandList.length === 0
-                    ? Array.from({ length: BRANDS_PER_PAGE }).map((_, i) => (
+                  {brandList.length === 0 && !brandLoading
+                    ? Array.from({ length: 15 }).map((_, i) => (
                         <div key={i} className="shimmer-card" />
                       ))
                     : brandList.map((brand) => {
@@ -1097,28 +990,6 @@ console.log(products,"products====")
                         );
                       })}
                 </div>
-
-                {brandHasMore && (
-                  <div className="brand-mega-footer">
-                    <button
-                      className="brand-load-more-btn"
-                      onClick={handleBrandLoadMore}
-                      disabled={brandLoading}
-                    >
-                      {brandLoading && (
-                        <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />
-                      )}
-                      Load more brands
-                    </button>
-                    <span className="brand-count-pill">Showing {brandList.length}</span>
-                  </div>
-                )}
-
-                {!brandHasMore && brandList.length > BRANDS_PER_PAGE && (
-                  <div className="brand-mega-footer" style={{ justifyContent: "center" }}>
-                    <span className="brand-count-pill">All {brandList.length} brands shown</span>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -1194,7 +1065,7 @@ console.log(products,"products====")
         </div>
       </div>
 
-      {/* ── HORIZONTAL SUBNAV — single bar shared across all grand categories ── */}
+      {/* ── HORIZONTAL SUBNAV ── */}
       {(() => {
         const openCat = hoveredCatId !== "none"
           ? categories.find((c) => c.id === hoveredCatId)
@@ -1269,25 +1140,6 @@ console.log(products,"products====")
               ))}
             </select>
           </div>
-
-          <div className="view-controls">
-            <button
-              className={`limit-btn ${itemLimit === 16 ? "active" : ""}`}
-              onClick={() => handleSetLimit(16)}
-            >16</button>
-            <button
-              className={`limit-btn ${itemLimit === 32 ? "active" : ""}`}
-              onClick={() => handleSetLimit(32)}
-            >32</button>
-          </div>
-
-          {expandedCount > 0 && (
-            <button className="view-btn" onClick={handleShowLess}>Show less</button>
-          )}
-          {(hasMore || itemLimit + expandedCount < products.length) &&
-           itemLimit + expandedCount < total_products && (
-            <button className="view-btn" onClick={handleShowMore}>Show more</button>
-          )}
         </div>
       </div>
 
@@ -1299,7 +1151,7 @@ console.log(products,"products====")
           </div>
         ) : products.length > 0 ? (
           <>
-            <ProductGrid products={products.slice(0, itemLimit + expandedCount)} />
+            <ProductGrid products={products} />
             {productLoading && page > 1 && (
               <div className="products-load-more">
                 <div className="spinner" />
