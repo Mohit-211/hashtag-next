@@ -30,3 +30,5 @@ export const ProductCategoryApi = ({
 export const ProductVariantApi = (payload: any) =>
   client.post(PRODUCT_ENDPOINTS.PRODUCT_VARIANT, payload);
 
+export const ProductVariantByIdApi = (id: number | string) =>
+  client.get(PRODUCT_ENDPOINTS.PRODUCT_VARIANT_DETAIL(id));

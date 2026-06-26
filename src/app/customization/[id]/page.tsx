@@ -8,9 +8,10 @@ interface Props {
 
 const CustomizeProductPage = async ({ params }: Props) => {
   const { id } = await params;
+  console.log(id, "id")
   return (
     <main>
-      <ProductCustomizationPage productId={Number(id)} />
+      <ProductCustomizationPage variantDataId={Number(id)} />
     </main>
   );
 };
