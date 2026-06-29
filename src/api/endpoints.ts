@@ -17,7 +17,7 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT_DETAIL_GUEST: (id: string) => `product/guest/${id}`,
   PRODUCT_CATEGORY: "product-category/get-grand-categories",
   PRODUCT_VARIANT: "product/get-variant",
-   PRODUCT_VARIANT_DETAIL: (id: string | number) => `product/variant/${id}`,
+  PRODUCT_VARIANT_DETAIL: (id: string | number) => `product/variant/${id}`,
 };
 export const CART_ENDPOINTS = {
   CART: "cart",
@@ -28,11 +28,12 @@ export const CART_ENDPOINTS = {
   UPDATE_QUANTITY: "product/cart",
   REMOVE_FROM_CART: (cart_id: string) => `product/cart/${cart_id}`,
   MOVE_TO_WISHLIST: "product/cart/move",
- 
+
 };
 export const SHIPPING_ENDPOINTS = {
-  GET_RATES: "order/shipping/rates",
+  GET_RATES: "/order/shipping/rates",
 };
+
 // ✅ Base URL assumed already set in client
 export const WISHLIST_ENDPOINTS = {
   ADD: "/product/wishlist",
@@ -59,5 +60,5 @@ export const PAYMENT_ENDPOINTS = {
 };
 export const BRAND_ENDPOINTS = {
   GET_ALL: "/brand/website-brands",
-  
+
 };

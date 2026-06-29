@@ -3,14 +3,9 @@ import { CART_ENDPOINTS } from "../endpoints";
 
 // ➕ Add to cart
 // cart.api.ts
-export interface AddToCartPayload {
-  product_id: number;
-  
-  customization?: string;      // JSON string: "{...}"
-  images?: File | Blob | null; // canvas export as PNG blob
-}
+
 export const AddToCartApi = (formData: FormData) => {
-  return client.post("/cart", formData, {
+  return client.post("/product/cart", formData, {
     headers: {
       "Content-Type": "multipart/form-data", // ✅ let browser set boundary
     },

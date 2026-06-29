@@ -48,6 +48,7 @@ interface Variant {
   size: string;
   size_id: number;
   price: string;
+  original_price: string;
   stock: number;
   min_order_quantity: number;
   max_order_quantity: number | null;
@@ -64,6 +65,7 @@ interface Product {
   name: string;
   price: number;
   image: string;
+   original_price: number;
   description?: string;
   sizes: Size[];
   attachments: any[];
@@ -265,7 +267,10 @@ export default function ProductDetail({ id }: { id: string }) {
   }
 
   /* derived */
-  const displayPrice = variantData?.price ? Number(variantData.price) : product.price;
+const displayPrice =
+  variantData?.original_price
+    ? Number(variantData.original_price)
+    : product.price;
   const displayAttachments =
     variantData?.images && variantData.images.length > 0
       ? variantData.images.map((img) => ({

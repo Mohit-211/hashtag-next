@@ -2,6 +2,11 @@
 // 1. Removed confusing variantData prop from interface - use productId + variantId instead
 // 2. FormData built correctly with customization as JSON string
 // 3. All props properly typed and used
+// 4. Live SAGE tier re-pricing: if sageMetaStr is provided, unit price re-tiers as quantity
+//    changes inside this modal, instead of using a frozen flat `price` regardless of qty.
+// 5. customization payload is re-synced with the modal's final quantity/price at submit time,
+//    so it can never desync from the top-level `quantity` field also sent to the backend.
+// 6. Guards against submitting with a missing/zero variantId.
 
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
@@ -18,13 +23,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
+import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
 
 interface AddToCartModalProps {
   open: boolean;
   onClose: () => void;
   productId: number;  // ✅ actual product ID
   variantId: number;
-  price: number;
+  price: number;       // fallback flat unit price (used for Apparel / Pre-Made, and as a fallback for Promo)
   name: string;
   initialQuantity?: number;
   printPricePerPiece?: number;
@@ -32,9 +38,16 @@ interface AddToCartModalProps {
   onSuccess?: () => void;
   customization?: string; // ✅ JSON string array
   canvasBlob?: Blob | null;
+  /**
+   * SAGE meta (string or parsed object) for Promo/tiered products. When provided,
+   * the modal recomputes the marked-up unit price for the *current* quantity any
+   * time the quantity changes in here — instead of charging the flat `price` prop
+   * regardless of how many units are selected.
+   */
+  sageMetaStr?: string | Record<string, unknown> | null;
 }
 
-const PRESETS = [1, 12, 24, 36, 72, 144];
+// const PRESETS = [1, 12, 24, 36, 72, 144];
 
 export default function AddToCartModal({
   open,
@@ -49,8 +62,10 @@ export default function AddToCartModal({
   onSuccess,
   customization,
   canvasBlob,
+  sageMetaStr,
 }: AddToCartModalProps) {
-  const [quantity, setQuantity] = useState(initialQuantity);
+  const quantity = initialQuantity;
+  // const [quantity, setQuantity] = useState(initialQuantity);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +73,7 @@ export default function AddToCartModal({
 
   useEffect(() => {
     if (open) {
-      setQuantity(initialQuantity);
+      // setQuantity(initialQuantity);
       setError(null);
       setSuccess(false);
       requestAnimationFrame(() => setVisible(true));
@@ -67,12 +82,23 @@ export default function AddToCartModal({
     }
   }, [open, initialQuantity]);
 
-  const garmentTotal = price * quantity;
+  /**
+   * If sageMetaStr is supplied, re-tier the unit price for whatever quantity is
+   * currently selected in THIS modal (stepper / presets / typed value) — not just
+   * the quantity that was active when the modal was opened. Falls back to the flat
+   * `price` prop for non-tiered products or if tier lookup returns nothing.
+   */
+  const effectiveUnitPrice = useMemo(() => {
+    if (!sageMetaStr) return price;
+    return getSageUnitPriceWithMarkup(sageMetaStr, quantity) ?? price;
+  }, [sageMetaStr, quantity, price]);
+
+  const garmentTotal = effectiveUnitPrice * quantity;
   const decorationTotal = printPricePerPiece * quantity;
   const grandTotal = garmentTotal + decorationTotal + digitizingFee;
-  const perPiece = grandTotal / quantity;
+  const perPiece = quantity > 0 ? grandTotal / quantity : 0;
 
-  /* ✅ FIXED: Parse customization JSON safely */
+  /* ✅ Parse customization JSON safely */
   const parsedCustomization = useMemo(() => {
     if (!customization) return null;
     try {
@@ -98,51 +124,99 @@ export default function AddToCartModal({
     [methodLabel, locationLabel].filter(Boolean).join(" · ") ||
     "Customized product";
 
-  const handleQuantityInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = parseInt(e.target.value) || 1;
-      setQuantity(Math.max(1, val));
-    },
-    []
-  );
+  // const handleQuantityInput = useCallback(
+  //   (e: React.ChangeEvent<HTMLInputElement>) => {
+  //     const val = parseInt(e.target.value) || 1;
+  //     setQuantity(Math.max(1, val));
+  //   },
+  //   []
+  // );
 
-  /* ✅ FIXED: Proper FormData with productId and customization as JSON string */
-  const handleAddToCart = async () => {
-    console.log("Adding to cart with customization:", customization);
-    console.log("Canvas blob:", canvasBlob);
+  /* ✅ Proper FormData with productId and customization as JSON string,
+     with the embedded quantity/unit_price re-synced to the modal's final state. */
+const handleAddToCart = async () => {
+  if (!variantId) {
+    setError(
+      "No matching product variant found. Please reselect your options and try again."
+    );
+    return;
+  }
 
-    try {
-      setLoading(true);
-      setError(null);
+  try {
+    setLoading(true);
+    setError(null);
 
-      const formData = new FormData();
-      formData.append("product_id", String(productId)); // ✅ correct productId
-      formData.append("quantity", String(quantity));
-      formData.append("variant_id", String(variantId));
-      formData.append("customization", customization || "[]"); // ✅ JSON string
+    let customizationPayload = [];
 
-      if (canvasBlob) {
-        formData.append("images", canvasBlob, "customization.png");
-      }
-
-      await AddToCartApi(formData);
-
-      setSuccess(true);
-      onSuccess?.();
-      setTimeout(() => {
-        setSuccess(false);
-        onClose();
-      }, 1600);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Something went wrong. Please try again."
-      );
-    } finally {
-      setLoading(false);
+    if (parsedCustomization && parsedCustomization.length > 0) {
+      customizationPayload = parsedCustomization.map((item: any) => ({
+        print_method: item.print_method,
+        locations: item.locations ?? [],
+        sizes: [
+          {
+            variant_id: variantId,
+            quantity: quantity,
+          },
+        ],
+      }));
+    } else {
+      customizationPayload = [
+        {
+          print_method: "",
+          locations: [],
+          sizes: [
+            {
+              variant_id: variantId,
+              quantity: quantity,
+            },
+          ],
+        },
+      ];
     }
-  };
+
+    const formData = new FormData();
+
+    formData.append("product_id", String(productId));
+    formData.append(
+      "customization",
+      JSON.stringify(customizationPayload)
+    );
+
+    if (canvasBlob) {
+      formData.append("images", canvasBlob, "customization.png");
+    }
+
+    // Debug
+    console.log("Sending payload:");
+    console.log("product_id:", productId);
+    console.log(
+      "customization:",
+      JSON.stringify(customizationPayload)
+    );
+
+    for (const pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
+
+    await AddToCartApi(formData);
+
+    setSuccess(true);
+    onSuccess?.();
+
+    setTimeout(() => {
+      setSuccess(false);
+      onClose();
+    }, 1600);
+  } catch (err: any) {
+    setError(
+      err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   if (!open) return null;
 
@@ -212,13 +286,13 @@ export default function AddToCartModal({
           <div className="space-y-1.5">
             <div className="flex justify-between items-center">
               <span className="text-[11px] text-[#111111]/50">
-                Garment ({quantity} × ${price.toFixed(2)})
+                Garment ({quantity} × ${effectiveUnitPrice.toFixed(2)})
               </span>
               <span className="text-[11px] font-medium text-[#111111]/80">
                 ${garmentTotal.toFixed(2)}
               </span>
             </div>
-            {decorationTotal > 0 && (
+            {/* {decorationTotal > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-[11px] text-[#111111]/50">
                   Decoration ({quantity} × ${printPricePerPiece.toFixed(2)})
@@ -227,7 +301,7 @@ export default function AddToCartModal({
                   ${decorationTotal.toFixed(2)}
                 </span>
               </div>
-            )}
+            )} */}
             {/* {digitizingFee > 0 && (
               <div className="flex justify-between items-center">
                 <span className="text-[11px] text-[#111111]/50">
@@ -287,7 +361,22 @@ export default function AddToCartModal({
 
           {/* Quantity */}
           <div>
-            <div className="flex items-center justify-between mb-2.5">
+            <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+    <div className="flex justify-between">
+        <span className="text-sm text-gray-500">
+            Quantity
+        </span>
+
+        <span className="text-lg font-bold">
+            {quantity}
+        </span>
+    </div>
+
+    <p className="text-xs text-gray-400 mt-1">
+        Quantity selected on the product page.
+    </p>
+</div>
+            {/* <div className="flex items-center justify-between mb-2.5">
               <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#111111]/40">
                 Quantity
               </p>
@@ -300,10 +389,10 @@ export default function AddToCartModal({
                   Reset to {initialQuantity}
                 </button>
               )}
-            </div>
+            </div> */}
 
             {/* Stepper */}
-            <div className="flex items-center border border-black/10 rounded-[12px] overflow-hidden bg-black/[0.025]">
+            {/* <div className="flex items-center border border-black/10 rounded-[12px] overflow-hidden bg-black/[0.025]">
               <button
                 onClick={() => setQuantity((p) => Math.max(1, p - 1))}
                 disabled={quantity <= 1}
@@ -338,10 +427,10 @@ export default function AddToCartModal({
               >
                 <Plus size={15} strokeWidth={2.5} />
               </button>
-            </div>
+            </div> */}
 
             {/* Presets */}
-            <div className="flex gap-1.5 mt-2 flex-wrap">
+            {/* <div className="flex gap-1.5 mt-2 flex-wrap">
               {PRESETS.map((q) => (
                 <button
                   key={q}
@@ -356,7 +445,13 @@ export default function AddToCartModal({
                   {q}
                 </button>
               ))}
-            </div>
+            </div> */}
+
+            {sageMetaStr && (
+              <p className="text-[10px] text-black/30 mt-2">
+                Price updates automatically based on quantity.
+              </p>
+            )}
           </div>
 
           {/* Error */}

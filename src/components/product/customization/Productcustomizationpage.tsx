@@ -1,3 +1,4 @@
+
 "use client";
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -6,7 +7,7 @@ import {
   ArrowLeft, Check, Circle, X, ChevronDown, ChevronUp, Table2,
   Upload, RotateCw, RotateCcw, Download, Sparkles, Eye, ImageDown,
   AlertCircle, Loader2, Plus, Minus, Type, Image as ImageIcon,
-  Trash2, ShoppingCart, Heart, Zap, Package, Palette,
+  Trash2, ShoppingCart, Heart, Zap, Package,
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,29 +15,60 @@ import { ProductVariantByIdApi } from "@/api/operations/product.api";
 import AddToCartModal from "@/components/common/AddToCartModal";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
-import SageQuantityPricing, { getSageUnitPrice, parseSageMeta } from "./Sagequantitypricing";
+import SageQuantityPricing, { getSageUnitPrice, getSageUnitPriceWithMarkup, parseSageMeta } from "./Sagequantitypricing";
 
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
 interface VariantImage { id: number; file_name: string; file_uri: string; is_primary: boolean }
+
+/**
+ * Variant = exactly what comes back in res.data.data
+ * (single flat object — no nested variants array)
+ */
 interface Variant {
-  meta: any;
-  eta: any;
-  id: number; product_id: number; sku: string;
-  color: string; color_code: string;
-  size: string; size_id: number;
-  price: string; stock: number;
-  min_order_quantity: number; max_order_quantity: number | null;
-  is_active: boolean; is_in_cart?: boolean; is_in_wishlist?: boolean;
-  wishlist_id?: number | null; images: VariantImage[]; size_details: Size;
+  id: number;
+  product_id: number;
+  sku: string;
+  color: string;
+  color_code: string;
+  size: string | null;
+  size_id: number | null;
+  price: number;
+  case_price: string;
+  
+  stock: number;
+  min_order_quantity: number;
+  max_order_quantity: number | null;
+  is_active: boolean;
+  supplier: string;
+  meta: string | null;          // ← SAGE JSON string with priceTiers/qtyTiers
+  images: VariantImage[];
+  size_details: Size | null;
+  product: {
+    brand: null;                    // ← nested product from the API
+    id: number;
+    name: string;
+    description?: string;
+    brand_id?: number | null;
+    attachments: any[];
+    categories: any[];
+    meta: string | null;
+  };
 }
+
+/* Thin Product shape used internally by the page */
 interface Product {
-  product: any;
-  images: any;
-  id: string; name: string; price: number; image: string;
-  description?: string; sizes: Size[]; attachments: any[];
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  description?: string;
+  attachments: any[];
   categories: any[];
-  variants: Variant[]; brand?: any;
+  brand?: any;
+  images: VariantImage[];       // variant-level images
+  variants: Variant[];          // always [singleVariant] for SAGE products
+  product: any;                 // raw nested product (for category detection)
 }
 
 /* ─────────────────────────────────────────── Constants ── */
@@ -53,96 +85,81 @@ const MATERIALS = [
 
 type GarmentType = "tshirt" | "hoodie" | "hat" | "polo";
 interface GarmentView {
-  key: string;
-  label: string;
-  mockup: string;
+  key: string; label: string; mockup: string;
   hotspots: { id: string; label: string; top: string; left: string }[];
 }
 
 const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
   tshirt: [
     {
-      key: "FRONT", label: "Front",
-      mockup: "/assets/customization_preview_image/tshirt_front.png",
+      key: "FRONT", label: "Front", mockup: "/assets/customization_preview_image/tshirt_front.png",
       hotspots: [
         { id: "LEFT_CHEST", label: "L. Chest", top: "28%", left: "38%" },
         { id: "RIGHT_CHEST", label: "R. Chest", top: "28%", left: "62%" },
         { id: "FULL_FRONT", label: "Full Front", top: "44%", left: "50%" },
-      ],
+      ]
     },
     {
-      key: "BACK", label: "Back",
-      mockup: "/assets/customization_preview_image/tshirt_back.png",
-      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }],
+      key: "BACK", label: "Back", mockup: "/assets/customization_preview_image/tshirt_back.png",
+      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }]
     },
     {
-      key: "LEFT_SLEEVE", label: "Left Sleeve",
-      mockup: "/assets/customization_preview_image/tshirt_left_sleeve.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "30%", left: "30%" }],
+      key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "/assets/customization_preview_image/tshirt_left_sleeve.png",
+      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "30%", left: "30%" }]
     },
     {
-      key: "RIGHT_SLEEVE", label: "Right Sleeve",
-      mockup: "/assets/customization_preview_image/tshirt_right_sleeve.png",
-      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "30%", left: "70%" }],
+      key: "RIGHT_SLEEVE", label: "Right Sleeve", mockup: "/assets/customization_preview_image/tshirt_right_sleeve.png",
+      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "30%", left: "70%" }]
     },
   ],
   hoodie: [
     {
-      key: "FRONT", label: "Front",
-      mockup: "/assets/customization_preview_image/hoodies_front.png",
+      key: "FRONT", label: "Front", mockup: "/assets/customization_preview_image/hoodies_front.png",
       hotspots: [
         { id: "LEFT_CHEST", label: "L. Chest", top: "28%", left: "38%" },
         { id: "RIGHT_CHEST", label: "R. Chest", top: "28%", left: "62%" },
         { id: "FULL_FRONT", label: "Full Front", top: "44%", left: "50%" },
-      ],
+      ]
     },
     {
-      key: "BACK", label: "Back",
-      mockup: "/assets/customization_preview_image/hoodies_back.png",
-      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }],
+      key: "BACK", label: "Back", mockup: "/assets/customization_preview_image/hoodies_back.png",
+      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }]
     },
     {
-      key: "SIDE", label: "Side",
-      mockup: "/assets/customization_preview_image/hoodies_side.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "35%", left: "50%" }],
+      key: "SIDE", label: "Side", mockup: "/assets/customization_preview_image/hoodies_side.png",
+      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "35%", left: "50%" }]
     },
   ],
   hat: [
     {
-      key: "FRONT", label: "Front",
-      mockup: "/assets/customization_preview_image/hat_front.png",
-      hotspots: [{ id: "HAT_FRONT", label: "Front", top: "40%", left: "50%" }],
+      key: "FRONT", label: "Front", mockup: "/assets/customization_preview_image/hat_front.png",
+      hotspots: [{ id: "HAT_FRONT", label: "Front", top: "40%", left: "50%" }]
     },
     {
-      key: "BACK", label: "Back",
-      mockup: "/assets/customization_preview_image/hat_back.png",
-      hotspots: [{ id: "HAT_BACK_ARCH", label: "Back Arch", top: "40%", left: "50%" }],
+      key: "BACK", label: "Back", mockup: "/assets/customization_preview_image/hat_back.png",
+      hotspots: [{ id: "HAT_BACK_ARCH", label: "Back Arch", top: "40%", left: "50%" }]
     },
     {
-      key: "SIDE", label: "Side",
-      mockup: "/assets/customization_preview_image/hat_side.png",
-      hotspots: [{ id: "HAT_SIDE", label: "Side", top: "40%", left: "50%" }],
+      key: "SIDE", label: "Side", mockup: "/assets/customization_preview_image/hat_side.png",
+      hotspots: [{ id: "HAT_SIDE", label: "Side", top: "40%", left: "50%" }]
     },
   ],
   polo: [
     {
-      key: "FRONT", label: "Front",
-      mockup: "/assets/customization_preview_image/polo_front.png",
+      key: "FRONT", label: "Front", mockup: "/assets/customization_preview_image/polo_front.png",
       hotspots: [
         { id: "LEFT_CHEST", label: "L. Chest", top: "28%", left: "38%" },
         { id: "RIGHT_CHEST", label: "R. Chest", top: "28%", left: "62%" },
         { id: "FULL_FRONT", label: "Full Front", top: "44%", left: "50%" },
-      ],
+      ]
     },
     {
-      key: "BACK", label: "Back",
-      mockup: "/assets/customization_preview_image/polo_back.png",
-      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }],
+      key: "BACK", label: "Back", mockup: "/assets/customization_preview_image/polo_back.png",
+      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }]
     },
     {
-      key: "SIDE", label: "Side",
-      mockup: "/assets/customization_preview_image/polo_side.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "35%", left: "50%" }],
+      key: "SIDE", label: "Side", mockup: "/assets/customization_preview_image/polo_side.png",
+      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "35%", left: "50%" }]
     },
   ],
 };
@@ -160,9 +177,12 @@ const ALL_PRINT_LOCATIONS = [
 ];
 
 const EMB_TIERS = [
-  { label: "1–11", min: 1, max: 11 }, { label: "12–23", min: 12, max: 23 },
-  { label: "24–35", min: 24, max: 35 }, { label: "36–71", min: 36, max: 71 },
-  { label: "72–95", min: 72, max: 95 }, { label: "96–143", min: 96, max: 143 },
+  { label: "1–11", min: 1, max: 11 },
+  { label: "12–23", min: 12, max: 23 },
+  { label: "24–35", min: 24, max: 35 },
+  { label: "36–71", min: 36, max: 71 },
+  { label: "72–95", min: 72, max: 95 },
+  { label: "96–143", min: 96, max: 143 },
   { label: "144+", min: 144, max: Infinity },
 ];
 const EMB_PRICES: Record<string, number[]> = {
@@ -179,7 +199,9 @@ const EMB_PRICES: Record<string, number[]> = {
 const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
 const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
 const SP_PRICES: Record<string, number[]> = {
-  "1 Color": [6.58, 4.40], "2 Color": [9.43, 7.98], "3 Color": [11.55, 9.54],
+  "1 Color": [6.58, 4.40],
+  "2 Color": [9.43, 7.98],
+  "3 Color": [11.55, 9.54],
 };
 const DTG_TIERS = [{ min: 1 }, { min: 24 }, { min: 48 }, { min: 100 }];
 const DTG_PRICES: Record<string, number[]> = {
@@ -241,13 +263,11 @@ const isValidCssColor = (value: string): boolean => {
 };
 
 const resolveColorToken = (raw: string): string => {
-  const trimmed = raw.trim();
+  const trimmed = raw?.trim() ?? "";
   if (isValidCssColor(trimmed)) return trimmed;
-  const hexCandidate = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
-  if (isValidCssColor(hexCandidate)) return hexCandidate;
-  const key = trimmed.toLowerCase();
-  if (COLOR_NAME_FALLBACKS[key]) return COLOR_NAME_FALLBACKS[key];
-  return "#d1d5db";
+  const hex = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  if (isValidCssColor(hex)) return hex;
+  return COLOR_NAME_FALLBACKS[trimmed.toLowerCase()] ?? "#d1d5db";
 };
 
 function drawCanvas({
@@ -281,9 +301,7 @@ function drawCanvas({
     ctx.fillStyle = textColor;
     if (textShadow) {
       ctx.shadowColor = "rgba(0,0,0,0.4)";
-      ctx.shadowBlur = 6;
-      ctx.shadowOffsetX = 2;
-      ctx.shadowOffsetY = 2;
+      ctx.shadowBlur = 6; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 2;
     }
     const tw = ctx.measureText(text).width;
     ctx.translate(textPos.x + tw / 2, textPos.y - textSize / 2);
@@ -356,41 +374,64 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-
+  const [promoPricing, setPromoPricing] = useState<{ unitPrice: number; total: number } | null>(null);
   const isLoggedIn = mounted && !!localStorage.getItem("hastagBillionaire");
+
+  /* ── Raw variant from API (res.data.data) ── */
   const [variantData, setVariantData] = useState<Variant | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const canvasBlobRef = useRef<Blob | null>(null);
 
-  /* ── Fetch product ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     FETCH — maps res.data.data (single Variant) into Product shape
+  ══════════════════════════════════════════════════════════════════════ */
   const fetchProduct = async () => {
     try {
       setLoading(true);
-      const token = typeof window !== "undefined" ? localStorage.getItem("hastagBillionaire") : null;
-      if (!token) { console.error("Token not found"); return; }
       const res = await ProductVariantByIdApi(String(variantDataId));
-      setProduct(res?.data?.data || res?.data);
+
+      // The variant lives at res.data.data
+      const variantRaw: Variant = res?.data?.data;
+      if (!variantRaw) { setProduct(null); setVariantData(null); return; }
+
+      setVariantData(variantRaw);
+
+      const productRaw = variantRaw.product ?? {};
+
+      const mapped: Product = {
+        id: String(productRaw.id ?? variantRaw.product_id),
+        name: productRaw.name ?? "",
+        price: Number(variantRaw.price ?? 0),
+        image: variantRaw.images?.[0]?.file_uri ?? "",
+        description: productRaw.description ?? "",
+        attachments: productRaw.attachments ?? [],
+        categories: productRaw.categories ?? [],
+        brand: productRaw?.brand ?? null,
+        images: variantRaw.images ?? [],   // ← variant-level images
+        variants: [variantRaw],                   // ← wrap in array for uniform access
+        product: productRaw,                     // ← raw nested product
+      };
+
+      setProduct(mapped);
     } catch (e) {
-      console.error(e);
+      console?.error(e);
+      setProduct(null);
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => { if (variantDataId) fetchProduct(); }, [variantDataId]);
 
   /* ══════════════════════════════════════════════════════════════════════
-     ▌ CATEGORY TYPE DETECTION
-     ▌ Reads: categories[].parent_categories[].grand_categories[].title
-     ▌
-     ▌  "Apparel & Uniforms" → isApparel = true
-     ▌  "Pre-Made"           → isPreMade = true
-     ▌  anything else        → isPromo   = true  (Promo Products, etc.)
+     CATEGORY DETECTION
+     Reads: product.categories[].parent_categories[].grand_categories[].title
   ══════════════════════════════════════════════════════════════════════ */
   const grandCategoryTitle = useMemo((): string => {
     if (!product) return "";
-    for (const cat of product?.product.categories ?? []) {
+    for (const cat of product.product?.categories ?? []) {
       for (const parent of cat.parent_categories ?? []) {
         for (const grand of parent.grand_categories ?? []) {
           if (grand.title) return grand.title as string;
@@ -399,10 +440,10 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     }
     return "";
   }, [product]);
-  console.log(grandCategoryTitle, "grandCategoryTitle")
+
   const isApparel = grandCategoryTitle === "Apparel & Uniforms";
   const isPreMade = grandCategoryTitle === "Pre-Made";
-  const isPromo = !isApparel && !isPreMade; // Promo Products + everything else
+  const isPromo = !isApparel && !isPreMade;   // catches "Promo Products" and everything else
 
   /* ── Auth ── */
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -410,112 +451,59 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     if (!isLoggedIn) { setShowLoginModal(true); return true; }
     return false;
   };
-  /* ───────── Grand Category (Apparel, Pre-Made, etc.) ───────── */
+
+  /* ── Grand / Parent category strings ── */
   const grandCategory = useMemo((): string => {
     if (!product) return "";
-
     return (
-      product.product.categories
-        ?.flatMap((c: any) => c.parent_categories ?? [])
+      (product.product?.categories ?? [])
+        .flatMap((c: any) => c.parent_categories ?? [])
         .flatMap((p: any) => p.grand_categories ?? [])
         .map((g: any) => g.title?.toLowerCase().trim())
         .find(Boolean) ?? ""
     );
   }, [product]);
 
-  /* ───────── Parent Category (Hat, Polo, Hoodie, etc.) ───────── */
   const parentCategory = useMemo((): string => {
     if (!product) return "";
-
     return (
-      product?.product.categories
-        ?.flatMap((c: any) => c.parent_categories ?? [])
+      (product.product?.categories ?? [])
+        .flatMap((c: any) => c.parent_categories ?? [])
         .map((p: any) => p.title?.toLowerCase().trim())
         .find(Boolean) ?? ""
     );
   }, [product]);
 
-  /* ───────── Section Type (Based on Grand Category) ───────── */
-const garmentType = useMemo<GarmentType>(() => {
-  const category = grandCategory?.toLowerCase().trim();
-
-  // Map broad categories to specific garment view types
-  if (category?.includes("apparel") || 
-      category?.includes("uniform") || 
-      category === "clothing") {
-    
-    // Try to detect more specific type from parentCategory
-    const parent = parentCategory?.toLowerCase().trim();
-    
-    if (parent?.includes("hoodie") || parent?.includes("sweatshirt")) return "hoodie";
-    if (parent?.includes("hat") || parent?.includes("cap") || parent?.includes("headwear")) return "hat";
-    if (parent?.includes("polo")) return "polo";
-    
-    // Default for most apparel
-    return "tshirt";
-  }
-
-  if (category?.includes("pre-made") || 
-      category?.includes("premade") || 
-      category?.includes("pre made")) {
-    return "tshirt"; // or "polo" depending on your common pre-made items
-  }
-
-  // Fallback
-  return "tshirt";
-}, [grandCategory, parentCategory]);
-  /* ───────── Image / Placement Type (Based on Parent Category) ───────── */
-  const imageType = useMemo(() => {
-    switch (parentCategory) {
-      case "hat":
-      case "hats":
-      case "cap":
-      case "caps":
-      case "headwear":
-      case "beanies":
-        return "hat";
-
-      case "hoodie":
-      case "hoodies":
-      case "hoodies/sweatshirts":
-      case "sweatshirt":
-      case "sweatshirts":
-        return "hoodie";
-
-      case "polo":
-      case "polos":
-        return "polo";
-
-      case "jacket":
-      case "jackets":
-      case "vest":
-      case "vests":
-      case "outerwear":
-        return "jacket";
-
-      default:
-        return "tshirt";
+  /* ── Garment type (Apparel only) ── */
+  const garmentType = useMemo<GarmentType>(() => {
+    const cat = grandCategory.toLowerCase();
+    if (cat.includes("apparel") || cat.includes("uniform") || cat === "clothing") {
+      const parent = parentCategory.toLowerCase();
+      if (parent.includes("hoodie") || parent.includes("sweatshirt")) return "hoodie";
+      if (parent.includes("hat") || parent.includes("cap") || parent.includes("headwear")) return "hat";
+      if (parent.includes("polo")) return "polo";
+      return "tshirt";
     }
-  }, [parentCategory]);
+    return "tshirt";
+  }, [grandCategory, parentCategory]);
 
-  console.log({
-    grandCategory,
-    parentCategory,
-    garmentType,
-    imageType,
-  });
   const garmentViews = useMemo(() => GARMENT_VIEWS[garmentType], [garmentType]);
   const [activeViewIdx, setActiveViewIdx] = useState(0);
   const activeView = garmentViews[activeViewIdx] ?? garmentViews[0];
   useEffect(() => { setActiveViewIdx(0); }, [garmentType]);
 
-  /* ── Color state ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     COLOR STATE
+     For SAGE single-variant products there is exactly one color.
+     For Apparel/Pre-Made there may be multiple variants (different colors).
+  ══════════════════════════════════════════════════════════════════════ */
   const [selectedColor, setSelectedColor] = useState("");
 
+  /* Build color swatches from product.variants (always at least [variantRaw]) */
   const colors = useMemo(() => {
     if (!product) return [];
     const map = new Map<string, string>();
-    product.variants?.forEach(v => {
+    product.variants.forEach(v => {
       if (v.color && !map.has(v.color)) {
         map.set(v.color, resolveColorToken(v.color_code || v.color));
       }
@@ -523,34 +511,37 @@ const garmentType = useMemo<GarmentType>(() => {
     return Array.from(map.entries()).map(([name, hex]) => ({ name, hex }));
   }, [product]);
 
+  /* Auto-select first color on load */
   useEffect(() => {
-    if (product?.variants?.length && !selectedColor) {
-      setSelectedColor(product.variants[0].color);
+    if (!selectedColor) {
+      const first = variantData?.color || product?.variants?.[0]?.color;
+      if (first) setSelectedColor(first);
     }
-  }, [product]);
+  }, [variantData, product]);
 
+  /* Reset qty/canvas when color changes */
   useEffect(() => {
     setVariantQty({});
     setProductImg(null);
     setLogoPos({ x: 190, y: 190 });
   }, [selectedColor]);
 
+  /* ── colorVariants: variants that match the selected color ── */
   const colorVariants = useMemo(() => {
-    if (!selectedColor) return [];
-    let variants = product?.variants?.filter(v =>
-      v.color === selectedColor ||
-      v.color?.trim().toLowerCase() === selectedColor.trim().toLowerCase()
-    ) ?? [];
-    if (variants.length === 0 && variantData &&
-      (variantData.color === selectedColor ||
-        variantData.color?.trim().toLowerCase() === selectedColor.trim().toLowerCase())) {
-      variants = [variantData];
-    }
-    if (variants.length === 0 && variantData) variants = [variantData];
-    return variants;
-  }, [product?.variants, selectedColor, variantData]);
+    if (!product) return variantData ? [variantData] : [];
+    const normalise = (s: string) => s?.trim().toLowerCase() ?? "";
+    const target = normalise(selectedColor);
 
-  /* ── Per-variant quantities ── */
+    // Filter from product.variants (which always has at least [variantRaw])
+    const filtered = product.variants.filter(v => normalise(v.color) === target);
+
+    // Fallback: return all variants (prevents ever returning [])
+    return filtered.length > 0 ? filtered : product.variants;
+  }, [product, selectedColor, variantData]);
+
+  /* ══════════════════════════════════════════════════════════════════════
+     QUANTITY STATE
+  ══════════════════════════════════════════════════════════════════════ */
   const [variantQty, setVariantQty] = useState<Record<number, number>>({});
   const setQty = (variantId: number, qty: number) =>
     setVariantQty(prev => ({ ...prev, [variantId]: Math.max(0, qty) }));
@@ -559,25 +550,48 @@ const garmentType = useMemo<GarmentType>(() => {
     () => Object.values(variantQty).reduce((a, b) => a + b, 0),
     [variantQty]
   );
+
   const activeSizes = useMemo(
     () => Object.entries(variantQty)
       .filter(([, q]) => q > 0)
       .map(([id, quantity]) => ({ variant_id: Number(id), quantity })),
     [variantQty]
   );
- const promoMetaStr = colorVariants[0]?.meta ?? colorVariants[0]?.eta ?? null;
-const parsedPromoMeta = parseSageMeta(promoMetaStr);
 
-const hasTierPricing = !!parsedPromoMeta && 
-                      Array.isArray(parsedPromoMeta.priceTiers) && 
-                      Array.isArray(parsedPromoMeta.qtyTiers);
-  /* ── Display image ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     SAGE / PROMO PRICING
+     metaStr comes from the variant (colorVariants[0].meta)
+     It is a JSON string: { priceTiers:[...], qtyTiers:[...], netTiers:[...] }
+  ══════════════════════════════════════════════════════════════════════ */
+  const promoMetaStr = colorVariants[0]?.meta ?? variantData?.meta ?? null;
+  const parsedPromoMeta = useMemo(() => parseSageMeta(promoMetaStr), [promoMetaStr]);
+  const hasTierPricing = !!(
+    parsedPromoMeta &&
+    Array.isArray(parsedPromoMeta.priceTiers) &&
+    parsedPromoMeta.priceTiers.length > 0
+  );
+
+  /* ── Auto-set default qty for Promo (first tier min) ── */
+  useEffect(() => {
+    if (!isPromo || !colorVariants[0] || Object.keys(variantQty).length > 0) return;
+    const firstTierMin = parsedPromoMeta?.priceTiers?.[0]?.minQty
+      ?? colorVariants[0].min_order_quantity
+      ?? 1;
+    setQty(colorVariants[0].id, firstTierMin);
+  }, [isPromo, colorVariants, parsedPromoMeta]);
+
+  /* ── Display image (variant-level images take priority) ── */
   const displayImage = useMemo(() => {
-    if (!product) return null;
-    console.log(product, "product")
-    const primary = product?.images?.find((img: any) => img.is_primary) || product?.images?.[0];
-    if (!primary) return null;
-    return primary.file_uri?.startsWith("http") ? primary.file_uri : `${BASE_URL}${primary.file_uri}`;
+    const imgs: VariantImage[] = product?.images ?? [];
+    if (!imgs.length) return null;
+    const primary = imgs.find(img => img?.is_primary && img?.file_uri)
+      || imgs.find(img => img?.file_uri)
+      || imgs[0];
+    const fileUri = primary?.file_uri?.trim();
+    if (!fileUri) return null;
+    return /^https?:\/\//i.test(fileUri)
+      ? fileUri
+      : `${BASE_URL}${fileUri.startsWith("/") ? "" : "/"}${fileUri}`;
   }, [product]);
 
   /* ── Print locations (Apparel only) ── */
@@ -587,7 +601,7 @@ const hasTierPricing = !!parsedPromoMeta &&
       prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
     );
 
-  /* ── Material (Apparel only) ── */
+  /* ── Decoration method (Apparel only) ── */
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
   const [showPriceTable, setShowPriceTable] = useState(false);
   const [spColorCount, setSpColorCount] = useState<"1 Color" | "2 Color" | "3 Color">("1 Color");
@@ -653,7 +667,7 @@ const hasTierPricing = !!parsedPromoMeta &&
         if (cancelled) return;
         const img = await loadImage(b64);
         if (!cancelled) setProductImg(img);
-      } catch (err) { console.error("Failed to load product image onto canvas:", err); }
+      } catch (err) { console?.error("Failed to load product image:", err); }
     })();
     return () => { cancelled = true; };
   }, [displayImage]);
@@ -686,13 +700,6 @@ const hasTierPricing = !!parsedPromoMeta &&
     fontFamily, textBold, textItalic, textShadow, textOpacity,
   ]);
 
-  // Auto set default quantity for Promo products
-  useEffect(() => {
-    if (isPromo && colorVariants.length > 0 && Object.keys(variantQty).length === 0) {
-      const defaultQty = colorVariants[0].min_order_quantity || 1;
-      setQty(colorVariants[0].id, defaultQty);
-    }
-  }, [isPromo, colorVariants, variantQty]);
   /* ── Canvas drag helpers ── */
   const getPoint = (e: React.MouseEvent) => {
     const r = canvasRef.current!.getBoundingClientRect();
@@ -706,14 +713,21 @@ const hasTierPricing = !!parsedPromoMeta &&
       pt.y >= logoPos.y && pt.y <= logoPos.y + logoSize);
   const isOverText = (pt: { x: number; y: number }) =>
     customText.trim()
-      ? pt.x >= textPos.x && pt.x <= textPos.x + textSize * customText.length * 0.65
-      && pt.y >= textPos.y - textSize && pt.y <= textPos.y + 8
+      ? pt.x >= textPos.x && pt.x <= textPos.x + textSize * customText.length * 0.65 &&
+      pt.y >= textPos.y - textSize && pt.y <= textPos.y + 8
       : false;
+
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     const pt = getPoint(e);
-    if (isOverLogo(pt)) { setDragging("logo"); setDragOffset({ x: pt.x - logoPos.x, y: pt.y - logoPos.y }); }
-    else if (isOverText(pt)) { setDragging("text"); setDragOffset({ x: pt.x - textPos.x, y: pt.y - textPos.y }); }
+    if (isOverLogo(pt)) {
+      setDragging("logo");
+      setDragOffset({ x: pt.x - logoPos.x, y: pt.y - logoPos.y });
+    } else if (isOverText(pt)) {
+      setDragging("text");
+      setDragOffset({ x: pt.x - textPos.x, y: pt.y - textPos.y });
+    }
   };
+
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragging) return;
     const pt = getPoint(e);
@@ -729,95 +743,116 @@ const hasTierPricing = !!parsedPromoMeta &&
       });
     }
   }, [dragging, dragOffset, logoSize, textSize]);
+
   const stopDrag = () => setDragging(null);
   const getCursor = () => dragging ? "grabbing" : (logoImg || customText.trim()) ? "grab" : "default";
 
-  /* ── Pricing (Apparel only) ── */
-  const getPrintPrice = (): number | null => {
-    if (!selectedMaterial || activeSizes.length === 0 || selectedLocations.length === 0) return null;
-    const qty = totalQty;
-    if (selectedMaterial === "embroidery") {
-      const ti = EMB_TIERS.findIndex(t => qty >= t.min && qty <= t.max);
+  /* ── Apparel print pricing ── */
+const getPrintPrice = (): number |null => {
+  if (!isApparel) return null;
+
+  if (!selectedMaterial) return null;
+
+  if (selectedLocations.length === 0) return null;
+
+  const qty = totalQty;
+
+  if (qty <= 0) return null;
+
+  switch (selectedMaterial) {
+    case "embroidery": {
+      const tierIndex = EMB_TIERS.findIndex(
+        t => qty >= t.min && qty <= t.max
+      );
+
       let total = 0;
-      for (const loc of selectedLocations) {
-        const row = EMB_PRICES[loc];
-        if (!row) return null;
-        total += (ti >= 0 ? row[ti] : row[row.length - 1]) * qty;
+
+      selectedLocations.forEach(location => {
+        const row = EMB_PRICES[location];
+
+        if (!row) return;
+
+        total += row[tierIndex] * qty;
+      });
+
+      if (qty <= 11) {
+        total += 35;
       }
-      return total + (qty <= 11 ? 35 : 0);
+
+      return total;
     }
-    if (selectedMaterial === "dtf") {
-      const ti = DTF_TIERS.reduce((f, t, i) => (qty >= t ? i : f), 0);
-      return DTF_PRICES[ti] * qty * selectedLocations.length;
+
+    case "dtf": {
+      const tier =
+        qty >= 144 ? 6 :
+        qty >= 96 ? 5 :
+        qty >= 72 ? 4 :
+        qty >= 36 ? 3 :
+        qty >= 24 ? 2 :
+        qty >= 12 ? 1 : 0;
+
+      return DTF_PRICES[tier] * qty * selectedLocations.length;
     }
-    if (selectedMaterial === "screenprint") {
+
+    case "screenprint": {
       if (qty < 50) return null;
-      return SP_PRICES[spColorCount][qty >= 100 ? 1 : 0] * qty * selectedLocations.length;
-    }
-    if (selectedMaterial === "dtg") {
-      const ti = DTG_TIERS.reduce((f, t, i) => (qty >= t.min ? i : f), 0);
-      return DTG_PRICES[dtgStyle][ti] * qty * selectedLocations.length;
-    }
-    return null;
-  };
-  const getPromoPriceTableData = () => {
-  if (!hasTierPricing || !parsedPromoMeta) return null;
 
-  const { priceTiers, qtyTiers } = parsedPromoMeta;
-  const tiers = qtyTiers.map((qty: string, index: number) => ({
-    qty: parseInt(qty),
-    price: parseFloat(priceTiers[index] || "0")
-  }));
+      const price =
+        qty >= 100
+          ? SP_PRICES[spColorCount][1]
+          : SP_PRICES[spColorCount][0];
 
-  return tiers;
+      return price * qty * selectedLocations.length;
+    }
+
+    case "dtg": {
+      const tier =
+        qty >= 100 ? 3 :
+        qty >= 48 ? 2 :
+        qty >= 24 ? 1 : 0;
+
+      return DTG_PRICES[dtgStyle][tier] * qty;
+    }
+
+    default:
+      return null;
+  }
 };
-const printPrice = getPrintPrice();
-const basePrice = product ? (colorVariants[0]?.price ? Number(colorVariants[0].price) : product.price) : 0;
-const estimatedTotal = basePrice * totalQty + (printPrice ?? 0);
 
-// Safe Promo Price Calculation
-let promoUnitPrice: number | null = null;
-let promoTotal = 0;
+  const printPrice = getPrintPrice();
+  const basePrice = colorVariants[0]?.price ? Number(colorVariants[0].price) : (product?.price ?? 0);
+  // const estimatedTotal = basePrice * totalQty + (printPrice ?? 0);
+const productTotal = basePrice * totalQty;
+// console.log(basePrice,"basePrice")
+// console.log(totalQty,"totalQty")
+// console.log(productTotal,"productTotal")
+// console.log(basePrice,"basePrice")
 
-if (isPromo) {
-  promoUnitPrice = hasTierPricing 
-    ? (getSageUnitPrice(promoMetaStr, totalQty) || basePrice)
-    : basePrice;
-  promoTotal = promoUnitPrice * totalQty;
-}
+const decorationTotal = printPrice ?? 0;
+
+const estimatedTotal = productTotal + decorationTotal;
+  /* ── Promo price (SAGE tier) ── */
+  const promoUnitPrice: number | null = useMemo(() => {
+    if (!isPromo) return null;
+    if (hasTierPricing) return getSageUnitPriceWithMarkup(promoMetaStr, totalQty) ?? basePrice;
+    return basePrice;
+  }, [isPromo, hasTierPricing, promoMetaStr, totalQty, basePrice]);
+
+  const promoTotal = (promoUnitPrice ?? 0) * totalQty;
+
   /* ══════════════════════════════════════════════════════════════════════
-     ▌ REQUIREMENTS — conditionally built per category type
-     ▌
-     ▌  Apparel  → color + print location + print method
-     ▌  Pre-Made → color + size & qty
-     ▌  Promo    → color only
+     REQUIREMENTS
   ══════════════════════════════════════════════════════════════════════ */
-  /* ══════════════════════════════════════════════════════════════════════
-     ▌ REQUIREMENTS — conditionally built per category type
-     ▌
-     ▌  Apparel  → color + print location + print method
-     ▌  Pre-Made → color + size & qty
-     ▌  Promo    → qty only (color is optional)
-  ══════════════════════════════════════════════════════ */
   const REQUIREMENTS = [
-    // Color is required only for Apparel & Pre-Made
-    ...((isApparel || isPreMade) ? [
-      { key: "color", label: "Color", done: !!selectedColor }
-    ] : []),
-
+    ...((isApparel || isPreMade) ? [{ key: "color", label: "Color", done: !!selectedColor }] : []),
     ...(isApparel ? [
       { key: "loc", label: "Print location", done: selectedLocations.length > 0 },
       { key: "mat", label: "Print method", done: !!selectedMaterial },
     ] : []),
-
-    ...(isPreMade ? [
-      { key: "size", label: "Size & qty", done: activeSizes.length > 0 },
-    ] : []),
-
-    ...(isPromo ? [
-      { key: "qty", label: "Quantity", done: hasTierPricing ? totalQty > 0 : true },
-    ] : []),
+    ...(isPreMade ? [{ key: "size", label: "Size & qty", done: activeSizes.length > 0 }] : []),
+    ...(isPromo ? [{ key: "qty", label: "Quantity", done: totalQty > 0 }] : []),
   ];
+
   const allMet = REQUIREMENTS.every(r => r.done);
 
   /* ── Order rows (Pre-Made only) ── */
@@ -825,10 +860,8 @@ if (isPromo) {
   const [orderRows, setOrderRows] = useState<OrderRow[]>([
     { id: Date.now(), color: "", qty: 1, variantId: "" }
   ]);
-  const addOrderRow = () =>
-    setOrderRows(prev => [...prev, { id: Date.now(), color: "", qty: 1, variantId: "" }]);
-  const removeOrderRow = (id: number) =>
-    setOrderRows(prev => prev.filter(r => r.id !== id));
+  const addOrderRow = () => setOrderRows(prev => [...prev, { id: Date.now(), color: "", qty: 1, variantId: "" }]);
+  const removeOrderRow = (id: number) => setOrderRows(prev => prev.filter(r => r.id !== id));
   const updateOrderRow = (id: number, field: keyof OrderRow, value: any) =>
     setOrderRows(prev => prev.map(r => {
       if (r.id !== id) return r;
@@ -848,15 +881,8 @@ if (isPromo) {
     setVariantQty({});
   };
 
-  /* ══════════════════════════════════════════════════════════════════════
-     ▌ PAYLOAD BUILDER — conditionally built per category type
-     ▌
-     ▌  Apparel  → { print_method, locations, sizes }
-     ▌  Pre-Made → { sizes }
-     ▌  Promo    → {}  (only canvas blob / logo is sent)
-  ══════════════════════════════════════════════════════════════════════ */
+  /* ── Payload builder ── */
   const buildPayload = () => {
-    /* ── Apparel & Uniforms ── */
     if (isApparel) {
       return [{
         print_method: selectedMaterial?.toUpperCase() ?? null,
@@ -867,49 +893,30 @@ if (isPromo) {
         ...(selectedMaterial === "dtg" ? { print_area: dtgStyle } : {}),
       }];
     }
-    /* ── Pre-Made ── */
-    if (isPreMade) {
-      return [{ sizes: activeSizes }];
-    }
-
+    if (isPreMade) return [{ sizes: activeSizes }];
     if (hasTierPricing) {
-      const unitPrice = getSageUnitPrice(promoMetaStr, totalQty);
+      const unitPrice = getSageUnitPriceWithMarkup(promoMetaStr, totalQty);
       return [{ quantity: totalQty, unit_price: unitPrice }];
     }
-    return [{}];
+    return [{ quantity: totalQty }];
   };
 
-  /* ── getBlob helper ── */
+  /* ── getBlob ── */
   const getBlob = (): Promise<Blob | null> =>
     new Promise((res) => {
       const canvas = canvasRef.current;
-      if (!canvas) { console.warn("Canvas ref is null"); return res(null); }
+      if (!canvas) return res(null);
       const ctx = canvas.getContext("2d");
-      if (ctx) {
-        drawCanvas({
-          ctx, size: CANVAS_SIZE, productImg, logo: logoImg,
-          logoPos, logoSize, logoRotation, logoOpacity,
-          text: customText, textPos, textSize, textColor,
-          textRotation, fontFamily, textBold, textItalic, textShadow, textOpacity,
-        });
-      }
-      canvas.toBlob((blob) => res(blob), "image/png", 1);
+      if (ctx) drawCanvas({
+        ctx, size: CANVAS_SIZE, productImg, logo: logoImg,
+        logoPos, logoSize, logoRotation, logoOpacity,
+        text: customText, textPos, textSize, textColor,
+        textRotation, fontFamily, textBold, textItalic, textShadow, textOpacity,
+      });
+      canvas.toBlob(blob => res(blob), "image/png", 1);
     });
 
-  /* ══════════════════════════════════════════════════════════════════════
-     ▌ ADD TO CART — builds FormData based on category type
-     ▌
-     ▌  Apparel  → customization JSON + canvas blob (logo)
-     ▌  Pre-Made → customization JSON (sizes), NO canvas blob
-     ▌  Promo    → canvas blob only, empty customization
-     ▌
-     ▌  FormData shape (matches AddToCartApi):
-     ▌    product_id   : string
-     ▌    quantity     : string
-     ▌    variant_id   : string
-     ▌    customization: JSON string
-     ▌    images       : File (only when canvas has content)
-  ══════════════════════════════════════════════════════════════════════ */
+  /* ── Add to cart ── */
   const handleAddToCart = async () => {
     if (requireLogin()) return;
     if (!allMet) {
@@ -922,11 +929,7 @@ if (isPromo) {
     setValidationError(null);
 
     let blob: Blob | null = null;
-
-    /* Capture canvas blob only for Apparel and Promo (they show the logo canvas) */
-    if (isApparel || (isPromo && logoImg)) {
-      blob = await getBlob();
-    }
+    if (isApparel || (isPromo && logoImg)) blob = await getBlob();
 
     canvasBlobRef.current = blob;
     setCanvasBlob(blob);
@@ -951,7 +954,7 @@ if (isPromo) {
       }
       await fetchWishlist();
       fetchProduct();
-    } catch (e) { console.error(e); }
+    } catch (e) { console?.error(e); }
     finally { setWishlistLoading(false); }
   };
 
@@ -1072,7 +1075,8 @@ if (isPromo) {
                   setShowPreviewModal(false);
                 }}
                 disabled={!previewDataUrl}
-                className={cn("flex-1 h-12 rounded-xl font-black flex items-center justify-center gap-2", previewDataUrl ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-400 cursor-not-allowed")}
+                className={cn("flex-1 h-12 rounded-xl font-black flex items-center justify-center gap-2",
+                  previewDataUrl ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-400 cursor-not-allowed")}
               >
                 <ImageDown size={17} /> Download
               </button>
@@ -1090,8 +1094,6 @@ if (isPromo) {
             </Link>
             <span className="text-gray-200">/</span>
             <span className="text-xs font-semibold text-gray-900 truncate max-w-[200px]">Customize — {product.name}</span>
-
-            {/* Category type badge */}
             <span className={cn(
               "hidden md:inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border",
               isApparel ? "bg-blue-50 text-blue-600 border-blue-200" :
@@ -1100,7 +1102,6 @@ if (isPromo) {
             )}>
               {isApparel ? "Apparel & Uniforms" : isPreMade ? "Pre-Made" : "Promo Product"}
             </span>
-
             <div className="ml-auto hidden md:flex items-center gap-1.5">
               {REQUIREMENTS.map(r => (
                 <span key={r.key} className={cn(
@@ -1123,7 +1124,7 @@ if (isPromo) {
           <p className="text-sm text-gray-500">
             {isApparel && "Select print location, decoration method, then upload your logo"}
             {isPreMade && "Choose your color, size & quantity"}
-            {isPromo && "Upload your logo to personalize this product"}
+            {isPromo && "Select quantity and optionally upload your logo"}
           </p>
         </div>
       </div>
@@ -1136,43 +1137,54 @@ if (isPromo) {
           <div>
 
             {/* ══════════════════════════════════════════════════════
-                ▌ SECTION A — APPAREL & UNIFORMS ONLY
-                ▌ Shows: Print Location + Decoration Method + Logo Upload
+                SECTION A — APPAREL & UNIFORMS
             ══════════════════════════════════════════════════════ */}
             {isApparel && (
               <>
-                {/* Step 1 — Print Location */}
+                {/* Step 1 — Color */}
+                {colors.length > 1 && (
+                  <SectionCard step={1} title="Choose Color" subtitle="Select the garment color." status={selectedColor ? "done" : "required"}>
+                    <div className="flex flex-wrap gap-2">
+                      {colors.map(c => (
+                        <button
+                          key={c.name}
+                          onClick={() => setSelectedColor(c.name)}
+                          title={c.name}
+                          className={cn(
+                            "w-9 h-9 rounded-full border-2 transition-all hover:scale-110",
+                            selectedColor === c.name ? "border-[#F5D800] scale-110 ring-2 ring-[#F5D800]/30" : "border-gray-200"
+                          )}
+                          style={{ background: c.hex }}
+                        />
+                      ))}
+                    </div>
+                    {selectedColor && <p className="text-xs text-gray-500 mt-2">Selected: <strong>{selectedColor}</strong></p>}
+                  </SectionCard>
+                )}
+
+                {/* Step 2 — Print Location */}
                 <SectionCard
-                  step={1}
+                  step={colors.length > 1 ? 2 : 1}
                   title="Choose Print Location"
-                  subtitle="Select a view, then tap the hotspot on the garment to choose your print location."
+                  subtitle="Select a view, then tap the hotspot to choose your print location."
                   status={selectedLocations.length > 0 ? "done" : "required"}
                 >
-                  {/* View Tab Bar */}
                   <div className="flex gap-1.5 mb-4 bg-gray-100 p-1 rounded-xl">
                     {garmentViews.map((view, idx) => (
-                      <button
-                        key={view.key}
-                        onClick={() => setActiveViewIdx(idx)}
-                        className={cn(
-                          "flex-1 h-9 rounded-lg text-xs font-bold transition-all",
+                      <button key={view.key} onClick={() => setActiveViewIdx(idx)}
+                        className={cn("flex-1 h-9 rounded-lg text-xs font-bold transition-all",
                           activeViewIdx === idx ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                        )}
-                      >
+                        )}>
                         {view.label}
                       </button>
                     ))}
                   </div>
-
-                  {/* Garment Mockup with Hotspots */}
                   <div className="relative mx-auto mb-4" style={{ maxWidth: 300 }}>
                     <div className="relative rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
                       <img src={activeView.mockup} alt={activeView.label} className="w-full h-auto object-contain" />
                       <div className="absolute inset-0">
                         {activeView.hotspots.map(h => (
-                          <button
-                            key={h.id}
-                            onClick={() => toggleLocation(h.id)}
+                          <button key={h.id} onClick={() => toggleLocation(h.id)}
                             style={{ top: h.top, left: h.left }}
                             className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group"
                           >
@@ -1194,11 +1206,8 @@ if (isPromo) {
                         ))}
                       </div>
                     </div>
-                    <p className="text-center text-[11px] text-gray-400 mt-2">
-                      Tap a hotspot on the garment to select a print location
-                    </p>
+                    <p className="text-center text-[11px] text-gray-400 mt-2">Tap a hotspot to select a print location</p>
                   </div>
-
                   {selectedLocations.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5 p-3 bg-[#F5D800]/5 rounded-xl border border-[#F5D800]/20">
                       <span className="text-[11px] font-bold text-[#b89000] mr-1 self-center">Selected:</span>
@@ -1209,9 +1218,7 @@ if (isPromo) {
                         </span>
                       ))}
                       {selectedLocations.length > 1 && (
-                        <button onClick={() => setSelectedLocations([])} className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:bg-white">
-                          Clear all
-                        </button>
+                        <button onClick={() => setSelectedLocations([])} className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:bg-white">Clear all</button>
                       )}
                     </div>
                   ) : (
@@ -1222,9 +1229,9 @@ if (isPromo) {
                   )}
                 </SectionCard>
 
-                {/* Step 2 — Decoration Method */}
+                {/* Step 3 — Decoration Method */}
                 <SectionCard
-                  step={2}
+                  step={colors.length > 1 ? 3 : 2}
                   title="Decoration Method"
                   subtitle="Choose how your design will be applied to the garment."
                   status={selectedMaterial ? "done" : "required"}
@@ -1233,14 +1240,10 @@ if (isPromo) {
                     {MATERIALS.map(mat => {
                       const isSelected = selectedMaterial === mat.id;
                       return (
-                        <button
-                          key={mat.id}
-                          onClick={() => handleSelectMaterial(mat.id)}
-                          className={cn(
-                            "w-full text-left flex items-start gap-3 rounded-2xl border-2 p-3.5 transition-all relative",
+                        <button key={mat.id} onClick={() => handleSelectMaterial(mat.id)}
+                          className={cn("w-full text-left flex items-start gap-3 rounded-2xl border-2 p-3.5 transition-all relative",
                             isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                          )}
-                        >
+                          )}>
                           {isSelected && (
                             <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F5D800] flex items-center justify-center">
                               <Check size={11} className="text-black" />
@@ -1252,9 +1255,7 @@ if (isPromo) {
                           <div className="flex-1 min-w-0 pr-5">
                             <div className="flex items-center gap-2">
                               <p className="text-sm font-black text-gray-900">{mat.label}</p>
-                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-500")}>
-                                {mat.badge}
-                              </span>
+                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-500")}>{mat.badge}</span>
                             </div>
                             <p className="text-[11px] text-gray-500 mt-0.5">{mat.desc}</p>
                             <p className="text-[10px] text-gray-400 mt-0.5">Best for: {mat.bestFor}</p>
@@ -1270,7 +1271,8 @@ if (isPromo) {
                       <div className="flex gap-2">
                         {(["1 Color", "2 Color", "3 Color"] as const).map(c => (
                           <button key={c} onClick={() => setSpColorCount(c)}
-                            className={cn("flex-1 h-10 rounded-xl border-2 text-xs font-bold transition-all", spColorCount === c ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
+                            className={cn("flex-1 h-10 rounded-xl border-2 text-xs font-bold transition-all",
+                              spColorCount === c ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
                             {c}
                           </button>
                         ))}
@@ -1284,7 +1286,8 @@ if (isPromo) {
                       <div className="grid grid-cols-2 gap-2">
                         {(Object.keys(DTG_PRICES) as (keyof typeof DTG_PRICES)[]).map(s => (
                           <button key={s} onClick={() => setDtgStyle(s)}
-                            className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all px-2", dtgStyle === s ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
+                            className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all px-2",
+                              dtgStyle === s ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
                             {s}
                           </button>
                         ))}
@@ -1294,13 +1297,10 @@ if (isPromo) {
 
                   {selectedMaterial && (
                     <div className="mt-4">
-                      <button
-                        onClick={() => setShowPriceTable(p => !p)}
-                        className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
+                      <button onClick={() => setShowPriceTable(p => !p)}
+                        className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
                         <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
-                          <Table2 size={14} className="text-[#F5D800]" />
-                          View Full Price Table
+                          <Table2 size={14} className="text-[#F5D800]" /> View Full Price Table
                         </div>
                         {showPriceTable ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
                       </button>
@@ -1337,7 +1337,8 @@ if (isPromo) {
                                   <tr className="bg-gray-50 border-b border-gray-200">
                                     <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Method</th>
                                     {["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"].map((l, i) => (
-                                      <th key={l} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center", DTF_TIERS.reduce((f, t, idx) => (totalQty >= t ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{l}</th>
+                                      <th key={l} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
+                                        DTF_TIERS.reduce((f, t, idx) => (totalQty >= t ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{l}</th>
                                     ))}
                                   </tr>
                                 </thead>
@@ -1345,7 +1346,8 @@ if (isPromo) {
                                   <tr>
                                     <td className="px-3 py-3 font-bold text-[#b89000] border-r border-gray-200">DTF</td>
                                     {DTF_PRICES.map((p, i) => (
-                                      <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium", DTF_TIERS.reduce((f, t, idx) => (totalQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>${p}.00</td>
+                                      <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium",
+                                        DTF_TIERS.reduce((f, t, idx) => (totalQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>${p}.00</td>
                                     ))}
                                   </tr>
                                 </tbody>
@@ -1364,8 +1366,8 @@ if (isPromo) {
                                   {Object.entries(SP_PRICES).map(([k, p], i) => (
                                     <tr key={k} className={cn("border-b border-gray-100", k === spColorCount ? "bg-[#F5D800]/5" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
                                       <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">{k}</td>
-                                      <td className="px-3 py-2.5 text-center border-r border-gray-100 text-gray-500">${p[0].toFixed(2)}</td>
-                                      <td className="px-3 py-2.5 text-center text-gray-500">${p[1].toFixed(2)}</td>
+                                      <td className="px-3 py-2.5 text-center border-r border-gray-100 text-gray-500">${p[0]}</td>
+                                      <td className="px-3 py-2.5 text-center text-gray-500">${p[1]}</td>
                                     </tr>
                                   ))}
                                 </tbody>
@@ -1377,7 +1379,8 @@ if (isPromo) {
                                   <tr className="bg-gray-50 border-b border-gray-200">
                                     <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-40">Print Area</th>
                                     {DTG_TIERS.map((t, i) => (
-                                      <th key={i} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center", DTG_TIERS.reduce((f, tt, idx) => (totalQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>
+                                      <th key={i} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
+                                        DTG_TIERS.reduce((f, tt, idx) => (totalQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>
                                         {["1–23", "24–47", "48–99", "100+"][i]}
                                       </th>
                                     ))}
@@ -1400,177 +1403,82 @@ if (isPromo) {
                   )}
                 </SectionCard>
 
-                {/* Step 3 — Logo Upload (Apparel) */}
+                {/* Step 4 — Logo / Text */}
                 <SectionCard
-                  step={3}
+                  step={colors.length > 1 ? 4 : 3}
                   title="Upload Logo / Add Text"
                   subtitle="Upload a logo or add custom text. Drag to reposition on the canvas."
                   status="optional"
                 >
-                  {/* Canvas + Controls — shared UI below */}
-                  <LogoCanvasSection
-                    canvasRef={canvasRef}
-                    fileRef={fileRef}
-                    productImg={productImg}
-                    logoImg={logoImg}
-                    logoSrc={logoSrc}
-                    logoSize={logoSize}
-                    logoRotation={logoRotation}
-                    logoOpacity={logoOpacity}
-                    logoPos={logoPos}
-                    customText={customText}
-                    textSize={textSize}
-                    textColor={textColor}
-                    textRotation={textRotation}
-                    fontFamily={fontFamily}
-                    textBold={textBold}
-                    textItalic={textItalic}
-                    textShadow={textShadow}
-                    textOpacity={textOpacity}
-                    textPos={textPos}
-                    activeTab={activeTab}
-                    dragging={dragging}
-                    setLogoSrc={setLogoSrc}
-                    setLogoSize={setLogoSize}
-                    setLogoRotation={setLogoRotation}
-                    setLogoOpacity={setLogoOpacity}
-                    setLogoPos={setLogoPos}
-                    setCustomText={setCustomText}
-                    setTextSize={setTextSize}
-                    setTextColor={setTextColor}
-                    setTextRotation={setTextRotation}
-                    setFontFamily={setFontFamily}
-                    setTextBold={setTextBold}
-                    setTextItalic={setTextItalic}
-                    setTextShadow={setTextShadow}
-                    setTextOpacity={setTextOpacity}
-                    setActiveTab={setActiveTab}
-                    handleCanvasMouseDown={handleCanvasMouseDown}
-                    handleCanvasMouseMove={handleCanvasMouseMove}
-                    stopDrag={stopDrag}
-                    getCursor={getCursor}
-                    handleOpenPreview={handleOpenPreview}
-                    setLogoImg={setLogoImg}
-                    CANVAS_SIZE={CANVAS_SIZE}
-                    FONTS={FONTS}
-                    PRESET_COLORS={PRESET_COLORS}
-                  />
+                  <LogoCanvasSection {...logoCanvasSectionProps()} />
                 </SectionCard>
               </>
             )}
 
             {/* ══════════════════════════════════════════════════════
-                ▌ SECTION B — PRE-MADE ONLY
-                ▌ Shows: Color + Size + Quantity (no print, no logo)
+                SECTION B — PRE-MADE
             ══════════════════════════════════════════════════════ */}
             {isPreMade && (
               <SectionCard
-                step={1}
-                title="Select Color, Quantity & Size"
-                subtitle="Add one row per size combination. Choose color, set quantity, then pick size."
+                step={1} title="Select Color, Quantity & Size"
+                subtitle="Add one row per size combination."
                 status={activeSizes.length > 0 ? "done" : "required"}
               >
-                {/* Column headers */}
                 <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "1fr 100px 1fr 36px" }}>
                   {["Color", "Quantity", "Size", ""].map((h, i) => (
                     <p key={i} className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</p>
                   ))}
                 </div>
-
-                {/* Rows */}
                 <div className="space-y-2 mb-3">
-                  {orderRows.map((row) => {
-                    const sizesForColor = (product?.variants ?? []).filter(v =>
+                  {orderRows.map(row => {
+                    const sizesForColor = product.variants.filter(v =>
                       v.color === row.color && (v.stock ?? 0) > 0
                     );
                     return (
                       <div key={row.id} className="grid gap-2 items-center" style={{ gridTemplateColumns: "1fr 100px 1fr 36px" }}>
-                        {/* Color select */}
-                        <select
-                          value={row.color}
-                          onChange={e => updateOrderRow(row.id, "color", e.target.value)}
-                          className="h-10 rounded-xl border-2 border-gray-200 px-2 text-xs font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none"
-                        >
+                        <select value={row.color} onChange={e => updateOrderRow(row.id, "color", e.target.value)}
+                          className="h-10 rounded-xl border-2 border-gray-200 px-2 text-xs font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none">
                           <option value="">Color…</option>
-                          {colors.map(c => (
-                            <option key={c.name} value={c.name}>{c.name}</option>
-                          ))}
+                          {colors.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                         </select>
-
-                        {/* Qty */}
                         <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden h-10">
-                          <button
-                            onClick={() => updateOrderRow(row.id, "qty", Math.max(1, row.qty - 1))}
-                            className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"
-                          ><Minus size={12} /></button>
+                          <button onClick={() => updateOrderRow(row.id, "qty", Math.max(1, row.qty - 1))} className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"><Minus size={12} /></button>
                           <span className="flex-1 text-center text-xs font-black text-gray-900">{row.qty}</span>
-                          <button
-                            onClick={() => updateOrderRow(row.id, "qty", row.qty + 1)}
-                            className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"
-                          ><Plus size={12} /></button>
+                          <button onClick={() => updateOrderRow(row.id, "qty", row.qty + 1)} className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"><Plus size={12} /></button>
                         </div>
-
-                        {/* Size select */}
-                        <select
-                          value={row.variantId}
-                          onChange={e => updateOrderRow(row.id, "variantId", Number(e.target.value))}
+                        <select value={row.variantId} onChange={e => updateOrderRow(row.id, "variantId", Number(e.target.value))}
                           disabled={!row.color}
-                          className="h-10 rounded-xl border-2 border-gray-200 px-2 text-xs font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none disabled:opacity-40"
-                        >
+                          className="h-10 rounded-xl border-2 border-gray-200 px-2 text-xs font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none disabled:opacity-40">
                           <option value="">Size…</option>
                           {sizesForColor.map(v => (
-                            <option key={v.id} value={v.id}>
-                              {v.size_details?.name || v.size} (stock: {v.stock})
-                            </option>
+                            <option key={v.id} value={v.id}>{v.size_details?.name || v.size} (stock: {v.stock})</option>
                           ))}
                         </select>
-
-                        {/* Remove row */}
-                        <button
-                          onClick={() => removeOrderRow(row.id)}
-                          disabled={orderRows.length === 1}
-                          className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 hover:border-red-200 disabled:opacity-30"
-                        ><Trash2 size={13} /></button>
+                        <button onClick={() => removeOrderRow(row.id)} disabled={orderRows.length === 1}
+                          className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 hover:border-red-200 disabled:opacity-30">
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     );
                   })}
                 </div>
-
-                {/* Add row */}
-                <button
-                  onClick={addOrderRow}
-                  className="w-full h-10 rounded-xl border border-dashed border-gray-300 flex items-center justify-center gap-2 text-xs font-semibold text-gray-400 hover:border-[#F5D800] hover:text-[#b89000] hover:bg-[#FFFBEA] transition-all mb-4"
-                >
+                <button onClick={addOrderRow} className="w-full h-10 rounded-xl border border-dashed border-gray-300 flex items-center justify-center gap-2 text-xs font-semibold text-gray-400 hover:border-[#F5D800] hover:text-[#b89000] hover:bg-[#FFFBEA] transition-all mb-4">
                   <Plus size={14} /> Add another row
                 </button>
-
-                {/* Save / Cancel */}
                 <div className="flex gap-2 pt-3 border-t border-gray-100">
-                  <button
-                    onClick={cancelOrderRows}
-                    className="h-10 px-5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
-                  >Cancel</button>
-                  <button
-                    onClick={saveOrderRows}
-                    disabled={!orderRows.every(r => r.color && r.variantId && r.qty >= 1)}
-                    className={cn(
-                      "flex-1 h-10 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all",
-                      orderRows.every(r => r.color && r.variantId && r.qty >= 1)
-                        ? "bg-[#F5D800] text-black hover:bg-[#e6ca00]"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    )}
-                  ><Check size={14} /> Save selection</button>
+                  <button onClick={cancelOrderRows} className="h-10 px-5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+                  <button onClick={saveOrderRows} disabled={!orderRows.every(r => r.color && r.variantId && r.qty >= 1)}
+                    className={cn("flex-1 h-10 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all",
+                      orderRows.every(r => r.color && r.variantId && r.qty >= 1) ? "bg-[#F5D800] text-black hover:bg-[#e6ca00]" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
+                    <Check size={14} /> Save selection
+                  </button>
                 </div>
-
-                {/* Saved summary */}
                 {activeSizes.length > 0 && (
                   <div className="mt-3 px-4 py-3 bg-[#F5D800]/8 rounded-xl border border-[#F5D800]/20">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#b89000] mb-2">
-                      Saved — {totalQty} total pieces
-                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#b89000] mb-2">Saved — {totalQty} total pieces</p>
                     <div className="flex flex-wrap gap-1.5">
                       {orderRows.filter(r => r.variantId && r.qty > 0).map(r => {
-                        const v = product?.variants.find(vv => vv.id === r.variantId);
+                        const v = product.variants.find(vv => vv.id === r.variantId);
                         return (
                           <span key={r.id} className="inline-flex items-center gap-1 bg-[#F5D800] text-black text-[11px] font-bold px-2.5 py-1 rounded-full">
                             {r.color} · {v?.size_details?.name || v?.size} · ×{r.qty}
@@ -1583,142 +1491,71 @@ if (isPromo) {
               </SectionCard>
             )}
 
-
             {/* ══════════════════════════════════════════════════════
- {/* ══════════════════════════════════════════════════════
-    ▌ SECTION C — PROMO PRODUCTS & OTHERS ONLY
-══════════════════════════════════════════════════════ */}
+                SECTION C — PROMO PRODUCTS (SAGE)
+            ══════════════════════════════════════════════════════ */}
             {isPromo && (
               <>
-                {/* Quantity Selector - Always visible */}
-              <SectionCard
-      step={1}
-      title="Select Quantity"
-      subtitle="How many pieces do you need?"
-      status={totalQty > 0 ? "done" : "required"}
-    >
-      {hasTierPricing ? (
-        <SageQuantityPricing
-          metaStr={promoMetaStr}
-          minOrderQuantity={colorVariants[0]?.min_order_quantity ?? 1}
-          stock={colorVariants[0]?.stock}
-          variant="compact"
-          onChange={({ quantity }) => {
-            if (colorVariants[0]) setQty(colorVariants[0].id, quantity);
-          }}
-        />
-      ) : (
-        /* Simple quantity input */
-        <div className="flex items-center justify-center gap-6 py-8">
-          <button onClick={() => { /* minus logic */ }} className="w-12 h-12 rounded-2xl border...">
-            <Minus size={24} />
-          </button>
-          {/* ... input and plus button same as before ... */}
-        </div>
-      )}
-    </SectionCard>
-
-{hasTierPricing && (
-      <SectionCard
-        step={2}
-        title="Pricing Tiers"
-        subtitle="Price decreases with higher quantity"
-        status="done"
-      >
-        <div className="rounded-xl border border-gray-200 overflow-hidden text-sm">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-bold text-gray-600">Quantity</th>
-                <th className="text-right px-4 py-3 font-bold text-gray-600">Price per Piece</th>
-              </tr>
-            </thead>
-            <tbody>
-              {getPromoPriceTableData()?.map((tier, index) => {
-                const isCurrentTier = totalQty >= tier.qty && 
-                  (index === getPromoPriceTableData()!.length - 1 || totalQty < getPromoPriceTableData()![index + 1].qty);
-                
-                return (
-                  <tr 
-                    key={index} 
-                    className={cn(
-                      "border-b border-gray-100 last:border-0",
-                      isCurrentTier ? "bg-[#F5D800]/10" : ""
-                    )}
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-700">
-                      {tier.qty}+ pcs
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">
-                      ${tier.price.toFixed(2)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {parsedPromoMeta?.productionTime && (
-            <div className="px-4 py-3 bg-gray-50 text-xs text-gray-500 border-t">
-              Production Time: {parsedPromoMeta.productionTime}
-            </div>
-          )}
-        </div>
-      </SectionCard>
-    )}
-                {/* Logo Upload */}
+                {/* Step 1 — Quantity with SAGE tier pricing */}
                 <SectionCard
-      step={hasTierPricing ? 3 : 2}
-      title="Upload Your Logo"
-      subtitle="Upload a logo or add custom text to personalize this product."
-      status="optional"
-    >
-                  <LogoCanvasSection
-                    canvasRef={canvasRef}
-                    fileRef={fileRef}
-                    productImg={productImg}
-                    logoImg={logoImg}
-                    logoSrc={logoSrc}
-                    logoSize={logoSize}
-                    logoRotation={logoRotation}
-                    logoOpacity={logoOpacity}
-                    logoPos={logoPos}
-                    customText={customText}
-                    textSize={textSize}
-                    textColor={textColor}
-                    textRotation={textRotation}
-                    fontFamily={fontFamily}
-                    textBold={textBold}
-                    textItalic={textItalic}
-                    textShadow={textShadow}
-                    textOpacity={textOpacity}
-                    textPos={textPos}
-                    activeTab={activeTab}
-                    dragging={dragging}
-                    setLogoSrc={setLogoSrc}
-                    setLogoSize={setLogoSize}
-                    setLogoRotation={setLogoRotation}
-                    setLogoOpacity={setLogoOpacity}
-                    setLogoPos={setLogoPos}
-                    setCustomText={setCustomText}
-                    setTextSize={setTextSize}
-                    setTextColor={setTextColor}
-                    setTextRotation={setTextRotation}
-                    setFontFamily={setFontFamily}
-                    setTextBold={setTextBold}
-                    setTextItalic={setTextItalic}
-                    setTextShadow={setTextShadow}
-                    setTextOpacity={setTextOpacity}
-                    setActiveTab={setActiveTab}
-                    handleCanvasMouseDown={handleCanvasMouseDown}
-                    handleCanvasMouseMove={handleCanvasMouseMove}
-                    stopDrag={stopDrag}
-                    getCursor={getCursor}
-                    handleOpenPreview={handleOpenPreview}
-                    setLogoImg={setLogoImg}
-                    CANVAS_SIZE={CANVAS_SIZE}
-                    FONTS={FONTS}
-                    PRESET_COLORS={PRESET_COLORS}
-                  />
+                  step={1} title="Select Quantity"
+                  subtitle="Price drops automatically as you order more pieces."
+                  status={totalQty > 0 ? "done" : "required"}
+                >
+                  {hasTierPricing ? (
+                    <SageQuantityPricing
+                      metaStr={promoMetaStr}
+                      minOrderQuantity={colorVariants[0]?.min_order_quantity ?? 1}
+                      stock={colorVariants[0]?.stock}
+                      variant="compact"
+                      onChange={({ quantity, unitPrice, total }) => {
+                        if (colorVariants[0]) setQty(colorVariants[0].id, quantity);
+                        setPromoPricing({ unitPrice, total });
+                      }}
+
+                    />
+                  ) : (
+                    /* Fallback simple stepper when no tier data */
+                    <div className="flex items-center justify-center gap-4 py-6">
+                      <button
+                        onClick={() => {
+                          if (!colorVariants[0]) return;
+                          const min = colorVariants[0].min_order_quantity || 1;
+                          setQty(colorVariants[0].id, Math.max(min, (variantQty[colorVariants[0].id] ?? min) - 1));
+                        }}
+                        className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
+                      ><Minus size={20} /></button>
+                      <input
+                        type="number"
+                        value={colorVariants[0] ? (variantQty[colorVariants[0].id] ?? colorVariants[0].min_order_quantity ?? 1) : 1}
+                        min={colorVariants[0]?.min_order_quantity ?? 1}
+                        onChange={e => {
+                          if (colorVariants[0]) setQty(colorVariants[0].id, Math.max(colorVariants[0].min_order_quantity ?? 1, Number(e.target.value)));
+                        }}
+                        className="w-24 h-12 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
+                      />
+                      <button
+                        onClick={() => {
+                          if (!colorVariants[0]) return;
+                          setQty(colorVariants[0].id, (variantQty[colorVariants[0].id] ?? colorVariants[0].min_order_quantity ?? 1) + 1);
+                        }}
+                        className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
+                      ><Plus size={20} /></button>
+                      <div className="pl-2 border-l border-gray-200">
+                        <p className="text-[10px] text-gray-400">Unit price</p>
+                        <p className="text-xl font-black text-gray-900">${basePrice.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  )}
+                </SectionCard>
+
+                {/* Step 2 — Logo upload */}
+                <SectionCard
+                  step={2} title="Upload Your Logo"
+                  subtitle="Upload a logo or add custom text to personalize this product."
+                  status="optional"
+                >
+                  <LogoCanvasSection {...logoCanvasSectionProps()} />
                 </SectionCard>
               </>
             )}
@@ -1743,24 +1580,38 @@ if (isPromo) {
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 leading-tight">{product.name}</p>
                     {selectedColor && <p className="text-xs text-gray-500 mt-0.5">Color: {selectedColor}</p>}
-                    {product.brand?.name && <p className="text-xs text-gray-400">{product.brand.name}</p>}
-                    <span className={cn(
-                      "inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
+                    <span className={cn("inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
                       isApparel ? "bg-blue-50 text-blue-600" :
                         isPreMade ? "bg-purple-50 text-purple-600" :
-                          "bg-orange-50 text-orange-600"
-                    )}>
+                          "bg-orange-50 text-orange-600")}>
                       {isApparel ? "Apparel & Uniforms" : isPreMade ? "Pre-Made" : "Promo Product"}
                     </span>
                   </div>
                 </div>
 
-                {/* Size breakdown — Pre-Made only */}
-                {isPreMade && activeSizes.length > 0 && (
+                {/* Promo tier breakdown */}
+                {isPromo && hasTierPricing && totalQty > 0 && promoUnitPrice !== null && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
-                      Size Breakdown
+                      Pricing Breakdown
                     </div>
+                    <div className="px-3 py-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{totalQty.toLocaleString()} units</span>
+                        <span className="text-xs font-bold text-gray-800">${promoUnitPrice.toFixed(2)}/pc</span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                        <span className="text-xs font-bold text-gray-700">Subtotal</span>
+                        <span className="text-xs font-black text-gray-900">${promoTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pre-Made size breakdown */}
+                {isPreMade && activeSizes.length > 0 && (
+                  <div className="rounded-xl border border-gray-100 overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Size Breakdown</div>
                     {activeSizes.map(({ variant_id, quantity }) => {
                       const v = product.variants.find(vv => vv.id === variant_id);
                       if (!v) return null;
@@ -1783,12 +1634,51 @@ if (isPromo) {
                   </div>
                 )}
 
-                {/* Print details — Apparel only */}
+                {/* Apparel print details */}
+                {isApparel && (
+  <div className="rounded-xl border border-gray-100 overflow-hidden">
+    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
+      Quantity
+    </div>
+
+    <div className="flex items-center justify-between px-3 py-3">
+      <button
+        onClick={() => {
+          if (!colorVariants[0]) return;
+          const min = colorVariants[0].min_order_quantity || 1;
+          setQty(
+            colorVariants[0].id,
+            Math.max(min, (variantQty[colorVariants[0].id] ?? min) - 1)
+          );
+        }}
+        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
+      >
+        <Minus size={16} />
+      </button>
+
+      <span className="text-lg font-black">
+        {totalQty}
+      </span>
+
+      <button
+        onClick={() => {
+          if (!colorVariants[0]) return;
+          const min = colorVariants[0].min_order_quantity || 1;
+          setQty(
+            colorVariants[0].id,
+            (variantQty[colorVariants[0].id] ?? min) + 1
+          );
+        }}
+        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
+      >
+        <Plus size={16} />
+      </button>
+    </div>
+  </div>
+)}
                 {isApparel && (selectedLocations.length > 0 || selectedMaterial) && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
-                      Print Details
-                    </div>
+                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Print Details</div>
                     <div className="px-3 py-2 space-y-1.5">
                       {selectedMaterial && (
                         <div className="flex items-center justify-between">
@@ -1820,24 +1710,34 @@ if (isPromo) {
                 <div className="rounded-xl bg-gray-900 text-white p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-bold opacity-70">Estimated Total</span>
-                <span className="text-xl font-black text-[#F5D800]">
-  {isApparel && totalQty > 0 
-    ? `$${estimatedTotal.toFixed(2)}` 
-    : isPreMade && totalQty > 0 
-      ? `$${(basePrice * totalQty).toFixed(2)}` 
-      : isPromo && totalQty > 0 && promoUnitPrice !== null 
-        ? `$${(promoUnitPrice * totalQty).toFixed(2)}` 
-        : "—"}
-</span>
+                    <span className="text-xl font-black text-[#F5D800]">
+                      {isApparel && totalQty > 0
+                        ? `$${estimatedTotal.toFixed(2)}`
+                        : isPreMade && totalQty > 0
+                          ? `$${(basePrice * totalQty).toFixed(2)}`
+                          : isPromo && totalQty > 0 && promoUnitPrice !== null
+                            ? `$${promoTotal.toFixed(2)}`
+                            : "—"}
+                    </span>
                   </div>
                   {isApparel && totalQty > 0 && printPrice !== null && (
+                    <>
+                   
                     <p className="text-[10px] text-gray-400">
-                      ${((basePrice * totalQty + printPrice) / totalQty).toFixed(2)}/pc all-in
+                  
+                      ${(estimatedTotal / totalQty).toFixed(2)}/pc all-in
+                      {/* ${((basePrice * totalQty + printPrice) / totalQty).toFixed(2)}/pc all-in */}
+                    </p>
+                    </>
+                  )}
+                  {isPromo && totalQty > 0 && promoUnitPrice !== null && (
+                    <p className="text-[10px] text-gray-400">
+                      ${promoUnitPrice.toFixed(2)}/pc · {totalQty.toLocaleString()} units
                     </p>
                   )}
                 </div>
 
-                {/* Tier hint — Apparel only */}
+                {/* Apparel tier hint */}
                 {isApparel && selectedMaterial && totalQty > 0 && totalQty < 144 && (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
                     <Zap size={13} className="text-amber-500 flex-shrink-0" />
@@ -1854,14 +1754,11 @@ if (isPromo) {
                 {/* Requirements checklist */}
                 <div className="space-y-1.5">
                   {REQUIREMENTS.map(({ key, label, done }) => (
-                    <div
-                      key={key}
-                      className={cn(
-                        "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
-                        done ? "bg-[#F5D800]/10 text-[#b89000]" :
-                          showValidationShake ? "bg-red-50 text-red-500" : "bg-gray-50 text-gray-400"
-                      )}
-                    >
+                    <div key={key} className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
+                      done ? "bg-[#F5D800]/10 text-[#b89000]" :
+                        showValidationShake ? "bg-red-50 text-red-500" : "bg-gray-50 text-gray-400"
+                    )}>
                       {done ? <CheckCircle2 size={14} className="flex-shrink-0" /> : <Circle size={14} className="flex-shrink-0 opacity-40" />}
                       {label}
                     </div>
@@ -1875,39 +1772,33 @@ if (isPromo) {
                   </div>
                 )}
 
-                {/* CTA: Add to Cart */}
-                <button
-                  onClick={handleAddToCart}
+                {/* Add to Cart */}
+                <button onClick={handleAddToCart}
                   className={cn(
                     "w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all duration-200",
                     showValidationShake ? "animate-[shake_0.4s_ease-in-out]" : "",
-                    !allMet
-                      ? "bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200"
-                      : inCart
-                        ? "bg-[#F5D800]/10 text-[#b89000] border-2 border-[#F5D800]/40"
-                        : "bg-[#F5D800] text-black hover:bg-[#e6ca00] shadow-md"
-                  )}
-                >
+                    !allMet ? "bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200" :
+                      inCart ? "bg-[#F5D800]/10 text-[#b89000] border-2 border-[#F5D800]/40" :
+                        "bg-[#F5D800] text-black hover:bg-[#e6ca00] shadow-md"
+                  )}>
                   <ShoppingCart size={16} />
                   {inCart ? "Added to Cart ✓" : "Add to Cart"}
                 </button>
 
-                {/* CTA: Wishlist */}
-                <button
-                  onClick={handleWishlist}
-                  disabled={wishlistLoading}
+                {/* Wishlist */}
+                <button onClick={handleWishlist} disabled={wishlistLoading}
                   className={cn(
                     "w-full h-11 rounded-2xl border-2 font-bold text-sm flex items-center justify-center gap-2 transition-all",
                     wishlistLoading ? "opacity-40 cursor-not-allowed border-gray-200 text-gray-400" :
                       inWishlist ? "border-red-300 bg-red-50 text-red-500 hover:bg-red-100" :
                         "border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500 hover:bg-red-50"
-                  )}
-                >
-                  {wishlistLoading ? <Loader2 size={15} className="animate-spin" /> : <Heart size={15} fill={inWishlist ? "currentColor" : "none"} />}
+                  )}>
+                  {wishlistLoading
+                    ? <Loader2 size={15} className="animate-spin" />
+                    : <Heart size={15} fill={inWishlist ? "currentColor" : "none"} />
+                  }
                   {inWishlist ? "Saved to Wishlist" : "Save to Wishlist"}
                 </button>
-
-
               </div>
             </div>
           </div>
@@ -1919,39 +1810,55 @@ if (isPromo) {
         <AddToCartModal
           open={showCartModal}
           onClose={() => setShowCartModal(false)}
-          productId={Number(product.id)}
-          variantId={colorVariants[0]?.id ?? 0}
-          price={basePrice}
+          productId={Number(product.id)} // ✅ productId should be a number
+          variantId={colorVariants[0]?.id ?? 0} // ✅ selected variant id
           name={product.name}
-          initialQuantity={totalQty || 1}
-          printPricePerPiece={
-            isApparel && printPrice && totalQty > 0
-              ? (selectedMaterial === "embroidery" && totalQty <= 11 ? (printPrice - 35) / totalQty : printPrice / totalQty)
-              : 0
-          }
-          digitizingFee={isApparel && selectedMaterial === "embroidery" && totalQty <= 11 ? 35 : 0}
+          price={promoUnitPrice ?? basePrice}
+          initialQuantity={totalQty}
+          sageMetaStr={promoMetaStr}
           customization={customizationJson}
-          canvasBlob={canvasBlobRef.current}
-          onSuccess={() => { setInCart(true); refreshCart(); fetchProduct(); }}
+          canvasBlob={canvasBlob}
+          printPricePerPiece={(printPrice ?? 0) / Math.max(totalQty, 1)} // if printPrice is total
+          digitizingFee={0} // or your digitizing fee variable
+          onSuccess={() => {
+            refreshCart();
+            setInCart(true);
+            setShowCartModal(false);
+          }}
         />
       )}
 
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-4px); }
-          40% { transform: translateX(4px); }
-          60% { transform: translateX(-4px); }
-          80% { transform: translateX(4px); }
+          20%       { transform: translateX(-4px); }
+          40%       { transform: translateX(4px); }
+          60%       { transform: translateX(-4px); }
+          80%       { transform: translateX(4px); }
         }
       `}</style>
     </div>
   );
+
+  /* ── Helper: collect LogoCanvasSection props (avoids repeating 30 props twice) ── */
+  function logoCanvasSectionProps() {
+    return {
+      canvasRef, fileRef, productImg, logoImg, logoSrc, logoSize, logoRotation,
+      logoOpacity, logoPos, customText, textSize, textColor, textRotation,
+      fontFamily, textBold, textItalic, textShadow, textOpacity, textPos,
+      activeTab, dragging,
+      setLogoSrc, setLogoSize, setLogoRotation, setLogoOpacity, setLogoPos,
+      setCustomText, setTextSize, setTextColor, setTextRotation, setFontFamily,
+      setTextBold, setTextItalic, setTextShadow, setTextOpacity, setActiveTab,
+      handleCanvasMouseDown, handleCanvasMouseMove, stopDrag, getCursor,
+      handleOpenPreview, setLogoImg,
+      CANVAS_SIZE, FONTS, PRESET_COLORS,
+    };
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════
-   ▌ LogoCanvasSection — shared canvas UI used by Apparel + Promo
-   ▌ Extracted to avoid duplicating ~150 lines of JSX
+   LogoCanvasSection
 ══════════════════════════════════════════════════════════════════════ */
 function LogoCanvasSection({
   canvasRef, fileRef, productImg, logoImg, logoSrc, logoSize, logoRotation,
@@ -1980,22 +1887,15 @@ function LogoCanvasSection({
                 <p className="text-[10px] text-gray-400">Drag elements to reposition</p>
               </div>
             </div>
-            <button
-              onClick={handleOpenPreview}
-              className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition-colors"
-            >
+            <button onClick={handleOpenPreview} className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition-colors">
               <Download size={12} /> Export
             </button>
           </div>
           <div className="p-3 bg-[#fafafa]">
             <canvas
-              ref={canvasRef}
-              width={CANVAS_SIZE}
-              height={CANVAS_SIZE}
-              onMouseDown={handleCanvasMouseDown}
-              onMouseMove={handleCanvasMouseMove}
-              onMouseUp={stopDrag}
-              onMouseLeave={stopDrag}
+              ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE}
+              onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove}
+              onMouseUp={stopDrag} onMouseLeave={stopDrag}
               className="w-full h-auto rounded-xl block border border-gray-200"
               style={{ cursor: getCursor() }}
             />
@@ -2011,28 +1911,19 @@ function LogoCanvasSection({
               { key: "image", icon: ImageIcon, label: "Upload Logo" },
               { key: "text", icon: Type, label: "Custom Text" },
             ] as const).map(({ key, icon: Icon, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveTab(key)}
-                className={cn(
-                  "flex-1 flex items-center justify-center gap-2 h-12 text-sm font-bold transition-all border-b-2",
-                  activeTab === key ? "text-gray-900 border-[#F5D800] bg-[#FFFBEA]" : "text-gray-400 border-transparent hover:bg-gray-50"
-                )}
-              >
+              <button key={key} onClick={() => setActiveTab(key)}
+                className={cn("flex-1 flex items-center justify-center gap-2 h-12 text-sm font-bold transition-all border-b-2",
+                  activeTab === key ? "text-gray-900 border-[#F5D800] bg-[#FFFBEA]" : "text-gray-400 border-transparent hover:bg-gray-50")}>
                 <Icon size={15} />{label}
               </button>
             ))}
           </div>
-
           <div className="p-5 space-y-4">
             {/* IMAGE TAB */}
             {activeTab === "image" && (
               <>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
+                <input ref={fileRef} type="file" accept="image/*"
+                  onChange={e => {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     const r = new FileReader();
@@ -2048,10 +1939,8 @@ function LogoCanvasSection({
                   className="hidden"
                 />
                 {!logoImg ? (
-                  <div
-                    onClick={() => fileRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#F5D800]/60 hover:bg-[#FFFBEA] transition-all group"
-                  >
+                  <div onClick={() => fileRef.current?.click()}
+                    className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#F5D800]/60 hover:bg-[#FFFBEA] transition-all group">
                     <div className="w-12 h-12 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center group-hover:border-[#F5D800]/40 group-hover:bg-[#F5D800]/10 transition-all">
                       <Upload size={20} className="text-gray-400 group-hover:text-[#F5D800] transition-colors" />
                     </div>
@@ -2086,33 +1975,21 @@ function LogoCanvasSection({
                 )}
               </>
             )}
-
             {/* TEXT TAB */}
             {activeTab === "text" && (
               <>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Your Text</p>
-                  <input
-                    type="text"
-                    value={customText}
-                    onChange={e => setCustomText(e.target.value)}
-                    placeholder="Type something..."
-                    className="w-full h-11 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder-gray-300 outline-none focus:border-[#F5D800] transition-all"
-                  />
+                  <input type="text" value={customText} onChange={e => setCustomText(e.target.value)} placeholder="Type something..."
+                    className="w-full h-11 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder-gray-300 outline-none focus:border-[#F5D800] transition-all" />
                 </div>
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Font</p>
                   <div className="grid grid-cols-2 gap-2">
                     {FONTS.map((f: any) => (
-                      <button
-                        key={f.value}
-                        onClick={() => setFontFamily(f.value)}
-                        style={{ fontFamily: f.value }}
-                        className={cn(
-                          "h-10 rounded-xl border-2 text-sm transition-all px-3 text-left truncate",
-                          fontFamily === f.value ? "border-[#F5D800] bg-[#FFFBEA] text-[#b89000] font-bold" : "border-gray-200 text-gray-600 hover:border-gray-300"
-                        )}
-                      >
+                      <button key={f.value} onClick={() => setFontFamily(f.value)} style={{ fontFamily: f.value }}
+                        className={cn("h-10 rounded-xl border-2 text-sm transition-all px-3 text-left truncate",
+                          fontFamily === f.value ? "border-[#F5D800] bg-[#FFFBEA] text-[#b89000] font-bold" : "border-gray-200 text-gray-600 hover:border-gray-300")}>
                         {f.label}
                       </button>
                     ))}
@@ -2124,11 +2001,9 @@ function LogoCanvasSection({
                     { label: "I", active: textItalic, toggle: () => setTextItalic((p: boolean) => !p), cls: "italic" },
                     { label: "Shadow", active: textShadow, toggle: () => setTextShadow((p: boolean) => !p), cls: "" },
                   ]).map(({ label, active, toggle, cls }) => (
-                    <button
-                      key={label}
-                      onClick={toggle}
-                      className={cn("h-10 px-4 rounded-xl border-2 text-sm transition-all", cls, active ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 hover:border-gray-300")}
-                    >
+                    <button key={label} onClick={toggle}
+                      className={cn("h-10 px-4 rounded-xl border-2 text-sm transition-all", cls,
+                        active ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 hover:border-gray-300")}>
                       {label}
                     </button>
                   ))}
@@ -2137,12 +2012,9 @@ function LogoCanvasSection({
                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Color</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     {PRESET_COLORS.map((c: string) => (
-                      <button
-                        key={c}
-                        onClick={() => setTextColor(c)}
-                        style={{ background: c }}
-                        className={cn("w-7 h-7 rounded-full border-2 transition-transform hover:scale-110", textColor === c ? "border-[#F5D800] scale-110 ring-2 ring-[#F5D800]/30" : "border-gray-200 shadow-sm")}
-                      />
+                      <button key={c} onClick={() => setTextColor(c)} style={{ background: c }}
+                        className={cn("w-7 h-7 rounded-full border-2 transition-transform hover:scale-110",
+                          textColor === c ? "border-[#F5D800] scale-110 ring-2 ring-[#F5D800]/30" : "border-gray-200 shadow-sm")} />
                     ))}
                     <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded-xl border border-gray-200 cursor-pointer p-0.5 bg-white ml-auto" />
                   </div>
