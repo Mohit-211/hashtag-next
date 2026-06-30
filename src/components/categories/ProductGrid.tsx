@@ -459,7 +459,7 @@ console.log(product,"product")
 
         {/* Price */}
         <div className="pg-price-row">
-          {price && <span className="pg-price">{price}</span>}
+          {original && <span className="pg-price">{original}</span>}
           {/* {original && <span className="pg-original">{original}</span>} */}
           {discount && <span className="pg-discount-pct">{discount}</span>}
         </div>

@@ -132,7 +132,7 @@ export default function ProductAccordion({
   ];
 
   return (
-    <div className="mt-16 max-w-3xl">
+    <div >
       {/* Header */}
       <div className="mb-6">
         <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#CFAF2E]">

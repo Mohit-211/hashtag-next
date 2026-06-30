@@ -1,17 +1,21 @@
-// app/customization/[id]/page.tsx
-
 import ProductCustomizationPage from "@/components/product/customization/Productcustomizationpage";
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{
+    productId: string;
+    variantId: string;
+  }>;
 }
 
 const CustomizeProductPage = async ({ params }: Props) => {
-  const { id } = await params;
-  console.log(id, "id")
+  const { productId, variantId } = await params;
+
   return (
     <main>
-      <ProductCustomizationPage variantDataId={Number(id)} />
+      <ProductCustomizationPage
+        productDataId={Number(productId)}
+        variantDataId={Number(variantId)}
+      />
     </main>
   );
 };

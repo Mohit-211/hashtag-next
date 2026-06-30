@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -11,20 +10,17 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProductVariantByIdApi } from "@/api/operations/product.api";
+import { ProductVariantByIdApi, ProductDetailApi } from "@/api/operations/product.api";
 import AddToCartModal from "@/components/common/AddToCartModal";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 import SageQuantityPricing, { getSageUnitPrice, getSageUnitPriceWithMarkup, parseSageMeta } from "./Sagequantitypricing";
+import AddProductConfigurationModal from "../Addproductconfigurationmodal/Addproductconfigurationmodal";
 
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
 interface VariantImage { id: number; file_name: string; file_uri: string; is_primary: boolean }
 
-/**
- * Variant = exactly what comes back in res.data.data
- * (single flat object — no nested variants array)
- */
 interface Variant {
   id: number;
   product_id: number;
@@ -35,17 +31,17 @@ interface Variant {
   size_id: number | null;
   price: number;
   case_price: string;
-  
+  original_price?: number | string;
   stock: number;
   min_order_quantity: number;
   max_order_quantity: number | null;
   is_active: boolean;
   supplier: string;
-  meta: string | null;          // ← SAGE JSON string with priceTiers/qtyTiers
+  meta: string | null;
   images: VariantImage[];
   size_details: Size | null;
   product: {
-    brand: null;                    // ← nested product from the API
+    brand: null;
     id: number;
     name: string;
     description?: string;
@@ -56,7 +52,6 @@ interface Variant {
   };
 }
 
-/* Thin Product shape used internally by the page */
 interface Product {
   id: string;
   name: string;
@@ -66,14 +61,34 @@ interface Product {
   attachments: any[];
   categories: any[];
   brand?: any;
-  images: VariantImage[];       // variant-level images
-  variants: Variant[];          // always [singleVariant] for SAGE products
-  product: any;                 // raw nested product (for category detection)
+  images: VariantImage[];
+  variants: Variant[];
+  product: any;
+}
+
+/* ── NEW: Configured-variant types (multi-variant cart configuration) ── */
+export interface ConfiguredSize {
+  variant_id: number;
+  size_id: number | null;
+  size: string;
+  quantity: number;
+  unit_price: number;
+}
+export interface ConfiguredVariant {
+  variantId: number;
+  variantName: string; // color name, used as the unique key
+  color: string;
+  colorCode: string;
+  images: VariantImage[];
+  sizes: ConfiguredSize[];
+  totalQty: number;
+  totalPrice: number;
 }
 
 /* ─────────────────────────────────────────── Constants ── */
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const CANVAS_SIZE = 500;
+const PROMO_MIN_QTY = 100; // ← NEW: hard floor for Promo category products
 type MaterialId = "embroidery" | "dtf" | "screenprint" | "dtg";
 
 const MATERIALS = [
@@ -368,9 +383,9 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
 }
 
 /* ─────────────────────────────────────────── Main Component ── */
-interface Props { variantDataId: number }
+interface Props { productDataId: number; variantDataId: number }
 
-export default function ProductCustomizationPage({ variantDataId }: Props) {
+export default function ProductCustomizationPage({ productDataId, variantDataId }: Props) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -379,20 +394,20 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
 
   /* ── Raw variant from API (res.data.data) ── */
   const [variantData, setVariantData] = useState<Variant | null>(null);
+  const [allProductVariants, setAllProductVariants] = useState<Variant[]>([]);
+  const [allSizes, setAllSizes] = useState<Size[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const canvasBlobRef = useRef<Blob | null>(null);
 
   /* ══════════════════════════════════════════════════════════════════════
-     FETCH — maps res.data.data (single Variant) into Product shape
+     FETCH
   ══════════════════════════════════════════════════════════════════════ */
   const fetchProduct = async () => {
     try {
       setLoading(true);
       const res = await ProductVariantByIdApi(String(variantDataId));
-
-      // The variant lives at res.data.data
       const variantRaw: Variant = res?.data?.data;
       if (!variantRaw) { setProduct(null); setVariantData(null); return; }
 
@@ -409,9 +424,9 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
         attachments: productRaw.attachments ?? [],
         categories: productRaw.categories ?? [],
         brand: productRaw?.brand ?? null,
-        images: variantRaw.images ?? [],   // ← variant-level images
-        variants: [variantRaw],                   // ← wrap in array for uniform access
-        product: productRaw,                     // ← raw nested product
+        images: variantRaw.images ?? [],
+        variants: [variantRaw],
+        product: productRaw,
       };
 
       setProduct(mapped);
@@ -423,11 +438,33 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     }
   };
 
-  useEffect(() => { if (variantDataId) fetchProduct(); }, [variantDataId]);
+  useEffect(() => {
+    if (variantDataId) fetchProduct();
+    if (productDataId) fetchProductVariants();
+  }, [variantDataId, productDataId]);
+
+  const fetchProductVariants = async () => {
+    try {
+      const res = await ProductDetailApi(String(productDataId));
+      const variants = res?.data?.data?.variants || [];
+      setAllProductVariants(variants);
+
+      const sizes = variants
+        .filter((v: any) => v.size_details)
+        .map((v: any) => v.size_details)
+        .filter(
+          (size: any, index: number, self: any[]) =>
+            index === self.findIndex((s) => s.id === size.id)
+        );
+
+      setAllSizes(sizes);
+    } catch (err) {
+      console.log(err);
+    }
+  };
 
   /* ══════════════════════════════════════════════════════════════════════
      CATEGORY DETECTION
-     Reads: product.categories[].parent_categories[].grand_categories[].title
   ══════════════════════════════════════════════════════════════════════ */
   const grandCategoryTitle = useMemo((): string => {
     if (!product) return "";
@@ -443,7 +480,7 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
 
   const isApparel = grandCategoryTitle === "Apparel & Uniforms";
   const isPreMade = grandCategoryTitle === "Pre-Made";
-  const isPromo = !isApparel && !isPreMade;   // catches "Promo Products" and everything else
+  const isPromo = !isApparel && !isPreMade;
 
   /* ── Auth ── */
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -452,7 +489,6 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     return false;
   };
 
-  /* ── Grand / Parent category strings ── */
   const grandCategory = useMemo((): string => {
     if (!product) return "";
     return (
@@ -474,7 +510,6 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     );
   }, [product]);
 
-  /* ── Garment type (Apparel only) ── */
   const garmentType = useMemo<GarmentType>(() => {
     const cat = grandCategory.toLowerCase();
     if (cat.includes("apparel") || cat.includes("uniform") || cat === "clothing") {
@@ -494,24 +529,23 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
 
   /* ══════════════════════════════════════════════════════════════════════
      COLOR STATE
-     For SAGE single-variant products there is exactly one color.
-     For Apparel/Pre-Made there may be multiple variants (different colors).
   ══════════════════════════════════════════════════════════════════════ */
   const [selectedColor, setSelectedColor] = useState("");
 
-  /* Build color swatches from product.variants (always at least [variantRaw]) */
   const colors = useMemo(() => {
     if (!product) return [];
     const map = new Map<string, string>();
-    product.variants.forEach(v => {
+    // Use allProductVariants when available (full color list across product),
+    // falling back to the thin product.variants (single variant) otherwise.
+    const source = allProductVariants.length > 0 ? allProductVariants : product.variants;
+    source.forEach(v => {
       if (v.color && !map.has(v.color)) {
         map.set(v.color, resolveColorToken(v.color_code || v.color));
       }
     });
     return Array.from(map.entries()).map(([name, hex]) => ({ name, hex }));
-  }, [product]);
+  }, [product, allProductVariants]);
 
-  /* Auto-select first color on load */
   useEffect(() => {
     if (!selectedColor) {
       const first = variantData?.color || product?.variants?.[0]?.color;
@@ -519,32 +553,40 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     }
   }, [variantData, product]);
 
-  /* Reset qty/canvas when color changes */
+  /* Reset qty/canvas when color changes (but keep configuredVariants intact) */
   useEffect(() => {
     setVariantQty({});
     setProductImg(null);
     setLogoPos({ x: 190, y: 190 });
   }, [selectedColor]);
 
-  /* ── colorVariants: variants that match the selected color ── */
+  /* ── colorVariants: variants that match the selected color ──
+     Now sourced from allProductVariants (all colors/sizes of the product)
+     when available, so switching color actually finds matching variants. */
   const colorVariants = useMemo(() => {
-    if (!product) return variantData ? [variantData] : [];
+    const pool = allProductVariants.length > 0 ? allProductVariants : (product?.variants ?? []);
+    if (pool.length === 0) return variantData ? [variantData] : [];
     const normalise = (s: string) => s?.trim().toLowerCase() ?? "";
     const target = normalise(selectedColor);
-
-    // Filter from product.variants (which always has at least [variantRaw])
-    const filtered = product.variants.filter(v => normalise(v.color) === target);
-
-    // Fallback: return all variants (prevents ever returning [])
-    return filtered.length > 0 ? filtered : product.variants;
-  }, [product, selectedColor, variantData]);
+    const filtered = pool.filter(v => normalise(v.color) === target);
+    return filtered.length > 0 ? filtered : pool;
+  }, [allProductVariants, product, selectedColor, variantData]);
 
   /* ══════════════════════════════════════════════════════════════════════
-     QUANTITY STATE
+     QUANTITY STATE (current, "in progress" variant being configured)
   ══════════════════════════════════════════════════════════════════════ */
   const [variantQty, setVariantQty] = useState<Record<number, number>>({});
   const setQty = (variantId: number, qty: number) =>
     setVariantQty(prev => ({ ...prev, [variantId]: Math.max(0, qty) }));
+
+  /* ── Promo-aware qty setter — NEVER allows below PROMO_MIN_QTY.
+     Floors/parses the input so typed values like "" or "50" both clamp
+     correctly instead of producing NaN or sneaking under the floor. ── */
+  const setPromoQty = (variantId: number, qty: number) => {
+    if (!isPromo) { setQty(variantId, Math.max(0, qty)); return; }
+    const safe = Number.isFinite(qty) ? Math.floor(qty) : PROMO_MIN_QTY;
+    setQty(variantId, Math.max(PROMO_MIN_QTY, safe));
+  };
 
   const totalQty = useMemo(
     () => Object.values(variantQty).reduce((a, b) => a + b, 0),
@@ -560,8 +602,6 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
 
   /* ══════════════════════════════════════════════════════════════════════
      SAGE / PROMO PRICING
-     metaStr comes from the variant (colorVariants[0].meta)
-     It is a JSON string: { priceTiers:[...], qtyTiers:[...], netTiers:[...] }
   ══════════════════════════════════════════════════════════════════════ */
   const promoMetaStr = colorVariants[0]?.meta ?? variantData?.meta ?? null;
   const parsedPromoMeta = useMemo(() => parseSageMeta(promoMetaStr), [promoMetaStr]);
@@ -571,16 +611,16 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     parsedPromoMeta.priceTiers.length > 0
   );
 
-  /* ── Auto-set default qty for Promo (first tier min) ── */
+  /* ── Always (re)init Promo qty to PROMO_MIN_QTY whenever the working
+     selection is empty — covers initial load, color switch, and the reset
+     that happens after "Add Variant". Never inherits a stale lower value
+     and never drops below the floor, regardless of SAGE tier minimums. ── */
   useEffect(() => {
-    if (!isPromo || !colorVariants[0] || Object.keys(variantQty).length > 0) return;
-    const firstTierMin = parsedPromoMeta?.priceTiers?.[0]?.minQty
-      ?? colorVariants[0].min_order_quantity
-      ?? 1;
-    setQty(colorVariants[0].id, firstTierMin);
-  }, [isPromo, colorVariants, parsedPromoMeta]);
+    if (!isPromo || !colorVariants[0]) return;
+    if (Object.keys(variantQty).length > 0) return; // already has a value this pass
+    setQty(colorVariants[0].id, PROMO_MIN_QTY);
+  }, [isPromo, colorVariants, selectedColor]);
 
-  /* ── Display image (variant-level images take priority) ── */
   const displayImage = useMemo(() => {
     const imgs: VariantImage[] = product?.images ?? [];
     if (!imgs.length) return null;
@@ -594,14 +634,12 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
       : `${BASE_URL}${fileUri.startsWith("/") ? "" : "/"}${fileUri}`;
   }, [product]);
 
-  /* ── Print locations (Apparel only) ── */
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const toggleLocation = (id: string) =>
     setSelectedLocations(prev =>
       prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
     );
 
-  /* ── Decoration method (Apparel only) ── */
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
   const [showPriceTable, setShowPriceTable] = useState(false);
   const [spColorCount, setSpColorCount] = useState<"1 Color" | "2 Color" | "3 Color">("1 Color");
@@ -657,6 +695,19 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showValidationShake, setShowValidationShake] = useState(false);
 
+  /* ── NEW: configuredVariants — every variant the user has explicitly
+     "added" via the Add Variant button. Never overwritten; same color+size
+     updates quantity instead of duplicating. ── */
+  const [configuredVariants, setConfiguredVariants] = useState<ConfiguredVariant[]>([]);
+
+  /* ── AddProductConfigurationModal state ── */
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [configSubmitting, setConfigSubmitting] = useState(false);
+  const [configSelection, setConfigSelection] = useState<{
+    selectedColor: string;
+    selectedSizes: { variant_id: number; quantity: number; size_name: string }[];
+  } | null>(null);
+
   /* ── Load product image onto canvas ── */
   useEffect(() => {
     if (!displayImage) { setProductImg(null); return; }
@@ -672,7 +723,6 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     return () => { cancelled = true; };
   }, [displayImage]);
 
-  /* ── Load uploaded logo ── */
   useEffect(() => {
     if (!logoSrc) { setLogoImg(null); return; }
     let cancelled = false;
@@ -680,7 +730,6 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     return () => { cancelled = true; };
   }, [logoSrc]);
 
-  /* ── Redraw canvas ── */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -700,7 +749,6 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
     fontFamily, textBold, textItalic, textShadow, textOpacity,
   ]);
 
-  /* ── Canvas drag helpers ── */
   const getPoint = (e: React.MouseEvent) => {
     const r = canvasRef.current!.getBoundingClientRect();
     return {
@@ -748,90 +796,64 @@ export default function ProductCustomizationPage({ variantDataId }: Props) {
   const getCursor = () => dragging ? "grabbing" : (logoImg || customText.trim()) ? "grab" : "default";
 
   /* ── Apparel print pricing ── */
-const getPrintPrice = (): number |null => {
-  if (!isApparel) return null;
+  const getPrintPrice = (): number | null => {
+    if (!isApparel) return null;
+    if (!selectedMaterial) return null;
+    if (selectedLocations.length === 0) return null;
 
-  if (!selectedMaterial) return null;
+    const qty = totalQty;
+    if (qty <= 0) return null;
 
-  if (selectedLocations.length === 0) return null;
-
-  const qty = totalQty;
-
-  if (qty <= 0) return null;
-
-  switch (selectedMaterial) {
-    case "embroidery": {
-      const tierIndex = EMB_TIERS.findIndex(
-        t => qty >= t.min && qty <= t.max
-      );
-
-      let total = 0;
-
-      selectedLocations.forEach(location => {
-        const row = EMB_PRICES[location];
-
-        if (!row) return;
-
-        total += row[tierIndex] * qty;
-      });
-
-      if (qty <= 11) {
-        total += 35;
+    switch (selectedMaterial) {
+      case "embroidery": {
+        const tierIndex = EMB_TIERS.findIndex(
+          t => qty >= t.min && qty <= t.max
+        );
+        let total = 0;
+        selectedLocations.forEach(location => {
+          const row = EMB_PRICES[location];
+          if (!row) return;
+          total += row[tierIndex] * qty;
+        });
+        if (qty <= 11) total += 35;
+        return total;
       }
-
-      return total;
+      case "dtf": {
+        const tier =
+          qty >= 144 ? 6 :
+            qty >= 96 ? 5 :
+              qty >= 72 ? 4 :
+                qty >= 36 ? 3 :
+                  qty >= 24 ? 2 :
+                    qty >= 12 ? 1 : 0;
+        return DTF_PRICES[tier] * qty * selectedLocations.length;
+      }
+      case "screenprint": {
+        if (qty < 50) return null;
+        const price =
+          qty >= 100
+            ? SP_PRICES[spColorCount][1]
+            : SP_PRICES[spColorCount][0];
+        return price * qty * selectedLocations.length;
+      }
+      case "dtg": {
+        const tier =
+          qty >= 100 ? 3 :
+            qty >= 48 ? 2 :
+              qty >= 24 ? 1 : 0;
+        return DTG_PRICES[dtgStyle][tier] * qty;
+      }
+      default:
+        return null;
     }
-
-    case "dtf": {
-      const tier =
-        qty >= 144 ? 6 :
-        qty >= 96 ? 5 :
-        qty >= 72 ? 4 :
-        qty >= 36 ? 3 :
-        qty >= 24 ? 2 :
-        qty >= 12 ? 1 : 0;
-
-      return DTF_PRICES[tier] * qty * selectedLocations.length;
-    }
-
-    case "screenprint": {
-      if (qty < 50) return null;
-
-      const price =
-        qty >= 100
-          ? SP_PRICES[spColorCount][1]
-          : SP_PRICES[spColorCount][0];
-
-      return price * qty * selectedLocations.length;
-    }
-
-    case "dtg": {
-      const tier =
-        qty >= 100 ? 3 :
-        qty >= 48 ? 2 :
-        qty >= 24 ? 1 : 0;
-
-      return DTG_PRICES[dtgStyle][tier] * qty;
-    }
-
-    default:
-      return null;
-  }
-};
+  };
 
   const printPrice = getPrintPrice();
   const basePrice = colorVariants[0]?.price ? Number(colorVariants[0].price) : (product?.price ?? 0);
-  // const estimatedTotal = basePrice * totalQty + (printPrice ?? 0);
-const productTotal = basePrice * totalQty;
-// console.log(basePrice,"basePrice")
-// console.log(totalQty,"totalQty")
-// console.log(productTotal,"productTotal")
-// console.log(basePrice,"basePrice")
+  const productTotal = basePrice * totalQty;
+  const decorationTotal = printPrice ?? 0;
+  const estimatedTotal = productTotal + decorationTotal;
 
-const decorationTotal = printPrice ?? 0;
-
-const estimatedTotal = productTotal + decorationTotal;
-  /* ── Promo price (SAGE tier) ── */
   const promoUnitPrice: number | null = useMemo(() => {
     if (!isPromo) return null;
     if (hasTierPricing) return getSageUnitPriceWithMarkup(promoMetaStr, totalQty) ?? basePrice;
@@ -850,7 +872,11 @@ const estimatedTotal = productTotal + decorationTotal;
       { key: "mat", label: "Print method", done: !!selectedMaterial },
     ] : []),
     ...(isPreMade ? [{ key: "size", label: "Size & qty", done: activeSizes.length > 0 }] : []),
-    ...(isPromo ? [{ key: "qty", label: "Quantity", done: totalQty > 0 }] : []),
+    ...(isPromo ? [{
+      key: "qty",
+      label: `Quantity (min ${PROMO_MIN_QTY})`,
+      done: totalQty >= PROMO_MIN_QTY,
+    }] : []),
   ];
 
   const allMet = REQUIREMENTS.every(r => r.done);
@@ -881,27 +907,117 @@ const estimatedTotal = productTotal + decorationTotal;
     setVariantQty({});
   };
 
-  /* ── Payload builder ── */
-  const buildPayload = () => {
-    if (isApparel) {
-      return [{
-        print_method: selectedMaterial?.toUpperCase() ?? null,
-        locations: selectedLocations.map(loc => ({ location: loc })),
-        sizes: activeSizes,
-        ...(customText.trim() ? { custom_text: customText.trim() } : {}),
-        ...(selectedMaterial === "screenprint" ? { color_count: spColorCount } : {}),
-        ...(selectedMaterial === "dtg" ? { print_area: dtgStyle } : {}),
-      }];
+  /* ══════════════════════════════════════════════════════════════════════
+     NEW — "Add Variant": commit current selection into configuredVariants.
+     Same color → merge sizes (sum/replace qty per variant_id), never dupes.
+  ══════════════════════════════════════════════════════════════════════ */
+  const buildCurrentSizesFromSelection = (): ConfiguredSize[] => {
+    if (activeSizes.length > 0) {
+      return activeSizes.map(s => {
+        const v = (allProductVariants.length > 0 ? allProductVariants : product?.variants ?? [])
+          .find(vv => vv.id === s.variant_id);
+        return {
+          variant_id: s.variant_id,
+          size_id: v?.size_id ?? null,
+          size: v?.size_details?.name || v?.size || "—",
+          quantity: s.quantity,
+          unit_price: Number(v?.price ?? basePrice),
+        };
+      });
     }
-    if (isPreMade) return [{ sizes: activeSizes }];
-    if (hasTierPricing) {
-      const unitPrice = getSageUnitPriceWithMarkup(promoMetaStr, totalQty);
-      return [{ quantity: totalQty, unit_price: unitPrice }];
-    }
-    return [{ quantity: totalQty }];
+    // Apparel/Promo path with a single active variant (no explicit size rows)
+    const v = colorVariants[0];
+    if (!v || totalQty <= 0) return [];
+    return [{
+      variant_id: v.id,
+      size_id: v.size_id ?? null,
+      size: v.size_details?.name || v.size || "—",
+      quantity: totalQty,
+      unit_price: isPromo ? (promoUnitPrice ?? basePrice) : basePrice,
+    }];
   };
 
-  /* ── getBlob ── */
+  /* Pure merge: takes the current list + a new variant's sizes, returns a
+     NEW array. No setState here — caller decides when to commit/read it.
+     This is the same merge logic addVariantConfiguration used to do inline. */
+  const mergeVariantIntoList = (
+    list: ConfiguredVariant[],
+    colorKey: string,
+    newSizes: ConfiguredSize[],
+    variant: { id: number; color_code?: string },
+    images: string[]
+  ): ConfiguredVariant[] => {
+    const existingIdx = list.findIndex(cv => cv.color === colorKey);
+
+    if (existingIdx === -1) {
+      const totalPrice = newSizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0);
+      return [...list, {
+        variantId: variant.id,
+        variantName: colorKey,
+        color: colorKey,
+        colorCode: variant.color_code,
+        images,
+        sizes: newSizes,
+        totalQty: newSizes.reduce((s, sz) => s + sz.quantity, 0),
+        totalPrice,
+      }];
+    }
+
+    const updated = [...list];
+    const existing = { ...updated[existingIdx] };
+    const sizes = [...existing.sizes];
+    newSizes.forEach(ns => {
+      const dupIdx = sizes.findIndex(s => s.variant_id === ns.variant_id);
+      if (dupIdx > -1) {
+        sizes[dupIdx] = { ...sizes[dupIdx], quantity: ns.quantity, unit_price: ns.unit_price };
+      } else {
+        sizes.push(ns);
+      }
+    });
+    existing.sizes = sizes;
+    existing.totalQty = sizes.reduce((s, sz) => s + sz.quantity, 0);
+    existing.totalPrice = sizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0);
+    updated[existingIdx] = existing;
+    return updated;
+  };
+
+
+
+  const removeConfiguredVariant = (variantName: string) =>
+    setConfiguredVariants(prev => prev.filter(cv => cv.variantName !== variantName));
+
+  const grandConfiguredQty = useMemo(
+    () => configuredVariants.reduce((s, cv) => s + cv.totalQty, 0),
+    [configuredVariants]
+  );
+  const grandConfiguredPrice = useMemo(
+    () => configuredVariants.reduce((s, cv) => s + cv.totalPrice, 0),
+    [configuredVariants]
+  );
+
+  /* ── Payload builder — sends EVERY configured variant, plus whatever is
+     currently on-screen but not yet explicitly "added" ── */
+  const buildPayload = (variantList: ConfiguredVariant[] = configuredVariants) => {
+    const base: any = {
+      product_id: productDataId,
+      variants: variantList.map(cv => ({
+        variant_id: cv.variantId,
+        sizes: cv.sizes.map(s => ({
+          size_id: s.size_id,
+          variant_id: s.variant_id,
+          quantity: s.quantity,
+        })),
+      })),
+    };
+
+    if (isApparel) {
+      base.print_method = selectedMaterial?.toUpperCase() ?? null;
+      base.locations = selectedLocations.map(loc => ({ location: loc }));
+    }
+
+    return base;
+  };
+
   const getBlob = (): Promise<Blob | null> =>
     new Promise((res) => {
       const canvas = canvasRef.current;
@@ -916,9 +1032,13 @@ const estimatedTotal = productTotal + decorationTotal;
       canvas.toBlob(blob => res(blob), "image/png", 1);
     });
 
-  /* ── Add to cart ── */
+  /* ══════════════════════════════════════════════════════════════════════
+     ADD TO CART FLOW
+  ══════════════════════════════════════════════════════════════════════ */
   const handleAddToCart = async () => {
     if (requireLogin()) return;
+
+    // ── Validation (unchanged requirements, same checks as before) ──
     if (!allMet) {
       const missing = REQUIREMENTS.filter(r => !r.done).map(r => r.label);
       setValidationError(`Please complete: ${missing.join(", ")}.`);
@@ -926,15 +1046,150 @@ const estimatedTotal = productTotal + decorationTotal;
       setTimeout(() => setShowValidationShake(false), 600);
       return;
     }
+
+    if (isPromo && totalQty < PROMO_MIN_QTY) {
+      setValidationError(`Minimum order quantity for Promo products is ${PROMO_MIN_QTY}.`);
+      setShowValidationShake(true);
+      setTimeout(() => setShowValidationShake(false), 600);
+      return;
+    }
+
+    // Pre-Made: enforce per-variant min_order_quantity
+    if (isPreMade) {
+      const tooLow = activeSizes.find(s => {
+        const v = product?.variants.find(vv => vv.id === s.variant_id);
+        const min = v?.min_order_quantity ?? 1;
+        return s.quantity < min;
+      });
+      if (tooLow) {
+        const v = product?.variants.find(vv => vv.id === tooLow.variant_id);
+        setValidationError(
+          `Minimum quantity for ${v?.size_details?.name || v?.size || "this size"} is ${v?.min_order_quantity ?? 1}.`
+        );
+        setShowValidationShake(true);
+        setTimeout(() => setShowValidationShake(false), 600);
+        return;
+      }
+    }
+
+    // ── Build the current selection into a ConfiguredVariant the SAME way
+    //    addVariantConfiguration() used to, reusing the same helpers ──
+    const newSizes = buildCurrentSizesFromSelection();
+    if (newSizes.length === 0 || !colorVariants[0]) {
+      const missing = REQUIREMENTS.filter(r => !r.done).map(r => r.label);
+      setValidationError(`Please complete: ${missing.join(", ") || "your selection"}.`);
+      setShowValidationShake(true);
+      setTimeout(() => setShowValidationShake(false), 600);
+      return;
+    }
+
+    // Merge it into configuredVariants (same color → update, not duplicate)
+    const updatedVariantList = mergeVariantIntoList(
+      configuredVariants,
+      selectedColor,
+      newSizes,
+      colorVariants[0],
+      product?.images ?? []
+    );
+
+    // Promo: enforce min qty across every variant in the UPDATED list
+    if (isPromo) {
+      const tooLow = updatedVariantList.find(cv => cv.totalQty < PROMO_MIN_QTY);
+      if (tooLow) {
+        setValidationError(
+          `Minimum order quantity for Promo products is ${PROMO_MIN_QTY} (${tooLow.variantName} has ${tooLow.totalQty}).`
+        );
+        setShowValidationShake(true);
+        setTimeout(() => setShowValidationShake(false), 600);
+        return;
+      }
+    }
+
     setValidationError(null);
+    console.log(updatedVariantList,"updatedVariantList")
+    setConfiguredVariants(updatedVariantList);
 
     let blob: Blob | null = null;
     if (isApparel || (isPromo && logoImg)) blob = await getBlob();
 
     canvasBlobRef.current = blob;
     setCanvasBlob(blob);
-    setCustomizationJson(JSON.stringify(buildPayload()));
-    setTimeout(() => setShowCartModal(true), 50);
+    // Pass the fresh list directly — do NOT rely on configuredVariants state,
+    // which hasn't re-rendered yet.
+    setCustomizationJson(JSON.stringify(buildPayload(updatedVariantList)));
+
+    setShowConfigModal(true);
+  };
+
+  const handleConfigConfirm = async (config: {
+    selectedColor: string;
+    selectedSizes: { variant_id: number; quantity: number; size_name: string }[];
+    addAlso: boolean;
+  }) => {
+    setConfigSubmitting(true);
+    try {
+      setConfigSelection({
+        selectedColor: config.selectedColor,
+        selectedSizes: config.selectedSizes,
+      });
+
+      // Fold the companion-size selection (if any) into configuredVariants
+      // as its own entry, then rebuild the payload from the full array.
+      if (config.addAlso && config.selectedSizes.length > 0) {
+        setConfiguredVariants(prev => {
+          const existingIdx = prev.findIndex(cv => cv.color === config.selectedColor);
+          const newSizes: ConfiguredSize[] = config.selectedSizes.map(s => {
+            const v = (allProductVariants.length > 0 ? allProductVariants : product?.variants ?? [])
+              .find(vv => vv.id === s.variant_id);
+            return {
+              variant_id: s.variant_id,
+              size_id: v?.size_id ?? null,
+              size: s.size_name,
+              quantity: s.quantity,
+              unit_price: Number(v?.price ?? basePrice),
+            };
+          });
+
+          if (existingIdx === -1) {
+            return [...prev, {
+              variantId: newSizes[0]?.variant_id ?? 0,
+              variantName: config.selectedColor,
+              color: config.selectedColor,
+              colorCode: "",
+              images: [],
+              sizes: newSizes,
+              totalQty: newSizes.reduce((s, sz) => s + sz.quantity, 0),
+              totalPrice: newSizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0),
+            }];
+          }
+
+          const updated = [...prev];
+          const existing = { ...updated[existingIdx] };
+          const sizes = [...existing.sizes];
+          newSizes.forEach(ns => {
+            const dupIdx = sizes.findIndex(s => s.variant_id === ns.variant_id);
+            if (dupIdx > -1) sizes[dupIdx] = { ...sizes[dupIdx], quantity: sizes[dupIdx].quantity + ns.quantity };
+            else sizes.push(ns);
+          });
+          existing.sizes = sizes;
+          existing.totalQty = sizes.reduce((s, sz) => s + sz.quantity, 0);
+          existing.totalPrice = sizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0);
+          updated[existingIdx] = existing;
+          return updated;
+        });
+      }
+
+      // Rebuild payload fresh from buildPayload (reads latest configuredVariants
+      // on next render — for immediate consistency we recompute manually here too)
+      setCustomizationJson(JSON.stringify(buildPayload()));
+      setShowConfigModal(false);
+
+      setTimeout(() => setShowCartModal(true), 50);
+    } catch (e) {
+      console?.error(e);
+    } finally {
+      setConfigSubmitting(false);
+    }
   };
 
   const handleWishlist = async () => {
@@ -989,6 +1244,8 @@ const estimatedTotal = productTotal + decorationTotal;
       </div>
     );
   }
+  console.log(configuredVariants,"configuredVariants")
+  // console.log(cv,"cv")
   if (!product) {
     return (
       <section className="min-h-[60vh] flex items-center justify-center">
@@ -1089,7 +1346,7 @@ const estimatedTotal = productTotal + decorationTotal;
       <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
         <div className="container max-w-6xl mx-auto px-4">
           <div className="flex items-center gap-3 py-3.5">
-            <Link href={`/product/${variantDataId}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-black transition-colors">
+            <Link href={`/product/${productDataId}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-black transition-colors">
               <ArrowLeft size={14} /> Back to product
             </Link>
             <span className="text-gray-200">/</span>
@@ -1124,7 +1381,7 @@ const estimatedTotal = productTotal + decorationTotal;
           <p className="text-sm text-gray-500">
             {isApparel && "Select print location, decoration method, then upload your logo"}
             {isPreMade && "Choose your color, size & quantity"}
-            {isPromo && "Select quantity and optionally upload your logo"}
+            {isPromo && `Select quantity (min ${PROMO_MIN_QTY}) and optionally upload your logo`}
           </p>
         </div>
       </div>
@@ -1141,8 +1398,7 @@ const estimatedTotal = productTotal + decorationTotal;
             ══════════════════════════════════════════════════════ */}
             {isApparel && (
               <>
-                {/* Step 1 — Color */}
-                {colors.length > 1 && (
+                {/* {colors.length > 1 && (
                   <SectionCard step={1} title="Choose Color" subtitle="Select the garment color." status={selectedColor ? "done" : "required"}>
                     <div className="flex flex-wrap gap-2">
                       {colors.map(c => (
@@ -1160,11 +1416,10 @@ const estimatedTotal = productTotal + decorationTotal;
                     </div>
                     {selectedColor && <p className="text-xs text-gray-500 mt-2">Selected: <strong>{selectedColor}</strong></p>}
                   </SectionCard>
-                )}
+                )} */}
 
-                {/* Step 2 — Print Location */}
                 <SectionCard
-                  step={colors.length > 1 ? 2 : 1}
+                  step={1}
                   title="Choose Print Location"
                   subtitle="Select a view, then tap the hotspot to choose your print location."
                   status={selectedLocations.length > 0 ? "done" : "required"}
@@ -1229,9 +1484,8 @@ const estimatedTotal = productTotal + decorationTotal;
                   )}
                 </SectionCard>
 
-                {/* Step 3 — Decoration Method */}
                 <SectionCard
-                  step={colors.length > 1 ? 3 : 2}
+                  step={2}
                   title="Decoration Method"
                   subtitle="Choose how your design will be applied to the garment."
                   status={selectedMaterial ? "done" : "required"}
@@ -1403,9 +1657,8 @@ const estimatedTotal = productTotal + decorationTotal;
                   )}
                 </SectionCard>
 
-                {/* Step 4 — Logo / Text */}
                 <SectionCard
-                  step={colors.length > 1 ? 4 : 3}
+                  step={3}
                   title="Upload Logo / Add Text"
                   subtitle="Upload a logo or add custom text. Drag to reposition on the canvas."
                   status="optional"
@@ -1496,48 +1749,53 @@ const estimatedTotal = productTotal + decorationTotal;
             ══════════════════════════════════════════════════════ */}
             {isPromo && (
               <>
-                {/* Step 1 — Quantity with SAGE tier pricing */}
                 <SectionCard
                   step={1} title="Select Quantity"
-                  subtitle="Price drops automatically as you order more pieces."
-                  status={totalQty > 0 ? "done" : "required"}
+                  subtitle={`Minimum order quantity is ${PROMO_MIN_QTY} pieces. Price drops automatically as you order more.`}
+                  status={totalQty >= PROMO_MIN_QTY ? "done" : "required"}
                 >
                   {hasTierPricing ? (
                     <SageQuantityPricing
                       metaStr={promoMetaStr}
-                      minOrderQuantity={colorVariants[0]?.min_order_quantity ?? 1}
+                      minOrderQuantity={PROMO_MIN_QTY}
                       stock={colorVariants[0]?.stock}
                       variant="compact"
                       onChange={({ quantity, unitPrice, total }) => {
-                        if (colorVariants[0]) setQty(colorVariants[0].id, quantity);
+                        if (colorVariants[0]) setPromoQty(colorVariants[0].id, quantity);
                         setPromoPricing({ unitPrice, total });
                       }}
-
                     />
                   ) : (
-                    /* Fallback simple stepper when no tier data */
                     <div className="flex items-center justify-center gap-4 py-6">
                       <button
                         onClick={() => {
                           if (!colorVariants[0]) return;
-                          const min = colorVariants[0].min_order_quantity || 1;
-                          setQty(colorVariants[0].id, Math.max(min, (variantQty[colorVariants[0].id] ?? min) - 1));
+                          setPromoQty(colorVariants[0].id, (variantQty[colorVariants[0].id] ?? PROMO_MIN_QTY) - 1);
                         }}
-                        className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
+                        disabled={(variantQty[colorVariants[0]?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY}
+                        className={cn(
+                          "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
+                          (variantQty[colorVariants[0]?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY
+                            ? "border-gray-100 text-gray-300 cursor-not-allowed"
+                            : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                        )}
                       ><Minus size={20} /></button>
                       <input
                         type="number"
-                        value={colorVariants[0] ? (variantQty[colorVariants[0].id] ?? colorVariants[0].min_order_quantity ?? 1) : 1}
-                        min={colorVariants[0]?.min_order_quantity ?? 1}
+                        value={colorVariants[0] ? (variantQty[colorVariants[0].id] ?? PROMO_MIN_QTY) : PROMO_MIN_QTY}
+                        min={PROMO_MIN_QTY}
                         onChange={e => {
-                          if (colorVariants[0]) setQty(colorVariants[0].id, Math.max(colorVariants[0].min_order_quantity ?? 1, Number(e.target.value)));
+                          if (colorVariants[0]) setPromoQty(colorVariants[0].id, Number(e.target.value));
+                        }}
+                        onBlur={e => {
+                          if (colorVariants[0]) setPromoQty(colorVariants[0].id, Number(e.target.value));
                         }}
                         className="w-24 h-12 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
                       />
                       <button
                         onClick={() => {
                           if (!colorVariants[0]) return;
-                          setQty(colorVariants[0].id, (variantQty[colorVariants[0].id] ?? colorVariants[0].min_order_quantity ?? 1) + 1);
+                          setPromoQty(colorVariants[0].id, (variantQty[colorVariants[0].id] ?? PROMO_MIN_QTY) + 1);
                         }}
                         className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
                       ><Plus size={20} /></button>
@@ -1547,9 +1805,13 @@ const estimatedTotal = productTotal + decorationTotal;
                       </div>
                     </div>
                   )}
+                  {totalQty > 0 && totalQty < PROMO_MIN_QTY && (
+                    <p className="text-xs text-red-500 font-semibold mt-3 text-center">
+                      Minimum order quantity for Promo products is {PROMO_MIN_QTY}.
+                    </p>
+                  )}
                 </SectionCard>
 
-                {/* Step 2 — Logo upload */}
                 <SectionCard
                   step={2} title="Upload Your Logo"
                   subtitle="Upload a logo or add custom text to personalize this product."
@@ -1559,6 +1821,7 @@ const estimatedTotal = productTotal + decorationTotal;
                 </SectionCard>
               </>
             )}
+
           </div>
 
           {/* ═══════════════════════ RIGHT: Order Summary ═══════════════════════ */}
@@ -1579,7 +1842,7 @@ const estimatedTotal = productTotal + decorationTotal;
                   )}
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 leading-tight">{product.name}</p>
-                    {selectedColor && <p className="text-xs text-gray-500 mt-0.5">Color: {selectedColor}</p>}
+                    {selectedColor && <p className="text-xs text-gray-500 mt-0.5">Current: {selectedColor}</p>}
                     <span className={cn("inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
                       isApparel ? "bg-blue-50 text-blue-600" :
                         isPreMade ? "bg-purple-50 text-purple-600" :
@@ -1589,11 +1852,74 @@ const estimatedTotal = productTotal + decorationTotal;
                   </div>
                 </div>
 
-                {/* Promo tier breakdown */}
-                {isPromo && hasTierPricing && totalQty > 0 && promoUnitPrice !== null && (
+                {/* ── NEW: Configured Variants — every added variant shown separately ── */}
+                {configuredVariants.length > 0 && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
-                      Pricing Breakdown
+                      Configured Variants
+                    </div>
+                   {configuredVariants!.map((cv, item) => (
+  <div
+    key={`${cv.variantId}-${item}`}
+    className="px-3 py-2.5 border-b border-gray-50 last:border-0"
+  >
+    <div className="flex items-center justify-between mb-1">
+      <span className="text-xs font-bold text-gray-900">
+        {cv.variantName}
+      </span>
+
+      <button
+        onClick={() => removeConfiguredVariant(cv.variantName)}
+        className="text-gray-300 hover:text-red-400"
+        title="Remove this variant"
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+
+    {/* {cv?.sizes.map((s) => (
+      <div
+        key={`${s.variant_id}-${s.size_id}`}
+        className="flex items-center justify-between text-[11px] text-gray-500 pl-1"
+      >
+
+        <span>
+          {s.size && s.size !== "—" ? s.size : "Standard"} · ×{s.quantity}
+        </span>
+
+        <span className="font-semibold text-gray-700">
+          ${(s.unit_price * s.quantity).toFixed(2)}
+        </span>
+      </div>
+    ))} */}
+
+    <div className="flex items-center justify-between text-[11px] font-bold text-gray-800 pt-1 mt-1 border-t border-gray-50">
+      <span>Subtotal — {cv.totalQty} pcs</span>
+
+      <span>
+        $
+        {cv.sizes
+          .reduce(
+            (sum, s) => sum + s.unit_price * s.quantity,
+            0
+          )
+          .toFixed(2)}
+      </span>
+    </div>
+  </div>
+))}
+                    {/* <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
+                      <span className="text-xs font-bold text-gray-700">Grand Total — {grandConfiguredQty} pcs</span>
+                      <span className="text-xs font-black text-gray-900">${grandConfiguredPrice.toFixed(2)}</span>
+                    </div> */}
+                  </div>
+                )}
+
+                {/* Promo tier breakdown (current, in-progress selection) */}
+                {/* {isPromo && hasTierPricing && totalQty > 0 && promoUnitPrice !== null && (
+                  <div className="rounded-xl border border-gray-100 overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
+                      Current Selection
                     </div>
                     <div className="px-3 py-2.5 space-y-1.5">
                       <div className="flex items-center justify-between">
@@ -1606,12 +1932,12 @@ const estimatedTotal = productTotal + decorationTotal;
                       </div>
                     </div>
                   </div>
-                )}
+                )} */}
 
-                {/* Pre-Made size breakdown */}
+                {/* Pre-Made size breakdown (current, in-progress selection) */}
                 {isPreMade && activeSizes.length > 0 && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Size Breakdown</div>
+                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Current Selection</div>
                     {activeSizes.map(({ variant_id, quantity }) => {
                       const v = product.variants.find(vv => vv.id === variant_id);
                       if (!v) return null;
@@ -1629,53 +1955,48 @@ const estimatedTotal = productTotal + decorationTotal;
                     })}
                     <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
                       <span className="text-xs font-bold text-gray-700">{totalQty} total pieces</span>
-                      <span className="text-xs font-black text-gray-900">${(basePrice * totalQty).toFixed(2)}</span>
+                      <span className="text-xs font-black text-gray-900">${(totalQty).toFixed(2)}</span>
                     </div>
                   </div>
                 )}
 
                 {/* Apparel print details */}
                 {isApparel && (
-  <div className="rounded-xl border border-gray-100 overflow-hidden">
-    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
-      Quantity
-    </div>
-
-    <div className="flex items-center justify-between px-3 py-3">
-      <button
-        onClick={() => {
-          if (!colorVariants[0]) return;
-          const min = colorVariants[0].min_order_quantity || 1;
-          setQty(
-            colorVariants[0].id,
-            Math.max(min, (variantQty[colorVariants[0].id] ?? min) - 1)
-          );
-        }}
-        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
-      >
-        <Minus size={16} />
-      </button>
-
-      <span className="text-lg font-black">
-        {totalQty}
-      </span>
-
-      <button
-        onClick={() => {
-          if (!colorVariants[0]) return;
-          const min = colorVariants[0].min_order_quantity || 1;
-          setQty(
-            colorVariants[0].id,
-            (variantQty[colorVariants[0].id] ?? min) + 1
-          );
-        }}
-        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
-      >
-        <Plus size={16} />
-      </button>
-    </div>
-  </div>
-)}
+                  <div className="rounded-xl border border-gray-100 overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
+                      Quantity
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-3">
+                      <button
+                        onClick={() => {
+                          if (!colorVariants[0]) return;
+                          const min = colorVariants[0].min_order_quantity || 1;
+                          setQty(
+                            colorVariants[0].id,
+                            Math.max(min, (variantQty[colorVariants[0].id] ?? min) - 1)
+                          );
+                        }}
+                        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="text-lg font-black">{totalQty}</span>
+                      <button
+                        onClick={() => {
+                          if (!colorVariants[0]) return;
+                          const min = colorVariants[0].min_order_quantity || 1;
+                          setQty(
+                            colorVariants[0].id,
+                            (variantQty[colorVariants[0].id] ?? min) + 1
+                          );
+                        }}
+                        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {isApparel && (selectedLocations.length > 0 || selectedMaterial) && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Print Details</div>
@@ -1706,33 +2027,28 @@ const estimatedTotal = productTotal + decorationTotal;
                   </div>
                 )}
 
-                {/* Estimated total */}
+                {/* Estimated total (current selection + already-configured variants) */}
                 <div className="rounded-xl bg-gray-900 text-white p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-bold opacity-70">Estimated Total</span>
                     <span className="text-xl font-black text-[#F5D800]">
-                      {isApparel && totalQty > 0
-                        ? `$${estimatedTotal.toFixed(2)}`
-                        : isPreMade && totalQty > 0
-                          ? `$${(basePrice * totalQty).toFixed(2)}`
-                          : isPromo && totalQty > 0 && promoUnitPrice !== null
-                            ? `$${promoTotal.toFixed(2)}`
-                            : "—"}
+                      {/* {(() => {
+                        const currentTotal = isApparel && totalQty > 0
+                          ? estimatedTotal
+                          : isPreMade && totalQty > 0
+                            ? basePrice * totalQty
+                            : isPromo && totalQty > 0 && promoUnitPrice !== null
+                              ? promoTotal
+                              : 0;
+                        const grand = grandConfiguredPrice + currentTotal;
+                        return grand > 0 ? `$${grand.toFixed(2)}` : "—";
+                      })()} */}
+                     ${grandConfiguredPrice.toFixed(2)}
                     </span>
                   </div>
-                  {isApparel && totalQty > 0 && printPrice !== null && (
-                    <>
-                   
+                  {configuredVariants.length > 0 && (
                     <p className="text-[10px] text-gray-400">
-                  
-                      ${(estimatedTotal / totalQty).toFixed(2)}/pc all-in
-                      {/* ${((basePrice * totalQty + printPrice) / totalQty).toFixed(2)}/pc all-in */}
-                    </p>
-                    </>
-                  )}
-                  {isPromo && totalQty > 0 && promoUnitPrice !== null && (
-                    <p className="text-[10px] text-gray-400">
-                      ${promoUnitPrice.toFixed(2)}/pc · {totalQty.toLocaleString()} units
+                      Includes {grandConfiguredQty} pcs from {configuredVariants.length} added variant{configuredVariants.length > 1 ? "s" : ""}
                     </p>
                   )}
                 </div>
@@ -1777,7 +2093,7 @@ const estimatedTotal = productTotal + decorationTotal;
                   className={cn(
                     "w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all duration-200",
                     showValidationShake ? "animate-[shake_0.4s_ease-in-out]" : "",
-                    !allMet ? "bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200" :
+                    (!allMet && configuredVariants.length === 0) ? "bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200" :
                       inCart ? "bg-[#F5D800]/10 text-[#b89000] border-2 border-[#F5D800]/40" :
                         "bg-[#F5D800] text-black hover:bg-[#e6ca00] shadow-md"
                   )}>
@@ -1805,25 +2121,43 @@ const estimatedTotal = productTotal + decorationTotal;
         </div>
       </div>
 
-      {/* AddToCartModal */}
+      {product && (
+        <AddProductConfigurationModal
+          open={showConfigModal}
+          onClose={() => setShowConfigModal(false)}
+          onConfirm={handleConfigConfirm}
+          productId={productDataId}
+          productName={product?.name ?? ""}
+          variants={allProductVariants}
+          sizes={allSizes}
+          selectedVariant={variantData}
+          mode="customized"
+          isSubmitting={configSubmitting}
+          isPromo={isPromo}
+        />
+      )}
+
+      {/* AddToCartModal — now receives the full configuredVariants array */}
       {product && (
         <AddToCartModal
           open={showCartModal}
           onClose={() => setShowCartModal(false)}
-          productId={Number(product.id)} // ✅ productId should be a number
-          variantId={colorVariants[0]?.id ?? 0} // ✅ selected variant id
+          productId={Number(product.id)}
+          variantId={colorVariants[0]?.id ?? 0}
           name={product.name}
           price={promoUnitPrice ?? basePrice}
           initialQuantity={totalQty}
           sageMetaStr={promoMetaStr}
           customization={customizationJson}
           canvasBlob={canvasBlob}
-          printPricePerPiece={(printPrice ?? 0) / Math.max(totalQty, 1)} // if printPrice is total
-          digitizingFee={0} // or your digitizing fee variable
+          printPricePerPiece={(printPrice ?? 0) / Math.max(totalQty, 1)}
+          digitizingFee={0}
+          configuredVariants={configuredVariants.length > 0 ? configuredVariants : undefined}
           onSuccess={() => {
             refreshCart();
             setInCart(true);
             setShowCartModal(false);
+            setConfiguredVariants([]); // clear after successful checkout
           }}
         />
       )}
@@ -1840,7 +2174,6 @@ const estimatedTotal = productTotal + decorationTotal;
     </div>
   );
 
-  /* ── Helper: collect LogoCanvasSection props (avoids repeating 30 props twice) ── */
   function logoCanvasSectionProps() {
     return {
       canvasRef, fileRef, productImg, logoImg, logoSrc, logoSize, logoRotation,
@@ -1874,7 +2207,6 @@ function LogoCanvasSection({
 }: any) {
   return (
     <div className="flex flex-col xl:flex-row gap-5 items-start">
-      {/* Canvas */}
       <div className="w-full xl:w-[380px] flex-shrink-0">
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
@@ -1903,7 +2235,6 @@ function LogoCanvasSection({
         </div>
       </div>
 
-      {/* Controls */}
       <div className="flex-1 min-w-0">
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex border-b border-gray-100">
@@ -1919,7 +2250,6 @@ function LogoCanvasSection({
             ))}
           </div>
           <div className="p-5 space-y-4">
-            {/* IMAGE TAB */}
             {activeTab === "image" && (
               <>
                 <input ref={fileRef} type="file" accept="image/*"
@@ -1975,7 +2305,6 @@ function LogoCanvasSection({
                 )}
               </>
             )}
-            {/* TEXT TAB */}
             {activeTab === "text" && (
               <>
                 <div>

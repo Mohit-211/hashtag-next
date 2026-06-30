@@ -1,6 +1,4 @@
-// ✅ KEY FIXES IN THIS FILE:
-// 1. Line ~145: Fixed router.push syntax from `{$variantData?.id}` to `${variantData.id}`
-// 2. Added null check for variantData
+// components/product/ProductDetail.tsx
 
 "use client";
 import { useEffect, useState } from "react";
@@ -13,12 +11,12 @@ import {
   X,
   ChevronRight,
   Shield,
+  CheckCircle2,
 } from "lucide-react";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductInfo from "@/components/product/ProductInfo";
 import ProductAccordion from "@/components/product/ProductAccordion";
 import RelatedProducts from "@/components/product/RelatedProducts";
-import AddToCartModal from "@/components/common/AddToCartModal";
 import {
   ProductDetailApi,
   ProductDetailGuestApi,
@@ -26,6 +24,7 @@ import {
 import { useWishlist } from "@/contexts/WishlistContext";
 import { cn } from "@/lib/utils";
 import { Spin } from "antd";
+import AddProductConfigurationModal from "@/components/product/Addproductconfigurationmodal/Addproductconfigurationmodal";
 
 /* ───────────────────────────────────────────────── types */
 interface Size {
@@ -65,7 +64,7 @@ interface Product {
   name: string;
   price: number;
   image: string;
-   original_price: number;
+  original_price: number;
   description?: string;
   sizes: Size[];
   attachments: any[];
@@ -98,7 +97,8 @@ export default function ProductDetail({ id }: { id: string }) {
 
   /* cart */
   const [inCart, setInCart] = useState(false);
-  const [showCartModal, setShowCartModal] = useState(false);
+  const [showConfigurationModal, setShowConfigurationModal] = useState(false);
+  const [configurationLoading, setConfigurationLoading] = useState(false);
 
   /* customize */
   const [customizeLoading, setCustomizeLoading] = useState(false);
@@ -107,7 +107,7 @@ export default function ProductDetail({ id }: { id: string }) {
   const { wishlist, addToWishlist, removeItem, fetchWishlist } = useWishlist();
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
-  /* quantity — kept for AddToCartModal */
+  /* quantity */
   const [quantity, setQuantity] = useState(1);
 
   /* wishlist item */
@@ -145,18 +145,29 @@ export default function ProductDetail({ id }: { id: string }) {
   }, [product]);
 
   /* update variant */
-  useEffect(() => {
-    if (!product || !selectedColor || !selectedSize) return;
-    const match = product.variants.find(
-      (v) => v.color === selectedColor && v.size_id === selectedSize.id
-    );
-    if (match) {
-      setVariantData(match);
-      setInCart(Boolean(match.is_in_cart));
-      setQuantity(match.min_order_quantity || 1);
-    }
-  }, [selectedColor, selectedSize, product]);
+useEffect(() => {
+  if (!product || !selectedColor) return;
 
+  const match = product.variants.find((v) => {
+    // Promo / Pre-Made products: no size
+    if (!v.size_id) {
+      return v.color === selectedColor;
+    }
+
+    // Apparel: color + size
+    return (
+      v.color === selectedColor &&
+      selectedSize &&
+      v.size_id === selectedSize.id
+    );
+  });
+
+  if (match) {
+    setVariantData(match);
+    setInCart(Boolean(match.is_in_cart));
+    setQuantity(match.min_order_quantity || 1);
+  }
+}, [selectedColor, selectedSize, product]);
   /* handlers */
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
@@ -194,10 +205,50 @@ export default function ProductDetail({ id }: { id: string }) {
     }
   };
 
-  /* ✅ FIXED: correct syntax with ${} and null check */
   const handleCustomize = () => {
     if (!product || !variantData) return;
-    router.push(`/customization/${variantData.id}`);
+    router.push(`/customization/${product.id}/${variantData.id}`);
+  };
+
+  const handleAddToCart = () => {
+    if (!product || !variantData) return;
+    if (requireLogin()) return;
+    setShowConfigurationModal(true);
+  };
+
+  const handleConfigurationComplete = async (config: {
+    selectedColor: string;
+    selectedSizes: Array<{ variant_id: number; quantity: number; size_name: string }>;
+    addAlso: boolean;
+  }) => {
+    if (!product || !variantData) return;
+
+    try {
+      setConfigurationLoading(true);
+
+      const formData = new FormData();
+      formData.append("product_id", String(product.id));
+      formData.append("variant_id", String(variantData.id));
+      formData.append("quantity", String(config.selectedSizes.reduce((sum, s) => sum + s.quantity, 0) || 1));
+
+      if (config.selectedSizes.length > 0) {
+        config.selectedSizes.forEach((size, index) => {
+          formData.append(`sizes[${index}][variant_id]`, String(size.variant_id));
+          formData.append(`sizes[${index}][quantity]`, String(size.quantity));
+        });
+      }
+
+      // TODO: Uncomment when API is ready
+      // const res = await AddToCartApi(formData);
+
+      setShowConfigurationModal(false);
+      setInCart(true);
+      await fetchProduct();
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+    } finally {
+      setConfigurationLoading(false);
+    }
   };
 
   /* ── skeleton ── */
@@ -221,10 +272,8 @@ export default function ProductDetail({ id }: { id: string }) {
               <div className="space-y-2 pt-2">
                 <div className="h-3 w-full" style={{ background: "#e2e2e2" }} />
                 <div className="h-3 w-5/6" style={{ background: "#e2e2e2" }} />
-                <div className="h-3 w-3/4" style={{ background: "#e2e2e2" }} />
               </div>
-              <div className="h-[52px] w-full" style={{ background: "#ccc" }} />
-              <div className="h-[52px] w-full" style={{ background: "#ccc" }} />
+              <div className="h-12 w-full mt-6" style={{ background: "#e2e2e2" }} />
             </div>
           </div>
         </div>
@@ -234,43 +283,19 @@ export default function ProductDetail({ id }: { id: string }) {
 
   if (!product) {
     return (
-      <section
-        className="min-h-[60vh] flex items-center justify-center"
-        style={{ background: "#f5f5f5" }}
-      >
-        <div className="text-center space-y-3">
-          <div
-            className="w-16 h-16 mx-auto flex items-center justify-center"
-            style={{ background: "#111" }}
-          >
-            <ShoppingCart size={24} color="#f0c419" />
-          </div>
-          <p
-            className="text-lg font-bold tracking-widest uppercase"
-            style={{ color: "#111", fontFamily: "var(--font-heading)" }}
-          >
-            Product Not Found
-          </p>
-          <p className="text-sm" style={{ color: "#666" }}>
-            This item may have been removed or is unavailable.
-          </p>
-          <button
-            onClick={() => router.push("/categories")}
-            className="mt-2 text-sm font-semibold underline underline-offset-4 hover:opacity-60 transition-opacity"
-            style={{ color: "#111" }}
-          >
-            Browse all products
-          </button>
+      <section className="min-h-screen flex items-center justify-center py-10">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">Product not found</p>
+          <a href="/categories" className="text-black underline">Back to Products</a>
         </div>
       </section>
     );
   }
 
-  /* derived */
-const displayPrice =
-  variantData?.original_price
-    ? Number(variantData.original_price)
-    : product.price;
+  const displayPrice =
+    variantData?.original_price
+      ? Number(variantData.original_price)
+      : product.price;
   const displayAttachments =
     variantData?.images && variantData.images.length > 0
       ? variantData.images.map((img) => ({
@@ -291,18 +316,18 @@ const displayPrice =
           className="fixed inset-0 z-[999] flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.4)" }}
         >
-          <div className="text-center">
+          <div className="text-center bg-white p-6 rounded-lg">
             <h3 className="text-lg font-semibold mb-4">Sign in to continue</h3>
             <div className="flex gap-3 justify-center">
               <button
                 onClick={() => router.push("/login")}
-                className="px-5 py-2 bg-black text-white"
+                className="px-5 py-2 bg-black text-white rounded"
               >
                 Sign In
               </button>
               <button
                 onClick={() => setShowLoginModal(false)}
-                className="px-5 py-2 border border-black"
+                className="px-5 py-2 border border-black rounded"
               >
                 Continue Browsing
               </button>
@@ -428,7 +453,7 @@ const displayPrice =
                   {inWishlist ? "Saved to Wishlist" : "Add to Wishlist"}
                 </button>
 
-                {/* Customize — ✅ now passes variantId correctly */}
+                {/* Customize */}
                 <button
                   onClick={handleCustomize}
                   disabled={customizeLoading}
@@ -458,33 +483,54 @@ const displayPrice =
                     </>
                   )}
                 </button>
+
+                {/* Add to Cart */}
+                {/* <button
+                  onClick={handleAddToCart}
+                  className="w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]"
+                  style={{
+                    fontFamily: "var(--font-heading)",
+                    background: inCart ? "#666" : "#111",
+                    color: inCart ? "#999" : "#fff",
+                    border: "none",
+                  }}
+                  disabled={inCart}
+                >
+                  {inCart ? (
+                    <>
+                      <CheckCircle2 size={16} />
+                      In Cart
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart size={16} />
+                      Add to Cart
+                    </>
+                  )}
+                </button> */}
               </div>
             </div>
           </div>
 
           {/* ── ACCORDION ── */}
-          <div className="mt-16">
+          <div className="mt-32">
             <ProductAccordion description={product.description} />
-          </div>
-
-          {/* ── RELATED ── */}
-          <div className="mt-16">
-            <RelatedProducts category_id={category?.id} />
           </div>
         </div>
       </section>
 
-      {/* ── ADD TO CART MODAL ── */}
+      {/* ── CONFIGURATION MODAL ── */}
       {variantData && (
-        <AddToCartModal
-          open={showCartModal}
-          onClose={() => setShowCartModal(false)}
-          productId={Number(product.id)}
-          variantId={variantData.id}
-          price={displayPrice}
-          name={product.name}
-          initialQuantity={quantity}
-          onSuccess={() => { setInCart(true); fetchProduct(); }}
+        <AddProductConfigurationModal
+          open={showConfigurationModal}
+          onClose={() => setShowConfigurationModal(false)}
+          onConfirm={handleConfigurationComplete}
+          productName={product.name}
+          variants={product.variants}
+          sizes={product.sizes}
+          selectedVariant={variantData}
+          mode="premade"
+          isSubmitting={configurationLoading}
         />
       )}
     </div>

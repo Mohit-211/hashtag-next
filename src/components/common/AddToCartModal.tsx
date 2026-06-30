@@ -1,53 +1,66 @@
-// ✅ KEY FIXES IN THIS FILE:
-// 1. Removed confusing variantData prop from interface - use productId + variantId instead
-// 2. FormData built correctly with customization as JSON string
-// 3. All props properly typed and used
-// 4. Live SAGE tier re-pricing: if sageMetaStr is provided, unit price re-tiers as quantity
-//    changes inside this modal, instead of using a frozen flat `price` regardless of qty.
-// 5. customization payload is re-synced with the modal's final quantity/price at submit time,
-//    so it can never desync from the top-level `quantity` field also sent to the backend.
-// 6. Guards against submitting with a missing/zero variantId.
-
 "use client";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   X,
   ShoppingCart,
   Loader2,
   CheckCircle,
-  Plus,
-  Minus,
   Sparkles,
   Package,
-  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
 import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
 
+/* ── Mirrors ConfiguredVariant from the customization page ── */
+export interface ConfiguredSize {
+  variant_id: number;
+  size_id: number | null;
+  size: string;
+  quantity: number;
+  unit_price: number;
+}
+export interface ConfiguredVariant {
+  variantId: number;
+  variantName: string;
+  color: string;
+  colorCode: string;
+  images?: any[];
+  sizes: ConfiguredSize[];
+  totalQty: number;
+  totalPrice: number;
+}
+
 interface AddToCartModalProps {
   open: boolean;
   onClose: () => void;
-  productId: number;  // ✅ actual product ID
+  productId: number;
   variantId: number;
-  price: number;       // fallback flat unit price (used for Apparel / Pre-Made, and as a fallback for Promo)
+  price: number;
   name: string;
   initialQuantity?: number;
   printPricePerPiece?: number;
   digitizingFee?: number;
   onSuccess?: () => void;
-  customization?: string; // ✅ JSON string array
+  customization?: string; // JSON string (single payload object, may already contain `variants`)
   canvasBlob?: Blob | null;
-  /**
-   * SAGE meta (string or parsed object) for Promo/tiered products. When provided,
-   * the modal recomputes the marked-up unit price for the *current* quantity any
-   * time the quantity changes in here — instead of charging the flat `price` prop
-   * regardless of how many units are selected.
-   */
   sageMetaStr?: string | Record<string, unknown> | null;
+  /** NEW: every variant the user explicitly configured on the customization
+   * page. When provided, the modal renders each one separately and the
+   * grand total/qty are summed across all of them — instead of a single
+   * flat quantity × price line. */
+  configuredVariants?: ConfiguredVariant[];
 }
 
-// const PRESETS = [1, 12, 24, 36, 72, 144];
+/* Treat missing/blank/transparent/white-on-white color codes as "no swatch"
+   rather than rendering an empty-looking circle. */
+const isRenderableSwatch = (code?: string) => {
+  if (!code) return false;
+  const c = code.trim().toLowerCase();
+  if (c === "" || c === "transparent" || c === "none") return false;
+  if (c === "#fff" || c === "#ffffff" || c === "white") return false;
+  return true;
+};
 
 export default function AddToCartModal({
   open,
@@ -63,9 +76,9 @@ export default function AddToCartModal({
   customization,
   canvasBlob,
   sageMetaStr,
+  configuredVariants,
 }: AddToCartModalProps) {
   const quantity = initialQuantity;
-  // const [quantity, setQuantity] = useState(initialQuantity);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +86,6 @@ export default function AddToCartModal({
 
   useEffect(() => {
     if (open) {
-      // setQuantity(initialQuantity);
       setError(null);
       setSuccess(false);
       requestAnimationFrame(() => setVisible(true));
@@ -82,12 +94,9 @@ export default function AddToCartModal({
     }
   }, [open, initialQuantity]);
 
-  /**
-   * If sageMetaStr is supplied, re-tier the unit price for whatever quantity is
-   * currently selected in THIS modal (stepper / presets / typed value) — not just
-   * the quantity that was active when the modal was opened. Falls back to the flat
-   * `price` prop for non-tiered products or if tier lookup returns nothing.
-   */
+  const hasConfigured = !!configuredVariants && configuredVariants.length > 0;
+
+  /* ── Fallback single-variant pricing (legacy path / no configuredVariants) ── */
   const effectiveUnitPrice = useMemo(() => {
     if (!sageMetaStr) return price;
     return getSageUnitPriceWithMarkup(sageMetaStr, quantity) ?? price;
@@ -95,10 +104,35 @@ export default function AddToCartModal({
 
   const garmentTotal = effectiveUnitPrice * quantity;
   const decorationTotal = printPricePerPiece * quantity;
-  const grandTotal = garmentTotal + decorationTotal + digitizingFee;
-  const perPiece = quantity > 0 ? grandTotal / quantity : 0;
 
-  /* ✅ Parse customization JSON safely */
+  /* ── Grand totals — sum across configuredVariants when present ── */
+  const grandQty = hasConfigured
+    ? configuredVariants!.reduce((s, cv) => s + cv.totalQty, 0)
+    : quantity;
+
+ const garmentConfiguredTotal = hasConfigured
+  ? configuredVariants!.reduce(
+      (sum, cv) =>
+        sum +
+        cv.sizes.reduce(
+          (t, s) => t + s.unit_price * s.quantity,
+          0
+        ),
+      0
+    )
+  : garmentTotal;
+
+const configuredDecorationTotal = hasConfigured
+  ? printPricePerPiece * grandQty
+  : decorationTotal;
+
+const grandTotal =
+  garmentConfiguredTotal +
+  configuredDecorationTotal +
+  digitizingFee;
+  const perPiece = grandQty > 0 ? grandTotal / grandQty : 0;
+
+  /* ✅ Parse customization JSON safely (legacy single-payload shape) */
   const parsedCustomization = useMemo(() => {
     if (!customization) return null;
     try {
@@ -108,115 +142,117 @@ export default function AddToCartModal({
     }
   }, [customization]);
 
-  /* ✅ Extract location and method from parsed customization array[0] */
-  const locationLabel = parsedCustomization?.[0]?.locations?.[0]?.location
-    ? parsedCustomization[0].locations[0].location
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (c: string) => c.toUpperCase())
+  const customizationObj = Array.isArray(parsedCustomization)
+    ? parsedCustomization[0]
+    : parsedCustomization;
+
+  const locationLabel = customizationObj?.locations?.[0]?.location
+    ? customizationObj.locations[0].location
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c: string) => c.toUpperCase())
     : null;
 
-  const methodLabel = parsedCustomization?.[0]?.print_method
-    ? parsedCustomization[0].print_method.charAt(0).toUpperCase() +
-      parsedCustomization[0].print_method.slice(1).toLowerCase()
+  const methodLabel = customizationObj?.print_method
+    ? customizationObj.print_method.charAt(0).toUpperCase() +
+      customizationObj.print_method.slice(1).toLowerCase()
     : null;
 
   const customizationDetail =
     [methodLabel, locationLabel].filter(Boolean).join(" · ") ||
     "Customized product";
 
-  // const handleQuantityInput = useCallback(
-  //   (e: React.ChangeEvent<HTMLInputElement>) => {
-  //     const val = parseInt(e.target.value) || 1;
-  //     setQuantity(Math.max(1, val));
-  //   },
-  //   []
-  // );
+  /* ── Submit ── */
+  const handleAddToCart = async () => {
+    if (!hasConfigured && !variantId) {
+      setError(
+        "No matching product variant found. Please reselect your options and try again."
+      );
+      return;
+    }
 
-  /* ✅ Proper FormData with productId and customization as JSON string,
-     with the embedded quantity/unit_price re-synced to the modal's final state. */
-const handleAddToCart = async () => {
-  if (!variantId) {
-    setError(
-      "No matching product variant found. Please reselect your options and try again."
-    );
-    return;
-  }
+    try {
+      setLoading(true);
+      setError(null);
 
-  try {
-    setLoading(true);
-    setError(null);
+      // Build the final payload. If configuredVariants were supplied, ALWAYS
+      // send the full multi-variant array — never just the active selection.
+      let customizationPayload: any;
 
-    let customizationPayload = [];
-
-    if (parsedCustomization && parsedCustomization.length > 0) {
-      customizationPayload = parsedCustomization.map((item: any) => ({
-        print_method: item.print_method,
-        locations: item.locations ?? [],
-        sizes: [
+      if (hasConfigured) {
+        customizationPayload = [
           {
-            variant_id: variantId,
-            quantity: quantity,
+            product_id: productId,
+            ...(customizationObj?.print_method !== undefined
+              ? { print_method: customizationObj.print_method }
+              : {}),
+            ...(customizationObj?.locations !== undefined
+              ? { locations: customizationObj.locations }
+              : {}),
+           sizes: configuredVariants!.flatMap((cv) =>
+  cv.sizes.map((s) => ({
+    variant_id: s.variant_id,
+    size_id: s.size_id,
+    quantity: s.quantity,
+  }))
+),
           },
-        ],
-      }));
-    } else {
-      customizationPayload = [
-        {
-          print_method: "",
-          locations: [],
-          sizes: [
+        ];
+      } else if (customizationObj?.variants) {
+        // Already in the new multi-variant shape from buildPayload()
+        customizationPayload = customizationObj;
+      } else {
+        // Legacy single-variant fallback shape
+        customizationPayload = {
+          product_id: productId,
+          variants: [
             {
               variant_id: variantId,
-              quantity: quantity,
+              sizes: [
+                {
+                  size_id: null,
+                  variant_id: variantId,
+                  quantity,
+                },
+              ],
             },
           ],
-        },
-      ];
+        };
+      }
+
+      const formData = new FormData();
+      formData.append("product_id", String(productId));
+      formData.append("customization", JSON.stringify(customizationPayload));
+
+      if (canvasBlob) {
+        formData.append("images", canvasBlob, "customization.png");
+      }
+
+      console.log("Sending payload:");
+      console.log("product_id:", productId);
+      console.log("customization:", JSON.stringify(customizationPayload));
+      for (const pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+      }
+
+      await AddToCartApi(formData);
+
+      setSuccess(true);
+      onSuccess?.();
+
+      setTimeout(() => {
+        setSuccess(false);
+        onClose();
+      }, 1600);
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Something went wrong. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    const formData = new FormData();
-
-    formData.append("product_id", String(productId));
-    formData.append(
-      "customization",
-      JSON.stringify(customizationPayload)
-    );
-
-    if (canvasBlob) {
-      formData.append("images", canvasBlob, "customization.png");
-    }
-
-    // Debug
-    console.log("Sending payload:");
-    console.log("product_id:", productId);
-    console.log(
-      "customization:",
-      JSON.stringify(customizationPayload)
-    );
-
-    for (const pair of formData.entries()) {
-      console.log(pair[0], pair[1]);
-    }
-
-    await AddToCartApi(formData);
-
-    setSuccess(true);
-    onSuccess?.();
-
-    setTimeout(() => {
-      setSuccess(false);
-      onClose();
-    }, 1600);
-  } catch (err: any) {
-    setError(
-      err?.response?.data?.message ||
-        err?.message ||
-        "Something went wrong. Please try again."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   if (!open) return null;
 
@@ -230,14 +266,16 @@ const handleAddToCart = async () => {
     >
       <div
         className={cn(
-          "relative w-full sm:max-w-[400px] bg-white overflow-hidden",
+          "relative w-full sm:w-[440px] sm:max-w-[92vw] bg-white overflow-hidden",
           "rounded-t-[20px] sm:rounded-[20px]",
           "shadow-[0_-4px_32px_rgba(0,0,0,0.12)] sm:shadow-[0_8px_48px_rgba(0,0,0,0.18)]",
           "transition-all duration-300 ease-out",
+          "max-h-[90vh] sm:max-h-[85vh] flex flex-col",
           visible
             ? "translate-y-0 opacity-100 sm:scale-100"
             : "translate-y-6 opacity-0 sm:scale-95"
         )}
+        style={{width:"50%"}}
       >
         {/* ── SUCCESS OVERLAY ── */}
         <div
@@ -252,23 +290,22 @@ const handleAddToCart = async () => {
           </div>
           <p className="text-lg font-medium text-[#111111]">Added to cart!</p>
           <p className="text-sm text-[#111111]/50">
-            {quantity} × {name}
+            {grandQty} × {name}
           </p>
         </div>
 
-        {/* ── HEADER ── */}
-        <div className="bg-[#F5D800] px-5 pt-5 pb-4">
-          {/* Title row */}
+        {/* ── HEADER (fixed, never scrolls) ── */}
+        <div className="bg-[#F5D800] px-5 pt-5 pb-4 flex-shrink-0">
           <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-9 h-9 rounded-[10px] bg-[#111111] flex items-center justify-center flex-shrink-0">
                 <ShoppingCart size={16} className="text-[#F5D800]" strokeWidth={2.2} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] font-medium text-[#111111]/50 uppercase tracking-[0.16em] mb-0.5">
                   Confirm order
                 </p>
-                <p className="text-[15px] font-medium text-[#111111] leading-tight">
+                <p className="text-[15px] font-medium text-[#111111] leading-tight truncate">
                   {name}
                 </p>
               </div>
@@ -276,69 +313,38 @@ const handleAddToCart = async () => {
             <button
               onClick={onClose}
               aria-label="Close"
-              className="w-8 h-8 rounded-[8px] bg-[#111111]/10 border border-[#111111]/15 flex items-center justify-center text-[#111111]/50 hover:text-[#111111] hover:bg-[#111111]/18 transition-all"
+              className="w-8 h-8 rounded-[8px] bg-[#111111]/10 border border-[#111111]/15 flex items-center justify-center text-[#111111]/50 hover:text-[#111111] hover:bg-[#111111]/18 transition-all flex-shrink-0"
             >
               <X size={14} />
             </button>
           </div>
 
-          {/* Price breakdown */}
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <span className="text-[11px] text-[#111111]/50">
-                Garment ({quantity} × ${effectiveUnitPrice.toFixed(2)})
-              </span>
-              <span className="text-[11px] font-medium text-[#111111]/80">
-                ${garmentTotal.toFixed(2)}
-              </span>
+          {/* Grand total summary in header (always single source of truth) */}
+          <div className="flex items-end justify-between border-t border-[#111111]/15 pt-3 mt-1">
+            <div>
+              <p className="text-[10px] font-medium text-[#111111]/40 uppercase tracking-[0.1em] mb-1">
+                Order total ({grandQty} {grandQty === 1 ? "pc" : "pcs"})
+              </p>
+              <p className="text-[32px] font-medium text-[#111111] leading-none">
+                ${grandTotal.toFixed(2)}
+              </p>
             </div>
-            {/* {decorationTotal > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] text-[#111111]/50">
-                  Decoration ({quantity} × ${printPricePerPiece.toFixed(2)})
-                </span>
-                <span className="text-[11px] font-medium text-[#111111]/80">
-                  ${decorationTotal.toFixed(2)}
-                </span>
-              </div>
-            )} */}
-            {/* {digitizingFee > 0 && (
-              <div className="flex justify-between items-center">
-                <span className="text-[11px] text-[#111111]/50">
-                  Digitizing fee (one-time)
-                </span>
-                <span className="text-[11px] font-medium text-[#111111]/80">
-                  ${digitizingFee.toFixed(2)}
-                </span>
-              </div>
-            )} */}
-            {/* Total */}
-            <div className="flex items-end justify-between border-t border-[#111111]/15 pt-3 mt-2">
-              <div>
-                <p className="text-[10px] font-medium text-[#111111]/40 uppercase tracking-[0.1em] mb-1">
-                  Order total
-                </p>
-                <p className="text-[32px] font-medium text-[#111111] leading-none">
-                  ${grandTotal.toFixed(2)}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 bg-[#111111]/10 border border-[#111111]/15 rounded-[10px] px-2.5 py-1.5">
-                <Package size={12} className="text-[#111111]" />
-                <span className="text-[11px] font-medium text-[#111111]">
-                  ${perPiece.toFixed(2)}/pc
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5 bg-[#111111]/10 border border-[#111111]/15 rounded-[10px] px-2.5 py-1.5 flex-shrink-0">
+              <Package size={12} className="text-[#111111]" />
+              <span className="text-[11px] font-medium text-[#111111]">
+                ${perPiece.toFixed(2)}/pc
+              </span>
             </div>
           </div>
         </div>
 
         {/* Divider */}
-        <div className="h-[1.5px] bg-[#111111]" />
+        <div className="h-[1.5px] bg-[#111111] flex-shrink-0" />
 
-        {/* ── BODY ── */}
-        <div className="px-5 pt-4 pb-2 space-y-4 bg-white">
+        {/* ── BODY (the ONLY scrollable region) ── */}
+        <div className="px-5 pt-4 pb-2 space-y-4 bg-white overflow-y-auto flex-1 min-h-0">
           {/* Customization pill */}
-          {parsedCustomization && (
+          {customizationObj && (methodLabel || locationLabel) && (
             <div className="flex items-center gap-3 rounded-[12px] border border-black/10 bg-black/[0.03] px-3.5 py-2.5">
               <div className="w-8 h-8 rounded-[9px] bg-[#111111] flex items-center justify-center flex-shrink-0">
                 <Sparkles size={13} className="text-[#F5D800]" />
@@ -359,100 +365,99 @@ const handleAddToCart = async () => {
             </div>
           )}
 
-          {/* Quantity */}
-          <div>
-            <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
-    <div className="flex justify-between">
-        <span className="text-sm text-gray-500">
-            Quantity
-        </span>
-
-        <span className="text-lg font-bold">
-            {quantity}
-        </span>
-    </div>
-
-    <p className="text-xs text-gray-400 mt-1">
-        Quantity selected on the product page.
-    </p>
-</div>
-            {/* <div className="flex items-center justify-between mb-2.5">
+          {/* ── Itemized list — every configured variant shown separately ── */}
+          {hasConfigured ? (
+            <div className="space-y-3">
               <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#111111]/40">
-                Quantity
+                {configuredVariants!.length} variant{configuredVariants!.length > 1 ? "s" : ""} in this order
               </p>
-              {quantity !== initialQuantity && (
-                <button
-                  onClick={() => setQuantity(initialQuantity)}
-                  className="flex items-center gap-1 text-[10px] font-medium text-[#111111] hover:underline"
+              {configuredVariants!.map((cv) => (
+                <div
+                  key={cv.variantName}
+                  className="rounded-[14px] border border-black/10 bg-black/[0.02] p-3.5"
                 >
-                  <RotateCcw size={10} />
-                  Reset to {initialQuantity}
-                </button>
-              )}
-            </div> */}
-
-            {/* Stepper */}
-            {/* <div className="flex items-center border border-black/10 rounded-[12px] overflow-hidden bg-black/[0.025]">
-              <button
-                onClick={() => setQuantity((p) => Math.max(1, p - 1))}
-                disabled={quantity <= 1}
-                aria-label="Decrease quantity"
-                className={cn(
-                  "w-12 h-[52px] flex items-center justify-center flex-shrink-0 transition-all",
-                  quantity <= 1
-                    ? "text-black/15 cursor-not-allowed"
-                    : "text-[#111111] hover:bg-black/6 active:scale-90"
-                )}
-              >
-                <Minus size={15} strokeWidth={2.5} />
-              </button>
-              <div className="flex-1 flex flex-col items-center justify-center border-x border-black/10 py-1">
-                <input
-                  type="number"
-                  min={1}
-                  value={quantity}
-                  onChange={handleQuantityInput}
-                  aria-label="Quantity"
-                  className="w-full text-center text-[26px] font-medium text-[#111111] bg-transparent border-0 outline-none leading-none"
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                />
-                <p className="text-[10px] text-black/30 mt-0.5">
-                  {quantity === initialQuantity ? "from your selection" : "adjusted"}
-                </p>
-              </div>
-              <button
-                onClick={() => setQuantity((p) => p + 1)}
-                aria-label="Increase quantity"
-                className="w-12 h-[52px] flex items-center justify-center flex-shrink-0 text-[#111111] hover:bg-black/6 active:scale-90 transition-all"
-              >
-                <Plus size={15} strokeWidth={2.5} />
-              </button>
-            </div> */}
-
-            {/* Presets */}
-            {/* <div className="flex gap-1.5 mt-2 flex-wrap">
-              {PRESETS.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => setQuantity(q)}
-                  className={cn(
-                    "h-7 px-3 rounded-[8px] text-[11px] font-medium transition-all",
-                    quantity === q
-                      ? "bg-[#111111] text-[#F5D800]"
-                      : "bg-black/5 text-black/40 border border-black/8 hover:text-[#111111] hover:bg-black/8"
-                  )}
-                >
-                  {q}
-                </button>
+                  <div className="flex items-center justify-between mb-2 gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {/* {isRenderableSwatch(cv.colorCode) && (
+                        <span
+                          className="w-4 h-4 rounded-full border border-black/15 flex-shrink-0"
+                          style={{ background: cv.colorCode }}
+                        />
+                      )} */}
+                      <p className="text-[13px] font-semibold text-[#111111] truncate">
+                        {cv.variantName}
+                      </p>
+                    </div>
+                    <span className="text-[12px] font-bold text-[#111111] flex-shrink-0">
+                      ${cv.totalPrice.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {cv.sizes.map((s) => (
+                      <div
+                      key={`${s.variant_id}-${s.size_id}`}
+                        className="flex items-center justify-between text-[11px] text-[#111111]/55"
+                      >
+                        <span>
+                          {s.size && s.size !== "—" ? s.size : "Standard"} · ×{s.quantity}
+                        </span>
+                        <span className="font-medium text-[#111111]/70">
+                          ${(s.unit_price * s.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-[#111111]/80 pt-1.5 mt-1.5 border-t border-black/5">
+                    <span>{cv.totalQty} pcs</span>
+                    <span>${cv.totalPrice.toFixed(2)}</span>
+                  </div>
+                </div>
               ))}
-            </div> */}
 
-            {sageMetaStr && (
-              <p className="text-[10px] text-black/30 mt-2">
-                Price updates automatically based on quantity.
+              <div className="flex items-center justify-between rounded-[12px] bg-[#111111] px-4 py-3">
+                <span className="text-[12px] font-medium text-white/70">
+                  Total Qty: {grandQty}
+                </span>
+                <span className="text-[14px] font-bold text-[#F5D800]">
+                  ${grandTotal.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            /* ── Legacy single-quantity summary (no configuredVariants) ── */
+            <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Quantity</span>
+                <span className="text-lg font-bold">{quantity}</span>
+              </div>
+              <div className="flex justify-between mt-2">
+                <span className="text-xs text-gray-400">
+                  Garment ({quantity} × ${effectiveUnitPrice.toFixed(2)})
+                </span>
+                <span className="text-xs font-medium text-gray-600">
+                  ${garmentTotal.toFixed(2)}
+                </span>
+              </div>
+              {decorationTotal > 0 && (
+                <div className="flex justify-between mt-1">
+                  <span className="text-xs text-gray-400">
+                    Decoration ({quantity} × ${printPricePerPiece.toFixed(2)})
+                  </span>
+                  <span className="text-xs font-medium text-gray-600">
+                    ${decorationTotal.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <p className="text-xs text-gray-400 mt-2">
+                Quantity selected on the product page.
               </p>
-            )}
-          </div>
+              {sageMetaStr && (
+                <p className="text-[10px] text-black/30 mt-2">
+                  Price updates automatically based on quantity.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Error */}
           {error && (
@@ -463,8 +468,8 @@ const handleAddToCart = async () => {
           )}
         </div>
 
-        {/* ── FOOTER ── */}
-        <div className="px-5 pb-5 pt-3 flex flex-col gap-2 bg-white">
+        {/* ── FOOTER (fixed, never scrolls) ── */}
+        <div className="px-5 pb-5 pt-3 flex flex-col gap-2 bg-white flex-shrink-0 border-t border-black/5">
           <button
             onClick={handleAddToCart}
             disabled={loading || success}
