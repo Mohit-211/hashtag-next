@@ -1,27 +1,23 @@
 // components/common/AddProductConfigurationModal.tsx
-
 "use client";
 import React, { useState, useEffect } from "react";
 import { X, Plus, Minus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSageUnitPriceWithMarkup } from "../customization/Sagequantitypricing";
+import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../customization/pricing";
 // import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
-
 /* ─────────────────────────────────────────── Types ── */
-
 interface Size {
   id: number;
   name: string;
   measurements?: string;
 }
-
 interface VariantImage {
   id: number;
   file_name: string;
   file_uri: string;
   is_primary: boolean;
 }
-
 interface Variant {
   id: number;
   product_id: number;
@@ -38,45 +34,49 @@ interface Variant {
   size_details: Size | null;
   meta?: string | null; // ← Sage tier-pricing meta (mirrors Productcustomizationpage's Variant)
 }
-
-
 interface SelectedSize {
   variant_id: number;
   quantity: number;
   size_name: string;
   unit_price: number;
+  /** This modal never offers a decoration step — always 0. Kept explicit
+   *  (rather than omitted) so every consumer can rely on the field being
+   *  present and route it through calculateVariantTotal like every other
+   *  screen, instead of assuming "no decoration" via a missing key. */
+  decoration_price: number;
   line_total: number;
 }
-
 interface Props {
   open: boolean;
   onClose: () => void;
   onConfirm: (config: ConfigurationData) => void | Promise<void>;
-
   productId: number;
   productName: string;
   variants?: Variant[];
   sizes?: Size[];
   selectedVariant?: Variant;
-
   mode: "customized" | "premade";
   isSubmitting?: boolean;
-
-  isPromo?: boolean;   // <-- ADD THIS
+  decorationUnitPrice?: number;
+  selectedMaterial?: string;
+  selectedLocations?: any[];
+    isApparel?: boolean;
+  isPromo?: boolean;
+  isPreMade?: boolean;
 }
-
 interface ConfigurationData {
   selectedColor: string;
   selectedSizes: SelectedSize[];
   addAlso: boolean; // true if user clicked "Add"/"Add to Cart", false if "Skip"
   totalQuantity: number;
   totalPrice: number;
+  /** Always 0 from this modal — no decoration step exists here. Explicit
+   *  so the parent page never has to guess/assume. */
+  totalDecoration: number;
 }
-
 /* ── Default / floor quantity applied to every row in this modal.
    Mirrors the PROMO_MIN_QTY floor used on the customization page so
    "Add Variant" flows started from here never start below 100. ── */
-
 /* ── A single row in the row-based selector ── */
 interface ConfigRow {
   id: number;
@@ -84,15 +84,7 @@ interface ConfigRow {
   sizeId: number | "";
   qty: number;
 }
-
 let rowIdCounter = 1;
-const newRow = (color = "", qty = DEFAULT_MIN_QTY): ConfigRow => ({
-  id: rowIdCounter++,
-  color,
-  sizeId: "",
-  qty,
-});
-
 export default function AddProductConfigurationModal({
   open,
   onClose,
@@ -104,29 +96,44 @@ export default function AddProductConfigurationModal({
   selectedVariant,
   mode = "premade",
   isSubmitting = false,
-  isPromo = false,
+  decorationUnitPrice = 0,
+  selectedMaterial = "",
+  selectedLocations = [],
+    isApparel,
+  isPromo,
+  isPreMade
 }: Props) {
   const variants = variantsProp ?? [];
   const sizes = sizesProp ?? [];
   const PROMO_MIN_QTY = 100;
   const DEFAULT_MIN_QTY = isPromo ? PROMO_MIN_QTY : 1;
+  // TODO: Replace this with the actual decoration price passed from the parent.
+  // const decorationUnitPrice = 0;
+  /* ★ FIX — newRow lives inside the component (not at module scope) so it
+     closes over the real, per-render DEFAULT_MIN_QTY (which depends on the
+     isPromo prop). Referencing DEFAULT_MIN_QTY from a module-level function
+     was a ReferenceError ("Cannot find name 'DEFAULT_MIN_QTY'"), since that
+     binding only exists inside this component. */
+  const newRow = (color = "", qty = DEFAULT_MIN_QTY): ConfigRow => ({
+    id: rowIdCounter++,
+    color,
+    sizeId: "",
+    qty,
+  });
   /* ── Computed (product-level) ── */
   const uniqueColors = [...new Set(variants.map((v) => v.color).filter(Boolean))];
   const allSizesSorted = [...sizes].sort((a, b) => a.id - b.id);
   const productHasSizes = allSizesSorted.length > 0;
-
   /* ── Row state — always starts at DEFAULT_MIN_QTY (100), never 1 ── */
   const [rows, setRows] = useState<ConfigRow[]>([
     newRow(selectedVariant?.color ?? uniqueColors[0] ?? "", DEFAULT_MIN_QTY),
   ]);
-
   /* ── Reset on open — re-seed at DEFAULT_MIN_QTY every time the modal opens ── */
   useEffect(() => {
     if (!open) return;
     setRows([newRow(selectedVariant?.color ?? uniqueColors[0] ?? "", DEFAULT_MIN_QTY)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
   // Re-sync first row's color once variants finish loading (if it was empty)
   useEffect(() => {
     if (!open || uniqueColors.length === 0) return;
@@ -139,7 +146,6 @@ export default function AddProductConfigurationModal({
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, variants.length]);
-
   /* ── Row helpers ── */
   const getVariantForRow = (row: ConfigRow): Variant | undefined => {
     if (!row.color) return undefined;
@@ -151,27 +157,22 @@ export default function AddProductConfigurationModal({
     }
     return variants.find((v) => v.color === row.color);
   };
-
   /* ── Effective floor for a row: the larger of DEFAULT_MIN_QTY and the
      variant's own backend min_order_quantity (never goes below 100) ── */
   const effectiveMinFor = (v?: Variant) =>
     Math.max(DEFAULT_MIN_QTY, v?.min_order_quantity ?? 1);
-
   const sizesForColor = (color: string) =>
     allSizesSorted.map((size) => {
       const v = variants.find((vv) => vv.color === color && vv.size_id === size.id);
       return { size, variant: v, available: (v?.stock ?? 0) > 0 };
     });
-
   const addRow = () =>
     setRows((prev) => [
       ...prev,
       newRow(selectedVariant?.color ?? uniqueColors[0] ?? "", DEFAULT_MIN_QTY),
     ]);
-
   const removeRow = (id: number) =>
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
-
   const updateRow = (id: number, patch: Partial<ConfigRow>) =>
     setRows((prev) =>
       prev.map((r) => {
@@ -186,7 +187,6 @@ export default function AddProductConfigurationModal({
         return updated;
       })
     );
-
   /* ── Quantity clamp: floor is always max(DEFAULT_MIN_QTY, variant min),
      ceiling is available stock (never below the floor even if stock is low —
      stock-too-low rows simply fail validation downstream and surface a message). ── */
@@ -195,7 +195,6 @@ export default function AddProductConfigurationModal({
     const clamped = Math.max(min, Math.min(safeQty, Math.max(max, min)));
     updateRow(id, { qty: clamped });
   };
-
   /* ── Build payload from valid rows ── */
   const validRows = rows.filter((r) => {
     if (!r.color || r.qty <= 0) return false;
@@ -206,7 +205,6 @@ export default function AddProductConfigurationModal({
     if (r.qty < min) return false; // enforce the 100-floor (or higher backend min)
     return true;
   });
-
   /* ── Same pricing rule as Productcustomizationpage.tsx: if the variant has
       Sage tier-pricing meta, the unit price depends on the row's own quantity
       (getSageUnitPriceWithMarkup). Otherwise fall back to flat price — exactly
@@ -216,53 +214,68 @@ export default function AddProductConfigurationModal({
     if (!v.meta) return flat;
     return getSageUnitPriceWithMarkup(v.meta, qty) ?? flat;
   };
-
-  const selectedSizesData: SelectedSize[] = validRows.map((r) => {
-    const v = getVariantForRow(r)!;
-    const sizeObj = productHasSizes ? sizes.find((s) => s.id === r.sizeId) : null;
-    const unitPrice = unitPriceFor(v, r.qty);
-    return {
-      variant_id: v.id,
-      quantity: r.qty,
-      size_name: sizeObj?.name ?? r.color,
-      unit_price: unitPrice,
-      line_total: unitPrice * r.qty,
-    };
+ const selectedSizesData: SelectedSize[] = validRows.map((r) => {
+  const v = getVariantForRow(r)!;
+  const sizeObj = productHasSizes
+    ? sizes.find((s) => s.id === r.sizeId)
+    : null;
+  const unitPrice = unitPriceFor(v, r.qty);
+  const pricing = calculateVariantTotal({
+    productPrice: unitPrice,
+    decorationPrice: 0,
+    quantity: r.qty,
   });
-
+  return {
+  variant_id: v.id,
+  quantity: r.qty,
+  size_name: sizeObj?.name ?? "",
+  unit_price: unitPrice,
+  decoration_price: decorationUnitPrice,
+  line_total: pricing.total,
+};
+});
   const hasSelectedSizes = selectedSizesData.length > 0;
   const totalItems = selectedSizesData.reduce((sum, s) => sum + s.quantity, 0);
-  const totalPrice = validRows.reduce((sum, r) => {
-    const v = getVariantForRow(r)!;
-    return sum + unitPriceFor(v, r.qty) * r.qty;
-  }, 0);
-
-  const primaryColor = validRows[0]?.color ?? rows[0]?.color ?? "";
-
+const primaryColor = validRows[0]?.color ?? rows[0]?.color ?? "";
+const totals = sumVariantTotals(
+  selectedSizesData.map((s) => ({
+    productPrice: s.unit_price,
+    decorationPrice: s.decoration_price,
+    quantity: s.quantity,
+  }))
+);
+const totalPrice = totals.productTotal;
+const decorationTotal = totals.decorationTotal;
+const grandTotal = totals.total;
+console.log(mode,"mode")
   /* ── Handlers ── */
   const handleSkip = () => {
+    // ★ Skip must NEVER add a decoration (or any) charge, and must never
+    // create an empty/placeholder customization. Every field here is
+    // explicit and zeroed — nothing is left for a parent/caller to infer,
+    // and selectedSizes is empty so the parent's merge is a strict no-op
+    // (the page's existing configuredVariants pass through unchanged).
     onConfirm({
       selectedColor: primaryColor,
-      selectedSizes: [],
+      selectedSizes: [],           // empty for skip
       addAlso: false,
       totalQuantity: 0,
       totalPrice: 0,
+      totalDecoration: 0,
     });
   };
-
   const handleAdd = async () => {
     if (!hasSelectedSizes) return;
-    await onConfirm({
-      selectedColor: primaryColor,
-      selectedSizes: selectedSizesData,
-      addAlso: true,
-      totalQuantity: totalItems,
-      totalPrice,
-    });
+   await onConfirm({
+  selectedColor: primaryColor,
+  selectedSizes: selectedSizesData,
+  addAlso: true,
+  totalQuantity: totalItems,
+  totalPrice: grandTotal,
+  totalDecoration: decorationTotal,
+});
   };
-
   if (!open) return null;
-
   return (
     <div
       className="fixed inset-0 z-[999] flex items-center justify-center p-4"
@@ -288,7 +301,6 @@ export default function AddProductConfigurationModal({
             <X size={20} className="text-gray-500" />
           </button>
         </div>
-
         {/* ── Body ── */}
         <div className="p-5 space-y-5">
           {/* Mode note for customized */}
@@ -299,14 +311,12 @@ export default function AddProductConfigurationModal({
               </p>
             </div>
           )}
-
           {/* Min-qty hint */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <p className="text-xs text-amber-800 font-medium">
               Minimum quantity per row is {DEFAULT_MIN_QTY} pieces.
             </p>
           </div>
-
           {variants.length === 0 ? (
             <div className="flex items-center justify-center py-10 text-gray-400 text-sm gap-2">
               <Loader2 size={16} className="animate-spin" /> Loading variants…
@@ -335,7 +345,6 @@ export default function AddProductConfigurationModal({
                 </p>
                 <span />
               </div>
-
               {/* ── Rows ── */}
               <div className="space-y-2.5">
                 {rows.map((row) => {
@@ -346,7 +355,6 @@ export default function AddProductConfigurationModal({
                   const rowInvalid =
                     row.color && (productHasSizes ? row.sizeId !== "" : true) && maxStock <= 0;
                   const belowMin = !!rowVariant && row.qty < rowMin;
-
                   return (
                     <div key={row.id}>
                       <div
@@ -370,7 +378,6 @@ export default function AddProductConfigurationModal({
                             </option>
                           ))}
                         </select>
-
                         {/* Size dropdown (only if product has sizes) */}
                         {productHasSizes && (
                           <select
@@ -401,7 +408,6 @@ export default function AddProductConfigurationModal({
                             ))}
                           </select>
                         )}
-
                         {/* Quantity stepper */}
                         <div
                           className={cn(
@@ -441,7 +447,6 @@ export default function AddProductConfigurationModal({
                             <Plus size={12} />
                           </button>
                         </div>
-
                         {/* Remove row */}
                         <button
                           onClick={() => removeRow(row.id)}
@@ -465,7 +470,6 @@ export default function AddProductConfigurationModal({
                   );
                 })}
               </div>
-
               {/* ── Add row button ── */}
               <button
                 onClick={addRow}
@@ -473,7 +477,6 @@ export default function AddProductConfigurationModal({
               >
                 <Plus size={14} /> Add another row
               </button>
-
               {/* ── Breakdown — matches Order Summary style on the customization page ── */}
               {hasSelectedSizes && (
                 <div className="rounded-xl border border-gray-100 overflow-hidden">
@@ -500,42 +503,100 @@ export default function AddProductConfigurationModal({
                             {sizeObj ? ` · ${sizeObj.name}` : ""} · ×{row.qty}
                           </span>
                         </div>
-                        <span className="text-xs font-bold text-gray-700">
-                          ${(unitPrice * row.qty).toFixed(2)}
-                        </span>
+                       <div className="flex flex-col items-end gap-1">
+  <span className="text-xs font-bold text-gray-700">
+    $
+    {formatMoney(
+      calculateVariantTotal({
+        productPrice: unitPrice,
+        decorationPrice: 0,
+        quantity: row.qty,
+      }).productTotal
+    )}
+  </span>
+  
+{isApparel && decorationUnitPrice > 0 && (
+  <div className="flex items-center gap-2 text-[11px]">
+    <span className="text-gray-500">
+      Decoration ({row.qty} × ${formatMoney(decorationUnitPrice)})
+      {selectedMaterial === "embroidery" && row.qty <= 11
+        ? " incl. $35 digitizing"
+        : selectedLocations.length > 1
+        ? ` · ${selectedLocations.length} loc.`
+        : ""}
+    </span>
+
+    <span className="font-bold text-gray-900">
+      $
+      {formatMoney(
+        calculateVariantTotal({
+          productPrice: 0,
+          decorationPrice: decorationUnitPrice,
+          quantity: row.qty,
+        }).decorationTotal
+      )}
+    </span>
+  </div>
+)}
+  {/* <span className="text-xs font-black text-[#F5D800]">
+    Total $
+    {formatMoney(
+      calculateVariantTotal({
+        productPrice: unitPrice,
+        decorationPrice: decorationUnitPrice,
+        quantity: row.qty,
+      }).total
+    )}
+  </span> */}
+</div>
                       </div>
                     );
                   })}
-                  <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
+                  {/* <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
                     <span className="text-xs font-bold text-gray-700">
                       {totalItems} total {totalItems === 1 ? "piece" : "pieces"}
                     </span>
-                    <span className="text-xs font-black text-gray-900">
-                      ${totalPrice.toFixed(2)}
-                    </span>
-                  </div>
+                 <span className="text-xs font-black text-gray-900">
+  ${formatMoney(grandTotal)}
+</span>
+                  </div> */}
                 </div>
               )}
-
               {/* ── Estimated Total — dark card, same as customization page ── */}
-              <div className="rounded-xl bg-gray-900 text-white p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-bold opacity-70">Estimated Total</span>
-                  <span className="text-xl font-black text-[#F5D800]">
-                    {hasSelectedSizes ? `$${totalPrice.toFixed(2)}` : "—"}
-                  </span>
-                </div>
-                {hasSelectedSizes && (
-                  <p className="text-[10px] text-gray-400">
-                    ${(totalPrice / Math.max(totalItems, 1)).toFixed(2)}/pc ·{" "}
-                    {totalItems.toLocaleString()} units
-                  </p>
-                )}
-              </div>
+           <div className="rounded-xl bg-gray-900 text-white p-4">
+  <div className="space-y-2">
+               {isApparel&&
+               <>
+    <div className="flex items-center justify-between text-sm">
+      <span className="opacity-70">Product Total</span>
+      <span>${formatMoney(totalPrice)}</span>
+    </div>
+   
+    <div className="flex items-center justify-between text-sm">
+      <span className="opacity-70">Decoration Total</span>
+      <span>${formatMoney(decorationTotal)}</span>
+    </div>
+               </>
+    }
+    <div className=" border-gray-700 pt-2 flex items-center justify-between">
+      <span className="text-sm font-bold">Estimated Total</span>
+      <span className="text-xl font-black text-[#F5D800]">
+        {hasSelectedSizes
+          ? `$${formatMoney(grandTotal)}`
+          : "—"}
+      </span>
+    </div>
+    {hasSelectedSizes && (
+      <p className="text-[10px] text-gray-400">
+        ${formatMoney(grandTotal / Math.max(totalItems, 1))}/pc ·{" "}
+        {totalItems.toLocaleString()} units
+      </p>
+    )}
+  </div>
+</div>
             </>
           )}
         </div>
-
         {/* ── Footer Actions ── */}
         <div className="sticky bottom-0 border-t border-gray-200 bg-white p-5">
           <div className="flex gap-3">

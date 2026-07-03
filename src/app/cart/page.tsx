@@ -14,7 +14,7 @@ function CartSkeleton() {
   return (
     <div className="min-h-[100dvh] bg-gray-50 p-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* LEFT: Cart Items */}
         <div className="lg:col-span-2 space-y-6">
           {[1, 2, 3].map((_, i) => (
@@ -76,7 +76,7 @@ export default function Cart() {
   } = useCart();
 
   const [loading, setLoading] = useState(true);
-console.log(items,"items")
+  console.log(items, "items for page")
   useEffect(() => {
     const load = async () => {
       try {
@@ -101,15 +101,15 @@ console.log(items,"items")
   if (items.length === 0) {
     return <CartEmpty />;
   }
-
+  console.log(items, "yhaaa====")
   // ✅ Safe typed items
   const formattedItems: CartItemType[] = items.map((item: any) => ({
     id: item.id || item._id || "",
     cart_id: item.cart_id || item.id || "",
-
+    size: item.size || "",
     name: item.name || "",
     logo_image: item.logo_image || "/placeholder.png",
-
+    image: item.image || "/placeholder.png",
     basePrice: Number(item.basePrice || item.price || 0),
     quantity: Number(item.quantity || 1),
 
@@ -122,7 +122,7 @@ console.log(items,"items")
   return (
     <section className="py-8">
       <div className="container grid lg:grid-cols-3 gap-8">
-        
+
         {/* 🛒 Items */}
         <CartItemsList
           items={formattedItems}

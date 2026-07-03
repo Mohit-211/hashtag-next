@@ -16,11 +16,10 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 import SageQuantityPricing, { getSageUnitPrice, getSageUnitPriceWithMarkup, parseSageMeta } from "./Sagequantitypricing";
 import AddProductConfigurationModal from "../Addproductconfigurationmodal/Addproductconfigurationmodal";
-
+import { calculateVariantTotal, sumVariantTotals, formatMoney } from "./pricing";
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
 interface VariantImage { id: number; file_name: string; file_uri: string; is_primary: boolean }
-
 interface Variant {
   id: number;
   product_id: number;
@@ -51,7 +50,6 @@ interface Variant {
     meta: string | null;
   };
 }
-
 interface Product {
   id: string;
   name: string;
@@ -65,14 +63,19 @@ interface Product {
   variants: Variant[];
   product: any;
 }
-
-/* ── NEW: Configured-variant types (multi-variant cart configuration) ── */
+/* ── Configured-variant types (multi-variant cart configuration) ── */
 export interface ConfiguredSize {
   variant_id: number;
   size_id: number | null;
   size: string;
   quantity: number;
+  /** Product/variant price ONLY — decoration is never folded in here. */
   unit_price: number;
+  /** Decoration price per unit for THIS size/variant. 0 when no decoration
+   *  was selected or the configuration step was skipped. This is captured
+   *  once, at the moment the line is created, and travels with the line —
+   *  it is never re-derived later from live page-level state. */
+  decoration_unit_price: number;
 }
 export interface ConfiguredVariant {
   variantId: number;
@@ -82,28 +85,29 @@ export interface ConfiguredVariant {
   images: VariantImage[];
   sizes: ConfiguredSize[];
   totalQty: number;
+  /** productTotal + decorationTotal, computed via calculateVariantTotal/sumVariantTotals — never derived ad hoc. */
   totalPrice: number;
+  /** Σ(unit_price × quantity) across this variant's sizes. */
+  productTotal: number;
+  /** Σ(decoration_unit_price × quantity) across this variant's sizes. */
+  decorationTotal: number;
 }
-
 /* ─────────────────────────────────────────── Constants ── */
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const CANVAS_SIZE = 500;
-const PROMO_MIN_QTY = 100; // ← NEW: hard floor for Promo category products
+const PROMO_MIN_QTY = 100; // ← hard floor for Promo category products
 type MaterialId = "embroidery" | "dtf" | "screenprint" | "dtg";
-
 const MATERIALS = [
   { id: "embroidery" as MaterialId, label: "Embroidery", desc: "Premium thread-stitched branding", bestFor: "Polos, jackets, uniforms", badge: "All Fabrics", emoji: "🧵" },
   { id: "dtf" as MaterialId, label: "DTF Print", desc: "Full-color Direct-to-Film transfers", bestFor: "Small runs, multi-color logos", badge: "No Minimum", emoji: "🖨️" },
   { id: "screenprint" as MaterialId, label: "Screen Print", desc: "Bold solid colors for bulk orders", bestFor: "Tees, hoodies, bulk orders", badge: "Min 50 pcs", emoji: "🎨" },
   { id: "dtg" as MaterialId, label: "DTG Print", desc: "Photo-quality prints on cotton", bestFor: "100% cotton tees", badge: "No Minimum", emoji: "👕" },
 ];
-
 type GarmentType = "tshirt" | "hoodie" | "hat" | "polo";
 interface GarmentView {
   key: string; label: string; mockup: string;
   hotspots: { id: string; label: string; top: string; left: string }[];
 }
-
 const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
   tshirt: [
     {
@@ -178,7 +182,6 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
   ],
 };
-
 const ALL_PRINT_LOCATIONS = [
   { id: "LEFT_CHEST", label: "Left Chest" },
   { id: "RIGHT_CHEST", label: "Right Chest" },
@@ -190,7 +193,6 @@ const ALL_PRINT_LOCATIONS = [
   { id: "HAT_SIDE", label: "Hat Side" },
   { id: "HAT_BACK_ARCH", label: "Hat Back (Arch)" },
 ];
-
 const EMB_TIERS = [
   { label: "1–11", min: 1, max: 11 },
   { label: "12–23", min: 12, max: 23 },
@@ -225,7 +227,6 @@ const DTG_PRICES: Record<string, number[]> = {
   "Front & Back Regular": [30, 24, 22, 18],
   "Front & Back Oversized": [40, 34, 32, 28],
 };
-
 const FONTS = [
   { label: "Georgia", value: "Georgia, serif" },
   { label: "Montserrat", value: "'Montserrat', sans-serif" },
@@ -234,9 +235,7 @@ const FONTS = [
   { label: "Courier New", value: "'Courier New', monospace" },
   { label: "Impact", value: "Impact, sans-serif" },
 ];
-
 const PRESET_COLORS = ["#1a1a1a", "#ffffff", "#F5C400", "#e05555", "#2d7dd2", "#f5a623", "#9b59b6", "#1abc9c"];
-
 const COLOR_NAME_FALLBACKS: Record<string, string> = {
   black: "#1a1a1a", white: "#ffffff", "heather grey": "#a6a6a6", "heather gray": "#a6a6a6",
   grey: "#808080", gray: "#808080", charcoal: "#36454f", navy: "#001f3f",
@@ -246,7 +245,6 @@ const COLOR_NAME_FALLBACKS: Record<string, string> = {
   purple: "#6a0dad", pink: "#ff69b4", teal: "#008080", sand: "#c2b280",
   khaki: "#c3b091", brown: "#5b3a29", tan: "#d2b48c",
 };
-
 /* ─────────────────────────────────────────── Helpers ── */
 const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
   try {
@@ -261,7 +259,6 @@ const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
     });
   } catch { return url; }
 };
-
 const loadImage = (src: string): Promise<HTMLImageElement> =>
   new Promise((res, rej) => {
     const img = new Image();
@@ -270,13 +267,11 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
     img.onerror = rej;
     img.src = src;
   });
-
 const isValidCssColor = (value: string): boolean => {
   if (!value) return false;
   if (typeof window === "undefined" || typeof CSS === "undefined" || !CSS.supports) return true;
   try { return CSS.supports("color", value); } catch { return false; }
 };
-
 const resolveColorToken = (raw: string): string => {
   const trimmed = raw?.trim() ?? "";
   if (isValidCssColor(trimmed)) return trimmed;
@@ -284,7 +279,16 @@ const resolveColorToken = (raw: string): string => {
   if (isValidCssColor(hex)) return hex;
   return COLOR_NAME_FALLBACKS[trimmed.toLowerCase()] ?? "#d1d5db";
 };
-
+/* ★ CHANGED — small shared helper so every "get a variant's price" call
+   site uses the exact same original_price → price → 0 fallback chain */
+const getVariantPrice = (v?: { original_price?: number | string; price?: number | string } | null): number => {
+  if (!v) return 0;
+  if (v.original_price !== undefined && v.original_price !== null && v.original_price !== "") {
+    const n = Number(v.original_price);
+    if (!Number.isNaN(n)) return n;
+  }
+  return Number(v.price ?? 0);
+};
 function drawCanvas({
   ctx, size, productImg, logo, logoPos, logoSize, logoRotation, logoOpacity,
   text, textPos, textSize, textColor, textRotation, fontFamily,
@@ -325,7 +329,6 @@ function drawCanvas({
     ctx.restore();
   }
 }
-
 /* ─────────────────────────────────────────── Sub-components ── */
 function StepBadge({ n, done }: { n: number; done: boolean }) {
   return (
@@ -337,7 +340,6 @@ function StepBadge({ n, done }: { n: number; done: boolean }) {
     </div>
   );
 }
-
 function SectionCard({ step, title, subtitle, status, children }: {
   step: number; title: string; subtitle: string;
   status: "required" | "done" | "optional"; children: React.ReactNode;
@@ -361,7 +363,6 @@ function SectionCard({ step, title, subtitle, status, children }: {
     </div>
   );
 }
-
 function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
   label: string; value: number; min: number; max: number;
   step?: number; unit?: string; onChange: (v: number) => void;
@@ -381,17 +382,14 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
     </div>
   );
 }
-
 /* ─────────────────────────────────────────── Main Component ── */
 interface Props { productDataId: number; variantDataId: number }
-
 export default function ProductCustomizationPage({ productDataId, variantDataId }: Props) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const [promoPricing, setPromoPricing] = useState<{ unitPrice: number; total: number } | null>(null);
   const isLoggedIn = mounted && !!localStorage.getItem("hastagBillionaire");
-
   /* ── Raw variant from API (res.data.data) ── */
   const [variantData, setVariantData] = useState<Variant | null>(null);
   const [allProductVariants, setAllProductVariants] = useState<Variant[]>([]);
@@ -400,7 +398,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const canvasBlobRef = useRef<Blob | null>(null);
-
   /* ══════════════════════════════════════════════════════════════════════
      FETCH
   ══════════════════════════════════════════════════════════════════════ */
@@ -410,15 +407,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       const res = await ProductVariantByIdApi(String(variantDataId));
       const variantRaw: Variant = res?.data?.data;
       if (!variantRaw) { setProduct(null); setVariantData(null); return; }
-
       setVariantData(variantRaw);
-
       const productRaw = variantRaw.product ?? {};
-
       const mapped: Product = {
         id: String(productRaw.id ?? variantRaw.product_id),
         name: productRaw.name ?? "",
-        price: Number(variantRaw.price ?? 0),
+        /* ★ CHANGED — prefer original_price over price when mapping the product */
+        price: getVariantPrice(variantRaw),
         image: variantRaw.images?.[0]?.file_uri ?? "",
         description: productRaw.description ?? "",
         attachments: productRaw.attachments ?? [],
@@ -428,7 +423,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         variants: [variantRaw],
         product: productRaw,
       };
-
       setProduct(mapped);
     } catch (e) {
       console?.error(e);
@@ -437,18 +431,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (variantDataId) fetchProduct();
     if (productDataId) fetchProductVariants();
   }, [variantDataId, productDataId]);
-
   const fetchProductVariants = async () => {
     try {
       const res = await ProductDetailApi(String(productDataId));
       const variants = res?.data?.data?.variants || [];
       setAllProductVariants(variants);
-
       const sizes = variants
         .filter((v: any) => v.size_details)
         .map((v: any) => v.size_details)
@@ -456,13 +447,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           (size: any, index: number, self: any[]) =>
             index === self.findIndex((s) => s.id === size.id)
         );
-
       setAllSizes(sizes);
     } catch (err) {
       console.log(err);
     }
   };
-
   /* ══════════════════════════════════════════════════════════════════════
      CATEGORY DETECTION
   ══════════════════════════════════════════════════════════════════════ */
@@ -477,18 +466,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
     return "";
   }, [product]);
-
   const isApparel = grandCategoryTitle === "Apparel & Uniforms";
   const isPreMade = grandCategoryTitle === "Pre-Made";
   const isPromo = !isApparel && !isPreMade;
-
   /* ── Auth ── */
   const [showLoginModal, setShowLoginModal] = useState(false);
   const requireLogin = () => {
     if (!isLoggedIn) { setShowLoginModal(true); return true; }
     return false;
   };
-
   const grandCategory = useMemo((): string => {
     if (!product) return "";
     return (
@@ -499,7 +485,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         .find(Boolean) ?? ""
     );
   }, [product]);
-
   const parentCategory = useMemo((): string => {
     if (!product) return "";
     return (
@@ -509,7 +494,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         .find(Boolean) ?? ""
     );
   }, [product]);
-
   const garmentType = useMemo<GarmentType>(() => {
     const cat = grandCategory.toLowerCase();
     if (cat.includes("apparel") || cat.includes("uniform") || cat === "clothing") {
@@ -521,17 +505,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
     return "tshirt";
   }, [grandCategory, parentCategory]);
-
   const garmentViews = useMemo(() => GARMENT_VIEWS[garmentType], [garmentType]);
   const [activeViewIdx, setActiveViewIdx] = useState(0);
   const activeView = garmentViews[activeViewIdx] ?? garmentViews[0];
   useEffect(() => { setActiveViewIdx(0); }, [garmentType]);
-
   /* ══════════════════════════════════════════════════════════════════════
      COLOR STATE
   ══════════════════════════════════════════════════════════════════════ */
   const [selectedColor, setSelectedColor] = useState("");
-
   const colors = useMemo(() => {
     if (!product) return [];
     const map = new Map<string, string>();
@@ -545,23 +526,21 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     });
     return Array.from(map.entries()).map(([name, hex]) => ({ name, hex }));
   }, [product, allProductVariants]);
-
   useEffect(() => {
     if (!selectedColor) {
       const first = variantData?.color || product?.variants?.[0]?.color;
       if (first) setSelectedColor(first);
     }
   }, [variantData, product]);
-
   /* Reset qty/canvas when color changes (but keep configuredVariants intact) */
   useEffect(() => {
     setVariantQty({});
     setProductImg(null);
     setLogoPos({ x: 190, y: 190 });
+    setJustStagedVariantIds([]);
   }, [selectedColor]);
-
   /* ── colorVariants: variants that match the selected color ──
-     Now sourced from allProductVariants (all colors/sizes of the product)
+     Sourced from allProductVariants (all colors/sizes of the product)
      when available, so switching color actually finds matching variants. */
   const colorVariants = useMemo(() => {
     const pool = allProductVariants.length > 0 ? allProductVariants : (product?.variants ?? []);
@@ -571,14 +550,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     const filtered = pool.filter(v => normalise(v.color) === target);
     return filtered.length > 0 ? filtered : pool;
   }, [allProductVariants, product, selectedColor, variantData]);
-
   /* ══════════════════════════════════════════════════════════════════════
      QUANTITY STATE (current, "in progress" variant being configured)
   ══════════════════════════════════════════════════════════════════════ */
   const [variantQty, setVariantQty] = useState<Record<number, number>>({});
   const setQty = (variantId: number, qty: number) =>
-    setVariantQty(prev => ({ ...prev, [variantId]: Math.max(0, qty) }));
-
+    setVariantQty(prev => ({ ...prev, [variantId]: Math.max(1, qty) }));
   /* ── Promo-aware qty setter — NEVER allows below PROMO_MIN_QTY.
      Floors/parses the input so typed values like "" or "50" both clamp
      correctly instead of producing NaN or sneaking under the floor. ── */
@@ -587,40 +564,62 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     const safe = Number.isFinite(qty) ? Math.floor(qty) : PROMO_MIN_QTY;
     setQty(variantId, Math.max(PROMO_MIN_QTY, safe));
   };
-
   const totalQty = useMemo(
     () => Object.values(variantQty).reduce((a, b) => a + b, 0),
     [variantQty]
   );
-
+  /* ── currentQty: qty for the ONE active variant being configured.
+     Apparel/Promo pricing must key off this, not `totalQty` (a sum over
+     every key ever written into variantQty), or price and displayed
+     qty can drift apart. Pre-Made keeps using totalQty (multi-row). ── */
+  console.log(colorVariants, "colorVariantscolorVariants")
+  const currentVariantId = useMemo(() => {
+    const exact = colorVariants.find(v => v.id === variantDataId);
+    return exact?.id ?? colorVariants[0]?.id;
+  }, [colorVariants, variantDataId]);
+  // ★ NEW — single source of truth for "the variant being configured".
+  // Prefers the exact variant the URL points to; falls back to the first
+  // variant in the color group only if that exact variant isn't in it
+  // (e.g. after the user switches color).
+  const activeVariant = useMemo(
+    () => colorVariants.find(v => v.id === currentVariantId) ?? colorVariants[0],
+    [colorVariants, currentVariantId]
+  );
+  const currentQty = currentVariantId ? (variantQty[currentVariantId] ?? 0) : 0;
+  console.log(currentVariantId, "currentVariantId")
   const activeSizes = useMemo(
     () => Object.entries(variantQty)
       .filter(([, q]) => q > 0)
       .map(([id, quantity]) => ({ variant_id: Number(id), quantity })),
     [variantQty]
   );
-
   /* ══════════════════════════════════════════════════════════════════════
      SAGE / PROMO PRICING
   ══════════════════════════════════════════════════════════════════════ */
-  const promoMetaStr = colorVariants[0]?.meta ?? variantData?.meta ?? null;
+  const promoMetaStr = activeVariant?.meta ?? variantData?.meta ?? null;
   const parsedPromoMeta = useMemo(() => parseSageMeta(promoMetaStr), [promoMetaStr]);
   const hasTierPricing = !!(
     parsedPromoMeta &&
     Array.isArray(parsedPromoMeta.priceTiers) &&
     parsedPromoMeta.priceTiers.length > 0
   );
-
   /* ── Always (re)init Promo qty to PROMO_MIN_QTY whenever the working
      selection is empty — covers initial load, color switch, and the reset
      that happens after "Add Variant". Never inherits a stale lower value
      and never drops below the floor, regardless of SAGE tier minimums. ── */
   useEffect(() => {
-    if (!isPromo || !colorVariants[0]) return;
-    if (Object.keys(variantQty).length > 0) return; // already has a value this pass
-    setQty(colorVariants[0].id, PROMO_MIN_QTY);
-  }, [isPromo, colorVariants, selectedColor]);
-
+    if (!isPromo || !activeVariant) return;
+    if (Object.keys(variantQty).length > 0) return;
+    setQty(activeVariant.id, PROMO_MIN_QTY);
+  }, [isPromo, activeVariant, selectedColor]);
+  /* ── Apparel/Pre-Made: floor quantity at 1 (or the variant's own
+     min_order_quantity if higher) whenever nothing has been picked yet. ── */
+  useEffect(() => {
+    if (isPromo || !activeVariant) return;
+    if (Object.keys(variantQty).length > 0) return;
+    const floor = Math.max(1, activeVariant.min_order_quantity || 1);
+    setQty(activeVariant.id, floor);
+  }, [isPromo, activeVariant, selectedColor]);
   const displayImage = useMemo(() => {
     const imgs: VariantImage[] = product?.images ?? [];
     if (!imgs.length) return null;
@@ -633,18 +632,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       ? fileUri
       : `${BASE_URL}${fileUri.startsWith("/") ? "" : "/"}${fileUri}`;
   }, [product]);
-
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   const toggleLocation = (id: string) =>
     setSelectedLocations(prev =>
       prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
     );
-
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
   const [showPriceTable, setShowPriceTable] = useState(false);
   const [spColorCount, setSpColorCount] = useState<"1 Color" | "2 Color" | "3 Color">("1 Color");
   const [dtgStyle, setDtgStyle] = useState<keyof typeof DTG_PRICES>("Front Regular");
-
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
@@ -654,7 +650,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setVariantQty(updated);
     }
   };
-
   /* ── Canvas / design state ── */
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -681,7 +676,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
-
   /* ── Cart / wishlist ── */
   const { refreshCart } = useCart();
   const { wishlist, addToWishlist, removeItem, fetchWishlist } = useWishlist();
@@ -694,12 +688,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [customizationJson, setCustomizationJson] = useState<string>("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [showValidationShake, setShowValidationShake] = useState(false);
-
-  /* ── NEW: configuredVariants — every variant the user has explicitly
-     "added" via the Add Variant button. Never overwritten; same color+size
-     updates quantity instead of duplicating. ── */
+  const [pendingVariantList, setPendingVariantList] = useState<ConfiguredVariant[]>([]);
+  // ★ NEW — tracks which variant_ids were just staged by the initial
+  // "Add to Cart" click, so the config modal's addAlso merge doesn't
+  // double-add the same line (which was causing qty to sum on top of
+  // itself, e.g. 5 + 5 = 10).
+  const [justStagedVariantIds, setJustStagedVariantIds] = useState<number[]>([]);
+  /* ── configuredVariants — every variant the user has explicitly "added",
+     whether via the main "Add to Cart" flow OR the companion "add also"
+     step in AddProductConfigurationModal. Both paths write into this SAME
+     flat array, grouped strictly by color, so the UI never distinguishes
+     between "main" and "extra" variants — they're all identical entries. ── */
   const [configuredVariants, setConfiguredVariants] = useState<ConfiguredVariant[]>([]);
-
   /* ── AddProductConfigurationModal state ── */
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [configSubmitting, setConfigSubmitting] = useState(false);
@@ -707,7 +707,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     selectedColor: string;
     selectedSizes: { variant_id: number; quantity: number; size_name: string }[];
   } | null>(null);
-
   /* ── Load product image onto canvas ── */
   useEffect(() => {
     if (!displayImage) { setProductImg(null); return; }
@@ -722,14 +721,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     })();
     return () => { cancelled = true; };
   }, [displayImage]);
-
   useEffect(() => {
     if (!logoSrc) { setLogoImg(null); return; }
     let cancelled = false;
     loadImage(logoSrc).then(img => { if (!cancelled) setLogoImg(img); });
     return () => { cancelled = true; };
   }, [logoSrc]);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -748,7 +745,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     customText, textPos, textSize, textColor, textRotation,
     fontFamily, textBold, textItalic, textShadow, textOpacity,
   ]);
-
   const getPoint = (e: React.MouseEvent) => {
     const r = canvasRef.current!.getBoundingClientRect();
     return {
@@ -764,7 +760,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       ? pt.x >= textPos.x && pt.x <= textPos.x + textSize * customText.length * 0.65 &&
       pt.y >= textPos.y - textSize && pt.y <= textPos.y + 8
       : false;
-
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     const pt = getPoint(e);
     if (isOverLogo(pt)) {
@@ -775,7 +770,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setDragOffset({ x: pt.x - textPos.x, y: pt.y - textPos.y });
     }
   };
-
   const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
     if (!dragging) return;
     const pt = getPoint(e);
@@ -791,19 +785,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       });
     }
   }, [dragging, dragOffset, logoSize, textSize]);
-
   const stopDrag = () => setDragging(null);
   const getCursor = () => dragging ? "grabbing" : (logoImg || customText.trim()) ? "grab" : "default";
-
   /* ── Apparel print pricing ── */
   const getPrintPrice = (): number | null => {
     if (!isApparel) return null;
     if (!selectedMaterial) return null;
     if (selectedLocations.length === 0) return null;
-
-    const qty = totalQty;
+    const qty = currentQty;
     if (qty <= 0) return null;
-
     switch (selectedMaterial) {
       case "embroidery": {
         const tierIndex = EMB_TIERS.findIndex(
@@ -847,21 +837,31 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         return null;
     }
   };
-
   const printPrice = getPrintPrice();
-  const basePrice = colorVariants[0]?.price ? Number(colorVariants[0].price) : (product?.price ?? 0);
-  const productTotal = basePrice * totalQty;
-  const decorationTotal = printPrice ?? 0;
-  const estimatedTotal = productTotal + decorationTotal;
-
+  /* ★ CHANGED — basePrice now uses the shared getVariantPrice() helper,
+     so it's guaranteed to prefer original_price the exact same way every
+     other price lookup in this file does */
+  const basePrice = activeVariant ? getVariantPrice(activeVariant) : (product?.price ?? 0);
+  /* ★ SINGLE SOURCE OF TRUTH — decoration is only ever non-zero for Apparel,
+     only while a material + location are actively selected, and is expressed
+     PER UNIT so it can be carried on each ConfiguredSize line. `printPrice`
+     from getPrintPrice() is a total-for-the-run (tiered) price, so we divide
+     by currentQty once, here, and never again. */
+  const decorationUnitPrice = isApparel && currentQty > 0 ? (printPrice ?? 0) / currentQty : 0;
+  const currentSelectionPricing = calculateVariantTotal({
+    productPrice: basePrice,
+    decorationPrice: decorationUnitPrice,
+    quantity: currentQty,
+  });
+  const productTotal = currentSelectionPricing.productTotal;
+  const decorationTotal = currentSelectionPricing.decorationTotal;
+  const estimatedTotal = currentSelectionPricing.total;
   const promoUnitPrice: number | null = useMemo(() => {
     if (!isPromo) return null;
-    if (hasTierPricing) return getSageUnitPriceWithMarkup(promoMetaStr, totalQty) ?? basePrice;
+    if (hasTierPricing) return getSageUnitPriceWithMarkup(promoMetaStr, currentQty) ?? basePrice;
     return basePrice;
-  }, [isPromo, hasTierPricing, promoMetaStr, totalQty, basePrice]);
-
-  const promoTotal = (promoUnitPrice ?? 0) * totalQty;
-
+  }, [isPromo, hasTierPricing, promoMetaStr, currentQty, basePrice]);
+  const promoTotal = (promoUnitPrice ?? 0) * currentQty;
   /* ══════════════════════════════════════════════════════════════════════
      REQUIREMENTS
   ══════════════════════════════════════════════════════════════════════ */
@@ -878,9 +878,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       done: totalQty >= PROMO_MIN_QTY,
     }] : []),
   ];
-
   const allMet = REQUIREMENTS.every(r => r.done);
-
   /* ── Order rows (Pre-Made only) ── */
   interface OrderRow { id: number; color: string; qty: number; variantId: number | "" }
   const [orderRows, setOrderRows] = useState<OrderRow[]>([
@@ -906,13 +904,28 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     setOrderRows([{ id: Date.now(), color: "", qty: 1, variantId: "" }]);
     setVariantQty({});
   };
-
   /* ══════════════════════════════════════════════════════════════════════
-     NEW — "Add Variant": commit current selection into configuredVariants.
+     "Add Variant": commit current selection into configuredVariants.
      Same color → merge sizes (sum/replace qty per variant_id), never dupes.
   ══════════════════════════════════════════════════════════════════════ */
   const buildCurrentSizesFromSelection = (): ConfiguredSize[] => {
-    if (activeSizes.length > 0) {
+    // ★ FIX — this must branch on `isPreMade`, NOT `activeSizes.length > 0`.
+    // `activeSizes` is derived from `variantQty`, which is a GENERIC map
+    // shared by every product type — Apparel and Promo also write into it
+    // (e.g. via setQty(activeVariant.id, ...) when floors/qty are set), so
+    // `activeSizes.length > 0` was true for Apparel too. That meant the
+    // FIRST variant built here (at the "Add to Cart" click, before the
+    // configuration modal even opens) always fell into this branch and had
+    // decoration_unit_price hardcoded to 0 — even for Apparel, where
+    // decoration should apply. Every variant added later through
+    // AddProductConfigurationModal used its own pricing logic and carried
+    // decoration correctly, which is why only the FIRST item in Order
+    // Summary/Add To Cart was ever missing its decoration line.
+    if (isPreMade) {
+      // Pre-Made rows never carry decoration — decoration only exists on
+      // the Apparel path below. Set it explicitly to 0 rather than leaving
+      // it undefined, so no downstream screen can accidentally inherit a
+      // stale/global decoration value.
       return activeSizes.map(s => {
         const v = (allProductVariants.length > 0 ? allProductVariants : product?.variants ?? [])
           .find(vv => vv.id === s.variant_id);
@@ -921,71 +934,118 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           size_id: v?.size_id ?? null,
           size: v?.size_details?.name || v?.size || "—",
           quantity: s.quantity,
-          unit_price: Number(v?.price ?? basePrice),
+          /* ★ CHANGED — Pre-Made per-size price now prefers original_price */
+          unit_price: getVariantPrice(v) || basePrice,
+          decoration_unit_price: 0,
         };
       });
     }
     // Apparel/Promo path with a single active variant (no explicit size rows)
-    const v = colorVariants[0];
-    if (!v || totalQty <= 0) return [];
+    const v = activeVariant;
+    if (!v || currentQty <= 0) return [];
     return [{
       variant_id: v.id,
       size_id: v.size_id ?? null,
       size: v.size_details?.name || v.size || "—",
-      quantity: totalQty,
+      quantity: currentQty,
       unit_price: isPromo ? (promoUnitPrice ?? basePrice) : basePrice,
+      // Only Apparel has a decoration step; Promo/Pre-Made are always 0.
+      decoration_unit_price: isApparel ? decorationUnitPrice : 0,
     }];
   };
-
   /* Pure merge: takes the current list + a new variant's sizes, returns a
-     NEW array. No setState here — caller decides when to commit/read it.
-     This is the same merge logic addVariantConfiguration used to do inline. */
+     NEW array. No setState here — caller decides when to commit/read it. */
   const mergeVariantIntoList = (
     list: ConfiguredVariant[],
     colorKey: string,
     newSizes: ConfiguredSize[],
-    variant: { id: number; color_code?: string },
-    images: string[]
+    variant: Variant,
+    images: VariantImage[]
   ): ConfiguredVariant[] => {
-    const existingIdx = list.findIndex(cv => cv.color === colorKey);
-
+    const existingIdx = list.findIndex(
+      (v) => v.variantId === variant.id
+    );
+    // Variant doesn't exist → add it as a brand-new entry
     if (existingIdx === -1) {
-      const totalPrice = newSizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0);
-      return [...list, {
-        variantId: variant.id,
-        variantName: colorKey,
-        color: colorKey,
-        colorCode: variant.color_code,
-        images,
-        sizes: newSizes,
-        totalQty: newSizes.reduce((s, sz) => s + sz.quantity, 0),
-        totalPrice,
-      }];
+      const pricing = sumVariantTotals(
+        newSizes.map(s => ({
+          productPrice: s.unit_price,
+          decorationPrice: s.decoration_unit_price,
+          quantity: s.quantity,
+        }))
+      );
+      const totalQty = newSizes.reduce((sum, s) => sum + s.quantity, 0);
+      return [
+        ...list,
+        {
+          variantId: variant.id,
+          variantName: colorKey,
+          color: colorKey,
+          colorCode: variant.color_code ?? "",
+          images,
+          sizes: newSizes,
+          totalQty,
+          totalPrice: pricing.total,
+          productTotal: pricing.productTotal,
+          decorationTotal: pricing.decorationTotal,
+        },
+      ];
     }
-
-    const updated = [...list];
-    const existing = { ...updated[existingIdx] };
-    const sizes = [...existing.sizes];
-    newSizes.forEach(ns => {
-      const dupIdx = sizes.findIndex(s => s.variant_id === ns.variant_id);
-      if (dupIdx > -1) {
-        sizes[dupIdx] = { ...sizes[dupIdx], quantity: ns.quantity, unit_price: ns.unit_price };
-      } else {
-        sizes.push(ns);
-      }
+    // ★ FIX — Variant already exists → MERGE newSizes into its existing
+    // sizes array (summing quantity when the same variant_id/size repeats)
+    // instead of replacing `sizes` outright. The old code did
+    // `sizes: newSizes`, which threw away every previously added size line
+    // for this variant the moment a second selection came in — this was
+    // the root cause of "modal selection replaces existing variants
+    // instead of merging".
+    return list.map((item, index) => {
+      if (index !== existingIdx) return item;
+      const mergedSizes = [...item.sizes];
+      newSizes.forEach((newSize) => {
+        const dupeIdx = mergedSizes.findIndex(
+          (s) => s.variant_id === newSize.variant_id
+        );
+    if (dupeIdx > -1) {
+          // ★ FIX — OVERRIDE the quantity for this variant/size line instead
+          // of summing it. Summing caused every repeat "Add to Cart" click
+          // (or a config-modal confirm that re-submits the same line) to
+          // silently add on top of the existing quantity (5 + 5 = 10).
+          // The page-level selection always represents the CURRENT desired
+          // qty for that line, so it should replace, not accumulate.
+          mergedSizes[dupeIdx] = {
+            ...mergedSizes[dupeIdx],
+            quantity: newSize.quantity,
+            unit_price: newSize.unit_price,
+            decoration_unit_price: newSize.decoration_unit_price,
+          };
+        } else {
+          mergedSizes.push(newSize);
+        }
+      });
+      const pricing = sumVariantTotals(
+        mergedSizes.map(s => ({
+          productPrice: s.unit_price,
+          decorationPrice: s.decoration_unit_price,
+          quantity: s.quantity,
+        }))
+      );
+      const totalQty = mergedSizes.reduce((sum, s) => sum + s.quantity, 0);
+      return {
+        ...item,
+        sizes: mergedSizes,
+        totalQty,
+        totalPrice: pricing.total,
+        productTotal: pricing.productTotal,
+        decorationTotal: pricing.decorationTotal,
+      };
     });
-    existing.sizes = sizes;
-    existing.totalQty = sizes.reduce((s, sz) => s + sz.quantity, 0);
-    existing.totalPrice = sizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0);
-    updated[existingIdx] = existing;
-    return updated;
   };
-
-
-
   const removeConfiguredVariant = (variantName: string) =>
     setConfiguredVariants(prev => prev.filter(cv => cv.variantName !== variantName));
-
+  /* ★ SINGLE SOURCE OF TRUTH — grand totals across every already-added
+     variant are summed from each variant's own stored totals (which were
+     themselves produced by sumVariantTotals in mergeVariantIntoList). No
+     screen re-derives price × qty independently here. */
   const grandConfiguredQty = useMemo(
     () => configuredVariants.reduce((s, cv) => s + cv.totalQty, 0),
     [configuredVariants]
@@ -994,12 +1054,70 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     () => configuredVariants.reduce((s, cv) => s + cv.totalPrice, 0),
     [configuredVariants]
   );
-
+  const grandConfiguredDecoration = useMemo(
+    () => configuredVariants.reduce((s, cv) => s + cv.decorationTotal, 0),
+    [configuredVariants]
+  );
+  /* Pre-Made's "current selection" is priced per active size row (each row
+     may have its own unit price), so route it through sumVariantTotals too
+     — decoration is always 0 for Pre-Made. */
+  const preMadeSelectionPricing = useMemo(() => {
+    if (!isPreMade) return { productTotal: 0, decorationTotal: 0, total: 0 };
+    return sumVariantTotals(
+      activeSizes.map(s => {
+        const v = product?.variants.find(vv => vv.id === s.variant_id);
+        return {
+          productPrice: getVariantPrice(v) || basePrice,
+          decorationPrice: 0,
+          quantity: s.quantity,
+        };
+      })
+    );
+  }, [isPreMade, activeSizes, product, basePrice]);
+  /* ── Has the CURRENT on-screen variant already been folded into
+     configuredVariants? Once "Add to Cart" is clicked, handleAddToCart
+     commits the live page selection into configuredVariants immediately
+     (so Order Summary reflects it right away — requirement #1/#2). If we
+     kept adding currentSelectionTotal on top after that point, the same
+     quantity/price would be counted twice: once inside configuredVariants
+     and again as the "live" selection. So once the active variant is
+     present in configuredVariants, its live total is excluded here — the
+     already-added total (grandConfiguredPrice) already accounts for it. ── */
+  const currentVariantAlreadyConfigured = !!(
+    activeVariant && configuredVariants.some(cv => cv.variantId === activeVariant.id)
+  );
+  const currentSelectionTotal = useMemo(() => {
+    if (currentVariantAlreadyConfigured) return 0;
+    if (isApparel && currentQty > 0) return estimatedTotal;
+    if (isPreMade && totalQty > 0) return preMadeSelectionPricing.total;
+    if (isPromo && currentQty > 0 && promoUnitPrice !== null) return promoTotal;
+    return 0;
+  }, [currentVariantAlreadyConfigured, isApparel, isPreMade, isPromo, currentQty, totalQty, estimatedTotal, preMadeSelectionPricing, promoUnitPrice, promoTotal]);
+  const displayTotal = grandConfiguredPrice + currentSelectionTotal;
   /* ── Payload builder — sends EVERY configured variant, plus whatever is
      currently on-screen but not yet explicitly "added" ── */
-  const buildPayload = (variantList: ConfiguredVariant[] = configuredVariants) => {
+  const buildPayload = (variantList: ConfiguredVariant[]) => {
+    const customizations = variantList.flatMap(cv =>
+      cv.sizes.map(s => {
+        const linePricing = calculateVariantTotal({
+          productPrice: s.unit_price,
+          decorationPrice: s.decoration_unit_price ?? 0,
+          quantity: s.quantity,
+        });
+        return {
+          variant_id: s.variant_id,
+          color: cv.color,
+          size: s.size,
+          quantity: s.quantity,
+          product_price: s.unit_price,
+          decoration_price: s.decoration_unit_price ?? 0,
+          total_price: linePricing.total,
+        };
+      })
+    );
     const base: any = {
       product_id: productDataId,
+      customizations,
       variants: variantList.map(cv => ({
         variant_id: cv.variantId,
         sizes: cv.sizes.map(s => ({
@@ -1009,15 +1127,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         })),
       })),
     };
-
     if (isApparel) {
       base.print_method = selectedMaterial?.toUpperCase() ?? null;
       base.locations = selectedLocations.map(loc => ({ location: loc }));
     }
-
     return base;
   };
-
   const getBlob = (): Promise<Blob | null> =>
     new Promise((res) => {
       const canvas = canvasRef.current;
@@ -1031,13 +1146,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       });
       canvas.toBlob(blob => res(blob), "image/png", 1);
     });
-
   /* ══════════════════════════════════════════════════════════════════════
      ADD TO CART FLOW
   ══════════════════════════════════════════════════════════════════════ */
   const handleAddToCart = async () => {
     if (requireLogin()) return;
-
     // ── Validation (unchanged requirements, same checks as before) ──
     if (!allMet) {
       const missing = REQUIREMENTS.filter(r => !r.done).map(r => r.label);
@@ -1046,14 +1159,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setTimeout(() => setShowValidationShake(false), 600);
       return;
     }
-
-    if (isPromo && totalQty < PROMO_MIN_QTY) {
+    if (isPromo && currentQty < PROMO_MIN_QTY) {
       setValidationError(`Minimum order quantity for Promo products is ${PROMO_MIN_QTY}.`);
       setShowValidationShake(true);
       setTimeout(() => setShowValidationShake(false), 600);
       return;
     }
-
     // Pre-Made: enforce per-variant min_order_quantity
     if (isPreMade) {
       const tooLow = activeSizes.find(s => {
@@ -1071,27 +1182,44 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         return;
       }
     }
-
-    // ── Build the current selection into a ConfiguredVariant the SAME way
-    //    addVariantConfiguration() used to, reusing the same helpers ──
+    // ── Build the current selection into a ConfiguredVariant ──
     const newSizes = buildCurrentSizesFromSelection();
-    if (newSizes.length === 0 || !colorVariants[0]) {
+    if (newSizes.length === 0 || !activeVariant) {
       const missing = REQUIREMENTS.filter(r => !r.done).map(r => r.label);
       setValidationError(`Please complete: ${missing.join(", ") || "your selection"}.`);
       setShowValidationShake(true);
       setTimeout(() => setShowValidationShake(false), 600);
       return;
     }
-
     // Merge it into configuredVariants (same color → update, not duplicate)
+    // ★ FIX — never pass a blank colorKey. If selectedColor is somehow empty
+    // (e.g. state not yet synced), fall back to the variant's own `color`
+    // field so this entry always has a real, visible name in Order Summary
+    // and the Add To Cart modal — a blank name was one way a main-page
+    // selection could look "missing" downstream even though it was
+    // technically present in the merged array.
+    const safeColorKey = selectedColor || activeVariant.color || "Selected Variant";
     const updatedVariantList = mergeVariantIntoList(
       configuredVariants,
-      selectedColor,
+      safeColorKey,
       newSizes,
-      colorVariants[0],
+      activeVariant,
       product?.images ?? []
     );
-
+    // ★ FIX — commit the merged list to state immediately. The page's own
+    // color/size/qty selection must become part of configuredVariants (the
+    // single source of truth) the moment "Add to Cart" is clicked, BEFORE
+    // the configuration modal even opens — not only after the modal is
+    // confirmed. Without this, Order Summary and the configuration modal's
+    // starting point could omit the page-level selection that triggered
+    // this click in the first place.
+    setConfiguredVariants(updatedVariantList);
+    setPendingVariantList(updatedVariantList);
+    // ★ NEW — remember exactly which variant_ids were just staged by THIS
+    // click, so handleConfigConfirm doesn't re-merge (and double-count)
+    // the same line when the modal is confirmed.
+    setJustStagedVariantIds(newSizes.map(s => s.variant_id));
+    // Promo: enforce min qty across every variant in the UPDATED list
     // Promo: enforce min qty across every variant in the UPDATED list
     if (isPromo) {
       const tooLow = updatedVariantList.find(cv => cv.totalQty < PROMO_MIN_QTY);
@@ -1104,26 +1232,25 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         return;
       }
     }
-
     setValidationError(null);
-    console.log(updatedVariantList,"updatedVariantList")
-    setConfiguredVariants(updatedVariantList);
-
     let blob: Blob | null = null;
     if (isApparel || (isPromo && logoImg)) blob = await getBlob();
-
     canvasBlobRef.current = blob;
     setCanvasBlob(blob);
     // Pass the fresh list directly — do NOT rely on configuredVariants state,
     // which hasn't re-rendered yet.
     setCustomizationJson(JSON.stringify(buildPayload(updatedVariantList)));
-
     setShowConfigModal(true);
   };
-
   const handleConfigConfirm = async (config: {
     selectedColor: string;
-    selectedSizes: { variant_id: number; quantity: number; size_name: string }[];
+    selectedSizes: {
+      variant_id: number;
+      quantity: number;
+      size_name: string;
+      unit_price: number;
+      decoration_price: number;
+    }[];
     addAlso: boolean;
   }) => {
     setConfigSubmitting(true);
@@ -1132,66 +1259,92 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         selectedColor: config.selectedColor,
         selectedSizes: config.selectedSizes,
       });
-
-      // Fold the companion-size selection (if any) into configuredVariants
-      // as its own entry, then rebuild the payload from the full array.
+      /* ══════════════════════════════════════════════════════════════════
+         SINGLE SOURCE OF TRUTH — compute the merged list SYNCHRONOUSLY,
+         right here, instead of inside a setState updater. The old code
+         merged inside `setConfiguredVariants(prev => ...)` and THEN, on
+         the very next line, called `buildPayload()` — which reads the
+         `configuredVariants` state directly. Since React state updates
+         are asynchronous, that state variable still held the OLD
+         (pre-merge) value at that point, so:
+           - Skip (config.addAlso === false) → payload/cart modal kept
+             showing whatever was already on the page BEFORE this click,
+             looking fine by accident, but "Add" always shipped a stale
+             one-render-behind snapshot.
+           - Add (config.addAlso === true) → the freshly added modal
+             variants were silently missing from the payload and from
+             whatever the AddToCartModal received in that same tick.
+         Fix: merge into a plain local array first. Use that SAME array
+         for setConfiguredVariants, buildPayload, and (via
+         setPendingVariantList) anything else that needs it this tick. ── */
+  let mergedList = configuredVariants;
       if (config.addAlso && config.selectedSizes.length > 0) {
-        setConfiguredVariants(prev => {
-          const existingIdx = prev.findIndex(cv => cv.color === config.selectedColor);
-          const newSizes: ConfiguredSize[] = config.selectedSizes.map(s => {
-            const v = (allProductVariants.length > 0 ? allProductVariants : product?.variants ?? [])
-              .find(vv => vv.id === s.variant_id);
-            return {
-              variant_id: s.variant_id,
-              size_id: v?.size_id ?? null,
-              size: s.size_name,
-              quantity: s.quantity,
-              unit_price: Number(v?.price ?? basePrice),
-            };
-          });
-
-          if (existingIdx === -1) {
-            return [...prev, {
-              variantId: newSizes[0]?.variant_id ?? 0,
-              variantName: config.selectedColor,
-              color: config.selectedColor,
-              colorCode: "",
-              images: [],
-              sizes: newSizes,
-              totalQty: newSizes.reduce((s, sz) => s + sz.quantity, 0),
-              totalPrice: newSizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0),
-            }];
-          }
-
-          const updated = [...prev];
-          const existing = { ...updated[existingIdx] };
-          const sizes = [...existing.sizes];
-          newSizes.forEach(ns => {
-            const dupIdx = sizes.findIndex(s => s.variant_id === ns.variant_id);
-            if (dupIdx > -1) sizes[dupIdx] = { ...sizes[dupIdx], quantity: sizes[dupIdx].quantity + ns.quantity };
-            else sizes.push(ns);
-          });
-          existing.sizes = sizes;
-          existing.totalQty = sizes.reduce((s, sz) => s + sz.quantity, 0);
-          existing.totalPrice = sizes.reduce((s, sz) => s + sz.unit_price * sz.quantity, 0);
-          updated[existingIdx] = existing;
-          return updated;
+        const variantsSource =
+          allProductVariants.length > 0
+            ? allProductVariants
+            : product?.variants ?? [];
+        // ★ FIX — exclude any size the initial "Add to Cart" click already
+        // staged into configuredVariants. Without this, re-confirming the
+        // SAME size in the modal sums its quantity on top of what's
+        // already there (e.g. 5 + 5 = 10) via mergeVariantIntoList's
+        // dupe-quantity-add logic. Only genuinely NEW rows chosen inside
+        // the modal should be merged here.
+        const genuinelyNewSizes = config.selectedSizes.filter(
+          (s) => !justStagedVariantIds.includes(s.variant_id)
+        );
+        // Group the modal's flat selectedSizes by variant_id — each
+        // variant_id already uniquely identifies one color+size row, so
+        // this reuses the exact same mergeVariantIntoList() the main
+        // "Add to Cart" click uses, guaranteeing identical merge/pricing
+        // behavior across both entry points instead of two parallel
+        // hand-rolled implementations that could drift out of sync.
+        genuinelyNewSizes.forEach((s) => {
+          const variant = variantsSource.find((v) => v.id === s.variant_id);
+          if (!variant) return;
+          const colorKey = variant.color || config.selectedColor;
+          const newSize: ConfiguredSize = {
+            variant_id: s.variant_id,
+            size_id: variant.size_id ?? null,
+            size: s.size_name || variant.size_details?.name || variant.size || "—",
+            quantity: s.quantity,
+            // Preserve the exact Sage-calculated unit price from the modal
+            unit_price: s.unit_price,
+            // Preserve decoration from AddProductConfigurationModal
+            decoration_unit_price: s.decoration_price ?? 0,
+          };
+          // mergeVariantIntoList now correctly merges/sums into any
+          // existing sizes for this variant_id (see fix above) rather
+          // than overwriting them, so calling it once per selected row
+          // ADDS to the running total instead of replacing it, and never
+          // touches any other already-configured variant in the list.
+          mergedList = mergeVariantIntoList(
+            mergedList,
+            colorKey,
+            [newSize],
+            variant,
+            []
+          );
         });
       }
-
-      // Rebuild payload fresh from buildPayload (reads latest configuredVariants
-      // on next render — for immediate consistency we recompute manually here too)
-      setCustomizationJson(JSON.stringify(buildPayload()));
+      // Never overwrite state with an empty list on Skip — mergedList is
+      // still exactly the pre-existing configuredVariants in that case.
+      setConfiguredVariants(mergedList);
+      setPendingVariantList(mergedList);
+      // Pass the freshly merged list explicitly — never rely on the
+      // `configuredVariants` state variable here, since it has not
+      // re-rendered yet in this same tick.
+setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
       setShowConfigModal(false);
-
-      setTimeout(() => setShowCartModal(true), 50);
+      setJustStagedVariantIds([]);
+      setTimeout(() => {
+        setShowCartModal(true);
+      }, 50);
     } catch (e) {
-      console?.error(e);
+      console.error(e);
     } finally {
       setConfigSubmitting(false);
     }
   };
-
   const handleWishlist = async () => {
     if (requireLogin()) return;
     try {
@@ -1201,7 +1354,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       } else {
         await addToWishlist({
           product_id: variantDataId,
-          variant_id: colorVariants[0]?.id ?? 0,
+          variant_id: activeVariant?.id ?? 0,
           name: product?.name ?? "",
           price: basePrice,
           image: displayImage ?? "",
@@ -1212,7 +1365,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     } catch (e) { console?.error(e); }
     finally { setWishlistLoading(false); }
   };
-
   const handleOpenPreview = () => {
     if (requireLogin()) return;
     setPreviewError(false);
@@ -1232,7 +1384,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setPreviewDataUrl(off.toDataURL("image/png", 1));
     } catch { setPreviewError(true); }
   };
-
   /* ── Loading / not-found ── */
   if (loading) {
     return (
@@ -1244,8 +1395,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       </div>
     );
   }
-  console.log(configuredVariants,"configuredVariants")
-  // console.log(cv,"cv")
   if (!product) {
     return (
       <section className="min-h-[60vh] flex items-center justify-center">
@@ -1261,13 +1410,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       </section>
     );
   }
-
   /* ══════════════════════════════════════════════════════════════════════
      RENDER
   ══════════════════════════════════════════════════════════════════════ */
   return (
     <div className="min-h-screen bg-[#fafafa]">
-
       {/* ── Login Modal ── */}
       {showLoginModal && (
         <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -1283,13 +1430,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
             <h2 className="text-xl font-black text-gray-900 mb-2">Sign in to continue</h2>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">Login to customize products, save to wishlist, and add to cart.</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowLoginModal(false)} className="flex-1 h-11 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600">Cancel</button>
+              <button onClick={() => setShowLoginModal(false)} className="flex-1 h-11 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600">Cancel</button>
               <button onClick={() => router.push("/login")} className="flex-1 h-11 rounded-xl bg-[#F5D800] text-black text-sm font-black">Sign In</button>
             </div>
           </div>
         </div>
       )}
-
       {/* ── Preview Modal ── */}
       {showPreviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -1341,7 +1487,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           </div>
         </div>
       )}
-
       {/* ── Sticky Header ── */}
       <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
         <div className="container max-w-6xl mx-auto px-4">
@@ -1373,7 +1518,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           </div>
         </div>
       </div>
-
       {/* ── Page Header ── */}
       <div className="bg-white border-b border-gray-100 py-6">
         <div className="container max-w-6xl mx-auto px-4 text-center">
@@ -1385,39 +1529,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           </p>
         </div>
       </div>
-
       {/* ── Main Layout ── */}
       <div className="container max-w-6xl mx-auto px-4 py-8">
         <div className="grid xl:grid-cols-[1fr_380px] gap-6">
-
           {/* ═══════════════════════ LEFT ═══════════════════════ */}
           <div>
-
             {/* ══════════════════════════════════════════════════════
                 SECTION A — APPAREL & UNIFORMS
             ══════════════════════════════════════════════════════ */}
             {isApparel && (
               <>
-                {/* {colors.length > 1 && (
-                  <SectionCard step={1} title="Choose Color" subtitle="Select the garment color." status={selectedColor ? "done" : "required"}>
-                    <div className="flex flex-wrap gap-2">
-                      {colors.map(c => (
-                        <button
-                          key={c.name}
-                          onClick={() => setSelectedColor(c.name)}
-                          title={c.name}
-                          className={cn(
-                            "w-9 h-9 rounded-full border-2 transition-all hover:scale-110",
-                            selectedColor === c.name ? "border-[#F5D800] scale-110 ring-2 ring-[#F5D800]/30" : "border-gray-200"
-                          )}
-                          style={{ background: c.hex }}
-                        />
-                      ))}
-                    </div>
-                    {selectedColor && <p className="text-xs text-gray-500 mt-2">Selected: <strong>{selectedColor}</strong></p>}
-                  </SectionCard>
-                )} */}
-
                 <SectionCard
                   step={1}
                   title="Choose Print Location"
@@ -1483,7 +1604,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   )}
                 </SectionCard>
-
                 <SectionCard
                   step={2}
                   title="Decoration Method"
@@ -1518,7 +1638,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       );
                     })}
                   </div>
-
                   {selectedMaterial === "screenprint" && (
                     <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Number of Colours</p>
@@ -1533,7 +1652,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       </div>
                     </div>
                   )}
-
                   {(selectedMaterial === "dtg" || selectedMaterial === "dtf") && (
                     <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Print Area</p>
@@ -1548,7 +1666,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       </div>
                     </div>
                   )}
-
                   {selectedMaterial && (
                     <div className="mt-4">
                       <button onClick={() => setShowPriceTable(p => !p)}
@@ -1592,7 +1709,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                     <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Method</th>
                                     {["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"].map((l, i) => (
                                       <th key={l} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
-                                        DTF_TIERS.reduce((f, t, idx) => (totalQty >= t ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{l}</th>
+                                        DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{l}</th>
                                     ))}
                                   </tr>
                                 </thead>
@@ -1601,7 +1718,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                     <td className="px-3 py-3 font-bold text-[#b89000] border-r border-gray-200">DTF</td>
                                     {DTF_PRICES.map((p, i) => (
                                       <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium",
-                                        DTF_TIERS.reduce((f, t, idx) => (totalQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>${p}.00</td>
+                                        DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>${p}.00</td>
                                     ))}
                                   </tr>
                                 </tbody>
@@ -1634,7 +1751,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                     <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-40">Print Area</th>
                                     {DTG_TIERS.map((t, i) => (
                                       <th key={i} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
-                                        DTG_TIERS.reduce((f, tt, idx) => (totalQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>
+                                        DTG_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>
                                         {["1–23", "24–47", "48–99", "100+"][i]}
                                       </th>
                                     ))}
@@ -1656,7 +1773,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   )}
                 </SectionCard>
-
                 <SectionCard
                   step={3}
                   title="Upload Logo / Add Text"
@@ -1667,7 +1783,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 </SectionCard>
               </>
             )}
-
             {/* ══════════════════════════════════════════════════════
                 SECTION B — PRE-MADE
             ══════════════════════════════════════════════════════ */}
@@ -1743,7 +1858,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 )}
               </SectionCard>
             )}
-
             {/* ══════════════════════════════════════════════════════
                 SECTION C — PROMO PRODUCTS (SAGE)
             ══════════════════════════════════════════════════════ */}
@@ -1758,10 +1872,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     <SageQuantityPricing
                       metaStr={promoMetaStr}
                       minOrderQuantity={PROMO_MIN_QTY}
-                      stock={colorVariants[0]?.stock}
+                      stock={activeVariant?.stock}
                       variant="compact"
                       onChange={({ quantity, unitPrice, total }) => {
-                        if (colorVariants[0]) setPromoQty(colorVariants[0].id, quantity);
+                        if (activeVariant) setPromoQty(activeVariant.id, quantity);
                         setPromoPricing({ unitPrice, total });
                       }}
                     />
@@ -1769,33 +1883,33 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     <div className="flex items-center justify-center gap-4 py-6">
                       <button
                         onClick={() => {
-                          if (!colorVariants[0]) return;
-                          setPromoQty(colorVariants[0].id, (variantQty[colorVariants[0].id] ?? PROMO_MIN_QTY) - 1);
+                          if (!activeVariant) return;
+                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? PROMO_MIN_QTY) - 1);
                         }}
-                        disabled={(variantQty[colorVariants[0]?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY}
+                        disabled={(variantQty[activeVariant?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY}
                         className={cn(
                           "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
-                          (variantQty[colorVariants[0]?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY
+                          (variantQty[activeVariant?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY
                             ? "border-gray-100 text-gray-300 cursor-not-allowed"
                             : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                         )}
                       ><Minus size={20} /></button>
                       <input
                         type="number"
-                        value={colorVariants[0] ? (variantQty[colorVariants[0].id] ?? PROMO_MIN_QTY) : PROMO_MIN_QTY}
+                        value={activeVariant ? (variantQty[activeVariant.id] ?? PROMO_MIN_QTY) : PROMO_MIN_QTY}
                         min={PROMO_MIN_QTY}
                         onChange={e => {
-                          if (colorVariants[0]) setPromoQty(colorVariants[0].id, Number(e.target.value));
+                          if (activeVariant) setPromoQty(activeVariant.id, Number(e.target.value));
                         }}
                         onBlur={e => {
-                          if (colorVariants[0]) setPromoQty(colorVariants[0].id, Number(e.target.value));
+                          if (activeVariant) setPromoQty(activeVariant.id, Number(e.target.value));
                         }}
                         className="w-24 h-12 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
                       />
                       <button
                         onClick={() => {
-                          if (!colorVariants[0]) return;
-                          setPromoQty(colorVariants[0].id, (variantQty[colorVariants[0].id] ?? PROMO_MIN_QTY) + 1);
+                          if (!activeVariant) return;
+                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? PROMO_MIN_QTY) + 1);
                         }}
                         className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
                       ><Plus size={20} /></button>
@@ -1811,7 +1925,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </p>
                   )}
                 </SectionCard>
-
                 <SectionCard
                   step={2} title="Upload Your Logo"
                   subtitle="Upload a logo or add custom text to personalize this product."
@@ -1821,9 +1934,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 </SectionCard>
               </>
             )}
-
           </div>
-
           {/* ═══════════════════════ RIGHT: Order Summary ═══════════════════════ */}
           <div className="xl:sticky xl:top-[60px] self-start">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -1832,7 +1943,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 <h2 className="text-sm font-black text-gray-900">Order Summary</h2>
               </div>
               <div className="p-5 space-y-4">
-
                 {/* Product info */}
                 <div className="flex gap-3">
                   {(previewUrl || displayImage) && (
@@ -1851,93 +1961,74 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </span>
                   </div>
                 </div>
-
-                {/* ── NEW: Configured Variants — every added variant shown separately ── */}
+                {/* ── Configured Variants — flat, no title, no separation between
+                     variants added from the main page vs the "add also" modal.
+                     Every entry is rendered identically: color · qty · price. ── */}
                 {configuredVariants.length > 0 && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
-                      Configured Variants
+                    {configuredVariants.map((cv, item) => (
+                      <div
+                        key={`${cv.variantId}-${item}`}
+                        className="px-3 py-2.5 border-b border-gray-50 last:border-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {(() => {
+                              const safeName = cv.variantName || cv.color || `Variant #${cv.variantId}`;
+                              const [colorPart, sizePart] = safeName.split(" · ");
+                              return (
+                                <span className="text-xs font-bold text-gray-900 truncate">
+                                  {colorPart}
+                                  {sizePart && (
+                                    <span className="font-semibold text-gray-500"> · {sizePart}</span>
+                                  )}
+                                </span>
+                              );
+                            })()}
+                            <span className="text-[11px] text-gray-400 flex-shrink-0">×{cv.totalQty}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-bold text-gray-700">
+                              ${formatMoney(cv.totalPrice)}
+                            </span>
+                            <button
+                              onClick={() => removeConfiguredVariant(cv.variantName)}
+                              className="text-gray-300 hover:text-red-400"
+                              title="Remove this variant"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        {/* Product Total / Decoration Total breakdown — every
+                            variant calculates independently and shows its own
+                            decoration, per the single source of truth. */}
+                        <div className="mt-1 pl-0.5 space-y-0.5">
+                          <div className="flex items-center justify-between text-[10px] text-gray-400">
+                            <span>Product ({cv.totalQty} × avg ${formatMoney(cv.totalQty > 0 ? cv.productTotal / cv.totalQty : 0)})</span>
+                            <span>${formatMoney(cv.productTotal)}</span>
+                          </div>
+                          {cv.decorationTotal > 0 && (
+                            <div className="flex items-center justify-between text-[10px] text-gray-400">
+                              <span>Decoration ({cv.totalQty} × avg ${formatMoney(cv.totalQty > 0 ? cv.decorationTotal / cv.totalQty : 0)})</span>
+                              <span>${formatMoney(cv.decorationTotal)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
+                      <span className="text-xs font-bold text-gray-700">Total — {grandConfiguredQty} pcs</span>
+                      <span className="text-xs font-black text-gray-900">${formatMoney(grandConfiguredPrice)}</span>
                     </div>
-                   {configuredVariants!.map((cv, item) => (
-  <div
-    key={`${cv.variantId}-${item}`}
-    className="px-3 py-2.5 border-b border-gray-50 last:border-0"
-  >
-    <div className="flex items-center justify-between mb-1">
-      <span className="text-xs font-bold text-gray-900">
-        {cv.variantName}
-      </span>
-
-      <button
-        onClick={() => removeConfiguredVariant(cv.variantName)}
-        className="text-gray-300 hover:text-red-400"
-        title="Remove this variant"
-      >
-        <Trash2 size={12} />
-      </button>
-    </div>
-
-    {/* {cv?.sizes.map((s) => (
-      <div
-        key={`${s.variant_id}-${s.size_id}`}
-        className="flex items-center justify-between text-[11px] text-gray-500 pl-1"
-      >
-
-        <span>
-          {s.size && s.size !== "—" ? s.size : "Standard"} · ×{s.quantity}
-        </span>
-
-        <span className="font-semibold text-gray-700">
-          ${(s.unit_price * s.quantity).toFixed(2)}
-        </span>
-      </div>
-    ))} */}
-
-    <div className="flex items-center justify-between text-[11px] font-bold text-gray-800 pt-1 mt-1 border-t border-gray-50">
-      <span>Subtotal — {cv.totalQty} pcs</span>
-
-      <span>
-        $
-        {cv.sizes
-          .reduce(
-            (sum, s) => sum + s.unit_price * s.quantity,
-            0
-          )
-          .toFixed(2)}
-      </span>
-    </div>
-  </div>
-))}
-                    {/* <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
-                      <span className="text-xs font-bold text-gray-700">Grand Total — {grandConfiguredQty} pcs</span>
-                      <span className="text-xs font-black text-gray-900">${grandConfiguredPrice.toFixed(2)}</span>
-                    </div> */}
                   </div>
                 )}
-
-                {/* Promo tier breakdown (current, in-progress selection) */}
-                {/* {isPromo && hasTierPricing && totalQty > 0 && promoUnitPrice !== null && (
+                {/* Pre-Made size breakdown (current, in-progress selection) */}
+                {isPreMade && activeSizes.length > 0 && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
                       Current Selection
                     </div>
-                    <div className="px-3 py-2.5 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{totalQty.toLocaleString()} units</span>
-                        <span className="text-xs font-bold text-gray-800">${promoUnitPrice.toFixed(2)}/pc</span>
-                      </div>
-                      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                        <span className="text-xs font-bold text-gray-700">Subtotal</span>
-                        <span className="text-xs font-black text-gray-900">${promoTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </div>
-                )} */}
-
-                {/* Pre-Made size breakdown (current, in-progress selection) */}
-                {isPreMade && activeSizes.length > 0 && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Current Selection</div>
                     {activeSizes.map(({ variant_id, quantity }) => {
                       const v = product.variants.find(vv => vv.id === variant_id);
                       if (!v) return null;
@@ -1947,19 +2038,27 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             <span className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-black text-gray-700">
                               {v.size_details?.name || v.size}
                             </span>
-                            <span className="text-xs text-gray-500">×{quantity}</span>
+                            {/* ★ FIX — show the color alongside size/qty, so a
+                                row here can always be matched to the same
+                                entry later in Order Summary and the
+                                Add To Cart modal. */}
+                            <span className="text-xs text-gray-500">{v.color ? `${v.color} · ` : ""}×{quantity}</span>
                           </div>
-                          <span className="text-xs font-bold text-gray-700">${(Number(v.price) * quantity).toFixed(2)}</span>
+                          {/* ★ CHANGED — Pre-Made row price now uses original_price via getVariantPrice(), routed through calculateVariantTotal */}
+                          <span className="text-xs font-bold text-gray-700">
+                            ${formatMoney(calculateVariantTotal({ productPrice: getVariantPrice(v) || basePrice, decorationPrice: 0, quantity }).total)}
+                          </span>
                         </div>
                       );
                     })}
                     <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
                       <span className="text-xs font-bold text-gray-700">{totalQty} total pieces</span>
-                      <span className="text-xs font-black text-gray-900">${(totalQty).toFixed(2)}</span>
+                      {/* ★ FIXED — was displaying `totalQty` (a piece count) as a
+                          dollar amount. Now shows the actual priced total. */}
+                      <span className="text-xs font-black text-gray-900">${formatMoney(preMadeSelectionPricing.total)}</span>
                     </div>
                   </div>
                 )}
-
                 {/* Apparel print details */}
                 {isApparel && (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
@@ -1969,31 +2068,55 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     <div className="flex items-center justify-between px-3 py-3">
                       <button
                         onClick={() => {
-                          if (!colorVariants[0]) return;
-                          const min = colorVariants[0].min_order_quantity || 1;
-                          setQty(
-                            colorVariants[0].id,
-                            Math.max(min, (variantQty[colorVariants[0].id] ?? min) - 1)
-                          );
+                          if (!activeVariant) return;
+                          const min = activeVariant.min_order_quantity || 1;
+                          setQty(activeVariant.id, Math.max(min, currentQty - 1));
                         }}
                         className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
                       >
                         <Minus size={16} />
                       </button>
-                      <span className="text-lg font-black">{totalQty}</span>
+                      <span className="text-lg font-black">{currentQty}</span>
                       <button
                         onClick={() => {
-                          if (!colorVariants[0]) return;
-                          const min = colorVariants[0].min_order_quantity || 1;
-                          setQty(
-                            colorVariants[0].id,
-                            (variantQty[colorVariants[0].id] ?? min) + 1
-                          );
+                          if (!activeVariant) return;
+                          setQty(activeVariant.id, currentQty + 1);
                         }}
                         className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
                       >
                         <Plus size={16} />
                       </button>
+                    </div>
+                  </div>
+                )}
+                {isApparel && currentQty > 0 && (
+                  <div className="rounded-xl border border-gray-100 overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
+                      Current Selection
+                    </div>
+                    <div className="px-3 py-2 space-y-1">
+                      {/* ★ FIX — show which variant this selection belongs to.
+                          Previously this box only showed "Product (qty × price)"
+                          with no color/size label, so it was impossible to tell
+                          which variant (e.g. "Red") the current selection was
+                          for — the exact same color that then must appear (not
+                          get silently dropped) once merged into
+                          configuredVariants and shown in the Add To Cart modal. */}
+                      {selectedColor && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Color</span>
+                          <span className="text-xs font-bold text-gray-800">
+                            {selectedColor}
+                            {activeVariant?.size_details?.name || activeVariant?.size
+                              ? ` · ${activeVariant?.size_details?.name || activeVariant?.size}`
+                              : ""}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Product ({currentQty} × ${formatMoney(basePrice)})</span>
+                        <span className="text-xs font-bold text-gray-700">${formatMoney(productTotal)}</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2018,55 +2141,45 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       {printPrice !== null && (
                         <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
                           <span className="text-xs text-gray-500">
-                            Decoration{selectedMaterial === "embroidery" && totalQty <= 11 ? " (incl. $35 digitizing)" : selectedLocations.length > 1 ? ` (${selectedLocations.length} loc.)` : ""}
+                            Decoration ({currentQty} × ${formatMoney(decorationUnitPrice)}){selectedMaterial === "embroidery" && currentQty <= 11 ? " incl. $35 digitizing" : selectedLocations.length > 1 ? ` · ${selectedLocations.length} loc.` : ""}
                           </span>
-                          <span className="text-xs font-black text-gray-900">${printPrice.toFixed(2)}</span>
+                          {/* ★ decorationTotal here is the SAME value used everywhere
+                              else (currentSelectionPricing.decorationTotal) — not a
+                              separate re-derivation of printPrice. */}
+                          <span className="text-xs font-black text-gray-900">${formatMoney(decorationTotal)}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
-
-                {/* Estimated total (current selection + already-configured variants) */}
+                {/* Estimated total (added variants) */}
                 <div className="rounded-xl bg-gray-900 text-white p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-bold opacity-70">Estimated Total</span>
                     <span className="text-xl font-black text-[#F5D800]">
-                      {/* {(() => {
-                        const currentTotal = isApparel && totalQty > 0
-                          ? estimatedTotal
-                          : isPreMade && totalQty > 0
-                            ? basePrice * totalQty
-                            : isPromo && totalQty > 0 && promoUnitPrice !== null
-                              ? promoTotal
-                              : 0;
-                        const grand = grandConfiguredPrice + currentTotal;
-                        return grand > 0 ? `$${grand.toFixed(2)}` : "—";
-                      })()} */}
-                     ${grandConfiguredPrice.toFixed(2)}
+                      ${formatMoney(displayTotal)}
                     </span>
                   </div>
                   {configuredVariants.length > 0 && (
                     <p className="text-[10px] text-gray-400">
                       Includes {grandConfiguredQty} pcs from {configuredVariants.length} added variant{configuredVariants.length > 1 ? "s" : ""}
+                      {grandConfiguredDecoration > 0 ? ` (incl. $${formatMoney(grandConfiguredDecoration)} decoration)` : ""}
                     </p>
                   )}
                 </div>
-
                 {/* Apparel tier hint */}
-                {isApparel && selectedMaterial && totalQty > 0 && totalQty < 144 && (
+                {isApparel && selectedMaterial && currentQty > 0 && currentQty < 144 && (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
                     <Zap size={13} className="text-amber-500 flex-shrink-0" />
                     <p className="text-xs text-amber-700 font-medium">
                       {(() => {
                         const milestones = [12, 24, 36, 50, 72, 100, 144];
-                        for (const m of milestones) { if (totalQty < m) return `${m - totalQty} more pieces unlocks the ${m}-pc tier.`; }
+                        for (const m of milestones) { if (currentQty < m) return `${m - currentQty} more pieces unlocks the ${m}-pc tier.`; }
                         return "";
                       })()}
                     </p>
                   </div>
                 )}
-
                 {/* Requirements checklist */}
                 <div className="space-y-1.5">
                   {REQUIREMENTS.map(({ key, label, done }) => (
@@ -2080,14 +2193,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   ))}
                 </div>
-
                 {validationError && (
                   <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
                     <AlertCircle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-red-500 leading-relaxed">{validationError}</p>
                   </div>
                 )}
-
                 {/* Add to Cart */}
                 <button onClick={handleAddToCart}
                   className={cn(
@@ -2100,7 +2211,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   <ShoppingCart size={16} />
                   {inCart ? "Added to Cart ✓" : "Add to Cart"}
                 </button>
-
                 {/* Wishlist */}
                 <button onClick={handleWishlist} disabled={wishlistLoading}
                   className={cn(
@@ -2120,48 +2230,67 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           </div>
         </div>
       </div>
-
       {product && (
-        <AddProductConfigurationModal
+      <AddProductConfigurationModal
           open={showConfigModal}
-          onClose={() => setShowConfigModal(false)}
+          onClose={() => { setShowConfigModal(false); setJustStagedVariantIds([]); }}
           onConfirm={handleConfigConfirm}
           productId={productDataId}
           productName={product?.name ?? ""}
           variants={allProductVariants}
           sizes={allSizes}
-          selectedVariant={variantData}
+          selectedVariant={variantData ?? undefined}
           mode="customized"
           isSubmitting={configSubmitting}
+          decorationUnitPrice={decorationUnitPrice}
+          // selectedMaterial={selectedMaterial}
+          selectedLocations={selectedLocations}
+          // ✅ ADD THESE FLAGS
+          isApparel={isApparel}
+          isPreMade={isPreMade}
           isPromo={isPromo}
         />
       )}
-
-      {/* AddToCartModal — now receives the full configuredVariants array */}
       {product && (
         <AddToCartModal
           open={showCartModal}
           onClose={() => setShowCartModal(false)}
           productId={Number(product.id)}
-          variantId={colorVariants[0]?.id ?? 0}
+          variantId={activeVariant?.id ?? 0}
           name={product.name}
           price={promoUnitPrice ?? basePrice}
           initialQuantity={totalQty}
           sageMetaStr={promoMetaStr}
           customization={customizationJson}
           canvasBlob={canvasBlob}
-          printPricePerPiece={(printPrice ?? 0) / Math.max(totalQty, 1)}
+          printPricePerPiece={(printPrice ?? 0) / Math.max(currentQty, 1)}
           digitizingFee={0}
-          configuredVariants={configuredVariants.length > 0 ? configuredVariants : undefined}
+          /* ── Single source of truth for what the cart modal shows/submits:
+             `pendingVariantList` is set synchronously (same tick) every
+             time we merge — both from the first "Add to Cart" click and
+             from the configuration modal's Add/Skip — so it can never be
+             one render behind the way reading `configuredVariants` alone
+             could be. Falls back to `configuredVariants` only if nothing
+             has been staged yet (defensive, shouldn't normally happen
+             since the modal only opens after one of those two paths runs). ── */
+          configuredVariants={
+            (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants).length > 0
+              ? (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants)
+              : undefined
+          }
+          // ✅ ADD THESE FLAGS
+          isApparel={isApparel}
+          isPreMade={isPreMade}
+          isPromo={isPromo}
           onSuccess={() => {
             refreshCart();
             setInCart(true);
             setShowCartModal(false);
-            setConfiguredVariants([]); // clear after successful checkout
+            setConfiguredVariants([]);
+            setPendingVariantList([]);
           }}
         />
       )}
-
       <style>{`
         @keyframes shake {
           0%, 100% { transform: translateX(0); }
@@ -2173,7 +2302,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       `}</style>
     </div>
   );
-
   function logoCanvasSectionProps() {
     return {
       canvasRef, fileRef, productImg, logoImg, logoSrc, logoSize, logoRotation,
@@ -2189,7 +2317,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     };
   }
 }
-
 /* ══════════════════════════════════════════════════════════════════════
    LogoCanvasSection
 ══════════════════════════════════════════════════════════════════════ */
@@ -2234,7 +2361,6 @@ function LogoCanvasSection({
           </div>
         </div>
       </div>
-
       <div className="flex-1 min-w-0">
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex border-b border-gray-100">

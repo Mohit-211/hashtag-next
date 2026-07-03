@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
 import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
+import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../product/customization/pricing";
 
 /* ── Mirrors ConfiguredVariant from the customization page ── */
 export interface ConfiguredSize {
@@ -19,6 +20,10 @@ export interface ConfiguredSize {
   size: string;
   quantity: number;
   unit_price: number;
+  /** Decoration price per unit, captured on the size line itself. 0 when
+   *  none was selected or the config step was skipped. Defaults to 0 for
+   *  backward compatibility with any caller that hasn't been updated yet. */
+  decoration_unit_price?: number;
 }
 export interface ConfiguredVariant {
   variantId: number;
@@ -29,6 +34,8 @@ export interface ConfiguredVariant {
   sizes: ConfiguredSize[];
   totalQty: number;
   totalPrice: number;
+  productTotal?: number;
+  decorationTotal?: number;
 }
 
 interface AddToCartModalProps {
@@ -45,11 +52,14 @@ interface AddToCartModalProps {
   customization?: string; // JSON string (single payload object, may already contain `variants`)
   canvasBlob?: Blob | null;
   sageMetaStr?: string | Record<string, unknown> | null;
-  /** NEW: every variant the user explicitly configured on the customization
+  /** Every variant the user explicitly configured on the customization
    * page. When provided, the modal renders each one separately and the
    * grand total/qty are summed across all of them — instead of a single
    * flat quantity × price line. */
   configuredVariants?: ConfiguredVariant[];
+  isApparel?: boolean;
+  isPromo?: boolean;
+  isPreMade?: boolean;
 }
 
 /* Treat missing/blank/transparent/white-on-white color codes as "no swatch"
@@ -77,7 +87,11 @@ export default function AddToCartModal({
   canvasBlob,
   sageMetaStr,
   configuredVariants,
+  isApparel,
+  isPromo,
+  isPreMade
 }: AddToCartModalProps) {
+  console.log(isApparel,isPromo,isPreMade,"====")
   const quantity = initialQuantity;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -96,40 +110,52 @@ export default function AddToCartModal({
 
   const hasConfigured = !!configuredVariants && configuredVariants.length > 0;
 
-  /* ── Fallback single-variant pricing (legacy path / no configuredVariants) ── */
+  /* ── Fallback single-variant pricing (legacy path / no configuredVariants) ──
+     This is the ONLY place printPricePerPiece is ever consulted. Once
+     configuredVariants exists, every size line already carries its own
+     decoration_unit_price (0 if skipped/none), so re-applying
+     printPricePerPiece on top of that would double- or hidden-charge
+     decoration — which was the root cause of the "Skip still adds a price"
+     bug. */
   const effectiveUnitPrice = useMemo(() => {
     if (!sageMetaStr) return price;
     return getSageUnitPriceWithMarkup(sageMetaStr, quantity) ?? price;
   }, [sageMetaStr, quantity, price]);
 
-  const garmentTotal = effectiveUnitPrice * quantity;
-  const decorationTotal = printPricePerPiece * quantity;
+  const legacyPricing = calculateVariantTotal({
+    productPrice: effectiveUnitPrice,
+    decorationPrice: printPricePerPiece,
+    quantity,
+  });
+  const garmentTotal = legacyPricing.productTotal;
+  const decorationTotal = legacyPricing.decorationTotal;
 
-  /* ── Grand totals — sum across configuredVariants when present ── */
+  /* ── Grand totals — SINGLE SOURCE OF TRUTH for the configured-variants
+     path: every size line's own productPrice/decorationPrice/quantity is
+     fed through sumVariantTotals. Nothing here re-derives price from
+     page-level state (like the old `printPricePerPiece * grandQty`) —
+     decoration only ever comes from what was actually captured on each
+     line when it was added. ── */
+  const configuredPricing = useMemo(() => {
+    if (!hasConfigured) return null;
+    const lines = configuredVariants!.flatMap((cv) =>
+      cv.sizes.map((s) => ({
+        productPrice: s.unit_price,
+        decorationPrice: s.decoration_unit_price ?? 0,
+        quantity: s.quantity,
+      }))
+    );
+    return sumVariantTotals(lines);
+  }, [hasConfigured, configuredVariants]);
+console.log(configuredVariants,"configuredVariants")
   const grandQty = hasConfigured
     ? configuredVariants!.reduce((s, cv) => s + cv.totalQty, 0)
     : quantity;
 
- const garmentConfiguredTotal = hasConfigured
-  ? configuredVariants!.reduce(
-      (sum, cv) =>
-        sum +
-        cv.sizes.reduce(
-          (t, s) => t + s.unit_price * s.quantity,
-          0
-        ),
-      0
-    )
-  : garmentTotal;
+  const garmentConfiguredTotal = hasConfigured ? configuredPricing!.productTotal : garmentTotal;
+  const configuredDecorationTotal = hasConfigured ? configuredPricing!.decorationTotal : decorationTotal;
 
-const configuredDecorationTotal = hasConfigured
-  ? printPricePerPiece * grandQty
-  : decorationTotal;
-
-const grandTotal =
-  garmentConfiguredTotal +
-  configuredDecorationTotal +
-  digitizingFee;
+  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + digitizingFee;
   const perPiece = grandQty > 0 ? grandTotal / grandQty : 0;
 
   /* ✅ Parse customization JSON safely (legacy single-payload shape) */
@@ -179,6 +205,33 @@ const grandTotal =
       let customizationPayload: any;
 
       if (hasConfigured) {
+        // ★ FIX — every selected variant/size line becomes one customization
+        // object carrying its own product_price / decoration_price /
+        // total_price, computed via the SAME calculateVariantTotal helper
+        // used everywhere else (Order Summary, this modal's own line items,
+        // the page's buildPayload). This guarantees the number submitted in
+        // the payload is identical to what was shown on screen — previously
+        // this branch dropped all pricing fields and sent only
+        // variant_id/size_id/quantity, and only for a single flat
+        // "sizes" array instead of one customization per line.
+        const customizations = configuredVariants!.flatMap((cv) =>
+          cv.sizes.map((s) => {
+            const linePricing = calculateVariantTotal({
+              productPrice: s.unit_price,
+              decorationPrice: s.decoration_unit_price ?? 0,
+              quantity: s.quantity,
+            });
+            return {
+              variant_id: s.variant_id,
+              color: cv.color,
+              size: s.size,
+              quantity: s.quantity,
+              product_price: s.unit_price,
+              decoration_price: s.decoration_unit_price ?? 0,
+              total_price: linePricing.total,
+            };
+          })
+        );
         customizationPayload = [
           {
             product_id: productId,
@@ -188,16 +241,19 @@ const grandTotal =
             ...(customizationObj?.locations !== undefined
               ? { locations: customizationObj.locations }
               : {}),
-           sizes: configuredVariants!.flatMap((cv) =>
-  cv.sizes.map((s) => ({
-    variant_id: s.variant_id,
-    size_id: s.size_id,
-    quantity: s.quantity,
-  }))
-),
+            customizations,
+            // Kept for backward compatibility with any consumer still
+            // reading the old flat "sizes" shape.
+            sizes: configuredVariants!.flatMap((cv) =>
+              cv.sizes.map((s) => ({
+                variant_id: s.variant_id,
+                size_id: s.size_id,
+                quantity: s.quantity,
+              }))
+            ),
           },
         ];
-      } else if (customizationObj?.variants) {
+      } else if (customizationObj?.customizations || customizationObj?.variants) {
         // Already in the new multi-variant shape from buildPayload()
         customizationPayload = customizationObj;
       } else {
@@ -225,13 +281,6 @@ const grandTotal =
 
       if (canvasBlob) {
         formData.append("images", canvasBlob, "customization.png");
-      }
-
-      console.log("Sending payload:");
-      console.log("product_id:", productId);
-      console.log("customization:", JSON.stringify(customizationPayload));
-      for (const pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
       }
 
       await AddToCartApi(formData);
@@ -275,7 +324,6 @@ const grandTotal =
             ? "translate-y-0 opacity-100 sm:scale-100"
             : "translate-y-6 opacity-0 sm:scale-95"
         )}
-        style={{width:"50%"}}
       >
         {/* ── SUCCESS OVERLAY ── */}
         <div
@@ -326,13 +374,13 @@ const grandTotal =
                 Order total ({grandQty} {grandQty === 1 ? "pc" : "pcs"})
               </p>
               <p className="text-[32px] font-medium text-[#111111] leading-none">
-                ${grandTotal.toFixed(2)}
+                ${formatMoney(grandTotal)}
               </p>
             </div>
             <div className="flex items-center gap-1.5 bg-[#111111]/10 border border-[#111111]/15 rounded-[10px] px-2.5 py-1.5 flex-shrink-0">
               <Package size={12} className="text-[#111111]" />
               <span className="text-[11px] font-medium text-[#111111]">
-                ${perPiece.toFixed(2)}/pc
+                ${formatMoney(perPiece)}/pc
               </span>
             </div>
           </div>
@@ -371,55 +419,86 @@ const grandTotal =
               <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#111111]/40">
                 {configuredVariants!.length} variant{configuredVariants!.length > 1 ? "s" : ""} in this order
               </p>
-              {configuredVariants!.map((cv) => (
-                <div
-                  key={cv.variantName}
-                  className="rounded-[14px] border border-black/10 bg-black/[0.02] p-3.5"
-                >
-                  <div className="flex items-center justify-between mb-2 gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {/* {isRenderableSwatch(cv.colorCode) && (
-                        <span
-                          className="w-4 h-4 rounded-full border border-black/15 flex-shrink-0"
-                          style={{ background: cv.colorCode }}
-                        />
-                      )} */}
-                      <p className="text-[13px] font-semibold text-[#111111] truncate">
-                        {cv.variantName}
-                      </p>
-                    </div>
-                    <span className="text-[12px] font-bold text-[#111111] flex-shrink-0">
-                      ${cv.totalPrice.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {cv.sizes.map((s) => (
-                      <div
-                      key={`${s.variant_id}-${s.size_id}`}
-                        className="flex items-center justify-between text-[11px] text-[#111111]/55"
-                      >
-                        <span>
-                          {s.size && s.size !== "—" ? s.size : "Standard"} · ×{s.quantity}
-                        </span>
-                        <span className="font-medium text-[#111111]/70">
-                          ${(s.unit_price * s.quantity).toFixed(2)}
-                        </span>
+              {configuredVariants!.map((cv) => {
+                // ★ SINGLE SOURCE OF TRUTH — recompute this variant's totals
+                // from its own size lines rather than trusting a stored
+                // cv.totalPrice that could be stale or (on older callers)
+                // missing decoration entirely.
+                const cvPricing = sumVariantTotals(
+                  cv.sizes.map((s) => ({
+                    productPrice: s.unit_price,
+                    decorationPrice: s.decoration_unit_price ?? 0,
+                    quantity: s.quantity,
+                  }))
+                );
+                return (
+                  <div
+                    key={`${cv.variantId}-${cv.variantName}`}
+                    className="rounded-[14px] border border-black/10 bg-black/[0.02] p-3.5"
+                  >
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {/* {isRenderableSwatch(cv.colorCode) && (
+                          <span
+                            className="w-4 h-4 rounded-full border border-black/15 flex-shrink-0"
+                            style={{ background: cv.colorCode }}
+                          />
+                        )} */}
+                        <p className="text-[13px] font-semibold text-[#111111] truncate">
+                          {cv.variantName || cv.color || `Variant #${cv.variantId}`}
+                        </p>
                       </div>
-                    ))}
+                      <span className="text-[12px] font-bold text-[#111111] flex-shrink-0">
+                        ${formatMoney(cvPricing.total)}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {cv.sizes.map((s) => {
+                        const linePricing = calculateVariantTotal({
+                          productPrice: s.unit_price,
+                          decorationPrice: s.decoration_unit_price ?? 0,
+                          quantity: s.quantity,
+                        });
+                        return (
+                          <div
+                            key={`${s.variant_id}-${s.size_id}`}
+                            className="flex items-center justify-between text-[11px] text-[#111111]/55"
+                          >
+                            <span>
+                              {s.size && s.size !== "—" ? s.size : "Standard"} · ×{s.quantity}
+                            </span>
+                            <span className="font-medium text-[#111111]/70">
+                              ${formatMoney(linePricing.total)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Product Total / Decoration Total breakdown */}
+                    <div className="flex items-center justify-between text-[10px] text-[#111111]/45 pt-1.5 mt-1.5 border-t border-black/5">
+                      <span>Product</span>
+                      <span>${formatMoney(cvPricing.productTotal)}</span>
+                    </div>
+                    {cvPricing.decorationTotal > 0 && (
+                      <div className="flex items-center justify-between text-[10px] text-[#111111]/45">
+                        <span>Decoration</span>
+                        <span>${formatMoney(cvPricing.decorationTotal)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-[#111111]/80 pt-1 mt-1">
+                      <span>{cv.totalQty} pcs</span>
+                      <span>${formatMoney(cvPricing.total)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-[#111111]/80 pt-1.5 mt-1.5 border-t border-black/5">
-                    <span>{cv.totalQty} pcs</span>
-                    <span>${cv.totalPrice.toFixed(2)}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               <div className="flex items-center justify-between rounded-[12px] bg-[#111111] px-4 py-3">
                 <span className="text-[12px] font-medium text-white/70">
                   Total Qty: {grandQty}
                 </span>
                 <span className="text-[14px] font-bold text-[#F5D800]">
-                  ${grandTotal.toFixed(2)}
+                  ${formatMoney(grandTotal)}
                 </span>
               </div>
             </div>
@@ -432,22 +511,22 @@ const grandTotal =
               </div>
               <div className="flex justify-between mt-2">
                 <span className="text-xs text-gray-400">
-                  Garment ({quantity} × ${effectiveUnitPrice.toFixed(2)})
+                  Garment ({quantity} × ${formatMoney(effectiveUnitPrice)})
                 </span>
                 <span className="text-xs font-medium text-gray-600">
-                  ${garmentTotal.toFixed(2)}
+                  ${formatMoney(garmentTotal)}
                 </span>
               </div>
-              {decorationTotal > 0 && (
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-gray-400">
-                    Decoration ({quantity} × ${printPricePerPiece.toFixed(2)})
-                  </span>
-                  <span className="text-xs font-medium text-gray-600">
-                    ${decorationTotal.toFixed(2)}
-                  </span>
-                </div>
-              )}
+            {isApparel && decorationTotal > 0 && (
+  <div className="flex justify-between mt-1">
+    <span className="text-xs text-gray-400">
+      Decoration ({quantity} × ${formatMoney(printPricePerPiece)})
+    </span>
+    <span className="text-xs font-medium text-gray-600">
+      ${formatMoney(decorationTotal)}
+    </span>
+  </div>
+)}
               <p className="text-xs text-gray-400 mt-2">
                 Quantity selected on the product page.
               </p>
@@ -498,7 +577,7 @@ const grandTotal =
                   Add to cart
                 </span>
                 <span className="text-[#F5D800]/50 text-[13px]">
-                  ${grandTotal.toFixed(2)}
+                  ${formatMoney(grandTotal)}
                 </span>
               </>
             )}

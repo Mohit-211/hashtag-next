@@ -28,8 +28,10 @@ type Customization = {
 };
 
 export type CartItemType = {
+  size: string;
   name: string;
   logo_image: string;
+  image: string;
   id: string; // cart_id
   cart_id: string; // ✅ FIXED (added cart_id for API operations)
   basePrice: number;
@@ -71,7 +73,7 @@ export default function CartItem({ item, onRefresh }: Props) {
     try {
       setLoading(true);
 
-      await DecrementCartItemApi({ cart_id: item.id });
+      await DecrementCartItemApi({ cart_id: item.cart_id });
 
       message.success("Quantity decreased");
 
@@ -91,7 +93,7 @@ export default function CartItem({ item, onRefresh }: Props) {
     try {
       setLoading(true);
 
-      await IncrementCartItemApi({ cart_id: item.id });
+      await IncrementCartItemApi({ cart_id: item.cart_id });
 
       message.success("Quantity increased");
 
@@ -123,14 +125,14 @@ export default function CartItem({ item, onRefresh }: Props) {
       setLoading(false);
     }
   };
-
+  console.log(item, "itemitem")
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
 
       {/* Top */}
       <div className="flex gap-4">
         <ProxyImage
-          src={item?.logo_image || "/placeholder.png"}
+          src={item?.image}
           alt={item?.name}
           width={96}
           height={96}
@@ -145,8 +147,16 @@ export default function CartItem({ item, onRefresh }: Props) {
               </h3>
 
               <p className="text-sm text-muted-foreground">
-                Base: ${item.basePrice}
+              Price: ${item.basePrice}/pcs
               </p>
+              {/* {item.size !== "One Size" && (
+                <p className="text-sm text-muted-foreground">
+                  Size: {item.size}
+                </p>
+              )} */}
+               <p className="text-sm text-muted-foreground">
+                  Size: {item.size}
+                </p>
             </div>
 
             <button

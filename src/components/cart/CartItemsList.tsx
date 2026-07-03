@@ -2,11 +2,12 @@
 import CartItem from "./CartItem";
 
 export type CartItemType = {
+  size: string;
   logo_image: string;
   id: string;
   cart_id?: string;
   name: string;
-  image?: string;
+  image: string;
   basePrice: number;
   quantity: number;
   customization?: {
@@ -30,7 +31,7 @@ export default function CartItemsList({ items, onRefresh }: Props) {
   }
 
   const totalItems = items.reduce((acc, i) => acc + i.quantity, 0);
-
+  console.log(items, "itemsitemsitemsitemsitems in 2")
   return (
     <div className="lg:col-span-2 space-y-4">
       <h1 className="font-heading text-2xl font-semibold tracking-tight">
@@ -48,8 +49,10 @@ export default function CartItemsList({ items, onRefresh }: Props) {
               id: item.id,
               cart_id: item.cart_id || item.id,
               name: item.name,
+              image: item.image || "/placeholder.png",
               logo_image: item.logo_image || "/placeholder.png",
               basePrice: item.basePrice,
+              size: item.size || "",
               quantity: item.quantity,
               customization: item.customization || {
                 placements: [],

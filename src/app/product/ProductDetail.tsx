@@ -25,6 +25,7 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { cn } from "@/lib/utils";
 import { Spin } from "antd";
 import AddProductConfigurationModal from "@/components/product/Addproductconfigurationmodal/Addproductconfigurationmodal";
+import AddToCartModal from "@/components/common/AddToCartModal";
 
 /* ───────────────────────────────────────────────── types */
 interface Size {
@@ -57,6 +58,7 @@ interface Variant {
   wishlist_id?: number | null;
   images: VariantImage[];
   size_details: Size;
+  meta?: string | null;
 }
 interface Product {
   brand: any;
@@ -99,6 +101,9 @@ export default function ProductDetail({ id }: { id: string }) {
   const [inCart, setInCart] = useState(false);
   const [showConfigurationModal, setShowConfigurationModal] = useState(false);
   const [configurationLoading, setConfigurationLoading] = useState(false);
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [customizationJson, setCustomizationJson] = useState<string>("");
+  const [configuredVariants, setConfiguredVariants] = useState<any[]>([]);
 
   /* customize */
   const [customizeLoading, setCustomizeLoading] = useState(false);
@@ -123,6 +128,7 @@ export default function ProductDetail({ id }: { id: string }) {
       setLoading(true);
       const token = typeof window !== "undefined" ? localStorage.getItem("hastagBillionaire") : null;
       const res = token ? await ProductDetailApi(id) : await ProductDetailGuestApi(id);
+      console.log(res,"res")
       const data = res?.data?.data || res?.data;
       setProduct(data);
     } catch (e) {
@@ -207,6 +213,10 @@ useEffect(() => {
 
   const handleCustomize = () => {
     if (!product || !variantData) return;
+    // Pre-Made products never go through the full customization page —
+    // they use the lightweight configuration modal + AddToCartModal flow
+    // straight from this page instead.
+    if (isPreMade) return;
     router.push(`/customization/${product.id}/${variantData.id}`);
   };
 
@@ -226,24 +236,121 @@ useEffect(() => {
     try {
       setConfigurationLoading(true);
 
-      const formData = new FormData();
-      formData.append("product_id", String(product.id));
-      formData.append("variant_id", String(variantData.id));
-      formData.append("quantity", String(config.selectedSizes.reduce((sum, s) => sum + s.quantity, 0) || 1));
-
-      if (config.selectedSizes.length > 0) {
-        config.selectedSizes.forEach((size, index) => {
-          formData.append(`sizes[${index}][variant_id]`, String(size.variant_id));
-          formData.append(`sizes[${index}][quantity]`, String(size.quantity));
-        });
+      // Skip (addAlso === false / no rows selected) — nothing to build.
+      if (config.selectedSizes.length === 0) {
+        setShowConfigurationModal(false);
+        return;
       }
 
-      // TODO: Uncomment when API is ready
-      // const res = await AddToCartApi(formData);
+      // ── Group every selected row by the ACTUAL variant's color ──
+      // Each row in the config modal can point at a completely different
+      // variant (different color, different size) — the old code lumped
+      // every row into ONE entry keyed to `variantData.id` (whatever
+      // variant happened to be loaded when the page opened), so picking
+      // 2+ different variants silently mislabeled or dropped rows in the
+      // cart modal. Grouping by color here mirrors exactly what
+      // mergeVariantIntoList() does on the full customization page: one
+      // ConfiguredVariant per distinct color, with a sizes[] array holding
+      // every variant/size/qty line under that color.
+      const groups = new Map<
+        string,
+        {
+          variantId: number;
+          color: string;
+          colorCode: string;
+          images: VariantImage[];
+          sizes: Array<{
+            variant_id: number;
+            size_id: number | null;
+            size: string;
+            quantity: number;
+            unit_price: number;
+            decoration_unit_price: number;
+          }>;
+        }
+      >();
+
+      config.selectedSizes.forEach((s) => {
+        const v = product.variants.find((vv) => vv.id === s.variant_id);
+        if (!v) return; // shouldn't happen, but never build a line with no real variant behind it
+
+        const unitPrice = v.original_price ? Number(v.original_price) : Number(v.price ?? displayPrice);
+        const colorKey = v.color || config.selectedColor || "Selected Variant";
+
+        const sizeLine = {
+          variant_id: s.variant_id,
+          size_id: v.size_id ?? null,
+          size: s.size_name || v.size_details?.name || v.size || "—",
+          quantity: s.quantity,
+          unit_price: unitPrice,
+          decoration_unit_price: 0, // Pre-Made never carries decoration
+        };
+
+        const existing = groups.get(colorKey);
+        if (existing) {
+          // Same color already has a group — merge this size line in
+          // (replace if the exact same variant_id repeats, else push new).
+          const dupeIdx = existing.sizes.findIndex((sz) => sz.variant_id === s.variant_id);
+          if (dupeIdx > -1) existing.sizes[dupeIdx] = sizeLine;
+          else existing.sizes.push(sizeLine);
+        } else {
+          groups.set(colorKey, {
+            variantId: v.id, // representative variant for this color group
+            color: colorKey,
+            colorCode: v.color_code,
+            images: v.images ?? [],
+            sizes: [sizeLine],
+          });
+        }
+      });
+
+      // ── Turn each color group into a fully-priced ConfiguredVariant ──
+      const builtConfiguredVariants = Array.from(groups.values()).map((g) => {
+        const totalQty = g.sizes.reduce((sum, s) => sum + s.quantity, 0);
+        const productTotal = g.sizes.reduce((sum, s) => sum + s.unit_price * s.quantity, 0);
+        const decorationTotal = 0; // Pre-Made
+        return {
+          variantId: g.variantId,
+          variantName: g.color,
+          color: g.color,
+          colorCode: g.colorCode,
+          images: g.images,
+          sizes: g.sizes,
+          totalQty,
+          totalPrice: productTotal + decorationTotal,
+          productTotal,
+          decorationTotal,
+        };
+      });
+
+      setConfiguredVariants(builtConfiguredVariants);
+      setCustomizationJson(
+        JSON.stringify({
+          product_id: product.id,
+          customizations: builtConfiguredVariants.flatMap((cv) =>
+            cv.sizes.map((s) => ({
+              variant_id: s.variant_id,
+              color: cv.color,
+              size: s.size,
+              quantity: s.quantity,
+              product_price: s.unit_price,
+              decoration_price: 0,
+              total_price: s.unit_price * s.quantity,
+            }))
+          ),
+          variants: builtConfiguredVariants.map((cv) => ({
+            variant_id: cv.variantId,
+            sizes: cv.sizes.map((s) => ({
+              size_id: s.size_id,
+              variant_id: s.variant_id,
+              quantity: s.quantity,
+            })),
+          })),
+        })
+      );
 
       setShowConfigurationModal(false);
-      setInCart(true);
-      await fetchProduct();
+      setShowCartModal(true);
     } catch (error) {
       console.error("Error adding to cart:", error);
     } finally {
@@ -304,7 +411,35 @@ useEffect(() => {
       }))
       : product?.attachments || [];
   const category = product?.categories?.[0]?.parent_categories?.[0];
+  // Grand category tells us the product family (e.g. "Pre-Made products" vs customizable apparel)
+  const grandCategory = category?.grand_categories?.[0];
+  const isPreMade = grandCategory?.title === "Pre-Made products";
+  // NOTE: adjust these two titles to match whatever your backend actually
+  // sends for the other grand categories — "Pre-Made products" was the only
+  // confirmed value, these two are best-guess placeholders.
+  const isApparel = grandCategory?.title === "Apparel";
+  const isPromo = grandCategory?.title === "Promo Products";
   const isLowStock = variantData?.stock != null && variantData.stock > 0 && variantData.stock <= 5;
+
+  /* AddProductConfigurationModal has its OWN local `Variant` type with
+     `price: number` (this file's `Variant.price` is `string`, straight
+     from the API). Same type name, structurally different — TS treats
+     them as unrelated and refuses the array assignment. Coerce price
+     (and original_price) to number here, once, right before handing
+     variants to the modal, instead of changing either component's type. */
+  const configModalVariants = product.variants.map((v) => ({
+    ...v,
+    price: Number(v.price),
+    original_price: v.original_price != null ? Number(v.original_price) : undefined,
+  }));
+  const configModalSelectedVariant = variantData
+    ? {
+        ...variantData,
+        price: Number(variantData.price),
+        original_price:
+          variantData.original_price != null ? Number(variantData.original_price) : undefined,
+      }
+    : undefined;
 
   /* ───────────────────────────────────────────────── render */
   return (
@@ -453,61 +588,62 @@ useEffect(() => {
                   {inWishlist ? "Saved to Wishlist" : "Add to Wishlist"}
                 </button>
 
-                {/* Customize */}
-                <button
-                  onClick={handleCustomize}
-                  disabled={customizeLoading}
-                  className={cn(
-                    "group w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]",
-                    customizeLoading ? "opacity-80 cursor-not-allowed" : ""
-                  )}
-                  style={{
-                    fontFamily: "var(--font-heading)",
-                    background: "#f0c419",
-                    color: "#111",
-                    border: "none",
-                  }}
-                >
-                  {customizeLoading ? (
-                    <>
-                      <Spin className="animate-spin" />
-                      <span>Preparing customizer…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles
-                        size={16}
-                        className="transition-transform duration-300 group-hover:rotate-12"
-                      />
-                      Customize This Product
-                    </>
-                  )}
-                </button>
-
-                {/* Add to Cart */}
-                {/* <button
-                  onClick={handleAddToCart}
-                  className="w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]"
-                  style={{
-                    fontFamily: "var(--font-heading)",
-                    background: inCart ? "#666" : "#111",
-                    color: inCart ? "#999" : "#fff",
-                    border: "none",
-                  }}
-                  disabled={inCart}
-                >
-                  {inCart ? (
-                    <>
-                      <CheckCircle2 size={16} />
-                      In Cart
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart size={16} />
-                      Add to Cart
-                    </>
-                  )}
-                </button> */}
+                {/* Customize (apparel) OR Add to Cart (Pre-Made products) */}
+                {isPreMade ? (
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]"
+                    style={{
+                      fontFamily: "var(--font-heading)",
+                      background: inCart ? "#666" : "#111",
+                      color: inCart ? "#999" : "#fff",
+                      border: "none",
+                    }}
+                    disabled={inCart}
+                  >
+                    {inCart ? (
+                      <>
+                        <CheckCircle2 size={16} />
+                        In Cart
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart size={16} />
+                        Add to Cart
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleCustomize}
+                    disabled={customizeLoading}
+                    className={cn(
+                      "group w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]",
+                      customizeLoading ? "opacity-80 cursor-not-allowed" : ""
+                    )}
+                    style={{
+                      fontFamily: "var(--font-heading)",
+                      background: "#f0c419",
+                      color: "#111",
+                      border: "none",
+                    }}
+                  >
+                    {customizeLoading ? (
+                      <>
+                        <Spin className="animate-spin" />
+                        <span>Preparing customizer…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles
+                          size={16}
+                          className="transition-transform duration-300 group-hover:rotate-12"
+                        />
+                        Customize This Product
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -525,12 +661,51 @@ useEffect(() => {
           open={showConfigurationModal}
           onClose={() => setShowConfigurationModal(false)}
           onConfirm={handleConfigurationComplete}
+          productId={Number(product.id)}
           productName={product.name}
-          variants={product.variants}
+          variants={configModalVariants}
           sizes={product.sizes}
-          selectedVariant={variantData}
+          selectedVariant={configModalSelectedVariant}
           mode="premade"
           isSubmitting={configurationLoading}
+          // ✅ category flags
+          isApparel={isApparel}
+          isPreMade={isPreMade}
+          isPromo={isPromo}
+        />
+      )}
+
+      {/* ── ADD TO CART MODAL — Pre-Made goes straight here from the
+           configuration modal above, never through /customization/... ── */}
+      {product && variantData && (
+        <AddToCartModal
+          open={showCartModal}
+          onClose={() => setShowCartModal(false)}
+          productId={Number(product.id)}
+          variantId={variantData.id}
+          name={product.name}
+          price={displayPrice}
+          initialQuantity={
+            configuredVariants.length > 0
+              ? configuredVariants.reduce((sum: number, cv: any) => sum + cv.totalQty, 0)
+              : quantity
+          }
+          sageMetaStr={variantData.meta ?? null}
+          customization={customizationJson}
+          canvasBlob={null}
+          printPricePerPiece={0}
+          digitizingFee={0}
+          configuredVariants={configuredVariants.length > 0 ? configuredVariants : undefined}
+          // ✅ category flags
+          isApparel={isApparel}
+          isPreMade={isPreMade}
+          isPromo={isPromo}
+          onSuccess={() => {
+            setInCart(true);
+            setShowCartModal(false);
+            setConfiguredVariants([]);
+            fetchProduct();
+          }}
         />
       )}
     </div>
