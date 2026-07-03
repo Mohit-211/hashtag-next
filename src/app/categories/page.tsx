@@ -124,7 +124,6 @@ const styles = `
     transition: color .18s, border-color .18s;
     letter-spacing: -0.01em;
   }
-  .cat-tab:hover { color: #111; }
   .cat-tab.active {
     color: #111;
     font-weight: 600;
@@ -228,7 +227,6 @@ const styles = `
     white-space: nowrap;
     letter-spacing: -0.01em;
   }
-  .brand-tab-btn:hover { color: #111; }
   .brand-tab-btn.active {
     color: #111;
     font-weight: 600;
@@ -243,7 +241,7 @@ const styles = `
   /* ── BRAND MEGA MENU ── */
   .brand-mega {
     position: fixed;
-    top: 65px;
+    top: 127px;
     left: 0;
     width: 100%;
     background: #fff;
@@ -714,6 +712,9 @@ export default function Categories() {
           : [],
       }));
 
+      // NOTE: "All" is still kept as the first entry of `categories` state
+      // (index 0) so existing filter logic / activeCategory defaults keep
+      // working. It's just rendered in a different position (see JSX below).
       setCategories([
         { id: null, name: "All", parent_categories: [] },
         ...formatted,
@@ -916,6 +917,12 @@ export default function Categories() {
 
   const showPill = activeBrand || activeParent || activeCategory.id !== null;
 
+  // Split "All" out from the rest of the categories so we can control
+  // render order independently (All -> Brands -> other categories),
+  // while `categories` state itself is untouched.
+  const allCategoryTab   = categories.find((c) => c.id === null) ?? { id: null, name: "All", parent_categories: [] };
+  const otherCategoryTabs = categories.filter((c) => c.id !== null);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Full-page loader
   // ─────────────────────────────────────────────────────────────────────────
@@ -939,64 +946,81 @@ export default function Categories() {
       <div className="cat-nav">
         <div className="cat-nav-row">
 
-          {/* ── Brand dropdown ── */}
-          <div
-            className="brand-tab-wrap"
-            onMouseEnter={() => setBrandMenuOpen(true)}
-            onMouseLeave={() => setBrandMenuOpen(false)}
-          >
-            <button className={`brand-tab-btn ${brandMenuOpen || activeBrand ? "active" : ""}`}>
-              Brands
-              <ChevronDown size={14} className={`brand-chevron ${brandMenuOpen ? "open" : ""}`} />
-            </button>
+          <div className="cat-tabs-scroll">
 
-            {/* Mega menu */}
-            <div className={`brand-mega ${brandMenuOpen ? "open" : ""}`}>
-              <div className="brand-mega-inner">
-                <div className="brand-mega-head">
-                  <span className="brand-mega-title">Shop by brand</span>
-                  <span className="brand-mega-count">
-                    {brandList.length} brand{brandList.length !== 1 ? "s" : ""}
-                  </span>
+            {/* ── "All" tab — always first ── */}
+            {(() => {
+              const cat = allCategoryTab;
+              const isGrandActive = !activeBrand && !activeParent && activeCategory.id === cat.id;
+              return (
+                <div key="all" className="cat-tab-wrap">
+                  <div
+                    className={`cat-tab ${isGrandActive ? "active" : ""}`}
+                    onClick={() => handleCategorySelect(cat)}
+                  >
+                    {cat.name}
+                  </div>
                 </div>
+              );
+            })()}
 
-                <div className="brand-mega-grid">
-                  {brandList.length === 0 && !brandLoading
-                    ? Array.from({ length: 15 }).map((_, i) => (
-                        <div key={i} className="shimmer-card" />
-                      ))
-                    : brandList.map((brand) => {
-                        const selected = activeBrand?.id === brand.id;
-                        return (
-                          <div
-                            key={brand.id}
-                            className={`brand-card ${selected ? "selected" : ""}`}
-                            onClick={() => handleBrandSelect(brand)}
-                          >
-                            <div className="brand-logo-wrap">
-                              {brand.logo ? (
-                                <Image
-                                  src={brand.logo}
-                                  alt={brand.name}
-                                  fill
-                                  style={{ objectFit: "contain", padding: 4 }}
-                                />
-                              ) : (
-                                <span className="brand-initials">{brandInitials(brand.name)}</span>
-                              )}
+            {/* ── Brand dropdown — second ── */}
+            <div
+              className="brand-tab-wrap"
+              onMouseEnter={() => setBrandMenuOpen(true)}
+              onMouseLeave={() => setBrandMenuOpen(false)}
+            >
+              <button className={`brand-tab-btn ${brandMenuOpen || activeBrand ? "active" : ""}`}>
+                Brands
+                <ChevronDown size={14} className={`brand-chevron ${brandMenuOpen ? "open" : ""}`} />
+              </button>
+
+              {/* Mega menu */}
+              <div className={`brand-mega ${brandMenuOpen ? "open" : ""}`}>
+                <div className="brand-mega-inner">
+                  <div className="brand-mega-head">
+                    <span className="brand-mega-title">Shop by brand</span>
+                    <span className="brand-mega-count">
+                      {brandList.length} brand{brandList.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="brand-mega-grid">
+                    {brandList.length === 0 && !brandLoading
+                      ? Array.from({ length: 15 }).map((_, i) => (
+                          <div key={i} className="shimmer-card" />
+                        ))
+                      : brandList.map((brand) => {
+                          const selected = activeBrand?.id === brand.id;
+                          return (
+                            <div
+                              key={brand.id}
+                              className={`brand-card ${selected ? "selected" : ""}`}
+                              onClick={() => handleBrandSelect(brand)}
+                            >
+                              <div className="brand-logo-wrap">
+                                {brand.logo ? (
+                                  <Image
+                                    src={brand.logo}
+                                    alt={brand.name}
+                                    fill
+                                    style={{ objectFit: "contain", padding: 4 }}
+                                  />
+                                ) : (
+                                  <span className="brand-initials">{brandInitials(brand.name)}</span>
+                                )}
+                              </div>
+                              <div className="brand-card-name">{brand.name}</div>
                             </div>
-                            <div className="brand-card-name">{brand.name}</div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* ── Category tabs ── */}
-          <div className="cat-tabs-scroll">
-            {categories.map((cat) => {
+            {/* ── Remaining category tabs — after brands ── */}
+            {otherCategoryTabs.map((cat) => {
               const hasParents = cat.parent_categories && cat.parent_categories.length > 0;
               const isGrandActive  = !activeBrand && !activeParent && activeCategory.id === cat.id;
               const isParentActive = !activeBrand && !!activeParent && activeCategory.id === cat.id;
@@ -1004,7 +1028,7 @@ export default function Categories() {
 
               return (
                 <div
-                  key={cat.id ?? "all"}
+                  key={cat.id}
                   className="cat-tab-wrap"
                   ref={(el) => { tabRefs.current[String(cat.id)] = el; }}
                   onMouseEnter={() => {
