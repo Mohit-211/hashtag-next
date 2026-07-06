@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
- 
+
 import {
   User,
   Mail,
@@ -64,10 +64,10 @@ const contactFormSchema = z
       .min(1, "Mobile number is required.")
       .regex(MOBILE_REGEX, "Enter a valid mobile number (10–15 digits, numbers only)."),
 
-   
-reason: z.enum(CONTACT_REASONS, {
-  message: "Please select a reason for contact.",
-}),
+
+    reason: z.enum(CONTACT_REASONS, {
+      message: "Please select a reason for contact.",
+    }),
 
     otherReason: z.string().trim().max(120, "Keep it under 120 characters.").optional(),
 
@@ -377,7 +377,7 @@ function ContactForm() {
       formData.append("message", values.description);
 
       await AddToContactApi
-      (formData);
+        (formData);
 
       setIsSuccess(true);
     } catch {
@@ -537,7 +537,7 @@ function ContactForm() {
 export default function ContactUs() {
   return (
     <main className="bg-surface">
-      <div className="container py-12 sm:py-16 lg:py-20">
+      <div className="container  lg:py-20">
         <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-14">
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Contact Us</h1>
           <p className="mt-3 text-base text-muted-foreground">
@@ -545,7 +545,7 @@ export default function ContactUs() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1.6fr_1fr] lg:gap-8">
+     <div className="mx-auto w-4/5">
           <section aria-labelledby="contact-form-heading" className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
             <h2 id="contact-form-heading" className="sr-only">
               Contact form
