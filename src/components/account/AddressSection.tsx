@@ -63,7 +63,7 @@ export default function AddressSection({
   useEffect(() => {
     fetchAddresses().then((list) => {
       if (mode === "select" && list.length > 0 && !selectedAddressId) {
-        const def = list.find((a) => a.isDefault) ?? list[0];
+        const def = list.find((a: { isDefault: any; }) => a.isDefault) ?? list[0];
         setSelectedAddressId?.(def.id);
       }
     });
