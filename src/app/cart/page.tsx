@@ -102,23 +102,45 @@ export default function Cart() {
     return <CartEmpty />;
   }
   console.log(items, "yhaaa====")
-  // ✅ Safe typed items
-  const formattedItems: CartItemType[] = items.map((item: any) => ({
-    id: item.id || item._id || "",
-    cart_id: item.cart_id || item.id || "",
-    size: item.size || "",
-    name: item.name || "",
-    logo_image: item.logo_image || "/placeholder.png",
-    image: item.image || "/placeholder.png",
-    basePrice: Number(item.basePrice || item.price || 0),
-    quantity: Number(item.quantity || 1),
+const formattedItems: CartItemType[] = items.map((item: any) => ({
+  ...item,
 
-    customization: item.customization || {
-      placements: [],
-      uploadFee: 0,
-    },
-  }));
+  id: item.id ?? item.product_id ?? "",
+  cart_id: item.cart_id ?? "",
 
+  name: item.name ?? item.product_name ?? "",
+  size: item.size ?? "",
+  color: item.color ?? "",
+
+  image: item.image || item.original_image || "/placeholder.png",
+  logo_image:
+    item.logo_image ||
+    item.customized_image ||
+    item.original_image ||
+    "/placeholder.png",
+
+  basePrice: Number(item.basePrice ?? item.price ?? item.base_price ?? 0),
+  quantity: Number(item.quantity ?? 1),
+
+  customization: {
+    uploadedImage:
+      item.customization?.uploadedImage ??
+      item.uploaded_image ??
+      null,
+
+    placements:
+      item.customization?.placements ??
+      item.placements ??
+      [],
+
+    uploadFee:
+      Number(
+        item.customization?.uploadFee ??
+        item.customization_price ??
+        0
+      ),
+  },
+}));
   return (
     <section className="py-8">
       <div className="container grid lg:grid-cols-3 gap-8">

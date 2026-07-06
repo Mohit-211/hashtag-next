@@ -16,10 +16,12 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  Ban,
 } from "lucide-react";
 
 import OrderPriceSummary from "./OrderPriceSummary";
 import ProxyImage from "../Proxyimage";
+import { Button } from "@/components/ui/button";
 
 // ─────────────────────────────────────────────
 // Types
@@ -124,6 +126,8 @@ interface OrderCardProps {
   toggleExpand: (orderId: string) => void;
   detail?: OrderDetail | null;
   loadingDetail?: boolean;
+  onCancel?: () => void;
+  cancelling?: boolean;
 }
 
 // ─────────────────────────────────────────────
@@ -227,6 +231,8 @@ export default function OrderCard({
   toggleExpand,
   detail,
   loadingDetail,
+  onCancel,
+  cancelling,
 }: OrderCardProps) {
   const cardKey = String(order?.orderId || order?.id);
 
@@ -273,7 +279,7 @@ export default function OrderCard({
         item.quantity,
       0
     ) ?? 0;
-  console.log("Customization Total:", detail);
+
   return (
     <div
       className={`
@@ -285,11 +291,18 @@ export default function OrderCard({
         }
       `}
     >
-      {/* Header */}
-      <button
-        type="button"
+      {/* Header — a clickable div (not a <button>) so the Cancel button below can be a real, valid, nested button */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => toggleExpand(cardKey)}
-        className="w-full flex items-center gap-4 px-5 py-4 text-left group transition-colors hover:bg-muted/20"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleExpand(cardKey);
+          }
+        }}
+        className="w-full flex items-center gap-4 px-5 py-4 text-left group transition-colors hover:bg-muted/20 cursor-pointer"
       >
         {/* Product Preview */}
         <div className="relative shrink-0">
@@ -385,13 +398,36 @@ export default function OrderCard({
           </div>
         </div>
 
-        {/* Price */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Price + Actions */}
+        <div className="flex items-center gap-2.5 shrink-0">
           <div className="text-right">
             <p className="text-sm font-bold text-foreground tabular-nums tracking-tight">
               ${Number(order?.total_amount || 0).toFixed(2)}
             </p>
           </div>
+          {/* {onCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={cancelling}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel();
+              }}
+              className="h-7 px-2.5 text-[11px] gap-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:border-red-500/20 dark:hover:bg-red-500/10 cursor-pointer shrink-0"
+            >
+              {cancelling ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Ban className="h-3 w-3" />
+              )}
+
+              <span className="hidden sm:inline">
+                {cancelling ? "Cancelling Order..." : "Cancel Order"}
+              </span>
+            </Button>
+          )} */}
 
           <div
             className={`
@@ -409,7 +445,7 @@ export default function OrderCard({
             )}
           </div>
         </div>
-      </button>
+      </div>
 
       {/* Expanded Content */}
       {expanded && (
@@ -445,7 +481,6 @@ export default function OrderCard({
                     const name = decodeHtml(item.product_name);
 
                     const displayImage =
-                      item.customized_image ||
                       item.original_image;
 
                     return (
@@ -540,8 +575,8 @@ export default function OrderCard({
 
                   <span
                     className={`ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full border ${detail.payment_status === "SUCCESS"
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-amber-50 text-amber-700 border-amber-200"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
                       }`}
                   >
                     {detail.payment_status}

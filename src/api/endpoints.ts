@@ -11,6 +11,9 @@ export const AUTH_ENDPOINTS = {
 export const USER_ENDPOINTS = {
   PROFILE: "user/profile",
 };
+export const CONTACT_ENDPOINTS = {
+  ADD: "contactUs",
+}
 export const PRODUCT_ENDPOINTS = {
   PRODUCT: "product",
   PRODUCT_DETAIL: (id: string) => `product/${id}`,
@@ -52,6 +55,7 @@ export const ORDER = {
   GET_ALL: "/order",
   GET_DETAIL: (id: string | number) => `/order/${id}`,
   CREATE_SHIPMENT_LABEL: "/order/create-shipment-label",
+  CANCEL: (id: string | number) => `/order/${id}`,
 };
 export const PAYMENT_ENDPOINTS = {
   SQUARE_CONFIG: "/payment/square/config",

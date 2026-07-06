@@ -57,7 +57,7 @@ export default function Account() {
         <div className="flex-1">
           {active === "profile" && <ProfileSection user={user} />}
 
-          {active === "addresses" && <AddressSection />}
+          {active === "addresses" && <AddressSection mode="manage" />}
 
           {active === "password" && <PasswordSection />}
         </div>

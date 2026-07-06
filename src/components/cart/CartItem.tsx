@@ -33,9 +33,8 @@ export type CartItemType = {
   logo_image: string;
   image: string;
   id: string; // cart_id
-  cart_id: string; // ✅ FIXED (added cart_id for API operations)
+  cart_id: string; // FIXED (added cart_id for API operations)
   basePrice: number;
-  // price: number;
   quantity: number;
   customization?: Customization;
 };
@@ -46,7 +45,6 @@ interface Props {
 }
 
 export default function CartItem({ item, onRefresh }: Props) {
-  console.log(item, "item")
   const [loading, setLoading] = useState(false);
 
   const placements = item.customization?.placements ?? [];
@@ -66,7 +64,7 @@ export default function CartItem({ item, onRefresh }: Props) {
   const itemTotal =
     (item.basePrice + unitCustomization) * item.quantity;
 
-  // 🔽 Decrease
+  // Decrease
   const handleDecrease = async () => {
     if (item.quantity <= 1 || loading) return;
 
@@ -77,7 +75,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
       message.success("Quantity decreased");
 
-      onRefresh(); // 🔥 sync with API
+      onRefresh();
     } catch (err: any) {
       console.error(err);
       message.error("Failed to decrease quantity");
@@ -86,7 +84,7 @@ export default function CartItem({ item, onRefresh }: Props) {
     }
   };
 
-  // 🔼 Increase
+  // Increase
   const handleIncrease = async () => {
     if (loading) return;
 
@@ -97,7 +95,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
       message.success("Quantity increased");
 
-      onRefresh(); // 🔥 sync
+      onRefresh();
     } catch (err: any) {
       console.error(err);
       message.error("Failed to increase quantity");
@@ -106,7 +104,7 @@ export default function CartItem({ item, onRefresh }: Props) {
     }
   };
 
-  // 🗑️ Remove
+  // Remove
   const handleRemove = async () => {
     if (loading) return;
 
@@ -117,7 +115,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
       message.success("Item removed");
 
-      onRefresh(); // 🔥 sync
+      onRefresh();
     } catch (err: any) {
       console.error(err);
       message.error("Failed to remove item");
@@ -125,19 +123,35 @@ export default function CartItem({ item, onRefresh }: Props) {
       setLoading(false);
     }
   };
-  console.log(item, "itemitem")
+
   return (
     <div className="bg-card border border-border rounded-xl p-5 space-y-4">
 
       {/* Top */}
       <div className="flex gap-4">
-        <ProxyImage
-          src={item?.image}
-          alt={item?.name}
-          width={96}
-          height={96}
-          className="w-24 h-24 rounded-lg object-cover bg-secondary shrink-0"
-        />
+        <div className="relative w-24 h-24 shrink-0">
+          <div className="w-full h-full rounded-lg overflow-hidden bg-secondary ring-1 ring-border">
+            <ProxyImage
+              src={item?.image}
+              alt={item?.name}
+              width={96}
+              height={96}
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          {item?.logo_image && (
+            <div className="absolute -bottom-1.5 -right-1.5 w-9 h-9 rounded-md overflow-hidden border-2 border-background shadow-md bg-card">
+              <ProxyImage
+                src={item.logo_image}
+                alt="Logo"
+                width={36}
+                height={36}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+        </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -147,16 +161,11 @@ export default function CartItem({ item, onRefresh }: Props) {
               </h3>
 
               <p className="text-sm text-muted-foreground">
-              Price: ${item.basePrice}/pcs
+                Price: ${item.basePrice}/pcs
               </p>
-              {/* {item.size !== "One Size" && (
-                <p className="text-sm text-muted-foreground">
-                  Size: {item.size}
-                </p>
-              )} */}
-               <p className="text-sm text-muted-foreground">
-                  Size: {item.size}
-                </p>
+              <p className="text-sm text-muted-foreground">
+                Size: {item.size}
+              </p>
             </div>
 
             <button

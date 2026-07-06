@@ -99,17 +99,31 @@ export function parseSageMeta(
 
   const rows: { minQty: number; price: number; netPrice?: number }[] = [];
 
-  for (let i = 0; i < count; i++) {
-    const minQty = Number(rawQtyTiers[i]);
-    const price = Number(rawPriceTiers[i]);
-    const netPrice = Array.isArray(rawNetTiers) && rawNetTiers[i] != null
+ for (let i = 0; i < count; i++) {
+  const minQty = Number(rawQtyTiers[i]);
+  const price = Number(rawPriceTiers[i]);
+
+  const netPrice =
+    Array.isArray(rawNetTiers) && rawNetTiers[i] != null
       ? Number(rawNetTiers[i])
       : undefined;
 
-    if (isNaN(minQty) || isNaN(price)) continue;
-
-    rows.push({ minQty, price, netPrice });
+  // Skip invalid / empty / zero tiers
+  if (
+    !Number.isFinite(minQty) ||
+    minQty <= 0 ||
+    !Number.isFinite(price) ||
+    price <= 0
+  ) {
+    continue;
   }
+
+  rows.push({
+    minQty,
+    price,
+    netPrice: Number.isFinite(netPrice) ? netPrice : undefined,
+  });
+}
 
   if (rows.length === 0) return null;
 
@@ -270,11 +284,17 @@ export default function SageQuantityPricing({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qty, unitPrice, total, resolvedItemId, meta?.sku, meta?.productName]);
 
+  // A supplier feed can report stock as null/undefined (unknown/untracked),
+  // 0, or even negative (e.g. backordered/oversold). Only a genuinely
+  // positive number represents a real ceiling on how many can be ordered —
+  // anything else should NOT clamp or disable the stepper.
+  const stockLimit = stock != null && stock > 0 ? stock : null;
+
   const changeQty = useCallback((next: number) => {
-    let clamped = Math.max(effectiveMin, next);
-    if (stock != null) clamped = Math.min(clamped, stock);
+    let clamped = Math.max(effectiveMin, Math.round(next));
+    if (stockLimit != null) clamped = Math.min(clamped, stockLimit);
     setQty(clamped);
-  }, [effectiveMin, stock]);
+  }, [effectiveMin, stockLimit]);
 
   const jumpToTier = (tier: PriceTier) => changeQty(tier.minQty);
 
@@ -285,17 +305,69 @@ export default function SageQuantityPricing({
       .sort((a, b) => a.minQty - b.minQty)[0] ?? null;
   }, [meta, qty]);
 
+  /* ── Shared "typeable" quantity input logic ──
+     A number input bound directly to a clamped `qty` state has a nasty
+     bug: clearing the field to type a new value fires onChange with
+     value === "", Number("") is 0 (not NaN), changeQty(0) clamps straight
+     back up to effectiveMin, and the field snaps to that value mid-keystroke
+     — making it impossible to type a smaller-then-larger multi-digit qty.
+     Fix: buffer the raw text locally, only reconcile from the committed
+     `qty` while the field isn't focused, and only clamp on blur. */
+  const [qtyInput, setQtyInput] = useState(String(qty));
+  const inputFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!inputFocusedRef.current) setQtyInput(String(qty));
+  }, [qty]);
+
+  const handleQtyInputFocus = () => {
+    inputFocusedRef.current = true;
+  };
+
+  const handleQtyInputChange = (raw: string) => {
+    setQtyInput(raw);
+    if (raw.trim() === "") return; // let the field sit empty while typing
+    const v = Number(raw);
+    if (Number.isFinite(v)) changeQty(v);
+  };
+
+  const handleQtyInputBlur = (raw: string) => {
+    inputFocusedRef.current = false;
+    const v = Number(raw);
+    changeQty(Number.isFinite(v) ? v : effectiveMin);
+    // changeQty updates `qty`, and the effect above will re-sync qtyInput
+    // now that the field is no longer focused.
+  };
+
   /* ── No meta: simple fallback stepper ── */
   if (!meta) {
     return (
       <div className="flex items-center justify-center gap-4 py-4">
-        <button onClick={() => changeQty(qty - 1)} className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 transition-all">−</button>
+        <button
+          onClick={() => changeQty(qty - 1)}
+          disabled={qty <= effectiveMin}
+          aria-label="Decrease quantity"
+          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          −
+        </button>
         <input
-          type="number" value={qty} min={effectiveMin}
-          onChange={e => changeQty(Number(e.target.value))}
+          type="number"
+          value={qtyInput}
+          min={effectiveMin}
+          onFocus={handleQtyInputFocus}
+          onChange={e => handleQtyInputChange(e.target.value)}
+          onBlur={e => handleQtyInputBlur(e.target.value)}
           className="w-20 h-11 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
         />
-        <button onClick={() => changeQty(qty + 1)} className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 transition-all">+</button>
+        <button
+          onClick={() => changeQty(qty + 1)}
+          disabled={stockLimit != null && qty >= stockLimit}
+          aria-label="Increase quantity"
+          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          +
+        </button>
       </div>
     );
   }
@@ -376,21 +448,22 @@ const QtyStepper = () => (
       <div className="flex flex-col items-center">
         <input
           type="number"
-          value={qty}
+          value={qtyInput}
           min={effectiveMin}
-          max={stock ?? undefined}
-          onChange={(e) => { const v = Number(e.target.value); if (!isNaN(v)) changeQty(v); }}
-          onBlur={(e) => { const v = Number(e.target.value); changeQty(isNaN(v) ? effectiveMin : v); }}
+          max={stockLimit ?? undefined}
+          onFocus={handleQtyInputFocus}
+          onChange={(e) => handleQtyInputChange(e.target.value)}
+          onBlur={(e) => handleQtyInputBlur(e.target.value)}
           className="w-32 h-12 rounded-2xl border-2 border-gray-200 text-center text-xl font-black text-gray-900 outline-none focus:border-[#F5D800] focus:ring-4 focus:ring-[#F5D800]/15 transition-all tabular-nums"
         />
-        <p className="text-[10px] text-gray-400 mt-1">
-          min {effectiveMin.toLocaleString()}{stock != null ? ` · stock ${stock.toLocaleString()}` : ""}
-        </p>
+        {/* <p className="text-[10px] text-gray-400 mt-1">
+          min {effectiveMin.toLocaleString()}{stockLimit != null ? ` · stock ${stockLimit.toLocaleString()}` : ""}
+        </p> */}
       </div>
 
       <button
         onClick={() => changeQty(qty + 1)}
-        disabled={stock != null && qty >= stock}
+        disabled={stockLimit != null && qty >= stockLimit}
         aria-label="Increase quantity"
         className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 hover:border-gray-300 hover:bg-gray-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
       >

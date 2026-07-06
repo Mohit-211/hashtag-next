@@ -108,6 +108,15 @@ function formatTime(iso: string) {
 
 export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps) {
   const { order } = payment;
+  console.log(order, "order")
+   if (!order) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 text-sm text-slate-400">
+        Order details unavailable for transaction{" "}
+        <span className="font-mono">{payment?.transaction_id ?? "—"}</span>
+      </div>
+    );
+  }
   const preview = order.preview;
 
   return (
@@ -148,11 +157,18 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
               alt={preview.product_name}
               className="w-14 h-14 rounded-lg object-cover border border-slate-200"
             />
-            <img
-              src={preview.customized_image}
-              alt="Customized"
-              className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-md object-cover border-2 border-white shadow"
-            />
+            {preview?.customized_image && (
+  <img
+    src={preview.customized_image}
+    alt="Customized"
+    className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-md object-cover border-2 border-white shadow"
+    crossOrigin="anonymous"
+    onError={(e) => {
+      console.log("Failed image:", preview.customized_image);
+      (e.currentTarget as HTMLImageElement).style.display = "none";
+    }}
+  />
+)}
           </div>
 
           <div className="min-w-0 flex-1">

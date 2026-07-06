@@ -27,3 +27,6 @@ export const GetOrderDetailApi = (
 export const CreateShipmentLabelApi = (payload: { order_id: number }) => {
   return client.post(ORDER.CREATE_SHIPMENT_LABEL, payload);
 };
+export const CancelOrderApi = (id: string | number) => {
+  return client.patch(ORDER.CANCEL(id));
+}

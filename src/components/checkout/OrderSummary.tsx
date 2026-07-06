@@ -1,5 +1,6 @@
 "use client";
 import { ShoppingBag, Tag, Truck, Receipt } from "lucide-react";
+import ProxyImage from "../Proxyimage";
 
 function fmt(n: any): string {
   const num = parseFloat(n);
@@ -31,14 +32,37 @@ export default function OrderSummary({
             const unit = parseFloat(item.price);
             const qty  = parseInt(item.quantity ?? 1, 10);
             const line = isNaN(unit) || isNaN(qty) ? null : unit * qty;
+
             return (
               <div key={item.id} className="flex items-start gap-3">
-                {item.image
-                  ? <img src={item.image} alt={item.name} className="h-10 w-10 object-cover border border-[#E0DFDB] shrink-0" />
-                  : <div className="h-10 w-10 bg-[#F5F4F0] border border-[#E0DFDB] flex items-center justify-center shrink-0">
+                <div className="relative h-10 w-10 shrink-0">
+                  <div className="h-full w-full overflow-hidden bg-[#F5F4F0] border border-[#E0DFDB] flex items-center justify-center">
+                    {item.image ? (
+                      <ProxyImage
+                        src={item.image}
+                        alt={item.name}
+                        width={40}
+                        height={40}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
                       <ShoppingBag className="h-4 w-4 text-[#CDCCC8]" strokeWidth={1.5} />
+                    )}
+                  </div>
+
+                  {item.logo_image && (
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 overflow-hidden border border-white shadow-sm bg-white">
+                      <ProxyImage
+                        src={item.logo_image}
+                        alt="Logo"
+                        width={16}
+                        height={16}
+                        className="h-full w-full object-cover"
+                      />
                     </div>
-                }
+                  )}
+                </div>
+
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#1A1A1A] truncate">{item.name}</p>
                   <p className="text-xs text-[#9A9A9A] mt-0.5">Qty {qty}</p>
@@ -89,7 +113,6 @@ export default function OrderSummary({
           </div>
         </div>
 
-        
       </div>
     </div>
   );

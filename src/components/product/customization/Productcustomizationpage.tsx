@@ -95,7 +95,11 @@ export interface ConfiguredVariant {
 /* ─────────────────────────────────────────── Constants ── */
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const CANVAS_SIZE = 500;
-const PROMO_MIN_QTY = 100; // ← hard floor for Promo category products
+const PROMO_MIN_QTY = 100; // ← DEFAULT fallback floor, only used when a
+// Promo product supplies NEITHER a usable qtyTiers[0] in its SAGE meta NOR
+// its own min_order_quantity. Per-product minimum should come from the
+// product's own data (see getPromoMinQty below) — this is not a global
+// floor applied to every Promo product regardless of its actual meta.
 type MaterialId = "embroidery" | "dtf" | "screenprint" | "dtg";
 const MATERIALS = [
   { id: "embroidery" as MaterialId, label: "Embroidery", desc: "Premium thread-stitched branding", bestFor: "Polos, jackets, uniforms", badge: "All Fabrics", emoji: "🧵" },
@@ -288,6 +292,43 @@ const getVariantPrice = (v?: { original_price?: number | string; price?: number 
     if (!Number.isNaN(n)) return n;
   }
   return Number(v.price ?? 0);
+};
+/* ★ NEW — Per-product Promo minimum order quantity.
+   SAGE meta ships a `qtyTiers` array, e.g. ["1","12","48","120","",""].
+   qtyTiers[0] is the FIRST break — i.e., the actual minimum quantity this
+   specific product can be ordered in (often 1, sometimes higher). This
+   must never be replaced by one hardcoded number for every Promo product.
+   Fallback order:
+     1. meta.qtyTiers[0]           (product's real SAGE minimum)
+     2. variant.min_order_quantity  (explicit override from the catalog)
+     3. PROMO_MIN_QTY               (last-resort default, only if neither
+                                      of the above is usable) */
+export const getPromoMinQty = (
+  metaStr?: string | null,
+  minOrderQuantity?: number | null
+): number => {
+  const meta = parseSageMeta(metaStr ?? null);
+
+  // Remove null, empty string and 0 values
+  const qtyTiers = ((meta as any)?.qtyTiers ?? [])
+    .filter(
+      (qty: any) =>
+        qty !== null &&
+        qty !== undefined &&
+        qty !== "" &&
+        Number(qty) > 0
+    )
+    .map((qty: any) => Number(qty));
+
+  if (qtyTiers.length > 0) {
+    return qtyTiers[0];
+  }
+
+  if (minOrderQuantity && minOrderQuantity > 0) {
+    return minOrderQuantity;
+  }
+
+  return PROMO_MIN_QTY;
 };
 function drawCanvas({
   ctx, size, productImg, logo, logoPos, logoSize, logoRotation, logoOpacity,
@@ -556,22 +597,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [variantQty, setVariantQty] = useState<Record<number, number>>({});
   const setQty = (variantId: number, qty: number) =>
     setVariantQty(prev => ({ ...prev, [variantId]: Math.max(1, qty) }));
-  /* ── Promo-aware qty setter — NEVER allows below PROMO_MIN_QTY.
-     Floors/parses the input so typed values like "" or "50" both clamp
-     correctly instead of producing NaN or sneaking under the floor. ── */
-  const setPromoQty = (variantId: number, qty: number) => {
-    if (!isPromo) { setQty(variantId, Math.max(0, qty)); return; }
-    const safe = Number.isFinite(qty) ? Math.floor(qty) : PROMO_MIN_QTY;
-    setQty(variantId, Math.max(PROMO_MIN_QTY, safe));
-  };
   const totalQty = useMemo(
     () => Object.values(variantQty).reduce((a, b) => a + b, 0),
     [variantQty]
   );
-  /* ── currentQty: qty for the ONE active variant being configured.
-     Apparel/Promo pricing must key off this, not `totalQty` (a sum over
-     every key ever written into variantQty), or price and displayed
-     qty can drift apart. Pre-Made keeps using totalQty (multi-row). ── */
   console.log(colorVariants, "colorVariantscolorVariants")
   const currentVariantId = useMemo(() => {
     const exact = colorVariants.find(v => v.id === variantDataId);
@@ -603,15 +632,34 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     Array.isArray(parsedPromoMeta.priceTiers) &&
     parsedPromoMeta.priceTiers.length > 0
   );
-  /* ── Always (re)init Promo qty to PROMO_MIN_QTY whenever the working
-     selection is empty — covers initial load, color switch, and the reset
-     that happens after "Add Variant". Never inherits a stale lower value
-     and never drops below the floor, regardless of SAGE tier minimums. ── */
+  /* ★ NEW — THE per-product Promo minimum. Derived from THIS variant's own
+     SAGE meta (qtyTiers[0]) first, then its own min_order_quantity, and
+     only falls back to the generic PROMO_MIN_QTY constant if neither is
+     present. This is what makes minimum order quantity vary correctly
+     per-product instead of being hardcoded to 100 for every Promo item. */
+  const promoMinQty = useMemo(
+    () => getPromoMinQty(promoMetaStr, activeVariant?.min_order_quantity),
+    [promoMetaStr, activeVariant]
+  );
+  /* ── Promo-aware qty setter — NEVER allows below this product's own
+     promoMinQty. Floors/parses the input so typed values like "" or "50"
+     both clamp correctly instead of producing NaN or sneaking under the
+     floor. ── */
+  const setPromoQty = (variantId: number, qty: number) => {
+    if (!isPromo) { setQty(variantId, Math.max(0, qty)); return; }
+    const safe = Number.isFinite(qty) ? Math.floor(qty) : promoMinQty;
+    setQty(variantId, Math.max(promoMinQty, safe));
+  };
+  /* ── Always (re)init Promo qty to this product's promoMinQty whenever the
+     working selection is empty — covers initial load, color switch, and
+     the reset that happens after "Add Variant". Never inherits a stale
+     lower value and never drops below the floor, and now correctly uses
+     THIS product's own SAGE minimum instead of a fixed 100. ── */
   useEffect(() => {
     if (!isPromo || !activeVariant) return;
     if (Object.keys(variantQty).length > 0) return;
-    setQty(activeVariant.id, PROMO_MIN_QTY);
-  }, [isPromo, activeVariant, selectedColor]);
+    setQty(activeVariant.id, promoMinQty);
+  }, [isPromo, activeVariant, selectedColor, promoMinQty]);
   /* ── Apparel/Pre-Made: floor quantity at 1 (or the variant's own
      min_order_quantity if higher) whenever nothing has been picked yet. ── */
   useEffect(() => {
@@ -874,8 +922,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     ...(isPreMade ? [{ key: "size", label: "Size & qty", done: activeSizes.length > 0 }] : []),
     ...(isPromo ? [{
       key: "qty",
-      label: `Quantity (min ${PROMO_MIN_QTY})`,
-      done: totalQty >= PROMO_MIN_QTY,
+      label: `Quantity (min ${promoMinQty})`,
+      done: totalQty >= promoMinQty,
     }] : []),
   ];
   const allMet = REQUIREMENTS.every(r => r.done);
@@ -1159,8 +1207,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setTimeout(() => setShowValidationShake(false), 600);
       return;
     }
-    if (isPromo && currentQty < PROMO_MIN_QTY) {
-      setValidationError(`Minimum order quantity for Promo products is ${PROMO_MIN_QTY}.`);
+    if (isPromo && currentQty < promoMinQty) {
+      setValidationError(`Minimum order quantity for this product is ${promoMinQty}.`);
       setShowValidationShake(true);
       setTimeout(() => setShowValidationShake(false), 600);
       return;
@@ -1219,13 +1267,22 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     // click, so handleConfigConfirm doesn't re-merge (and double-count)
     // the same line when the modal is confirmed.
     setJustStagedVariantIds(newSizes.map(s => s.variant_id));
-    // Promo: enforce min qty across every variant in the UPDATED list
-    // Promo: enforce min qty across every variant in the UPDATED list
+    // ★ CHANGED — Promo min-qty enforcement now checks EACH configured
+    // variant against ITS OWN promoMinQty (derived from that variant's own
+    // SAGE meta / min_order_quantity), not one shared constant. Two colors
+    // of the same product can legitimately have different SAGE minimums.
     if (isPromo) {
-      const tooLow = updatedVariantList.find(cv => cv.totalQty < PROMO_MIN_QTY);
+      const variantsSource = allProductVariants.length > 0 ? allProductVariants : (product?.variants ?? []);
+      const tooLow = updatedVariantList.find(cv => {
+        const v = variantsSource.find(vv => vv.id === cv.variantId);
+        const min = getPromoMinQty(v?.meta ?? promoMetaStr, v?.min_order_quantity);
+        return cv.totalQty < min;
+      });
       if (tooLow) {
+        const v = variantsSource.find(vv => vv.id === tooLow.variantId);
+        const min = getPromoMinQty(v?.meta ?? promoMetaStr, v?.min_order_quantity);
         setValidationError(
-          `Minimum order quantity for Promo products is ${PROMO_MIN_QTY} (${tooLow.variantName} has ${tooLow.totalQty}).`
+          `Minimum order quantity for ${tooLow.variantName} is ${min} (currently ${tooLow.totalQty}).`
         );
         setShowValidationShake(true);
         setTimeout(() => setShowValidationShake(false), 600);
@@ -1525,7 +1582,7 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
           <p className="text-sm text-gray-500">
             {isApparel && "Select print location, decoration method, then upload your logo"}
             {isPreMade && "Choose your color, size & quantity"}
-            {isPromo && `Select quantity (min ${PROMO_MIN_QTY}) and optionally upload your logo`}
+            {isPromo && `Select quantity (min ${promoMinQty}) and optionally upload your logo`}
           </p>
         </div>
       </div>
@@ -1865,13 +1922,13 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
               <>
                 <SectionCard
                   step={1} title="Select Quantity"
-                  subtitle={`Minimum order quantity is ${PROMO_MIN_QTY} pieces. Price drops automatically as you order more.`}
-                  status={totalQty >= PROMO_MIN_QTY ? "done" : "required"}
+                  subtitle={`Minimum order quantity is ${promoMinQty} piece${promoMinQty === 1 ? "" : "s"}. Price drops automatically as you order more.`}
+                  status={totalQty >= promoMinQty ? "done" : "required"}
                 >
                   {hasTierPricing ? (
                     <SageQuantityPricing
                       metaStr={promoMetaStr}
-                      minOrderQuantity={PROMO_MIN_QTY}
+                      minOrderQuantity={promoMinQty}
                       stock={activeVariant?.stock}
                       variant="compact"
                       onChange={({ quantity, unitPrice, total }) => {
@@ -1884,20 +1941,20 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
-                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? PROMO_MIN_QTY) - 1);
+                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? promoMinQty) - 1);
                         }}
-                        disabled={(variantQty[activeVariant?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY}
+                        disabled={(variantQty[activeVariant?.id ?? -1] ?? promoMinQty) <= promoMinQty}
                         className={cn(
                           "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
-                          (variantQty[activeVariant?.id ?? -1] ?? PROMO_MIN_QTY) <= PROMO_MIN_QTY
+                          (variantQty[activeVariant?.id ?? -1] ?? promoMinQty) <= promoMinQty
                             ? "border-gray-100 text-gray-300 cursor-not-allowed"
                             : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
                         )}
                       ><Minus size={20} /></button>
                       <input
                         type="number"
-                        value={activeVariant ? (variantQty[activeVariant.id] ?? PROMO_MIN_QTY) : PROMO_MIN_QTY}
-                        min={PROMO_MIN_QTY}
+                        value={activeVariant ? (variantQty[activeVariant.id] ?? promoMinQty) : promoMinQty}
+                        min={promoMinQty}
                         onChange={e => {
                           if (activeVariant) setPromoQty(activeVariant.id, Number(e.target.value));
                         }}
@@ -1909,7 +1966,7 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
-                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? PROMO_MIN_QTY) + 1);
+                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? promoMinQty) + 1);
                         }}
                         className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
                       ><Plus size={20} /></button>
@@ -1919,9 +1976,9 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                       </div>
                     </div>
                   )}
-                  {totalQty > 0 && totalQty < PROMO_MIN_QTY && (
+                  {totalQty > 0 && totalQty < promoMinQty && (
                     <p className="text-xs text-red-500 font-semibold mt-3 text-center">
-                      Minimum order quantity for Promo products is {PROMO_MIN_QTY}.
+                      Minimum order quantity for this product is {promoMinQty}.
                     </p>
                   )}
                 </SectionCard>

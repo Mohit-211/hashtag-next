@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { X, Plus, Minus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSageUnitPriceWithMarkup } from "../customization/Sagequantitypricing";
+import { getSageUnitPriceWithMarkup, } from "../customization/Sagequantitypricing";
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../customization/pricing";
+import { getPromoMinQty } from "../customization/Productcustomizationpage";
 // import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
 /* ─────────────────────────────────────────── Types ── */
 interface Size {
@@ -60,7 +61,7 @@ interface Props {
   decorationUnitPrice?: number;
   selectedMaterial?: string;
   selectedLocations?: any[];
-    isApparel?: boolean;
+  isApparel?: boolean;
   isPromo?: boolean;
   isPreMade?: boolean;
 }
@@ -99,14 +100,20 @@ export default function AddProductConfigurationModal({
   decorationUnitPrice = 0,
   selectedMaterial = "",
   selectedLocations = [],
-    isApparel,
+  isApparel,
   isPromo,
   isPreMade
 }: Props) {
   const variants = variantsProp ?? [];
   const sizes = sizesProp ?? [];
-  const PROMO_MIN_QTY = 100;
-  const DEFAULT_MIN_QTY = isPromo ? PROMO_MIN_QTY : 1;
+  const PROMO_MIN_QTY =
+    selectedVariant?.meta
+      ? getPromoMinQty(selectedVariant.meta, selectedVariant.min_order_quantity)
+      : (selectedVariant?.min_order_quantity ?? 1);
+
+  const DEFAULT_MIN_QTY = isPromo
+    ? PROMO_MIN_QTY
+    : (selectedVariant?.min_order_quantity ?? 1);
   // TODO: Replace this with the actual decoration price passed from the parent.
   // const decorationUnitPrice = 0;
   /* ★ FIX — newRow lives inside the component (not at module scope) so it
@@ -214,40 +221,40 @@ export default function AddProductConfigurationModal({
     if (!v.meta) return flat;
     return getSageUnitPriceWithMarkup(v.meta, qty) ?? flat;
   };
- const selectedSizesData: SelectedSize[] = validRows.map((r) => {
-  const v = getVariantForRow(r)!;
-  const sizeObj = productHasSizes
-    ? sizes.find((s) => s.id === r.sizeId)
-    : null;
-  const unitPrice = unitPriceFor(v, r.qty);
-  const pricing = calculateVariantTotal({
-    productPrice: unitPrice,
-    decorationPrice: 0,
-    quantity: r.qty,
+  const selectedSizesData: SelectedSize[] = validRows.map((r) => {
+    const v = getVariantForRow(r)!;
+    const sizeObj = productHasSizes
+      ? sizes.find((s) => s.id === r.sizeId)
+      : null;
+    const unitPrice = unitPriceFor(v, r.qty);
+    const pricing = calculateVariantTotal({
+      productPrice: unitPrice,
+      decorationPrice: 0,
+      quantity: r.qty,
+    });
+    return {
+      variant_id: v.id,
+      quantity: r.qty,
+      size_name: sizeObj?.name ?? "",
+      unit_price: unitPrice,
+      decoration_price: decorationUnitPrice,
+      line_total: pricing.total,
+    };
   });
-  return {
-  variant_id: v.id,
-  quantity: r.qty,
-  size_name: sizeObj?.name ?? "",
-  unit_price: unitPrice,
-  decoration_price: decorationUnitPrice,
-  line_total: pricing.total,
-};
-});
   const hasSelectedSizes = selectedSizesData.length > 0;
   const totalItems = selectedSizesData.reduce((sum, s) => sum + s.quantity, 0);
-const primaryColor = validRows[0]?.color ?? rows[0]?.color ?? "";
-const totals = sumVariantTotals(
-  selectedSizesData.map((s) => ({
-    productPrice: s.unit_price,
-    decorationPrice: s.decoration_price,
-    quantity: s.quantity,
-  }))
-);
-const totalPrice = totals.productTotal;
-const decorationTotal = totals.decorationTotal;
-const grandTotal = totals.total;
-console.log(mode,"mode")
+  const primaryColor = validRows[0]?.color ?? rows[0]?.color ?? "";
+  const totals = sumVariantTotals(
+    selectedSizesData.map((s) => ({
+      productPrice: s.unit_price,
+      decorationPrice: s.decoration_price,
+      quantity: s.quantity,
+    }))
+  );
+  const totalPrice = totals.productTotal;
+  const decorationTotal = totals.decorationTotal;
+  const grandTotal = totals.total;
+  console.log(mode, "mode")
   /* ── Handlers ── */
   const handleSkip = () => {
     // ★ Skip must NEVER add a decoration (or any) charge, and must never
@@ -266,14 +273,14 @@ console.log(mode,"mode")
   };
   const handleAdd = async () => {
     if (!hasSelectedSizes) return;
-   await onConfirm({
-  selectedColor: primaryColor,
-  selectedSizes: selectedSizesData,
-  addAlso: true,
-  totalQuantity: totalItems,
-  totalPrice: grandTotal,
-  totalDecoration: decorationTotal,
-});
+    await onConfirm({
+      selectedColor: primaryColor,
+      selectedSizes: selectedSizesData,
+      addAlso: true,
+      totalQuantity: totalItems,
+      totalPrice: grandTotal,
+      totalDecoration: decorationTotal,
+    });
   };
   if (!open) return null;
   return (
@@ -503,42 +510,42 @@ console.log(mode,"mode")
                             {sizeObj ? ` · ${sizeObj.name}` : ""} · ×{row.qty}
                           </span>
                         </div>
-                       <div className="flex flex-col items-end gap-1">
-  <span className="text-xs font-bold text-gray-700">
-    $
-    {formatMoney(
-      calculateVariantTotal({
-        productPrice: unitPrice,
-        decorationPrice: 0,
-        quantity: row.qty,
-      }).productTotal
-    )}
-  </span>
-  
-{isApparel && decorationUnitPrice > 0 && (
-  <div className="flex items-center gap-2 text-[11px]">
-    <span className="text-gray-500">
-      Decoration ({row.qty} × ${formatMoney(decorationUnitPrice)})
-      {selectedMaterial === "embroidery" && row.qty <= 11
-        ? " incl. $35 digitizing"
-        : selectedLocations.length > 1
-        ? ` · ${selectedLocations.length} loc.`
-        : ""}
-    </span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-xs font-bold text-gray-700">
+                            $
+                            {formatMoney(
+                              calculateVariantTotal({
+                                productPrice: unitPrice,
+                                decorationPrice: 0,
+                                quantity: row.qty,
+                              }).productTotal
+                            )}
+                          </span>
 
-    <span className="font-bold text-gray-900">
-      $
-      {formatMoney(
-        calculateVariantTotal({
-          productPrice: 0,
-          decorationPrice: decorationUnitPrice,
-          quantity: row.qty,
-        }).decorationTotal
-      )}
-    </span>
-  </div>
-)}
-  {/* <span className="text-xs font-black text-[#F5D800]">
+                          {isApparel && decorationUnitPrice > 0 && (
+                            <div className="flex items-center gap-2 text-[11px]">
+                              <span className="text-gray-500">
+                                Decoration ({row.qty} × ${formatMoney(decorationUnitPrice)})
+                                {selectedMaterial === "embroidery" && row.qty <= 11
+                                  ? " incl. $35 digitizing"
+                                  : selectedLocations.length > 1
+                                    ? ` · ${selectedLocations.length} loc.`
+                                    : ""}
+                              </span>
+
+                              <span className="font-bold text-gray-900">
+                                $
+                                {formatMoney(
+                                  calculateVariantTotal({
+                                    productPrice: 0,
+                                    decorationPrice: decorationUnitPrice,
+                                    quantity: row.qty,
+                                  }).decorationTotal
+                                )}
+                              </span>
+                            </div>
+                          )}
+                          {/* <span className="text-xs font-black text-[#F5D800]">
     Total $
     {formatMoney(
       calculateVariantTotal({
@@ -548,7 +555,7 @@ console.log(mode,"mode")
       }).total
     )}
   </span> */}
-</div>
+                        </div>
                       </div>
                     );
                   })}
@@ -563,37 +570,37 @@ console.log(mode,"mode")
                 </div>
               )}
               {/* ── Estimated Total — dark card, same as customization page ── */}
-           <div className="rounded-xl bg-gray-900 text-white p-4">
-  <div className="space-y-2">
-               {isApparel&&
-               <>
-    <div className="flex items-center justify-between text-sm">
-      <span className="opacity-70">Product Total</span>
-      <span>${formatMoney(totalPrice)}</span>
-    </div>
-   
-    <div className="flex items-center justify-between text-sm">
-      <span className="opacity-70">Decoration Total</span>
-      <span>${formatMoney(decorationTotal)}</span>
-    </div>
-               </>
-    }
-    <div className=" border-gray-700 pt-2 flex items-center justify-between">
-      <span className="text-sm font-bold">Estimated Total</span>
-      <span className="text-xl font-black text-[#F5D800]">
-        {hasSelectedSizes
-          ? `$${formatMoney(grandTotal)}`
-          : "—"}
-      </span>
-    </div>
-    {hasSelectedSizes && (
-      <p className="text-[10px] text-gray-400">
-        ${formatMoney(grandTotal / Math.max(totalItems, 1))}/pc ·{" "}
-        {totalItems.toLocaleString()} units
-      </p>
-    )}
-  </div>
-</div>
+              <div className="rounded-xl bg-gray-900 text-white p-4">
+                <div className="space-y-2">
+                  {isApparel &&
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="opacity-70">Product Total</span>
+                        <span>${formatMoney(totalPrice)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="opacity-70">Decoration Total</span>
+                        <span>${formatMoney(decorationTotal)}</span>
+                      </div>
+                    </>
+                  }
+                  <div className=" border-gray-700 pt-2 flex items-center justify-between">
+                    <span className="text-sm font-bold">Estimated Total</span>
+                    <span className="text-xl font-black text-[#F5D800]">
+                      {hasSelectedSizes
+                        ? `$${formatMoney(grandTotal)}`
+                        : "—"}
+                    </span>
+                  </div>
+                  {hasSelectedSizes && (
+                    <p className="text-[10px] text-gray-400">
+                      ${formatMoney(grandTotal / Math.max(totalItems, 1))}/pc ·{" "}
+                      {totalItems.toLocaleString()} units
+                    </p>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>

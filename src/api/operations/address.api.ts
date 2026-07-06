@@ -15,5 +15,5 @@ export const UpdateAddressApi = (payload: any) =>
   client.put(ADDRESS_ENDPOINTS.UPDATE, payload);
 
 // ❌ Delete (ID inside payload)
-export const DeleteAddressApi = (payload: any) =>
-  client.post(ADDRESS_ENDPOINTS.DELETE, { data: payload });
+export const DeleteAddressApi = (id: number) =>
+  client.delete(`${ADDRESS_ENDPOINTS.DELETE}/${id}`);

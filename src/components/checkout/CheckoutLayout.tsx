@@ -14,20 +14,18 @@ import {
 import {
   CreateOrderApi,
   CreateShipmentLabelApi,
-  GetAllOrderApi,
 } from "@/api/operations/order.api";
 
-import { GetAddressApi } from "@/api/operations/address.api";
 import { GetShippingRatesApi } from "@/api/operations/shipping.api";
 
 import EmptyCart from "./EmptyCart";
 import ProcessingScreen from "./ProcessingScreen";
 import SuccessScreen from "./SuccessScreen";
 import ProgressRail from "./ProgressRail";
-import AddressSection from "./AddressSection";
 import ShippingSection from "./ShippingSection";
 import PaymentSection from "./PaymentSection";
 import OrderSummary from "./OrderSummary";
+import AddressSection from "../account/AddressSection";
 
 export type CheckoutStep =
   | "address"
@@ -35,19 +33,6 @@ export type CheckoutStep =
   | "payment"
   | "processing"
   | "done";
-
-export interface Address {
-  id: number;
-  name: string;
-  line1: string;
-  line2?: string;
-  city: string;
-  state: string;
-  zip: string;
-  country: string;
-  phone?: string;
-  is_default?: boolean;
-}
 
 export interface ShippingRate {
   label: string;
@@ -78,59 +63,37 @@ export default function CheckoutLayout() {
     refreshCart,
     pending_order,
   } = useCart();
-
+console.log(items,"items---")
   const { addOrder } = useOrders();
 
-  const [step, setStep] =
-    useState<CheckoutStep>("address");
-
-  const [addresses, setAddresses] =
-    useState<Address[]>([]);
+  const [step, setStep] = useState<CheckoutStep>("address");
 
   const [selectedAddressId, setSelectedAddressId] =
     useState<number | null>(null);
 
-  const [shippingRates, setShippingRates] =
-    useState<ShippingRate[]>([]);
+  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
 
-  const [selectedRate, setSelectedRate] =
-    useState<ShippingRate | null>(null);
-  console.log(selectedRate, "selectedRate")
-  const [processing, setProcessing] =
-    useState(false);
+  const [selectedRate, setSelectedRate] = useState<ShippingRate | null>(null);
 
-  const [orderError, setOrderError] =
-    useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
 
-  const [createdOrderId, setCreatedOrderId] =
-    useState<number | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
 
-  const [hasPendingOrder, setHasPendingOrder] =
-    useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
 
-  const shippingAmount =
-    selectedRate?.price ?? 0;
+  const [hasPendingOrder, setHasPendingOrder] = useState(false);
+
+  const shippingAmount = selectedRate?.price ?? 0;
 
   // ─────────────────────────────────────────────
   // AUTO DETECT PENDING ORDER
   // ─────────────────────────────────────────────
   useEffect(() => {
-    console.log(
-      "🛒 Pending order:",
-      pending_order
-    );
-
     if (
       pending_order?.order_id &&
       pending_order?.payment_status === "PENDING"
     ) {
-      console.log(
-        "✅ Pending payment found → redirect payment step"
-      );
-
-      setCreatedOrderId(
-        pending_order.order_id
-      );
+      setCreatedOrderId(pending_order.order_id);
 
       setHasPendingOrder(true);
 
@@ -138,131 +101,79 @@ export default function CheckoutLayout() {
         label: "Saved Shipping",
         service_code: "saved",
         carrier_code: "saved",
-        price:
-          pending_order.shipping_amount || 0,
+        price: pending_order.shipping_amount || 0,
       });
 
       setStep("payment");
     }
   }, [pending_order]);
 
-  // ─────────────────────────────────────────────
-  // LOAD ADDRESSES
-  // ─────────────────────────────────────────────
-  useEffect(() => {
-    const loadAddresses = async () => {
-      try {
-        const response =
-          await GetAddressApi();
-
-        const list: Address[] =
-          response?.data?.data ?? [];
-
-        setAddresses(list);
-
-        if (list.length > 0) {
-          const defaultAddress =
-            list.find(
-              (a) => a.is_default
-            );
-
-          setSelectedAddressId(
-            defaultAddress?.id ??
-            list[0].id
-          );
-        }
-      } catch (err) {
-        console.error(
-          "❌ Failed to load addresses:",
-          err
-        );
-      }
-    };
-
-    loadAddresses();
-  }, []);
+  // NOTE: Address loading now lives entirely inside <AddressSection mode="select" />
+  // via the shared useAddresses hook — no address state or fetching here.
 
   // ─────────────────────────────────────────────
   // FETCH SHIPPING RATES
   // ─────────────────────────────────────────────
-  const fetchRates = useCallback(
-    async (addressId: number) => {
-      try {
-        setProcessing(true);
-
-        const response =
-          await GetShippingRatesApi({
-            address_id: addressId,
-          });
-
-        const rates: ShippingRate[] =
-          response?.data?.data ??
-          response?.data?.rates ??
-          [];
-
-        setShippingRates(rates);
-
-        if (rates.length > 0) {
-          setSelectedRate(rates[0]);
-        }
-      } catch (err) {
-        console.error(
-          "❌ Shipping fetch failed:",
-          err
-        );
-      } finally {
-        setProcessing(false);
-      }
-    },
-    []
-  );
-  const fetchOrders = async () => {
+  const fetchRates = useCallback(async (addressId: number) => {
     try {
-      const response = await GetAllOrderApi();
-      const orderData = response?.data?.data?.data || [];
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
+      setProcessing(true);
+
+      const response = await GetShippingRatesApi({
+        address_id: addressId,
+      });
+
+      const rates: ShippingRate[] =
+        response?.data?.data ?? response?.data?.rates ?? [];
+
+      setShippingRates(rates);
+
+      if (rates.length > 0) {
+        setSelectedRate(rates[0]);
+      }
+    } catch (err) {
+      console.error("❌ Shipping fetch failed:", err);
     } finally {
+      setProcessing(false);
     }
-  };
+  }, []);
 
   // ─────────────────────────────────────────────
   // CONFIRM SHIPPING
   // ─────────────────────────────────────────────
-const handleConfirmShipping = useCallback(async () => {
-  try {
-    setOrderError(null);
-    setProcessing(true);
+  const handleConfirmShipping = useCallback(async () => {
+    try {
+      setOrderError(null);
+      setProcessing(true);
 
-    if (!selectedAddressId) throw new Error("Please select address");
-    if (!selectedRate) throw new Error("Please select shipping");
+      if (!selectedAddressId) throw new Error("Please select address");
+      if (!selectedRate) throw new Error("Please select shipping");
 
-    const orderResponse = await CreateOrderApi({
-      address_id: selectedAddressId,
-      selected_service_code: selectedRate.service_code,
-      selected_carrier_code: selectedRate.carrier_code,
-      shipping_amount: selectedRate.price ?? 0,
-    });
+      const orderResponse = await CreateOrderApi({
+        address_id: selectedAddressId,
+        selected_service_code: selectedRate.service_code,
+        selected_carrier_code: selectedRate.carrier_code,
+        shipping_amount: selectedRate.price ?? 0,
+      });
 
-    const orderId = orderResponse?.data?.data?.id;
-    if (!orderId) throw new Error("Order creation failed");
+      const orderId = orderResponse?.data?.data?.id;
+      if (!orderId) throw new Error("Order creation failed");
 
-    setCreatedOrderId(orderId);
+      setCreatedOrderId(orderId);
 
-    await CreateShipmentLabelApi({ order_id: orderId });
+      await CreateShipmentLabelApi({ order_id: orderId });
 
-    await refreshCart(); // ← replaces fetchOrders(), actually updates OrderSummary
+      await refreshCart();
 
-    setStep("payment");
-  } catch (err: any) {
-    console.error(err);
-    setOrderError(
-      err?.response?.data?.message || err?.message || "Something went wrong"
-    );
-  } finally {
-    setProcessing(false);
-  }
-}, [selectedAddressId, selectedRate, refreshCart]); // ← add refreshCart to deps
+      setStep("payment");
+    } catch (err: any) {
+      console.error(err);
+      setOrderError(
+        err?.response?.data?.message || err?.message || "Something went wrong"
+      );
+    } finally {
+      setProcessing(false);
+    }
+  }, [selectedAddressId, selectedRate, refreshCart]);
 
   // ─────────────────────────────────────────────
   // PLACE ORDER
@@ -277,30 +188,24 @@ const handleConfirmShipping = useCallback(async () => {
       setStep("processing");
 
       if (!createdOrderId) {
-        throw new Error(
-          "No order found"
-        );
+        throw new Error("No order found");
       }
 
-      if (
-        method !== "BANK_ACCOUNT" &&
-        !sourceId
-      ) {
-        throw new Error(
-          "Payment token missing"
-        );
+      if (method !== "BANK_ACCOUNT" && !sourceId) {
+        throw new Error("Payment token missing");
       }
 
-      const paymentConfig =
-        await GetSquareConfigApi();
+      const paymentConfig = await GetSquareConfigApi();
 
-      if (paymentConfig) {
-        await CreatePaymentApi({
-          order_id: createdOrderId,
-          sourceId,
-          payment_mode: method,
-        });
+      if (!paymentConfig) {
+        throw new Error("Unable to load payment configuration");
       }
+
+      await CreatePaymentApi({
+        order_id: createdOrderId,
+        sourceId,
+        payment_mode: method,
+      });
 
       // ✅ Refresh cart after payment success
       await refreshCart();
@@ -321,9 +226,7 @@ const handleConfirmShipping = useCallback(async () => {
       console.error(err);
 
       setOrderError(
-        err?.response?.data?.message ||
-        err?.message ||
-        "Payment failed"
+        err?.response?.data?.message || err?.message || "Payment failed"
       );
 
       setStep("payment");
@@ -335,10 +238,7 @@ const handleConfirmShipping = useCallback(async () => {
   // ─────────────────────────────────────────────
   // GUARDS
   // ─────────────────────────────────────────────
-  if (
-    items.length === 0 &&
-    step !== "done"
-  ) {
+  if (items.length === 0 && step !== "done") {
     return <EmptyCart />;
   }
 
@@ -347,96 +247,50 @@ const handleConfirmShipping = useCallback(async () => {
   }
 
   if (step === "done") {
-    return (
-      <SuccessScreen
-        orderId={createdOrderId}
-      />
-    );
+    return <SuccessScreen orderId={createdOrderId} />;
   }
 
   return (
     <section className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 lg:py-12">
       <div className="container max-w-5xl px-4 mx-auto">
-
         <ProgressRail current={step} />
 
         <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
-
           <div className="lg:col-span-3">
+            {step === "address" && !hasPendingOrder && (
+              <AddressSection
+                mode="select"
+                selectedAddressId={selectedAddressId}
+                setSelectedAddressId={setSelectedAddressId}
+                onContinue={async () => {
+                  if (!selectedAddressId) return;
+                  await fetchRates(selectedAddressId);
+                  setStep("shipping");
+                }}
+                continueLoading={processing}
+              />
+            )}
 
-            {step === "address" &&
-              !hasPendingOrder && (
-                <AddressSection
-                  addresses={addresses}
-                  selectedAddressId={
-                    selectedAddressId
-                  }
-                  setSelectedAddressId={
-                    setSelectedAddressId
-                  }
-                  loading={processing}
-                  onContinue={async () => {
-                    if (
-                      !selectedAddressId
-                    )
-                      return;
-
-                    await fetchRates(
-                      selectedAddressId
-                    );
-
-                    setStep("shipping");
-                  }}
-                />
-              )}
-
-            {step === "shipping" &&
-              !hasPendingOrder && (
-                <ShippingSection
-                  shippingRates={
-                    shippingRates
-                  }
-                  selectedRate={
-                    selectedRate
-                  }
-                  setSelectedRate={
-                    setSelectedRate
-                  }
-                  selectedAddressId={
-                    selectedAddressId
-                  }
-                  shippingAmount={
-                    shippingAmount
-                  }
-                  processing={
-                    processing
-                  }
-                  orderError={
-                    orderError
-                  }
-                  onContinue={
-                    handleConfirmShipping
-                  }
-                  onBack={() =>
-                    setStep("address")
-                  }
-                />
-              )}
+            {step === "shipping" && !hasPendingOrder && (
+              <ShippingSection
+                shippingRates={shippingRates}
+                selectedRate={selectedRate}
+                setSelectedRate={setSelectedRate}
+                selectedAddressId={selectedAddressId}
+                shippingAmount={shippingAmount}
+                processing={processing}
+                orderError={orderError}
+                onContinue={handleConfirmShipping}
+                onBack={() => setStep("address")}
+              />
+            )}
 
             {step === "payment" && (
               <PaymentSection
-                onPlaceOrder={
-                  handlePlaceOrder
-                }
-                onBack={() =>
-                  setStep("shipping")
-                }
-                processing={
-                  processing
-                }
-                orderError={
-                  orderError
-                }
+                onPlaceOrder={handlePlaceOrder}
+                onBack={() => setStep("shipping")}
+                processing={processing}
+                orderError={orderError}
               />
             )}
           </div>
@@ -445,19 +299,10 @@ const handleConfirmShipping = useCallback(async () => {
             <OrderSummary
               items={items}
               subtotal={subtotal}
-              customizationTotal={
-                customizationTotal
-              }
-              shippingAmount={
-                shippingAmount
-              }
-              total={
-                grandTotal +
-                shippingAmount
-              }
-              selectedRate={
-                selectedRate
-              }
+              customizationTotal={customizationTotal}
+              shippingAmount={shippingAmount}
+              total={grandTotal + shippingAmount}
+              selectedRate={selectedRate}
             />
           </div>
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,13 +32,16 @@ const navLinks = [
   { label: "Orders", href: "/orders" },
   { label: "Saved", href: "/saved" },
   { label: "Gallery", href: "/gallery" },
-
+  { label: "Contact", href: "/contact-us" },
 ];
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState({ top: 0, left: 0 });
+  const [mounted, setMounted] = useState(false);
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const pathname = usePathname();
@@ -45,11 +49,8 @@ export default function Header() {
 
   const { totalItems } = useCart();
   useEffect(() => {
-  console.log(
-    "Header Cart Count:",
-    totalItems
-  );
-}, [totalItems]);
+    console.log("Header Cart Count:", totalItems);
+  }, [totalItems]);
   const { wishlistCount } = useWishlist();
 
   const { user, logout } = useAuth();
@@ -59,23 +60,26 @@ export default function Header() {
     typeof window !== "undefined" &&
     !!localStorage.getItem("hastagBillionaire");
 
-  // ✅ Close dropdown outside click
+  // ✅ Needed because createPortal can't run during SSR
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // ✅ Close dropdown on outside click — checks BOTH the trigger and the
+  // portaled dropdown, since the dropdown is no longer a DOM descendant
+  // of the trigger's wrapping div.
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (!dropdownRef.current) return;
-
-      if (!dropdownRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const clickedTrigger = triggerRef.current?.contains(target);
+      const clickedDropdown = dropdownRef.current?.contains(target);
+      if (!clickedTrigger && !clickedDropdown) {
         setUserDropdownOpen(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-
-    return () =>
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   // ✅ Close menu on route change
@@ -84,26 +88,48 @@ export default function Header() {
     setMobileOpen(false);
   }, [pathname]);
 
+  // ✅ Recalculate position on scroll/resize while open, so it doesn't
+  // drift out of place under the trigger.
+  useEffect(() => {
+    if (!userDropdownOpen) return;
+
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownRect({ top: rect.bottom + 8, left: rect.right - 224 }); // 224px = w-56
+    };
+
+    updatePosition();
+    window.addEventListener("scroll", updatePosition, true);
+    window.addEventListener("resize", updatePosition);
+    return () => {
+      window.removeEventListener("scroll", updatePosition, true);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [userDropdownOpen]);
+
+  const toggleDropdown = () => {
+    if (!userDropdownOpen && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownRect({ top: rect.bottom + 8, left: rect.right - 224 });
+    }
+    setUserDropdownOpen((prev) => !prev);
+  };
+
   // ✅ Logout
   const handleLogout = () => {
     localStorage.removeItem("hastagBillionaire");
-
     logout();
-
     setUserDropdownOpen(false);
     setMobileOpen(false);
-
     router.push("/login");
   };
 
   return (
-   <header className="sticky top-0 z-50 bg-gray-500/50 backdrop-blur border-b border-gray-500">
+    <header className="sticky top-0 z-50 bg-gray-500/50 backdrop-blur border-b border-gray-500">
       <div className="container flex h-16 items-center justify-between gap-4">
         {/* Logo */}
-        <Link
-          href="/"
-          className="flex items-center shrink-0"
-        >
+        <Link href="/" className="flex items-center shrink-0">
           <Image
             src="/logo_footer.png"
             alt="HashtagBillionaire"
@@ -133,25 +159,12 @@ export default function Header() {
 
         {/* Right Actions */}
         <div className="flex items-center gap-4">
-          {/* Search */}
-          {/* <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-secondary/70 transition"
-          >
-            <Search className="h-5 w-5" />
-          </Button> */}
-
           {/* ================= LOGGED IN ================= */}
           {isLoggedIn ? (
             <>
               {/* Wishlist */}
               <Link href="/saved">
-                <Badge
-                  count={wishlistCount}
-                  size="small"
-                  offset={[0, 4]}
-                >
+                <Badge count={wishlistCount} size="small" offset={[0, 4]}>
                   <div className="rounded-md hover:bg-secondary transition">
                     <Heart className="h-5 w-5" />
                   </div>
@@ -160,26 +173,19 @@ export default function Header() {
 
               {/* Cart */}
               <Link href="/cart">
-                <Badge
-                  count={totalItems}
-                  size="small"
-                  offset={[0, 4]}
-                >
+                <Badge count={totalItems} size="small" offset={[0, 4]}>
                   <div className="rounded-md hover:bg-secondary transition">
                     <ShoppingBag className="h-5 w-5" />
                   </div>
                 </Badge>
               </Link>
 
-              {/* User Dropdown */}
-              <div
-                className="relative hidden sm:block"
-                ref={dropdownRef}
-              >
+              {/* User Dropdown trigger — NOTE: no wrapping ref div anymore,
+                  the ref lives directly on the button. */}
+              <div className="relative hidden sm:block">
                 <button
-                  onClick={() =>
-                    setUserDropdownOpen((prev) => !prev)
-                  }
+                  ref={triggerRef}
+                  onClick={toggleDropdown}
                   className="
                     flex items-center gap-1.5 px-2.5 py-1.5
                     rounded-md hover:bg-secondary/70
@@ -187,61 +193,71 @@ export default function Header() {
                   "
                 >
                   <span className="text-xs   max-w-[80px] truncate">
-                    {user?.name?.split(" ")[0] ||
-                      "Account"}
+                    {user?.name?.split(" ")[0] || "Account"}
                   </span>
-
                   <User className="h-5 w-5" />
-
                   <ChevronDown
                     className={`h-3.5 w-3.5 transition-transform duration-200 ${
-                      userDropdownOpen
-                        ? "rotate-180"
-                        : ""
+                      userDropdownOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
 
-                {/* Dropdown */}
-                {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 rounded-xl border bg-background shadow-xl py-1 z-50 animate-in fade-in zoom-in-95">
-                    {/* User Info */}
-                    <div className="px-4 py-3 border-b">
-                      <p className="text-sm font-medium truncate">
-                        {user?.name || "User"}
-                      </p>
-
-                      <p className="text-xs   truncate">
-                        {user?.email || ""}
-                      </p>
-                    </div>
-
-                    {/* Profile */}
-                    <Link
-                      href="/account"
-                      className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary/60 transition"
+                {/* Dropdown — rendered via portal directly into <body>,
+                    so it escapes the header's sticky/backdrop-blur
+                    stacking & clipping context entirely. */}
+                {mounted &&
+                  userDropdownOpen &&
+                  createPortal(
+                    <div
+                      ref={dropdownRef}
+                      style={{
+                        position: "fixed",
+                        top: dropdownRect.top,
+                        left: dropdownRect.left,
+                        zIndex: 10001,
+                      }}
+                      className="w-56 rounded-xl border bg-background shadow-xl py-1 animate-in fade-in zoom-in-95"
                     >
-                      <UserCircle className="h-4 w-4" />
-                      My Profile
-                    </Link>
-                    <Link
-                      href="/payment-history"
-                      className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary/60 transition"
-                    >
-                      <UserCircle className="h-4 w-4" />
-                      Payment History
-                    </Link>
+                      {/* User Info */}
+                      <div className="px-4 py-3 border-b">
+                        <p className="text-sm font-medium truncate">
+                          {user?.name || "User"}
+                        </p>
+                        <p className="text-xs   truncate">
+                          {user?.email || ""}
+                        </p>
+                      </div>
 
-                    {/* Logout */}
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
-                  </div>
-                )}
+                      {/* Profile */}
+                      <Link
+                        href="/account"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary/60 transition"
+                      >
+                        <UserCircle className="h-4 w-4" />
+                        My Profile
+                      </Link>
+                      <Link
+                        href="/payment-history"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary/60 transition"
+                      >
+                        <UserCircle className="h-4 w-4" />
+                        Payment History
+                      </Link>
+
+                      {/* Logout */}
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                      </button>
+                    </div>,
+                    document.body
+                  )}
               </div>
             </>
           ) : (
@@ -262,15 +278,9 @@ export default function Header() {
             variant="ghost"
             size="icon"
             className="md:hidden hover:bg-secondary/70 transition"
-            onClick={() =>
-              setMobileOpen((prev) => !prev)
-            }
+            onClick={() => setMobileOpen((prev) => !prev)}
           >
-            {mobileOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
         </div>
       </div>
@@ -301,8 +311,7 @@ export default function Header() {
                   onClick={() => setMobileOpen(false)}
                   className="px-3 py-2 text-sm hover:bg-secondary rounded-md"
                 >
-                  My Account (
-                  {user?.name?.split(" ")[0] || "User"})
+                  My Account ({user?.name?.split(" ")[0] || "User"})
                 </Link>
 
                 <button

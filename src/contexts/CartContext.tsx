@@ -48,11 +48,12 @@ interface CartContextType {
 
   pending_order: PendingOrder | null;
 
+  cartData: any;
+
   refreshCart: () => Promise<void>;
 
   addItem: (item: CartItem) => void;
 }
-
 const CartContext =
   createContext<CartContextType | null>(
     null
@@ -78,6 +79,7 @@ export const CartProvider = ({
   const [items, setItems] = useState<
     CartItem[]
   >([]);
+  const [cartData, setCartData] = useState<any>(null);
 
   const [pendingOrder, setPendingOrder] =
     useState<PendingOrder | null>(null);
@@ -91,65 +93,57 @@ export const CartProvider = ({
 
   // ✅ FETCH CART
   const fetchCart = useCallback(async () => {
-    const token = localStorage.getItem(
-      "hastagBillionaire"
-    );
+    const token = localStorage.getItem("hastagBillionaire");
 
     if (!token) {
       setItems([]);
       setPendingOrder(null);
+      setCartData(null);
       return;
     }
 
     try {
       const res = await GetAllCartItemsApi();
-      console.log(res, "resres")
-      const data =
-        res?.data?.data || res?.data;
 
-      setPendingOrder(
-        data?.pending_order || null
-      );
+      console.log("Cart API Response:", res);
 
-      const formatted = (
-        data?.items || []
-      ).map((item: any) => ({
-        id: String(item.product_id),
-        name:
-          item.name ||
-          item.product_name,
-        image:
-          item.image ||
-          "/placeholder.png",
-        size: item.size,
-        logo_image:
-          item.logo_image ||
-          "/placeholder.png",
-        basePrice:
-          Number(item.price) || 0,
-        quantity:
-          Number(item.quantity) || 1,
-        cart_id: item.cart_id,
-        customization: {
-          uploadedImage: null,
-          placements: [],
-          uploadFee:
-            Number(
-              item.customization_price
-            ) || 0,
-        },
-      }));
+      const data = res?.data?.data || res?.data;
 
+      console.log("Cart Data:", data);
+
+      // Store complete response
+      setCartData(data);
+
+      // Store pending order
+      setPendingOrder(data?.pending_order || null);
+
+      // Format cart items
+     const formatted: CartItem[] = (data?.items || []).map((item: any) => ({
+  ...item, // ✅ Include all API fields
+
+  id: String(item.product_id),
+  name: item.name || item.product_name || "",
+  image: item.image || "/placeholder.png",
+  logo_image: item.logo_image || "/placeholder.png",
+  basePrice: Number(item.price ?? item.base_price ?? 0),
+  quantity: Number(item.quantity ?? 1),
+  cart_id: item.cart_id,
+
+  customization: {
+    uploadedImage: item.uploaded_image || null,
+    placements: item.placements || [],
+    uploadFee: Number(item.customization_price ?? 0),
+  },
+}));
       setItems(formatted);
 
-      console.log(
-        "Updated Cart Items:",
-        formatted
-      );
+      console.log("Formatted Cart Items:", formatted);
     } catch (err) {
-      console.error(err);
+      console.error("Fetch Cart Error:", err);
+
       setItems([]);
       setPendingOrder(null);
+      setCartData(null);
     }
   }, []);
 
@@ -224,21 +218,13 @@ export const CartProvider = ({
     <CartContext.Provider
       value={{
         items,
-
+        cartData,
         totalItems,
-
         subtotal,
-
         customizationTotal,
-
         grandTotal,
-
-        pending_order:
-          pendingOrder,
-
-        refreshCart:
-          fetchCart,
-
+        pending_order: pendingOrder,
+        refreshCart: fetchCart,
         addItem,
       }}
     >
