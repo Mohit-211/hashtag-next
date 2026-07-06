@@ -64,9 +64,10 @@ const contactFormSchema = z
       .min(1, "Mobile number is required.")
       .regex(MOBILE_REGEX, "Enter a valid mobile number (10–15 digits, numbers only)."),
 
-    reason: z.enum(CONTACT_REASONS, {
-      errorMap: () => ({ message: "Please select a reason for contact." }),
-    }),
+   
+reason: z.enum(CONTACT_REASONS, {
+  message: "Please select a reason for contact.",
+}),
 
     otherReason: z.string().trim().max(120, "Keep it under 120 characters.").optional(),
 
