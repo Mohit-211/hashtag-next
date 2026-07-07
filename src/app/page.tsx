@@ -67,7 +67,7 @@ export default function HomePage() {
       <HeroSection />
       <WhatWePrint />
       <HowItWorks />
-      <FeaturedProducts products={products} />
+      {/* <FeaturedProducts products={products} /> */}
       <WhyChooseHB />
       <WhoWeServe/>
       <BrandStory />

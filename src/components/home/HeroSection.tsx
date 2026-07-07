@@ -24,7 +24,7 @@ export default function HeroSection() {
 
             <div className="flex flex-wrap gap-3">
 
-              <Link href="/print-project">
+              <Link href="/categories">
                 <Button
                   variant="hero"
                   size="lg"
