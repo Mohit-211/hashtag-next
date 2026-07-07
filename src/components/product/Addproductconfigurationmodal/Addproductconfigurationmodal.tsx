@@ -217,7 +217,7 @@ export default function AddProductConfigurationModal({
       (getSageUnitPriceWithMarkup). Otherwise fall back to flat price — exactly
       the same fallback order the page uses (original_price → price → 0). ── */
   const unitPriceFor = (v: Variant, qty: number): number => {
-    const flat = Number(v.original_price || v.price || 0);
+    const flat = Number(v.price || 0);
     if (!v.meta) return flat;
     return getSageUnitPriceWithMarkup(v.meta, qty) ?? flat;
   };
@@ -245,12 +245,14 @@ export default function AddProductConfigurationModal({
   const totalItems = selectedSizesData.reduce((sum, s) => sum + s.quantity, 0);
   const primaryColor = validRows[0]?.color ?? rows[0]?.color ?? "";
   const totals = sumVariantTotals(
+
     selectedSizesData.map((s) => ({
       productPrice: s.unit_price,
       decorationPrice: s.decoration_price,
       quantity: s.quantity,
     }))
   );
+  console.log(selectedSizesData,"selectedSizesData")
   const totalPrice = totals.productTotal;
   const decorationTotal = totals.decorationTotal;
   const grandTotal = totals.total;
@@ -290,7 +292,7 @@ export default function AddProductConfigurationModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl  w-[160px] max-h-[90vh] overflow-y-auto shadow-2xl"
+        className="bg-white rounded-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
@@ -511,7 +513,7 @@ export default function AddProductConfigurationModal({
                           </span>
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                          <span className="text-xs font-bold text-gray-700">
+                          {/* <span className="text-xs font-bold text-gray-700">
                             $
                             {formatMoney(
                               calculateVariantTotal({
@@ -520,9 +522,9 @@ export default function AddProductConfigurationModal({
                                 quantity: row.qty,
                               }).productTotal
                             )}
-                          </span>
+                          </span> */}
 
-                          {isApparel && decorationUnitPrice > 0 && (
+                          {/* {isApparel && decorationUnitPrice > 0 && (
                             <div className="flex items-center gap-2 text-[11px]">
                               <span className="text-gray-500">
                                 Decoration ({row.qty} × ${formatMoney(decorationUnitPrice)})
@@ -544,7 +546,7 @@ export default function AddProductConfigurationModal({
                                 )}
                               </span>
                             </div>
-                          )}
+                          )} */}
                           {/* <span className="text-xs font-black text-[#F5D800]">
     Total $
     {formatMoney(
@@ -572,7 +574,7 @@ export default function AddProductConfigurationModal({
               {/* ── Estimated Total — dark card, same as customization page ── */}
               <div className="rounded-xl bg-gray-900 text-white p-4">
                 <div className="space-y-2">
-                  {isApparel &&
+                  {/* {isApparel &&
                     <>
                       <div className="flex items-center justify-between text-sm">
                         <span className="opacity-70">Product Total</span>
@@ -584,7 +586,7 @@ export default function AddProductConfigurationModal({
                         <span>${formatMoney(decorationTotal)}</span>
                       </div>
                     </>
-                  }
+                  } */}
                   <div className=" border-gray-700 pt-2 flex items-center justify-between">
                     <span className="text-sm font-bold">Estimated Total</span>
                     <span className="text-xl font-black text-[#F5D800]">

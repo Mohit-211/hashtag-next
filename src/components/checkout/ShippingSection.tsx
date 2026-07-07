@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import ShippingRateCard from "./ShippingRateCard";
+import { Button } from "../ui/button";
 
 interface Props {
   shippingRates: any[];
@@ -148,10 +149,15 @@ export default function ShippingSection({
 
       {/* Actions */}
       <div className="flex flex-col gap-2 mt-6">
-        <button
+        <Button
+          variant="hero"
+          size="lg"
+          className="w-full"
+
+
           onClick={onContinue}
           disabled={!selectedRate || processing || loading}
-          className="w-full bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed text-white py-3.5 rounded-2xl font-semibold text-sm tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-violet-200 dark:hover:shadow-violet-900/30 active:scale-[0.99] flex items-center justify-center gap-2"
+        // className="w-full bg-[#F5D800] hover:bg-[#e6ca00] disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed text-black py-3.5 rounded-2xl font-semibold text-sm tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-yellow-200 active:scale-[0.99] flex items-center justify-center gap-2"
         >
           {processing ? (
             <>
@@ -161,7 +167,7 @@ export default function ShippingSection({
           ) : (
             "Continue to Payment"
           )}
-        </button>
+        </Button>
 
         <button
           onClick={onBack}

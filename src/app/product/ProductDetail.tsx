@@ -48,7 +48,6 @@ interface Variant {
   size: string;
   size_id: number;
   price: string;
-  original_price: string;
   stock: number;
   min_order_quantity: number;
   max_order_quantity: number | null;
@@ -66,7 +65,6 @@ interface Product {
   name: string;
   price: number;
   image: string;
-  original_price: number;
   description?: string;
   sizes: Size[];
   attachments: any[];
@@ -274,7 +272,7 @@ useEffect(() => {
         const v = product.variants.find((vv) => vv.id === s.variant_id);
         if (!v) return; // shouldn't happen, but never build a line with no real variant behind it
 
-        const unitPrice = v.original_price ? Number(v.original_price) : Number(v.price ?? displayPrice);
+        const unitPrice =  Number(v.price) ;
         const colorKey = v.color || config.selectedColor || "Selected Variant";
 
         const sizeLine = {
@@ -400,8 +398,8 @@ useEffect(() => {
   }
 
   const displayPrice =
-    variantData?.original_price
-      ? Number(variantData.original_price)
+    variantData?.price
+      ? Number(variantData.price)
       : product.price;
   const displayAttachments =
     variantData?.images && variantData.images.length > 0
@@ -421,23 +419,15 @@ useEffect(() => {
   const isPromo = grandCategory?.title === "Promo Products";
   const isLowStock = variantData?.stock != null && variantData.stock > 0 && variantData.stock <= 5;
 
-  /* AddProductConfigurationModal has its OWN local `Variant` type with
-     `price: number` (this file's `Variant.price` is `string`, straight
-     from the API). Same type name, structurally different — TS treats
-     them as unrelated and refuses the array assignment. Coerce price
-     (and original_price) to number here, once, right before handing
-     variants to the modal, instead of changing either component's type. */
   const configModalVariants = product.variants.map((v) => ({
     ...v,
-    price: Number(v.price),
-    original_price: v.original_price != null ? Number(v.original_price) : undefined,
+    price: Number(v.price)
   }));
   const configModalSelectedVariant = variantData
     ? {
         ...variantData,
         price: Number(variantData.price),
-        original_price:
-          variantData.original_price != null ? Number(variantData.original_price) : undefined,
+       
       }
     : undefined;
 

@@ -285,24 +285,15 @@ const resolveColorToken = (raw: string): string => {
 };
 /* ★ CHANGED — small shared helper so every "get a variant's price" call
    site uses the exact same original_price → price → 0 fallback chain */
-const getVariantPrice = (v?: { original_price?: number | string; price?: number | string } | null): number => {
+const getVariantPrice = (v?: { price?: number | string } | null): number => {
   if (!v) return 0;
-  if (v.original_price !== undefined && v.original_price !== null && v.original_price !== "") {
-    const n = Number(v.original_price);
+  if (v.price !== undefined && v.price !== null && v.price !== "") {
+    const n = Number(v.price);
     if (!Number.isNaN(n)) return n;
   }
   return Number(v.price ?? 0);
 };
-/* ★ NEW — Per-product Promo minimum order quantity.
-   SAGE meta ships a `qtyTiers` array, e.g. ["1","12","48","120","",""].
-   qtyTiers[0] is the FIRST break — i.e., the actual minimum quantity this
-   specific product can be ordered in (often 1, sometimes higher). This
-   must never be replaced by one hardcoded number for every Promo product.
-   Fallback order:
-     1. meta.qtyTiers[0]           (product's real SAGE minimum)
-     2. variant.min_order_quantity  (explicit override from the catalog)
-     3. PROMO_MIN_QTY               (last-resort default, only if neither
-                                      of the above is usable) */
+
 export const getPromoMinQty = (
   metaStr?: string | null,
   minOrderQuantity?: number | null
@@ -756,19 +747,43 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     selectedSizes: { variant_id: number; quantity: number; size_name: string }[];
   } | null>(null);
   /* ── Load product image onto canvas ── */
+  /* ── Canvas base image: real product photo, EXCEPT for Hat parent
+     category, where we show the garment mockup (Front/Back/Side per
+     activeView) instead — so the live preview matches the print-location
+     hotspot image rather than the flat product photo. ── */
+  const useMockupOnCanvas = parentCategory === "hat";
+  const canvasBaseImageSrc = useMockupOnCanvas ? (activeView?.mockup ?? null) : displayImage;
+  /* ── Load product image onto canvas ── */
   useEffect(() => {
-    if (!displayImage) { setProductImg(null); return; }
+    if (!canvasBaseImageSrc) { setProductImg(null); return; }
     let cancelled = false;
     (async () => {
       try {
-        const b64 = await toBase64ViaSameOrigin(displayImage);
+        // Mockup images are local /assets files (same-origin) — skip the
+        // proxy-image round trip that real remote product photos need.
+        const src = useMockupOnCanvas
+          ? canvasBaseImageSrc
+          : await toBase64ViaSameOrigin(canvasBaseImageSrc);
         if (cancelled) return;
-        const img = await loadImage(b64);
+        const img = await loadImage(src);
         if (!cancelled) setProductImg(img);
       } catch (err) { console?.error("Failed to load product image:", err); }
     })();
     return () => { cancelled = true; };
-  }, [displayImage]);
+  }, [canvasBaseImageSrc, useMockupOnCanvas]);
+  // useEffect(() => {
+  //   if (!displayImage) { setProductImg(null); return; }
+  //   let cancelled = false;
+  //   (async () => {
+  //     try {
+  //       const b64 = await toBase64ViaSameOrigin(displayImage);
+  //       if (cancelled) return;
+  //       const img = await loadImage(b64);
+  //       if (!cancelled) setProductImg(img);
+  //     } catch (err) { console?.error("Failed to load product image:", err); }
+  //   })();
+  //   return () => { cancelled = true; };
+  // }, [displayImage]);
   useEffect(() => {
     if (!logoSrc) { setLogoImg(null); return; }
     let cancelled = false;
@@ -889,6 +904,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   /* ★ CHANGED — basePrice now uses the shared getVariantPrice() helper,
      so it's guaranteed to prefer original_price the exact same way every
      other price lookup in this file does */
+  console.log(activeVariant, "activeVariant")
   const basePrice = activeVariant ? getVariantPrice(activeVariant) : (product?.price ?? 0);
   /* ★ SINGLE SOURCE OF TRUTH — decoration is only ever non-zero for Apparel,
      only while a material + location are actively selected, and is expressed
@@ -1053,7 +1069,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         const dupeIdx = mergedSizes.findIndex(
           (s) => s.variant_id === newSize.variant_id
         );
-    if (dupeIdx > -1) {
+        if (dupeIdx > -1) {
           // ★ FIX — OVERRIDE the quantity for this variant/size line instead
           // of summing it. Summing caused every repeat "Add to Cart" click
           // (or a config-modal confirm that re-submits the same line) to
@@ -1122,15 +1138,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       })
     );
   }, [isPreMade, activeSizes, product, basePrice]);
-  /* ── Has the CURRENT on-screen variant already been folded into
-     configuredVariants? Once "Add to Cart" is clicked, handleAddToCart
-     commits the live page selection into configuredVariants immediately
-     (so Order Summary reflects it right away — requirement #1/#2). If we
-     kept adding currentSelectionTotal on top after that point, the same
-     quantity/price would be counted twice: once inside configuredVariants
-     and again as the "live" selection. So once the active variant is
-     present in configuredVariants, its live total is excluded here — the
-     already-added total (grandConfiguredPrice) already accounts for it. ── */
+
   const currentVariantAlreadyConfigured = !!(
     activeVariant && configuredVariants.some(cv => cv.variantId === activeVariant.id)
   );
@@ -1334,7 +1342,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
          Fix: merge into a plain local array first. Use that SAME array
          for setConfiguredVariants, buildPayload, and (via
          setPendingVariantList) anything else that needs it this tick. ── */
-  let mergedList = configuredVariants;
+      let mergedList = configuredVariants;
       if (config.addAlso && config.selectedSizes.length > 0) {
         const variantsSource =
           allProductVariants.length > 0
@@ -1390,7 +1398,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       // Pass the freshly merged list explicitly — never rely on the
       // `configuredVariants` state variable here, since it has not
       // re-rendered yet in this same tick.
-setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
+      setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
       setShowConfigModal(false);
       setJustStagedVariantIds([]);
       setTimeout(() => {
@@ -2060,7 +2068,7 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                         {/* Product Total / Decoration Total breakdown — every
                             variant calculates independently and shows its own
                             decoration, per the single source of truth. */}
-                        <div className="mt-1 pl-0.5 space-y-0.5">
+                        {/* <div className="mt-1 pl-0.5 space-y-0.5">
                           <div className="flex items-center justify-between text-[10px] text-gray-400">
                             <span>Product ({cv.totalQty} × avg ${formatMoney(cv.totalQty > 0 ? cv.productTotal / cv.totalQty : 0)})</span>
                             <span>${formatMoney(cv.productTotal)}</span>
@@ -2068,6 +2076,27 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                           {cv.decorationTotal > 0 && (
                             <div className="flex items-center justify-between text-[10px] text-gray-400">
                               <span>Decoration ({cv.totalQty} × avg ${formatMoney(cv.totalQty > 0 ? cv.decorationTotal / cv.totalQty : 0)})</span>
+                              <span>${formatMoney(cv.decorationTotal)}</span>
+                            </div>
+                          )}
+                        </div> */}
+                        <div className="mt-1 pl-0.5 space-y-0.5">
+                          <div className="flex items-center justify-between text-[10px] text-gray-400">
+                            <span>
+                              Item ({cv.totalQty} × $
+                              {formatMoney(cv.totalQty > 0 ? cv.productTotal / cv.totalQty : 0)})
+                            </span>
+                            <span>${formatMoney(cv.productTotal)}</span>
+                          </div>
+
+                          {cv.decorationTotal > 0 && (
+                            <div className="flex items-center justify-between text-[10px] text-gray-400">
+                              <span>
+                                Decoration ({cv.totalQty} × $
+                                {formatMoney(
+                                  cv.totalQty > 0 ? cv.decorationTotal / cv.totalQty : 0
+                                )})
+                              </span>
                               <span>${formatMoney(cv.decorationTotal)}</span>
                             </div>
                           )}
@@ -2095,13 +2124,9 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                             <span className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-black text-gray-700">
                               {v.size_details?.name || v.size}
                             </span>
-                            {/* ★ FIX — show the color alongside size/qty, so a
-                                row here can always be matched to the same
-                                entry later in Order Summary and the
-                                Add To Cart modal. */}
+
                             <span className="text-xs text-gray-500">{v.color ? `${v.color} · ` : ""}×{quantity}</span>
                           </div>
-                          {/* ★ CHANGED — Pre-Made row price now uses original_price via getVariantPrice(), routed through calculateVariantTotal */}
                           <span className="text-xs font-bold text-gray-700">
                             ${formatMoney(calculateVariantTotal({ productPrice: getVariantPrice(v) || basePrice, decorationPrice: 0, quantity }).total)}
                           </span>
@@ -2110,8 +2135,7 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                     })}
                     <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
                       <span className="text-xs font-bold text-gray-700">{totalQty} total pieces</span>
-                      {/* ★ FIXED — was displaying `totalQty` (a piece count) as a
-                          dollar amount. Now shows the actual priced total. */}
+
                       <span className="text-xs font-black text-gray-900">${formatMoney(preMadeSelectionPricing.total)}</span>
                     </div>
                   </div>
@@ -2152,28 +2176,29 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                       Current Selection
                     </div>
                     <div className="px-3 py-2 space-y-1">
-                      {/* ★ FIX — show which variant this selection belongs to.
-                          Previously this box only showed "Product (qty × price)"
-                          with no color/size label, so it was impossible to tell
-                          which variant (e.g. "Red") the current selection was
-                          for — the exact same color that then must appear (not
-                          get silently dropped) once merged into
-                          configuredVariants and shown in the Add To Cart modal. */}
+
                       {selectedColor && (
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-gray-500">Color</span>
                           <span className="text-xs font-bold text-gray-800">
                             {selectedColor}
-                            {activeVariant?.size_details?.name || activeVariant?.size
-                              ? ` · ${activeVariant?.size_details?.name || activeVariant?.size}`
-                              : ""}
+
                           </span>
                         </div>
                       )}
                       <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Size</span>
+                        <span className="text-xs font-bold text-gray-800">
+
+                          {activeVariant?.size_details?.name || activeVariant?.size
+                            ? ` ${activeVariant?.size_details?.name || activeVariant?.size}`
+                            : ""}
+                        </span>
+                      </div>
+                      {/* <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-500">Product ({currentQty} × ${formatMoney(basePrice)})</span>
                         <span className="text-xs font-bold text-gray-700">${formatMoney(productTotal)}</span>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 )}
@@ -2197,13 +2222,20 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                       )}
                       {printPrice !== null && (
                         <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
-                          <span className="text-xs text-gray-500">
+                          {/* <span className="text-xs text-gray-500">
                             Decoration ({currentQty} × ${formatMoney(decorationUnitPrice)}){selectedMaterial === "embroidery" && currentQty <= 11 ? " incl. $35 digitizing" : selectedLocations.length > 1 ? ` · ${selectedLocations.length} loc.` : ""}
+                          </span> */}
+                          <span className="text-xs text-gray-500">
+                            Price
+
                           </span>
                           {/* ★ decorationTotal here is the SAME value used everywhere
                               else (currentSelectionPricing.decorationTotal) — not a
                               separate re-derivation of printPrice. */}
-                          <span className="text-xs font-black text-gray-900">${formatMoney(decorationTotal)}</span>
+                          <span className="text-xs font-black text-gray-900">${formatMoney(productTotal + decorationTotal)}
+                          </span>
+
+                          {/* <span className="text-xs font-black text-gray-900">${formatMoney(decorationTotal)}+${formatMoney(productTotal)}</span> */}
                         </div>
                       )}
                     </div>
@@ -2217,12 +2249,12 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
                       ${formatMoney(displayTotal)}
                     </span>
                   </div>
-                  {configuredVariants.length > 0 && (
+                  {/* {configuredVariants.length > 0 && (
                     <p className="text-[10px] text-gray-400">
                       Includes {grandConfiguredQty} pcs from {configuredVariants.length} added variant{configuredVariants.length > 1 ? "s" : ""}
                       {grandConfiguredDecoration > 0 ? ` (incl. $${formatMoney(grandConfiguredDecoration)} decoration)` : ""}
                     </p>
-                  )}
+                  )} */}
                 </div>
                 {/* Apparel tier hint */}
                 {isApparel && selectedMaterial && currentQty > 0 && currentQty < 144 && (
@@ -2288,7 +2320,7 @@ setCustomizationJson(JSON.stringify(buildPayload(mergedList)));
         </div>
       </div>
       {product && (
-      <AddProductConfigurationModal
+        <AddProductConfigurationModal
           open={showConfigModal}
           onClose={() => { setShowConfigModal(false); setJustStagedVariantIds([]); }}
           onConfirm={handleConfigConfirm}

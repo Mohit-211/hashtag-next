@@ -377,12 +377,12 @@ console.log(configuredVariants,"configuredVariants")
                 ${formatMoney(grandTotal)}
               </p>
             </div>
-            <div className="flex items-center gap-1.5 bg-[#111111]/10 border border-[#111111]/15 rounded-[10px] px-2.5 py-1.5 flex-shrink-0">
+            {/* <div className="flex items-center gap-1.5 bg-[#111111]/10 border border-[#111111]/15 rounded-[10px] px-2.5 py-1.5 flex-shrink-0">
               <Package size={12} className="text-[#111111]" />
               <span className="text-[11px] font-medium text-[#111111]">
                 ${formatMoney(perPiece)}/pc
               </span>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -475,16 +475,16 @@ console.log(configuredVariants,"configuredVariants")
                       })}
                     </div>
                     {/* Product Total / Decoration Total breakdown */}
-                    <div className="flex items-center justify-between text-[10px] text-[#111111]/45 pt-1.5 mt-1.5 border-t border-black/5">
+                    {/* <div className="flex items-center justify-between text-[10px] text-[#111111]/45 pt-1.5 mt-1.5 border-t border-black/5">
                       <span>Product</span>
                       <span>${formatMoney(cvPricing.productTotal)}</span>
-                    </div>
-                    {cvPricing.decorationTotal > 0 && (
+                    </div> */}
+                    {/* {cvPricing.decorationTotal > 0 && (
                       <div className="flex items-center justify-between text-[10px] text-[#111111]/45">
                         <span>Decoration</span>
                         <span>${formatMoney(cvPricing.decorationTotal)}</span>
                       </div>
-                    )}
+                    )} */}
                     <div className="flex items-center justify-between text-[11px] font-semibold text-[#111111]/80 pt-1 mt-1">
                       <span>{cv.totalQty} pcs</span>
                       <span>${formatMoney(cvPricing.total)}</span>

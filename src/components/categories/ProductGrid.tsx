@@ -360,9 +360,9 @@ console.log(product,"product")
       : "/placeholder.png";
 
   const price = formatINR(product.price);
-  const original = product.original_price ? formatINR(product.original_price) : null;
-  const discount = product.original_price
-    ? getDiscount(product.price, product.original_price)
+  const original = product.price ? formatINR(product.price) : null;
+  const discount = product.price
+    ? getDiscount(product.price, product.price)
     : null;
 
   const rating = product.rating ?? 0;
