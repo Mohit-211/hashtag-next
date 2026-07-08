@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 import { Spin } from "antd";
 import AddProductConfigurationModal from "@/components/product/Addproductconfigurationmodal/Addproductconfigurationmodal";
 import AddToCartModal from "@/components/common/AddToCartModal";
-
+import { Base64 } from "js-base64";
 /* ───────────────────────────────────────────────── types */
 interface Size {
   id: number;
@@ -126,7 +126,6 @@ export default function ProductDetail({ id }: { id: string }) {
       setLoading(true);
       const token = typeof window !== "undefined" ? localStorage.getItem("hastagBillionaire") : null;
       const res = token ? await ProductDetailApi(id) : await ProductDetailGuestApi(id);
-      console.log(res,"res")
       const data = res?.data?.data || res?.data;
       setProduct(data);
     } catch (e) {
@@ -149,29 +148,29 @@ export default function ProductDetail({ id }: { id: string }) {
   }, [product]);
 
   /* update variant */
-useEffect(() => {
-  if (!product || !selectedColor) return;
+  useEffect(() => {
+    if (!product || !selectedColor) return;
 
-  const match = product.variants.find((v) => {
-    // Promo / Pre-Made products: no size
-    if (!v.size_id) {
-      return v.color === selectedColor;
+    const match = product.variants.find((v) => {
+      // Promo / Pre-Made products: no size
+      if (!v.size_id) {
+        return v.color === selectedColor;
+      }
+
+      // Apparel: color + size
+      return (
+        v.color === selectedColor &&
+        selectedSize &&
+        v.size_id === selectedSize.id
+      );
+    });
+
+    if (match) {
+      setVariantData(match);
+      setInCart(Boolean(match.is_in_cart));
+      setQuantity(match.min_order_quantity || 1);
     }
-
-    // Apparel: color + size
-    return (
-      v.color === selectedColor &&
-      selectedSize &&
-      v.size_id === selectedSize.id
-    );
-  });
-
-  if (match) {
-    setVariantData(match);
-    setInCart(Boolean(match.is_in_cart));
-    setQuantity(match.min_order_quantity || 1);
-  }
-}, [selectedColor, selectedSize, product]);
+  }, [selectedColor, selectedSize, product]);
   /* handlers */
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
@@ -272,7 +271,7 @@ useEffect(() => {
         const v = product.variants.find((vv) => vv.id === s.variant_id);
         if (!v) return; // shouldn't happen, but never build a line with no real variant behind it
 
-        const unitPrice =  Number(v.price) ;
+        const unitPrice = Number(v.price);
         const colorKey = v.color || config.selectedColor || "Selected Variant";
 
         const sizeLine = {
@@ -387,6 +386,7 @@ useEffect(() => {
   }
 
   if (!product) {
+    console.log(product, "product---")
     return (
       <section className="min-h-screen flex items-center justify-center py-10">
         <div className="text-center">
@@ -409,6 +409,7 @@ useEffect(() => {
       }))
       : product?.attachments || [];
   const category = product?.categories?.[0]?.parent_categories?.[0];
+  console.log(category, "category-----")
   // Grand category tells us the product family (e.g. "Pre-Made products" vs customizable apparel)
   const grandCategory = category?.grand_categories?.[0];
   const isPreMade = grandCategory?.title === "Pre-Made products";
@@ -425,10 +426,10 @@ useEffect(() => {
   }));
   const configModalSelectedVariant = variantData
     ? {
-        ...variantData,
-        price: Number(variantData.price),
-       
-      }
+      ...variantData,
+      price: Number(variantData.price),
+
+    }
     : undefined;
 
   /* ───────────────────────────────────────────────── render */
@@ -462,17 +463,22 @@ useEffect(() => {
       )}
 
       {/* ── BREADCRUMB ── */}
-      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
+      {/* <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
         <div className="container mx-auto max-w-7xl px-4">
           <nav className="flex items-center gap-2 py-3 text-sm">
             <a href="/" className="text-gray-500 hover:text-black">Home</a>
             <ChevronRight size={14} className="text-gray-300" />
-            <a href="/categories" className="text-gray-500 hover:text-black">Products</a>
-            {category?.name && (
+            <a href="/categories" className="text-gray-500 hover:text-black">
+              Products
+            </a>
+            {category?.title && (
               <>
                 <ChevronRight size={14} className="text-gray-300" />
-                <a href={`/categories/${category.id}`} className="text-gray-500 hover:text-black">
-                  {category.name}
+                <a
+                  href={`/categories?parent=${Base64.encodeURI(String(category.id))}`}
+                  className="text-gray-500 hover:text-black"
+                >
+                  {category.title}
                 </a>
               </>
             )}
@@ -480,7 +486,7 @@ useEffect(() => {
             <span className="font-semibold text-black truncate">{product.name}</span>
           </nav>
         </div>
-      </div>
+      </div> */}
 
       {/* ── MAIN CONTENT ── */}
       <section className="py-8 lg:py-14">
@@ -499,7 +505,7 @@ useEffect(() => {
             <div className="flex flex-col gap-5">
 
               {/* category pill */}
-              {category?.name && (
+              {category?.title && (
                 <span
                   className="inline-flex items-center gap-1.5 self-start text-xs font-bold tracking-widest uppercase px-3 py-1.5"
                   style={{
@@ -508,7 +514,7 @@ useEffect(() => {
                     fontFamily: "var(--font-heading)",
                   }}
                 >
-                  {category.name}
+                  {category.title}
                 </span>
               )}
 

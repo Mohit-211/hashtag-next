@@ -1,4 +1,3 @@
-// components/ui/ProxyImage.tsx
 "use client";
 
 import Image from "next/image";
@@ -13,7 +12,6 @@ interface ProxyImageProps {
   className?: string;
   sizes?: string;
   priority?: boolean;
-  fallback?: string; // optional custom fallback image path
   objectFit?: "cover" | "contain" | "fill" | "none";
 }
 
@@ -36,18 +34,18 @@ const SKIP_PROXY_DOMAINS = [
   "images.unsplash.com",
   "cdn.shopify.com",
   "res.cloudinary.com",
-  "imagedelivery.net", // Cloudflare Images
+  "imagedelivery.net",
 ];
 
 function shouldProxy(src: string): boolean {
   try {
     const { hostname } = new URL(src);
+
     if (SKIP_PROXY_DOMAINS.some((d) => hostname.includes(d))) return false;
     if (ALWAYS_PROXY_DOMAINS.some((d) => hostname.includes(d))) return true;
-    // Default: proxy all absolute external URLs
+
     return true;
   } catch {
-    // Relative URL — no proxy needed
     return false;
   }
 }
@@ -55,8 +53,6 @@ function shouldProxy(src: string): boolean {
 function buildProxyUrl(src: string): string {
   return `/api/proxy-image?url=${encodeURIComponent(src)}`;
 }
-
-const DEFAULT_FALLBACK = "/images/placeholder-product.png";
 
 export default function ProxyImage({
   src,
@@ -67,33 +63,20 @@ export default function ProxyImage({
   className = "",
   sizes,
   priority = false,
-  fallback = DEFAULT_FALLBACK,
   objectFit = "contain",
 }: ProxyImageProps) {
-  const [errored, setErrored] = useState(false);
   const [triedProxy, setTriedProxy] = useState(false);
 
-  // ── Resolve final src ──────────────────────────────────────────────────
-  let resolvedSrc: string;
+  // Don't render anything if src is missing
+  if (!src) return null;
 
-  if (!src) {
-    resolvedSrc = fallback;
-  } else if (errored) {
-    // If proxy also failed, fall through to static fallback
-    resolvedSrc = fallback;
-  } else if (shouldProxy(src) && !triedProxy) {
-    resolvedSrc = buildProxyUrl(src);
-  } else {
-    resolvedSrc = src;
-  }
+  const resolvedSrc =
+    shouldProxy(src) && !triedProxy ? buildProxyUrl(src) : src;
 
   const handleError = () => {
-    if (!triedProxy && src && shouldProxy(src)) {
-      // First failure: try direct (maybe proxy had an issue)
+    if (!triedProxy && shouldProxy(src)) {
+      // If proxy fails, try original URL
       setTriedProxy(true);
-    } else {
-      // Both failed: show fallback
-      setErrored(true);
     }
   };
 
@@ -110,10 +93,10 @@ export default function ProxyImage({
         fill
         sizes={sizes ?? "(max-width: 768px) 100vw, 50vw"}
         className={className}
-        style={{ objectFit: objectFit, ...imageStyle }}
+        style={{ objectFit, ...imageStyle }}
         onError={handleError}
         priority={priority}
-        unoptimized // skip Next.js image optimisation for proxied URLs
+        unoptimized
       />
     );
   }

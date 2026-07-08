@@ -52,7 +52,7 @@ console.log(item,"item")
       {/* Product image */}
       <div className="relative w-14 h-14 shrink-0 rounded-lg overflow-hidden bg-muted ring-1 ring-border">
         <ProxyImage
-          src={item?.image || "/placeholder.png"}
+          src={item?.image }
           alt={item?.name || "Product"}
           fill
           className="object-cover transition-transform duration-300 group-hover:scale-105"

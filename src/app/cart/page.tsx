@@ -112,12 +112,11 @@ const formattedItems: CartItemType[] = items.map((item: any) => ({
   size: item.size ?? "",
   color: item.color ?? "",
 
-  image: item.image || item.original_image || "/placeholder.png",
+  image: item.image || item.original_image ,
   logo_image:
     item.logo_image ||
     item.customized_image ||
-    item.original_image ||
-    "/placeholder.png",
+    item.original_image ,
 
   basePrice: Number(item.basePrice ?? item.price ?? item.base_price ?? 0),
   quantity: Number(item.quantity ?? 1),

@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 interface CategoryCardProps {
@@ -14,10 +13,7 @@ export default function CategoryCard({
   count,
 }: CategoryCardProps) {
   return (
-    <Link
-      href="/categories"
-      className="group relative overflow-hidden rounded-xl aspect-[3/2] block"
-    >
+    <div className="group relative overflow-hidden rounded-xl aspect-[3/2] block cursor-pointer">
       <Image
         src={image}
         alt={title}
@@ -38,6 +34,6 @@ export default function CategoryCard({
           <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

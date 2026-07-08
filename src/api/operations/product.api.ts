@@ -8,9 +8,22 @@ export interface ProductQueryParams {
   search?: string;
   category_id?: number | string;
   brand_id?: number | string;
+  grand_category_id?: number | string;
 }
 
 export const AllProductsApi = (params?: ProductQueryParams) => {
+  return client.get(PRODUCT_ENDPOINTS.PRODUCT, {
+    params,
+  });
+};
+export const ProductsByGrandCategoryApi = (
+  params?: ProductQueryParams
+) => {
+  return client.get(PRODUCT_ENDPOINTS.PRODUCT_GRAND_CATEGORY, {
+    params,
+  });
+};
+export const ProductsByParentCategoryApi = (params?: ProductQueryParams) => {
   return client.get(PRODUCT_ENDPOINTS.PRODUCT, {
     params,
   });

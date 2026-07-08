@@ -357,7 +357,7 @@ console.log(product,"product")
     product.attachments.length > 0 &&
     product.attachments[0]?.file_uri
       ? product.attachments[0].file_uri
-      : "/placeholder.png";
+      : null;
 
   const price = formatINR(product.price);
   const original = product.price ? formatINR(product.price) : null;

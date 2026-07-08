@@ -1,10 +1,10 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function HowItWorks() {
   return (
     <section className="py-20 lg:py-28">
       <div className="container">
-
         <div className="text-center max-w-3xl mx-auto mb-16">
           <p className="text-xs font-bold tracking-widest uppercase text-muted-foreground mb-3">
             HOW IT WORKS
@@ -16,15 +16,13 @@ export default function HowItWorks() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-6">
-
           <div className="p-8 rounded-2xl border bg-background">
             <h3 className="text-xl font-semibold mb-4">
               Step 1 — Choose Your Product
             </h3>
 
             <p className="text-muted-foreground">
-              Select from business cards, apparel,
-              banners, stickers, and more.
+              Select from business cards, apparel, banners, stickers, and more.
             </p>
           </div>
 
@@ -34,8 +32,7 @@ export default function HowItWorks() {
             </h3>
 
             <p className="text-muted-foreground">
-              We accept all major file types and
-              offer free basic adjustments.
+              We accept all major file types and offer free basic adjustments.
             </p>
           </div>
 
@@ -45,19 +42,18 @@ export default function HowItWorks() {
             </h3>
 
             <p className="text-muted-foreground">
-              Review your proof and move to
-              final production.
+              Review your proof and move to final production.
             </p>
           </div>
-
         </div>
 
         <div className="text-center mt-10">
-          <Button variant="hero" size="lg">
-            Start Your Order
+          <Button asChild variant="hero" size="lg">
+            <Link href="/categories">
+              Start Your Order
+            </Link>
           </Button>
         </div>
-
       </div>
     </section>
   );

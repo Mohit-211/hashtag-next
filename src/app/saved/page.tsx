@@ -25,7 +25,7 @@ function FastImage({ src, alt, priority = false }: { src: string; alt: string; p
     <div className="relative w-full h-full overflow-hidden">
       {!loaded && <div className="absolute inset-0 animate-pulse bg-[#f3f5f4]" />}
       <Image
-        src={src?.trim() ? src : "/placeholder.png"}
+        src={src?.trim() }
         alt={alt}
         fill
         priority={priority}

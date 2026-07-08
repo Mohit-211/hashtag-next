@@ -17,7 +17,7 @@ export default function FinalCTA() {
             transparent pricing, and fast production.
           </p>
 
-          <Link href="/print-project">
+          <Link href="/categories">
             <Button
               variant="hero"
               size="lg"

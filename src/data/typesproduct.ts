@@ -54,6 +54,8 @@ export interface ProductQueryParams {
   limit?: number;
   search?: string;
   category_id?: number | string;
+  brand_id?: number | string;
+  grand_category_id?: number | string;
 }
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────

@@ -123,8 +123,8 @@ export const CartProvider = ({
 
   id: String(item.product_id),
   name: item.name || item.product_name || "",
-  image: item.image || "/placeholder.png",
-  logo_image: item.logo_image || "/placeholder.png",
+  image: item.image ,
+  logo_image: item.logo_image ,
   basePrice: Number(item.price ?? item.base_price ?? 0),
   quantity: Number(item.quantity ?? 1),
   cart_id: item.cart_id,

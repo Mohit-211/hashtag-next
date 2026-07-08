@@ -3,49 +3,6 @@
 import { GetPaymentHistoryApi } from "@/api/operations/payment.api";
 import PaymentHistoryCard, { Payment } from "@/components/Paymenthistorycard/Paymenthistorycard";
 import React, { useEffect, useState, useCallback } from "react";
-// import { GetPaymentHistoryApi } from "@/api/payment.api"; // ← uncomment to use real API
-
-// ─── Mock data matching your API response shape ────────────────────────────
-// const MOCK_RESPONSE = {
-//   success: true,
-//   status: 200,
-//   message: "Payment history fetched successfully",
-//   data: {
-//     total: 1,
-//     current_page: 1,
-//     total_pages: 1,
-//     payments: [
-//       {
-//         payment_id: 2,
-//         transaction_id: "lmCyzYQuLqgA3nxwuxFrzL7dMmIZY",
-//         amount: 794,
-//         currency: "USD",
-//         created_at: "2026-05-25T09:35:45.000Z",
-//         order: {
-//           order_id: 2,
-//           order_number: "ORD-1779701717386",
-//           total_amount: 793.52,
-//           shipping_amount: 228.32,
-//           payment_status: "SUCCESS" as const,
-//           shipment_status: "SUCCESS" as const,
-//           tracking_number: "1ZXXXXXXXXXXXXXXXX",
-//           tracking_url:
-//             "http://wwwapps.ups.com/WebTracking/processRequest?HTMLVersion=5.0&Requester=NES&AgreeToTermsAndConditions=yes&loc=en_US&tracknum=1ZXXXXXXXXXXXXXXXX",
-//           preview: {
-//             product_name:
-//               "Russell Outdoors Camo Snapback Trucker Cap RU900",
-//             original_image:
-//               "https://cdnm.sanmar.com/imglib/mresjpg/2023/f5/RU900_mossyoakdna_khaki_flat_left.jpg",
-//             customized_image:
-//               "https://node.hashtagbillionaire.com/images/images-1779701438019.png",
-//             total_items: 24,
-//             print_method: "DTF",
-//           },
-//         },
-//       },
-//     ],
-//   },
-// };
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface PaginationMeta {
@@ -57,26 +14,26 @@ interface PaginationMeta {
 // ─── Skeleton loader ────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden animate-pulse">
-      <div className="h-1 bg-slate-200" />
+    <div className="bg-card border border-border rounded-lg overflow-hidden animate-pulse">
+      <div className="h-1 bg-primary" />
       <div className="p-6 space-y-4">
         <div className="flex justify-between">
           <div className="space-y-2">
-            <div className="h-3 w-24 bg-slate-200 rounded" />
-            <div className="h-4 w-40 bg-slate-200 rounded" />
+            <div className="h-3 w-24 bg-muted rounded" />
+            <div className="h-4 w-40 bg-muted rounded" />
           </div>
           <div className="space-y-2 items-end flex flex-col">
-            <div className="h-7 w-20 bg-slate-200 rounded" />
-            <div className="h-3 w-28 bg-slate-200 rounded" />
+            <div className="h-7 w-20 bg-muted rounded" />
+            <div className="h-3 w-28 bg-muted rounded" />
           </div>
         </div>
-        <div className="h-20 bg-slate-100 rounded-xl" />
+        <div className="h-20 bg-muted/60 rounded-md" />
         <div className="flex gap-2">
-          <div className="h-6 w-24 bg-slate-100 rounded-full" />
-          <div className="h-6 w-24 bg-slate-100 rounded-full" />
+          <div className="h-6 w-24 bg-muted/60 rounded-full" />
+          <div className="h-6 w-24 bg-muted/60 rounded-full" />
         </div>
-        <div className="h-16 bg-slate-100 rounded-xl" />
-        <div className="h-10 bg-slate-200 rounded-xl" />
+        <div className="h-16 bg-muted/60 rounded-md" />
+        <div className="h-10 bg-muted rounded-md" />
       </div>
     </div>
   );
@@ -86,9 +43,9 @@ function SkeletonCard() {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mb-5">
+      <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center mb-5">
         <svg
-          className="w-10 h-10 text-slate-400"
+          className="w-10 h-10 text-muted-foreground"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -101,10 +58,10 @@ function EmptyState() {
           />
         </svg>
       </div>
-      <h3 className="text-lg font-bold text-slate-800 mb-1">
+      <h3 className="font-heading text-lg font-bold text-foreground mb-1">
         No payments yet
       </h3>
-      <p className="text-sm text-slate-500 max-w-xs">
+      <p className="text-sm text-muted-foreground max-w-xs">
         Your payment history will appear here once you've made a purchase.
       </p>
     </div>
@@ -125,11 +82,11 @@ function Pagination({
 
   return (
     <div className="flex items-center justify-between mt-8">
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted-foreground">
         Showing page{" "}
-        <span className="font-semibold text-slate-700">{meta.current_page}</span>{" "}
+        <span className="font-semibold text-foreground">{meta.current_page}</span>{" "}
         of{" "}
-        <span className="font-semibold text-slate-700">{meta.total_pages}</span>{" "}
+        <span className="font-semibold text-foreground">{meta.total_pages}</span>{" "}
         · {meta.total} total
       </p>
 
@@ -137,7 +94,7 @@ function Pagination({
         <button
           onClick={() => onPageChange(meta.current_page - 1)}
           disabled={meta.current_page === 1}
-          className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-md border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -148,10 +105,11 @@ function Pagination({
           <button
             key={p}
             onClick={() => onPageChange(p)}
-            className={`w-9 h-9 rounded-lg text-sm font-semibold transition-colors ${p === meta.current_page
-                ? "bg-slate-900 text-white"
-                : "border border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
+            className={`w-9 h-9 rounded-md text-sm font-semibold transition-colors ${
+              p === meta.current_page
+                ? "bg-primary text-primary-foreground"
+                : "border border-border text-foreground hover:bg-secondary"
+            }`}
           >
             {p}
           </button>
@@ -160,7 +118,7 @@ function Pagination({
         <button
           onClick={() => onPageChange(meta.current_page + 1)}
           disabled={meta.current_page === meta.total_pages}
-          className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-md border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -195,16 +153,6 @@ export default function PaymentHistoryPage() {
         current_page: res.data.current_page,
         total_pages: res.data.total_pages,
       });
-
-      // ── Mock (remove once real API is connected) ──────────────────────────
-      // await new Promise((r) => setTimeout(r, 800)); // simulate network
-      // const res = MOCK_RESPONSE;
-      // setPayments(res.data.payments as Payment[]);
-      // setMeta({
-      //   total: res.data.total,
-      //   current_page: res.data.current_page,
-      //   total_pages: res.data.total_pages,
-      // });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -217,17 +165,18 @@ export default function PaymentHistoryPage() {
   }, [currentPage, fetchPayments]);
 
   return (
-    <main className="min-h-screen bg-[#f8f7f4]">
+    <main className="min-h-screen bg-background">
       {/* Decorative header band */}
-      <div className="h-1.5 w-full bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500" />
+      <div className="h-1.5 w-full bg-primary" />
+<div className="container max-w-3xl">
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+      <div className="max-w-full px-4 sm:px-6 py-10">
         {/* Page header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-md bg-foreground flex items-center justify-center">
               <svg
-                className="w-4 h-4 text-white"
+                className="w-4 h-4 text-background"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -240,11 +189,11 @@ export default function PaymentHistoryPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="font-heading text-2xl font-extrabold text-foreground tracking-tight">
               Payment History
             </h1>
           </div>
-          <p className="text-sm text-slate-500 ml-11">
+          <p className="text-sm text-muted-foreground ml-11">
             A record of all your transactions and orders.
           </p>
         </div>
@@ -252,13 +201,13 @@ export default function PaymentHistoryPage() {
         {/* Summary chips */}
         {!loading && !error && payments.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-6">
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5">
-              <p className="text-xs text-slate-500 font-medium">Total Orders</p>
-              <p className="text-lg font-extrabold text-slate-900">{meta.total}</p>
+            <div className="bg-card border border-border rounded-md px-4 py-2.5">
+              <p className="text-xs text-muted-foreground font-medium">Total Orders</p>
+              <p className="font-heading text-lg font-extrabold text-foreground">{meta.total}</p>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5">
-              <p className="text-xs text-slate-500 font-medium">Total Spent</p>
-              <p className="text-lg font-extrabold text-slate-900">
+            <div className="bg-card border border-border rounded-md px-4 py-2.5">
+              <p className="text-xs text-muted-foreground font-medium">Total Spent</p>
+              <p className="font-heading text-lg font-extrabold text-foreground">
                 $
                 {payments
                   .reduce((acc, p) => acc + p.amount, 0)
@@ -270,11 +219,11 @@ export default function PaymentHistoryPage() {
 
         {/* States */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
-            <p className="text-sm font-semibold text-red-700 mb-2">{error}</p>
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-5 text-center">
+            <p className="text-sm font-semibold text-destructive mb-2">{error}</p>
             <button
               onClick={() => fetchPayments(currentPage)}
-              className="text-xs font-bold text-red-700 underline underline-offset-2"
+              className="text-xs font-bold text-destructive underline underline-offset-2"
             >
               Try again
             </button>
@@ -282,7 +231,8 @@ export default function PaymentHistoryPage() {
         )}
 
         {loading && (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-8 sm:grid-cols-3">
+            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </div>
@@ -292,24 +242,17 @@ export default function PaymentHistoryPage() {
 
         {!loading && !error && payments.length > 0 && (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-8 sm:grid-cols-3">
               {payments.map((payment) => (
-                <PaymentHistoryCard
-                  key={payment.payment_id}
-                  payment={payment}
-                />
+                <PaymentHistoryCard key={payment.payment_id} payment={payment} />
               ))}
-              
             </div>
 
-
-            <Pagination
-              meta={meta}
-              onPageChange={(page) => setCurrentPage(page)}
-            />
+            <Pagination meta={meta} onPageChange={(page) => setCurrentPage(page)} />
           </>
         )}
       </div>
+</div>
     </main>
   );
 }

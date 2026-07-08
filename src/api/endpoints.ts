@@ -21,6 +21,8 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT_CATEGORY: "product-category/get-grand-categories",
   PRODUCT_VARIANT: "product/get-variant",
   PRODUCT_VARIANT_DETAIL: (id: string | number) => `product/variant/${id}`,
+  PRODUCT_GRAND_CATEGORY: "product/grand-category-products",
+  // PRODUCT_PARENT_CATEGORY: "product/parent-category-products", // if available
 };
 export const CART_ENDPOINTS = {
   CART: "cart",

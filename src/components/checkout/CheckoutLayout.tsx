@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { useCart } from "@/contexts/CartContext";
@@ -63,7 +63,7 @@ export default function CheckoutLayout() {
     refreshCart,
     pending_order,
   } = useCart();
-console.log(items,"items---")
+
   const { addOrder } = useOrders();
 
   const [step, setStep] = useState<CheckoutStep>("address");
@@ -86,9 +86,20 @@ console.log(items,"items---")
   const shippingAmount = selectedRate?.price ?? 0;
 
   // ─────────────────────────────────────────────
+  // GUARD REF — once checkout has finished (or is
+  // actively finishing), never let a stale
+  // `pending_order` update from refreshCart() knock
+  // the step back to "payment".
+  // ─────────────────────────────────────────────
+  const checkoutCompletedRef = useRef(false);
+
+  // ─────────────────────────────────────────────
   // AUTO DETECT PENDING ORDER
   // ─────────────────────────────────────────────
   useEffect(() => {
+    if (checkoutCompletedRef.current) return;
+    if (step === "processing" || step === "done") return;
+
     if (
       pending_order?.order_id &&
       pending_order?.payment_status === "PENDING"
@@ -106,7 +117,7 @@ console.log(items,"items---")
 
       setStep("payment");
     }
-  }, [pending_order]);
+  }, [pending_order, step]);
 
   // NOTE: Address loading now lives entirely inside <AddressSection mode="select" />
   // via the shared useAddresses hook — no address state or fetching here.
@@ -207,6 +218,17 @@ console.log(items,"items---")
         payment_mode: method,
       });
 
+      // ✅ Lock the checkout as complete BEFORE refreshCart() runs.
+      // This stops the pending-order effect from reacting to a
+      // possibly-stale `pending_order.payment_status === "PENDING"`
+      // value and forcing step back to "payment".
+      checkoutCompletedRef.current = true;
+
+      // ✅ Move to "done" before refreshing cart, so there's no
+      // window where the pending-order effect can fire against
+      // an intermediate step value.
+      setStep("done");
+
       // ✅ Refresh cart after payment success
       await refreshCart();
 
@@ -215,13 +237,10 @@ console.log(items,"items---")
         id: createdOrderId,
       } as any);
 
-      // ✅ Optional success screen
-      setStep("done");
-
       // ✅ Redirect after 2 seconds
       setTimeout(() => {
         router.push("/categories");
-      }, 2000);
+      }, 3000);
     } catch (err: any) {
       console.error(err);
 
@@ -229,6 +248,9 @@ console.log(items,"items---")
         err?.response?.data?.message || err?.message || "Payment failed"
       );
 
+      // Payment failed — checkout is not complete, allow the
+      // pending-order effect to behave normally again.
+      checkoutCompletedRef.current = false;
       setStep("payment");
     } finally {
       setProcessing(false);
@@ -237,17 +259,22 @@ console.log(items,"items---")
 
   // ─────────────────────────────────────────────
   // GUARDS
+  // NOTE: order matters. "processing" and "done" are
+  // checked BEFORE the empty-cart check, because
+  // refreshCart() during/after payment can legitimately
+  // empty the cart while we still want to show the
+  // processing/success screens instead of EmptyCart.
   // ─────────────────────────────────────────────
-  if (items.length === 0 && step !== "done") {
-    return <EmptyCart />;
-  }
-
   if (step === "processing") {
     return <ProcessingScreen />;
   }
 
   if (step === "done") {
     return <SuccessScreen orderId={createdOrderId} />;
+  }
+
+  if (items.length === 0) {
+    return <EmptyCart />;
   }
 
   return (
