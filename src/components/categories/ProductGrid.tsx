@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import ProxyImage from "../Proxyimage";
+import ProxyImage from "../ProxyImage";
 
 interface Attachment {
   file_uri: string;

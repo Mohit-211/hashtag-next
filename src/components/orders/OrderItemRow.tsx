@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import ProxyImage from "../Proxyimage";
+import ProxyImage from "../ProxyImage";
 
 interface Placement {
   cost?: number;

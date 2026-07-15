@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 import OrderPriceSummary from "./OrderPriceSummary";
-import ProxyImage from "../Proxyimage";
+import ProxyImage from "../ProxyImage";
 import { Button } from "@/components/ui/button";
 
 // ─────────────────────────────────────────────

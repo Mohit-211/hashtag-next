@@ -313,13 +313,13 @@ export default function AddProductConfigurationModal({
         {/* ── Body ── */}
         <div className="p-5 space-y-5">
           {/* Mode note for customized */}
-          {mode === "customized" && (
+          {/* {mode === "customized" && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-xs text-blue-900">
                 You can optionally add pre-made sizes to your customized order.
               </p>
             </div>
-          )}
+          )} */}
           {/* Min-qty hint */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <p className="text-xs text-amber-800 font-medium">

@@ -1,7 +1,7 @@
 "use client";
 
 import { GetPaymentHistoryApi } from "@/api/operations/payment.api";
-import PaymentHistoryCard, { Payment } from "@/components/Paymenthistorycard/Paymenthistorycard";
+import PaymentHistoryCard, { Payment } from "@/components/PaymentHistoryCard/PaymentHistoryCard";
 import React, { useEffect, useState, useCallback } from "react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────

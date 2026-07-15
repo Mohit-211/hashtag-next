@@ -6,7 +6,7 @@ import { Heart, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import AddToCartModal from "./AddToCartModal";
-import ProxyImage from "../Proxyimage";
+import ProxyImage from "../ProxyImage";
 
 interface ProductCardProps {
   image: string;

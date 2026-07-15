@@ -1,6 +1,6 @@
 "use client";
 import { ShoppingBag, Tag, Truck, Receipt } from "lucide-react";
-import ProxyImage from "../Proxyimage";
+import ProxyImage from "../ProxyImage";
 
 function fmt(n: any): string {
   const num = parseFloat(n);

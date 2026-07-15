@@ -81,6 +81,7 @@ export function sumVariantTotals(lines: VariantLineInput[]): VariantLineResult {
 
 /** Format a number as money with exactly 2 decimal places, comma-separated. */
 export function formatMoney(value: number): string {
+  console.log(value,"value")
   const safeValue = Number.isFinite(value) ? value : 0;
   return safeValue.toLocaleString(undefined, {
     minimumFractionDigits: 2,

@@ -430,6 +430,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const canvasBlobRef = useRef<Blob | null>(null);
+  const lastMaterialFloorRef = useRef<number>(1);
   /* ══════════════════════════════════════════════════════════════════════
      FETCH
   ══════════════════════════════════════════════════════════════════════ */
@@ -683,11 +684,38 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
-    if (id === "screenprint") {
-      const updated: Record<number, number> = {};
-      Object.entries(variantQty).forEach(([k, v]) => { updated[Number(k)] = Math.max(50, v); });
-      setVariantQty(updated);
+
+    // ★ CHANGED — floor is now decided explicitly per method via if/else
+    // instead of a single ternary. Embroidery, DTF, and Screen Print all
+    // floor at 1 (no forced Screen Print minimum of 50 anymore); DTG falls
+    // back to the variant's own min_order_quantity (or 1 if unset).
+    let floor: number;
+    if (id === "embroidery") {
+      floor = 1;
+    } else if (id === "screenprint") {
+      floor = 50;
+    } else if (id === "dtf") {
+      floor = 1;
+    } else {
+      floor = Math.max(1, activeVariant?.min_order_quantity || 1);
     }
+
+    setVariantQty(prev => {
+      const updated: Record<number, number> = { ...prev };
+
+      Object.entries(prev).forEach(([k, v]) => {
+        updated[Number(k)] = v === lastMaterialFloorRef.current ? floor : Math.max(floor, v);
+      });
+
+      // Seed the active variant if it has no entry yet (fresh page load).
+      if (activeVariant && updated[activeVariant.id] === undefined) {
+        updated[activeVariant.id] = floor;
+      }
+
+      return updated;
+    });
+
+    lastMaterialFloorRef.current = floor;
   };
   /* ── Canvas / design state ── */
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -771,19 +799,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     })();
     return () => { cancelled = true; };
   }, [canvasBaseImageSrc, useMockupOnCanvas]);
-  // useEffect(() => {
-  //   if (!displayImage) { setProductImg(null); return; }
-  //   let cancelled = false;
-  //   (async () => {
-  //     try {
-  //       const b64 = await toBase64ViaSameOrigin(displayImage);
-  //       if (cancelled) return;
-  //       const img = await loadImage(b64);
-  //       if (!cancelled) setProductImg(img);
-  //     } catch (err) { console?.error("Failed to load product image:", err); }
-  //   })();
-  //   return () => { cancelled = true; };
-  // }, [displayImage]);
   useEffect(() => {
     if (!logoSrc) { setLogoImg(null); return; }
     let cancelled = false;
@@ -1679,164 +1694,196 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     {MATERIALS.map(mat => {
                       const isSelected = selectedMaterial === mat.id;
                       return (
-                        <button key={mat.id} onClick={() => handleSelectMaterial(mat.id)}
-                          className={cn("w-full text-left flex items-start gap-3 rounded-2xl border-2 p-3.5 transition-all relative",
-                            isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                          )}>
+                        <div key={mat.id}>
+                          <button onClick={() => handleSelectMaterial(mat.id)}
+                            className={cn("w-full text-left flex items-start gap-3 rounded-2xl border-2 p-3.5 transition-all relative",
+                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                            )}>
+                            {isSelected && (
+                              <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F5D800] flex items-center justify-center">
+                                <Check size={11} className="text-black" />
+                              </div>
+                            )}
+                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0", isSelected ? "bg-[#F5D800]/20" : "bg-gray-100")}>
+                              {mat.emoji}
+                            </div>
+                            <div className="flex-1 min-w-0 pr-5">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-black text-gray-900">{mat.label}</p>
+                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-500")}>{mat.badge}</span>
+                              </div>
+                              <p className="text-[11px] text-gray-500 mt-0.5">{mat.desc}</p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">Best for: {mat.bestFor}</p>
+                            </div>
+                          </button>
+
+                          {/* ── Everything specific to THIS material now lives directly
+               under its own button, instead of after the whole list ── */}
                           {isSelected && (
-                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F5D800] flex items-center justify-center">
-                              <Check size={11} className="text-black" />
+                            <div className="mt-2 mb-1">
+                              {mat.id === "embroidery" && (
+                                <div className="flex items-start gap-2 bg-[#FFFBEA] border border-[#F5D800]/30 rounded-xl px-3.5 py-2.5">
+                                  <AlertCircle size={13} className="text-[#b89000] flex-shrink-0 mt-0.5" />
+                                  <p className="text-xs text-[#b89000] font-medium">
+                                    Orders of 1–11 pieces include a one-time <span className="font-black">$35 digitizing fee</span>, charged once per order (not per piece).
+                                  </p>
+                                </div>
+                              )}
+
+                              {mat.id === "screenprint" && (
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Number of Colours</p>
+                                  <div className="flex gap-2">
+                                    {(["1 Color", "2 Color", "3 Color"] as const).map(c => (
+                                      <button key={c} onClick={() => setSpColorCount(c)}
+                                        className={cn("flex-1 h-10 rounded-xl border-2 text-xs font-bold transition-all",
+                                          spColorCount === c ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
+                                        {c}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {(mat.id === "dtg" || mat.id === "dtf") && mat.id === "dtg" && (
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Print Area</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {(Object.keys(DTG_PRICES) as (keyof typeof DTG_PRICES)[]).map(s => (
+                                      <button key={s} onClick={() => setDtgStyle(s)}
+                                        className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all px-2",
+                                          dtgStyle === s ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
+                                        {s}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Price table toggle + table — now anchored to the selected card */}
+                              <div className="mt-3">
+                                <button onClick={() => setShowPriceTable(p => !p)}
+                                  className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
+                                  <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
+                                    <Table2 size={14} className="text-[#F5D800]" /> View Full Price Table
+                                  </div>
+                                  {showPriceTable ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+                                </button>
+                                {showPriceTable && (
+                                  <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden text-xs">
+                                    <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 text-[11px] font-bold uppercase tracking-widest text-gray-600">
+                                      {mat.id === "embroidery" && "Embroidery — Price per Location"}
+                                      {mat.id === "dtf" && "DTF Print Pricing"}
+                                      {mat.id === "screenprint" && "Screen Print Pricing"}
+                                      {mat.id === "dtg" && "DTG Print Pricing"}
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                      {mat.id === "embroidery" && (
+                                        <table className="w-full border-collapse min-w-[520px]">
+                                          <thead>
+                                            <tr className="bg-gray-50 border-b border-gray-200">
+                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-36">Location</th>
+                                              {EMB_TIERS.map(t => <th key={t.label} className="px-2 py-2 font-bold text-gray-500 border-r border-gray-100 text-center">{t.label}</th>)}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {Object.entries(EMB_PRICES).map(([key, prices], i) => (
+                                              <tr key={key} className={cn("border-b border-gray-100", selectedLocations.includes(key) ? "bg-[#F5D800]/8" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                                <td className="px-3 py-2 font-semibold text-gray-600 border-r border-gray-200">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
+                                                {prices.map((p, j) => (
+                                                  <td key={j} className="px-2 py-2 text-center border-r border-gray-100 text-gray-500">
+                                                    ${formatMoney(basePrice + p)}
+                                                  </td>
+                                                ))}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      )}
+
+                                      {mat.id === "dtf" && (
+                                        <table className="w-full border-collapse min-w-[480px]">
+                                          <thead>
+                                            <tr className="bg-gray-50 border-b border-gray-200">
+                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Method</th>
+                                              {["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"].map((l, i) => (
+                                                <th key={l} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
+                                                  DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{l}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            <tr>
+                                              <td className="px-3 py-3 font-bold text-[#b89000] border-r border-gray-200">DTF</td>
+                                              {DTF_PRICES.map((p, i) => (
+                                                <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium",
+                                                  DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>
+                                                  ${formatMoney(basePrice + p)}
+                                                </td>
+                                              ))}
+                                            </tr>
+                                          </tbody>
+                                        </table>
+                                      )}
+
+                                      {mat.id === "screenprint" && (
+                                        <table className="w-full border-collapse min-w-[320px]">
+                                          <thead>
+                                            <tr className="bg-gray-50 border-b border-gray-200">
+                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Colors</th>
+                                              <th className="px-3 py-2 font-bold text-gray-500 border-r border-gray-100 text-center">50–99 pcs</th>
+                                              <th className="px-3 py-2 font-bold text-gray-500 text-center">100+ pcs</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {Object.entries(SP_PRICES).map(([k, p], i) => (
+                                              <tr key={k} className={cn("border-b border-gray-100", k === spColorCount ? "bg-[#F5D800]/5" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                                <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">{k}</td>
+                                                <td className="px-3 py-2.5 text-center border-r border-gray-100 text-gray-500">${formatMoney(basePrice + p[0])}</td>
+                                                <td className="px-3 py-2.5 text-center text-gray-500">${formatMoney(basePrice + p[1])}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      )}
+
+                                      {mat.id === "dtg" && (
+                                        <table className="w-full border-collapse min-w-[400px]">
+                                          <thead>
+                                            <tr className="bg-gray-50 border-b border-gray-200">
+                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-40">Print Area</th>
+                                              {DTG_TIERS.map((t, i) => (
+                                                <th key={i} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
+                                                  DTG_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>
+                                                  {["1–23", "24–47", "48–99", "100+"][i]}
+                                                </th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {Object.entries(DTG_PRICES).map(([k, p], i) => (
+                                              <tr key={k} className={cn("border-b border-gray-100", k === dtgStyle ? "bg-[#F5D800]/5" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
+                                                <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">{k}</td>
+                                                {p.map((vv, j) => (
+                                                  <td key={j} className="px-2 py-2.5 text-center border-r border-gray-100 text-gray-500">
+                                                    ${formatMoney(basePrice + vv)}
+                                                  </td>
+                                                ))}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
-                          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0", isSelected ? "bg-[#F5D800]/20" : "bg-gray-100")}>
-                            {mat.emoji}
-                          </div>
-                          <div className="flex-1 min-w-0 pr-5">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-black text-gray-900">{mat.label}</p>
-                              <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-500")}>{mat.badge}</span>
-                            </div>
-                            <p className="text-[11px] text-gray-500 mt-0.5">{mat.desc}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">Best for: {mat.bestFor}</p>
-                          </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
-                  {selectedMaterial === "screenprint" && (
-                    <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Number of Colours</p>
-                      <div className="flex gap-2">
-                        {(["1 Color", "2 Color", "3 Color"] as const).map(c => (
-                          <button key={c} onClick={() => setSpColorCount(c)}
-                            className={cn("flex-1 h-10 rounded-xl border-2 text-xs font-bold transition-all",
-                              spColorCount === c ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
-                            {c}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {(selectedMaterial === "dtg" || selectedMaterial === "dtf") && (
-                    <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Print Area</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(Object.keys(DTG_PRICES) as (keyof typeof DTG_PRICES)[]).map(s => (
-                          <button key={s} onClick={() => setDtgStyle(s)}
-                            className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all px-2",
-                              dtgStyle === s ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {selectedMaterial && (
-                    <div className="mt-4">
-                      <button onClick={() => setShowPriceTable(p => !p)}
-                        className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
-                          <Table2 size={14} className="text-[#F5D800]" /> View Full Price Table
-                        </div>
-                        {showPriceTable ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
-                      </button>
-                      {showPriceTable && (
-                        <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden text-xs">
-                          <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 text-[11px] font-bold uppercase tracking-widest text-gray-600">
-                            {selectedMaterial === "embroidery" && "Embroidery — Price per Location"}
-                            {selectedMaterial === "dtf" && "DTF Print Pricing"}
-                            {selectedMaterial === "screenprint" && "Screen Print Pricing"}
-                            {selectedMaterial === "dtg" && "DTG Print Pricing"}
-                          </div>
-                          <div className="overflow-x-auto">
-                            {selectedMaterial === "embroidery" && (
-                              <table className="w-full border-collapse min-w-[520px]">
-                                <thead>
-                                  <tr className="bg-gray-50 border-b border-gray-200">
-                                    <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-36">Location</th>
-                                    {EMB_TIERS.map(t => <th key={t.label} className="px-2 py-2 font-bold text-gray-500 border-r border-gray-100 text-center">{t.label}</th>)}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {Object.entries(EMB_PRICES).map(([key, prices], i) => (
-                                    <tr key={key} className={cn("border-b border-gray-100", selectedLocations.includes(key) ? "bg-[#F5D800]/8" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                      <td className="px-3 py-2 font-semibold text-gray-600 border-r border-gray-200">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
-                                      {prices.map((p, j) => <td key={j} className="px-2 py-2 text-center border-r border-gray-100 text-gray-500">${p}</td>)}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                            {selectedMaterial === "dtf" && (
-                              <table className="w-full border-collapse min-w-[480px]">
-                                <thead>
-                                  <tr className="bg-gray-50 border-b border-gray-200">
-                                    <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Method</th>
-                                    {["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"].map((l, i) => (
-                                      <th key={l} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
-                                        DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{l}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr>
-                                    <td className="px-3 py-3 font-bold text-[#b89000] border-r border-gray-200">DTF</td>
-                                    {DTF_PRICES.map((p, i) => (
-                                      <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium",
-                                        DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>${p}.00</td>
-                                    ))}
-                                  </tr>
-                                </tbody>
-                              </table>
-                            )}
-                            {selectedMaterial === "screenprint" && (
-                              <table className="w-full border-collapse min-w-[320px]">
-                                <thead>
-                                  <tr className="bg-gray-50 border-b border-gray-200">
-                                    <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Colors</th>
-                                    <th className="px-3 py-2 font-bold text-gray-500 border-r border-gray-100 text-center">50–99 pcs</th>
-                                    <th className="px-3 py-2 font-bold text-gray-500 text-center">100+ pcs</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {Object.entries(SP_PRICES).map(([k, p], i) => (
-                                    <tr key={k} className={cn("border-b border-gray-100", k === spColorCount ? "bg-[#F5D800]/5" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                      <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">{k}</td>
-                                      <td className="px-3 py-2.5 text-center border-r border-gray-100 text-gray-500">${p[0]}</td>
-                                      <td className="px-3 py-2.5 text-center text-gray-500">${p[1]}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                            {selectedMaterial === "dtg" && (
-                              <table className="w-full border-collapse min-w-[400px]">
-                                <thead>
-                                  <tr className="bg-gray-50 border-b border-gray-200">
-                                    <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-40">Print Area</th>
-                                    {DTG_TIERS.map((t, i) => (
-                                      <th key={i} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
-                                        DTG_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>
-                                        {["1–23", "24–47", "48–99", "100+"][i]}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {Object.entries(DTG_PRICES).map(([k, p], i) => (
-                                    <tr key={k} className={cn("border-b border-gray-100", k === dtgStyle ? "bg-[#F5D800]/5" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                      <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">{k}</td>
-                                      {p.map((vv, j) => <td key={j} className="px-2 py-2.5 text-center border-r border-gray-100 text-gray-500">${vv}</td>)}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </SectionCard>
                 <SectionCard
                   step={3}
@@ -2068,18 +2115,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                         {/* Product Total / Decoration Total breakdown — every
                             variant calculates independently and shows its own
                             decoration, per the single source of truth. */}
-                        {/* <div className="mt-1 pl-0.5 space-y-0.5">
-                          <div className="flex items-center justify-between text-[10px] text-gray-400">
-                            <span>Product ({cv.totalQty} × avg ${formatMoney(cv.totalQty > 0 ? cv.productTotal / cv.totalQty : 0)})</span>
-                            <span>${formatMoney(cv.productTotal)}</span>
-                          </div>
-                          {cv.decorationTotal > 0 && (
-                            <div className="flex items-center justify-between text-[10px] text-gray-400">
-                              <span>Decoration ({cv.totalQty} × avg ${formatMoney(cv.totalQty > 0 ? cv.decorationTotal / cv.totalQty : 0)})</span>
-                              <span>${formatMoney(cv.decorationTotal)}</span>
-                            </div>
-                          )}
-                        </div> */}
                         <div className="mt-1 pl-0.5 space-y-0.5">
                           <div className="flex items-center justify-between text-[10px] text-gray-400">
                             <span>
@@ -2195,10 +2230,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             : ""}
                         </span>
                       </div>
-                      {/* <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">Product ({currentQty} × ${formatMoney(basePrice)})</span>
-                        <span className="text-xs font-bold text-gray-700">${formatMoney(productTotal)}</span>
-                      </div> */}
                     </div>
                   </div>
                 )}
@@ -2222,20 +2253,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       )}
                       {printPrice !== null && (
                         <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
-                          {/* <span className="text-xs text-gray-500">
-                            Decoration ({currentQty} × ${formatMoney(decorationUnitPrice)}){selectedMaterial === "embroidery" && currentQty <= 11 ? " incl. $35 digitizing" : selectedLocations.length > 1 ? ` · ${selectedLocations.length} loc.` : ""}
-                          </span> */}
                           <span className="text-xs text-gray-500">
                             Price
-
                           </span>
                           {/* ★ decorationTotal here is the SAME value used everywhere
                               else (currentSelectionPricing.decorationTotal) — not a
                               separate re-derivation of printPrice. */}
                           <span className="text-xs font-black text-gray-900">${formatMoney(productTotal + decorationTotal)}
                           </span>
-
-                          {/* <span className="text-xs font-black text-gray-900">${formatMoney(decorationTotal)}+${formatMoney(productTotal)}</span> */}
                         </div>
                       )}
                     </div>
@@ -2249,12 +2274,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       ${formatMoney(displayTotal)}
                     </span>
                   </div>
-                  {/* {configuredVariants.length > 0 && (
-                    <p className="text-[10px] text-gray-400">
-                      Includes {grandConfiguredQty} pcs from {configuredVariants.length} added variant{configuredVariants.length > 1 ? "s" : ""}
-                      {grandConfiguredDecoration > 0 ? ` (incl. $${formatMoney(grandConfiguredDecoration)} decoration)` : ""}
-                    </p>
-                  )} */}
                 </div>
                 {/* Apparel tier hint */}
                 {isApparel && selectedMaterial && currentQty > 0 && currentQty < 144 && (
@@ -2332,9 +2351,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           mode="customized"
           isSubmitting={configSubmitting}
           decorationUnitPrice={decorationUnitPrice}
-          // selectedMaterial={selectedMaterial}
           selectedLocations={selectedLocations}
-          // ✅ ADD THESE FLAGS
           isApparel={isApparel}
           isPreMade={isPreMade}
           isPromo={isPromo}
@@ -2367,7 +2384,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               ? (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants)
               : undefined
           }
-          // ✅ ADD THESE FLAGS
           isApparel={isApparel}
           isPreMade={isPreMade}
           isPromo={isPromo}

@@ -1,18 +1,47 @@
 // components/cart/CartItemsList.tsx
 import CartItem from "./CartItem";
 
+export type CustomizationLocation = {
+  location: string;
+};
+
+export type CustomizationBreakdownItem = {
+  variant_id: number;
+  size?: string;
+  color?: string;
+  quantity: number;
+  product_price: number;
+  decoration_price?: number;
+  total_price: number;
+};
+
 export type CartItemType = {
-  size: string;
-  logo_image: string;
   id: string;
-  cart_id?: string;
+  cart_id: string;
+  product_id?: number;
+  variant_id?: number;
+
   name: string;
   image: string;
+  logo_image?: string;
+
+  size: string;
+  color?: string;
+  colorCode?: string | null;
+
   basePrice: number;
+  totalPrice?: number;
   quantity: number;
+
+  canIncrease?: boolean;
+  canDecrease?: boolean;
+
   customization?: {
-    placements: any[];
-    uploadFee: number;
+    printMethod: string | null;
+    locations: CustomizationLocation[];
+    breakdown: CustomizationBreakdownItem[];
+    uploadedImage: string | null;
+    uploadedImageName: string | null;
   };
 };
 
@@ -31,36 +60,21 @@ export default function CartItemsList({ items, onRefresh }: Props) {
   }
 
   const totalItems = items.reduce((acc, i) => acc + i.quantity, 0);
-  console.log(items, "itemsitemsitemsitemsitems in 2")
+
   return (
     <div className="lg:col-span-2 space-y-4">
-      <h1 className="font-heading text-2xl font-semibold tracking-tight">
-        Your Cart{" "}
-        <span className="text-sm font-normal text-muted-foreground">
-          {totalItems} {totalItems === 1 ? "item" : "items"}
+      <div className="flex items-baseline justify-between">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">
+          Your Cart
+        </h1>
+        <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+          {String(totalItems).padStart(2, "0")} {totalItems === 1 ? "item" : "items"}
         </span>
-      </h1>
+      </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {items.map((item) => (
-          <CartItem
-            key={item.cart_id || item.id}
-            item={{
-              id: item.id,
-              cart_id: item.cart_id || item.id,
-              name: item.name,
-              image: item.image ,
-              logo_image: item.logo_image ,
-              basePrice: item.basePrice,
-              size: item.size || "",
-              quantity: item.quantity,
-              customization: item.customization || {
-                placements: [],
-                uploadFee: 0,
-              },
-            }}
-            onRefresh={onRefresh}
-          />
+          <CartItem key={item.cart_id || item.id} item={item} onRefresh={onRefresh} />
         ))}
       </div>
     </div>

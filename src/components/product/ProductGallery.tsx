@@ -11,7 +11,7 @@ import {
   Maximize2,
 } from "lucide-react";
 
-import ProxyImage from "../Proxyimage";
+import ProxyImage from "../ProxyImage";
 
 interface Props {
   attachments?: any[];
