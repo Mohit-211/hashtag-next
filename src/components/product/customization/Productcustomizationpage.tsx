@@ -127,11 +127,11 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
       hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }]
     },
     {
-      key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "/assets/customization_preview_image/tshirt_left_sleeve.png",
+      key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "/assets/customization_preview_image/tshirt_left_sleevs.png",
       hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "30%", left: "30%" }]
     },
     {
-      key: "RIGHT_SLEEVE", label: "Right Sleeve", mockup: "/assets/customization_preview_image/tshirt_right_sleeve.png",
+      key: "RIGHT_SLEEVE", label: "Right Sleeve", mockup: "/assets/customization_preview_image/tshirt_right_sleevs.png",
       hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "30%", left: "70%" }]
     },
   ],
