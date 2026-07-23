@@ -64,6 +64,7 @@ const products = [
 export default function HomePage() {
   return (
     <>
+    
       <HeroSection />
       <WhatWePrint />
       <HowItWorks />
