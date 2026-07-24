@@ -26,7 +26,6 @@ import { cn } from "@/lib/utils";
 import { Spin } from "antd";
 import AddProductConfigurationModal from "@/components/product/Addproductconfigurationmodal/Addproductconfigurationmodal";
 import AddToCartModal from "@/components/common/AddToCartModal";
-import { Base64 } from "js-base64";
 /* ───────────────────────────────────────────────── types */
 interface Size {
   id: number;

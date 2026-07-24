@@ -1,0 +1,464 @@
+Folder PATH listing
+Volume serial number is 000000FD BA3D:991A
+D:.
+¦   .env
+¦   .gitignore
+¦   components.json
+¦   eslint.config.mjs
+¦   next-env.d.ts
+¦   next.config.ts
+¦   package-lock.json
+¦   package.json
+¦   postcss.config.mjs
+¦   project-structure.txt
+¦   README.md
+¦   tsconfig.json
+¦   
++---public
+¦   ¦   favicon.png
+¦   ¦   logo_footer.png
+¦   ¦   logo_header.png
+¦   ¦   
+¦   +---assets
+¦       ¦   about-hero.jpg
+¦       ¦   brand-showcase.jpg
+¦       ¦   cat-apparel.jpg
+¦       ¦   cat-custom.jpg
+¦       ¦   cat-essentials.jpg
+¦       ¦   cat-signature.jpg
+¦       ¦   category-accessories.jpg
+¦       ¦   category-banner.jpg
+¦       ¦   category-streetwear.jpg
+¦       ¦   customization-ui.jpg
+¦       ¦   empty-cart.jpg
+¦       ¦   empty-orders.jpg
+¦       ¦   empty-saved.jpg
+¦       ¦   hero-image.jpg
+¦       ¦   hero-lifestyle.jpg
+¦       ¦   order-confirmed.jpg
+¦       ¦   product-cap.jpg
+¦       ¦   product-detail-back.jpg
+¦       ¦   product-detail-closeup.jpg
+¦       ¦   product-detail-main.jpg
+¦       ¦   product-hoodie.jpg
+¦       ¦   product-joggers.jpg
+¦       ¦   product-mug.jpg
+¦       ¦   product-phonecase.jpg
+¦       ¦   product-socks.jpg
+¦       ¦   product-tote.jpg
+¦       ¦   product-tote2.jpg
+¦       ¦   product-tshirt.jpg
+¦       ¦   support-hero.jpg
+¦       ¦   
+¦       +---BrandImage
+¦       ¦       47 brand.png
+¦       ¦       a4.jpg
+¦       ¦       adidas.jpg
+¦       ¦       apparel.png
+¦       ¦       Artisan Collection by Reprime.png
+¦       ¦       banners.png
+¦       ¦       Bella + Canvas.png
+¦       ¦       Brooks Brothers.png
+¦       ¦       business cards.png
+¦       ¦       Carhartt.png
+¦       ¦       Champion.png
+¦       ¦       Chef Designs.png
+¦       ¦       Columbia.png
+¦       ¦       Comfort Colors.png
+¦       ¦       Cotopaxi.png
+¦       ¦       Devon & Jones.png
+¦       ¦       Dickies.png
+¦       ¦       flyers.png
+¦       ¦       Gildan.png
+¦       ¦       Hanes.png
+¦       ¦       Jaanuu.png
+¦       ¦       Nike.png
+¦       ¦       Oakley.png
+¦       ¦       Port Authority.png
+¦       ¦       promo item.png
+¦       ¦       Puma Golf.png
+¦       ¦       Rabbit Skins.jpg
+¦       ¦       Richardson.png
+¦       ¦       stickers.png
+¦       ¦       Swannies.png
+¦       ¦       The North Face.png
+¦       ¦       Tommy Bahama.png
+¦       ¦       trade show displays.png
+¦       ¦       TravisMathew.png
+¦       ¦       TriDri.png
+¦       ¦       Vineyard Vines.png
+¦       ¦       Weatherproof.png
+¦       ¦       Zero Restriction.png
+¦       ¦       
+¦       +---customization_preview_image
+¦       ¦       hat.png
+¦       ¦       hat_back.png
+¦       ¦       hat_front.png
+¦       ¦       hat_side.png
+¦       ¦       hoodies_back.png
+¦       ¦       hoodies_front.png
+¦       ¦       hoodies_side.png
+¦       ¦       polo_back.png
+¦       ¦       polo_front.png
+¦       ¦       polo_side.png
+¦       ¦       tshirt.png
+¦       ¦       tshirt_back.png
+¦       ¦       tshirt_front.png
+¦       ¦       tshirt_left_sleevs.png
+¦       ¦       tshirt_right_sleevs.png
+¦       ¦       
+¦       +---GalleryImage
+¦       ¦       bags.png
+¦       ¦       IMG_0357.jpg
+¦       ¦       IMG_0395.jpg
+¦       ¦       IMG_0450.jpg
+¦       ¦       IMG_0480.jpg
+¦       ¦       IMG_0493.jpg
+¦       ¦       IMG_0559.jpg
+¦       ¦       IMG_0596.jpg
+¦       ¦       IMG_0597.jpg
+¦       ¦       IMG_0598.jpg
+¦       ¦       IMG_0599.jpg
+¦       ¦       IMG_0615.jpg
+¦       ¦       IMG_1193.jpg
+¦       ¦       IMG_2241.jpg
+¦       ¦       IMG_2244.jpg
+¦       ¦       IMG_2518.jpg
+¦       ¦       IMG_2532.jpg
+¦       ¦       IMG_2876.jpg
+¦       ¦       IMG_3527.jpg
+¦       ¦       IMG_3590.jpg
+¦       ¦       IMG_4039.jpg
+¦       ¦       IMG_4086.jpg
+¦       ¦       IMG_4140.jpg
+¦       ¦       IMG_4151.jpg
+¦       ¦       IMG_4152.jpg
+¦       ¦       IMG_4218.jpg
+¦       ¦       IMG_4262.jpg
+¦       ¦       IMG_8167.jpg
+¦       ¦       IMG_8978.jpg
+¦       ¦       IMG_9251.jpg
+¦       ¦       IMG_9398.jpg
+¦       ¦       IMG_9524.jpg
+¦       ¦       IMG_9544.jpg
+¦       ¦       IMG_9545.jpg
+¦       ¦       IMG_9826.jpg
+¦       ¦       
+¦       +---HomeImage
+¦       ¦       apparel.png
+¦       ¦       banners.png
+¦       ¦       business cards.png
+¦       ¦       flyers.png
+¦       ¦       image1.jpeg
+¦       ¦       promo item.png
+¦       ¦       stickers.png
+¦       ¦       trade show displays.png
+¦       ¦       
+¦       +---PrintMethod
+¦               DTG.png
+¦               Gemini_Generated_Image_vszfr8vszfr8vszf.png
+¦               heat transfer.png
+¦               screen print.png
+¦               
++---src
+    +---api
+    ¦   ¦   client.ts
+    ¦   ¦   endpoints.ts
+    ¦   ¦   
+    ¦   +---auth
+    ¦   ¦       auth.api.ts
+    ¦   ¦       
+    ¦   +---operations
+    ¦   ¦       address.api.ts
+    ¦   ¦       brand.api.ts
+    ¦   ¦       cart.api.ts
+    ¦   ¦       contact.api.ts
+    ¦   ¦       location.api.ts
+    ¦   ¦       order.api.ts
+    ¦   ¦       payment.api.ts
+    ¦   ¦       product.api.ts
+    ¦   ¦       shipping.api.ts
+    ¦   ¦       wishlist.api.ts
+    ¦   ¦       
+    ¦   +---users
+    ¦           users.api.ts
+    ¦           
+    +---app
+    ¦   ¦   globals.css
+    ¦   ¦   layout.tsx
+    ¦   ¦   not-found.tsx
+    ¦   ¦   page.tsx
+    ¦   ¦   providers.tsx
+    ¦   ¦   
+    ¦   +---about
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---account
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---api
+    ¦   ¦   +---proxy-image
+    ¦   ¦           route.ts
+    ¦   ¦           
+    ¦   +---cart
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---categories
+    ¦   ¦   ¦   CategoriesView.tsx
+    ¦   ¦   ¦   
+    ¦   ¦   +---[[...slug]]
+    ¦   ¦           page.tsx
+    ¦   ¦           
+    ¦   +---checkout
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---confirmation
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---contact-us
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---customization
+    ¦   ¦   +---[productId]
+    ¦   ¦       +---[variantId]
+    ¦   ¦               page.tsx
+    ¦   ¦               
+    ¦   +---forgot-password
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---gallery
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---login
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---orders
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---payment-history
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---privacy-policy
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---product
+    ¦   ¦   ¦   ProductDetail.tsx
+    ¦   ¦   ¦   
+    ¦   ¦   +---[id]
+    ¦   ¦           page.tsx
+    ¦   ¦           
+    ¦   +---saved
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---send-otp
+    ¦   ¦       page.tsx
+    ¦   ¦       SendOtpClient.tsx
+    ¦   ¦       
+    ¦   +---shippingreturns
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---support
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---terms
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---track-order
+    ¦   ¦       page.tsx
+    ¦   ¦       
+    ¦   +---verify-otp
+    ¦           page.tsx
+    ¦           VerifyOtpClient.tsx
+    ¦           
+    +---components
+    ¦   ¦   ProxyImage.tsx
+    ¦   ¦   
+    ¦   +---account
+    ¦   ¦       AccountSidebar.tsx
+    ¦   ¦       AddressCard.tsx
+    ¦   ¦       AddressForm.tsx
+    ¦   ¦       AddressSection.tsx
+    ¦   ¦       LoginRequired.tsx
+    ¦   ¦       PasswordSection.tsx
+    ¦   ¦       ProfileSection.tsx
+    ¦   ¦       
+    ¦   +---cart
+    ¦   ¦       CartCustomization.tsx
+    ¦   ¦       CartEmpty.tsx
+    ¦   ¦       CartItem.tsx
+    ¦   ¦       CartItemsList.tsx
+    ¦   ¦       CartSummary.tsx
+    ¦   ¦       CheckoutAddressModal.tsx
+    ¦   ¦       
+    ¦   +---categories
+    ¦   ¦       Brands.ts
+    ¦   ¦       CategoryBanner.tsx
+    ¦   ¦       CategoryFilterBar.tsx
+    ¦   ¦       CategoryHeader.tsx
+    ¦   ¦       EmptyProducts.tsx
+    ¦   ¦       LoadMoreButton.tsx
+    ¦   ¦       ProductGrid.tsx
+    ¦   ¦       useBrandMenu.ts
+    ¦   ¦       
+    ¦   +---checkout
+    ¦   ¦       AddressCard.tsx
+    ¦   ¦       Checkout.tsx
+    ¦   ¦       CheckoutLayout.tsx
+    ¦   ¦       EmptyCart.tsx
+    ¦   ¦       OrderSummary.tsx
+    ¦   ¦       PaymentSection.tsx
+    ¦   ¦       ProcessingScreen.tsx
+    ¦   ¦       ProgressRail.tsx
+    ¦   ¦       ShippingRateCard.tsx
+    ¦   ¦       ShippingSection.tsx
+    ¦   ¦       SuccessScreen.tsx
+    ¦   ¦       
+    ¦   +---common
+    ¦   ¦       AddToCartModal.tsx
+    ¦   ¦       CategoryCard.tsx
+    ¦   ¦       ProductCard.tsx
+    ¦   ¦       
+    ¦   +---conatctUs
+    ¦   ¦       ConatctUs.tsx
+    ¦   ¦       
+    ¦   +---confirmation
+    ¦   ¦       ConfirmationActions.tsx
+    ¦   ¦       ConfirmationHeader.tsx
+    ¦   ¦       NextSteps.tsx
+    ¦   ¦       OrderedItemCard.tsx
+    ¦   ¦       OrderedItems.tsx
+    ¦   ¦       OrderInfoCard.tsx
+    ¦   ¦       PriceSummary.tsx
+    ¦   ¦       
+    ¦   +---gallery
+    ¦   ¦       FilterBar.tsx
+    ¦   ¦       gallery-animations.css
+    ¦   ¦       Gallery.tsx
+    ¦   ¦       Gallerydata.ts
+    ¦   ¦       GalleryMain2.tsx
+    ¦   ¦       GalleryMain3.tsx
+    ¦   ¦       HeroSection.tsx
+    ¦   ¦       PhotoCard.tsx
+    ¦   ¦       PhotoListRow.tsx
+    ¦   ¦       ProfileHeader.tsx
+    ¦   ¦       TopBar.tsx
+    ¦   ¦       
+    ¦   +---history
+    ¦   ¦       HistoryManager.tsx
+    ¦   ¦       
+    ¦   +---home
+    ¦   ¦       BrandIntroduction.tsx
+    ¦   ¦       BrandStory.tsx
+    ¦   ¦       CategoriesOverview.tsx
+    ¦   ¦       CustomizationExperience.tsx
+    ¦   ¦       FeaturedProducts.tsx
+    ¦   ¦       FinalCTA.tsx
+    ¦   ¦       HeroSection.tsx
+    ¦   ¦       HowItWorks.tsx
+    ¦   ¦       TrustSimplicity.tsx
+    ¦   ¦       Untitled-1.txt
+    ¦   ¦       WhatWePrint.tsx
+    ¦   ¦       WhoWeServe.tsx
+    ¦   ¦       WhyChooseHB.tsx
+    ¦   ¦       
+    ¦   +---layout
+    ¦   ¦       Footer.tsx
+    ¦   ¦       Header.tsx
+    ¦   ¦       
+    ¦   +---login
+    ¦   ¦   ¦   AuthCard.tsx
+    ¦   ¦   ¦   DemoCredentials.tsx
+    ¦   ¦   ¦   LoginForm.tsx
+    ¦   ¦   ¦   PasswordInput.tsx
+    ¦   ¦   ¦   RegisterForm.tsx
+    ¦   ¦   ¦   
+    ¦   ¦   +---Forgotpasswordclient
+    ¦   ¦           Forgotpasswordclient.tsx
+    ¦   ¦           
+    ¦   +---OrderDetailPage
+    ¦   +---orders
+    ¦   ¦       OrderActions.tsx
+    ¦   ¦       OrderCard.tsx
+    ¦   ¦       OrderItemRow.tsx
+    ¦   ¦       OrderItems.tsx
+    ¦   ¦       OrderPriceSummary.tsx
+    ¦   ¦       OrdersEmpty.tsx
+    ¦   ¦       OrdersList.tsx
+    ¦   ¦       
+    ¦   +---PaymentHistoryCard
+    ¦   ¦       PaymentHistoryCard.tsx
+    ¦   ¦       
+    ¦   +---product
+    ¦   ¦   ¦   ProductAccordion.tsx
+    ¦   ¦   ¦   ProductGallery.tsx
+    ¦   ¦   ¦   ProductInfo.tsx
+    ¦   ¦   ¦   RelatedProducts.tsx
+    ¦   ¦   ¦   
+    ¦   ¦   +---Addproductconfigurationmodal
+    ¦   ¦   ¦       Addproductconfigurationmodal.tsx
+    ¦   ¦   ¦       
+    ¦   ¦   +---customization
+    ¦   ¦           pricing.ts
+    ¦   ¦           Productcustomizationpage.tsx
+    ¦   ¦           Sagequantitypricing.tsx
+    ¦   ¦           Untitled-1.html
+    ¦   ¦           
+    ¦   +---ProductDetailSkeleton
+    ¦   +---support
+    ¦   ¦       SupportContactForm.tsx
+    ¦   ¦       SupportFAQ.tsx
+    ¦   ¦       SupportHeader.tsx
+    ¦   ¦       SupportInfo.tsx
+    ¦   ¦       
+    ¦   +---trackorder
+    ¦   ¦       NoOrderState.tsx
+    ¦   ¦       OrderedItems.tsx
+    ¦   ¦       OrderPriceSummary.tsx
+    ¦   ¦       OrderProgress.tsx
+    ¦   ¦       OrderStatusCard.tsx
+    ¦   ¦       OrderSupport.tsx
+    ¦   ¦       ShipmentDetails.tsx
+    ¦   ¦       TrackLookup.tsx
+    ¦   ¦       
+    ¦   +---ui
+    ¦           accordion.tsx
+    ¦           button.tsx
+    ¦           checkbox.tsx
+    ¦           dialog.tsx
+    ¦           input.tsx
+    ¦           label.tsx
+    ¦           separator.tsx
+    ¦           sheet.tsx
+    ¦           skeleton.tsx
+    ¦           toggle.tsx
+    ¦           tooltip.tsx
+    ¦           
+    +---config
+    +---constants
+    ¦       config.js
+    ¦       
+    +---contexts
+    ¦       AuthContext.tsx
+    ¦       CartContext.tsx
+    ¦       OrdersContext.tsx
+    ¦       WishlistContext.tsx
+    ¦       
+    +---data
+    ¦       checkout.ts
+    ¦       constants.ts
+    ¦       products.ts
+    ¦       supportData.ts
+    ¦       types.ts
+    ¦       typesproduct.ts
+    ¦       
+    +---errors
+    ¦       ApiErrorHandler.js
+    ¦       errorMessages.js
+    ¦       
+    +---hooks
+    ¦       use-mobile.tsx
+    ¦       useAddresses.tsx
+    ¦       
+    +---lib
+            utils.ts
+            

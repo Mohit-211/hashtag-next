@@ -41,6 +41,10 @@ export default function Header() {
   const [dropdownRect, setDropdownRect] = useState({ top: 0, left: 0 });
   const [mounted, setMounted] = useState(false);
 
+  // ✅ Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -86,6 +90,7 @@ export default function Header() {
   useEffect(() => {
     setUserDropdownOpen(false);
     setMobileOpen(false);
+    setMobileSearchOpen(false);
   }, [pathname]);
 
   // ✅ Recalculate position on scroll/resize while open, so it doesn't
@@ -125,6 +130,23 @@ export default function Header() {
     router.push("/login");
   };
 
+  // ✅ Search submit — matches AllProductsApi's ProductQueryParams shape
+const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+
+  const search = searchQuery.trim().replace(/\s+/g, " ");
+
+  const params = new URLSearchParams();
+  params.set("page", "1");
+  params.set("limit", "16");
+
+  if (search) {
+    params.set("search", search);
+  }
+
+  router.push(`/categories?${params.toString()}`, { scroll: false });
+  setMobileSearchOpen(false);
+};
   return (
     <header className="sticky top-0 z-50 bg-gray-500/50 backdrop-blur border-b border-gray-500">
       <div className="container flex h-16 items-center justify-between gap-4">
@@ -141,7 +163,7 @@ export default function Header() {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden md:flex items-center gap-1 shrink-0">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -157,8 +179,50 @@ export default function Header() {
           ))}
         </nav>
 
+        {/* Search Bar (Desktop) */}
+        <form
+          onSubmit={handleSearchSubmit}
+          className="hidden lg:flex flex-1 max-w-md"
+        >
+         <div className="relative w-full">
+  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  <input
+    type="text"
+    autoFocus
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    placeholder="Search for products, styles, brands..."
+    className="w-full h-9 rounded-md border border-border bg-secondary/60 pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
+  />
+  {searchQuery && (
+    <button
+      type="button"
+      onClick={() => setSearchQuery("")}
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition"
+      aria-label="Clear search"
+    >
+      <X className="h-4 w-4" />
+    </button>
+  )}
+</div>
+        </form>
+
         {/* Right Actions */}
         <div className="flex items-center gap-4">
+          {/* Mobile Search Toggle */}
+          <button
+            type="button"
+            className="lg:hidden rounded-md p-1.5 hover:bg-secondary/70 transition"
+            onClick={() => setMobileSearchOpen((prev) => !prev)}
+            aria-label="Toggle search"
+          >
+            {mobileSearchOpen ? (
+              <X className="h-5 w-5" />
+            ) : (
+              <Search className="h-5 w-5" />
+            )}
+          </button>
+
           {/* ================= LOGGED IN ================= */}
           {isLoggedIn ? (
             <>
@@ -284,6 +348,25 @@ export default function Header() {
           </Button>
         </div>
       </div>
+
+      {/* ================= MOBILE SEARCH BAR ================= */}
+      {mobileSearchOpen && (
+        <div className="lg:hidden border-t bg-background px-4 py-3">
+          <form onSubmit={handleSearchSubmit}>
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for products, styles, brands..."
+                className="w-full h-9 rounded-md border border-border bg-secondary/60 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
+              />
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* ================= MOBILE MENU ================= */}
       {mobileOpen && (
