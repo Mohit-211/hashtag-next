@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Minus, Plus, Trash2, UploadCloud, Stamp } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Minus, Plus, Trash2, UploadCloud, Stamp, Loader2 } from "lucide-react";
 import { message } from "antd";
 
 import {
@@ -25,6 +25,18 @@ interface Props {
 export default function CartItem({ item, onRefresh }: Props) {
   const [loading, setLoading] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+
+  /* ── Typeable quantity ──
+     There's no "set quantity to X" endpoint — only +1 / -1 (Increment /
+     DecrementCartItemApi). So `qtyInput` is a local string buffer the user
+     can freely type/clear into, and on blur/Enter we reconcile it against
+     the server's current `item.quantity` by firing however many
+     increment/decrement calls are needed to land on the typed value —
+     functionally identical to clicking +/- that many times. */
+  const [qtyInput, setQtyInput] = useState<string>(String(item.quantity));
+  useEffect(() => {
+    setQtyInput(String(item.quantity));
+  }, [item.quantity]);
 
   const locations = item.customization?.locations ?? [];
   const breakdown = item.customization?.breakdown ?? [];
@@ -63,6 +75,48 @@ export default function CartItem({ item, onRefresh }: Props) {
     } catch (err: any) {
       console.error(err);
       message.error("Failed to increase quantity");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ── Reconcile a manually-typed quantity ──
+     Clamps to a 1-piece floor, does nothing if the value is unchanged or
+     invalid, then walks the gap one call at a time (respecting
+     canIncrease/canDecrease the same way the +/- buttons do) so any
+     stock-ceiling or floor enforced by those flags is still honored. */
+  const commitTypedQty = async (raw: string) => {
+    const parsed = Number(raw);
+    const target = Number.isFinite(parsed) ? Math.floor(parsed) : item.quantity;
+    const safeTarget = Math.max(1, target);
+
+    if (loading) return;
+    if (safeTarget === item.quantity) {
+      setQtyInput(String(item.quantity));
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let current = item.quantity;
+      if (safeTarget > current) {
+        while (current < safeTarget) {
+          if (item.canIncrease === false) break;
+          await IncrementCartItemApi({ cart_id: item.cart_id });
+          current += 1;
+        }
+      } else {
+        while (current > safeTarget) {
+          if (current <= 1 || item.canDecrease === false) break;
+          await DecrementCartItemApi({ cart_id: item.cart_id });
+          current -= 1;
+        }
+      }
+      message.success("Quantity updated");
+      onRefresh();
+    } catch (err: any) {
+      console.error(err);
+      message.error("Failed to update quantity");
     } finally {
       setLoading(false);
     }
@@ -162,7 +216,7 @@ export default function CartItem({ item, onRefresh }: Props) {
           <div className="flex flex-wrap items-center gap-2 mt-5">
             {printMethod && (
               <span
-                className="inline-flex items-center gap-1 -rotate-2 rounded-md border-2 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                className="inline-flex items-center gap-1 rounded-md border-2 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
                 style={{ borderColor: STAMP, color: STAMP }}
               >
                 <Stamp className="h-3 w-3" />
@@ -264,9 +318,35 @@ export default function CartItem({ item, onRefresh }: Props) {
             <Minus className="h-3.5 w-3.5" />
           </button>
 
-          <span className="w-9 text-center font-mono text-sm font-semibold">
-            {item.quantity}
-          </span>
+          {/* ★ CHANGED — was a static <span>{item.quantity}</span>, only
+              changeable via the +/- buttons. Now a typeable <input>.
+              `qtyInput` is a local string buffer so typing/clearing digits
+              doesn't fight the server-driven `item.quantity` on every
+              keystroke; the value is only reconciled against the backend
+              (via commitTypedQty, walking Increment/DecrementCartItemApi
+              the needed number of times) on blur or Enter. While that
+              reconciliation is in flight, `loading` disables the field
+              and shows a small spinner instead of the +/- buttons area
+              being separately clickable, avoiding overlapping requests. */}
+          <div className="relative w-9 flex items-center justify-center">
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+            ) : (
+              <input
+                type="number"
+                inputMode="numeric"
+                value={qtyInput}
+                min={1}
+                disabled={loading}
+                onChange={(e) => setQtyInput(e.target.value)}
+                onBlur={(e) => commitTypedQty(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                }}
+                className="w-full bg-transparent text-center font-mono text-sm font-semibold outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            )}
+          </div>
 
           <button
             onClick={handleIncrease}

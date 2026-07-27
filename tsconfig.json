@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "src/app/categories/usecase-children", "src/app/categories/Untitled-1"  ],
   "exclude": ["node_modules"]
 }

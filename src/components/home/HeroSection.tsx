@@ -12,14 +12,13 @@ export default function HeroSection() {
           <div className="space-y-8">
 
             <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] font-bold leading-[1.1] tracking-tight">
-              Premium Printing for Businesses,
+              Print, Apparel & Promo Solutions for 
               <br />
-              Creators & Events
+      Every Industry
             </h1>
 
             <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl">
-              Apparel, business cards, banners, signage,
-              stickers, and promo items, printed with precision.
+              Curated kits, premium materials, and modern production — built for businesses, creators, and organizations.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -30,7 +29,7 @@ export default function HeroSection() {
                   size="lg"
                   className="rounded-lg px-8 gap-2"
                 >
-                  Start a Print Project
+                  Start a Project
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
@@ -41,7 +40,7 @@ export default function HeroSection() {
                   size="lg"
                   className="rounded-lg px-8"
                 >
-                  Browse Print Products
+                  Shop by Industry
                 </Button>
               </Link>
 

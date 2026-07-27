@@ -333,15 +333,26 @@ export default function AddressSection({
           ))}
 
         {/* ---------- Continue button (select mode only) ---------- */}
+     
         {isSelect && (
-          <button
-            onClick={onContinue}
-            disabled={!selectedAddressId || continueLoading}
-            className="w-full mt-2 py-3.5 bg-[#F5D800] hover:bg-[#E8CE00] text-[#1A1A1A] font-condensed font-bold text-base uppercase tracking-widest rounded-sm disabled:bg-[#F5F4F0] disabled:text-[#CDCCC8] disabled:cursor-not-allowed transition-colors"
-          >
-            {continueLoading ? "Please wait..." : "Continue to Shipping →"}
-          </button>
-        )}
+  <div className="mt-2 flex flex-col sm:flex-row gap-3">
+    <button
+      type="button"
+      onClick={() => window.history.back()} // or router.push("/cart")
+      className="flex-1 py-3.5 border border-[#1A1A1A] bg-white hover:bg-gray-100 text-[#1A1A1A] font-condensed font-bold text-base uppercase tracking-widest rounded-sm transition-colors"
+    >
+      ← Back to Cart
+    </button>
+
+    <button
+      onClick={onContinue}
+      disabled={!selectedAddressId || continueLoading}
+      className="flex-1 py-3.5 bg-[#F5D800] hover:bg-[#E8CE00] text-[#1A1A1A] font-condensed font-bold text-base uppercase tracking-widest rounded-sm disabled:bg-[#F5F4F0] disabled:text-[#CDCCC8] disabled:cursor-not-allowed transition-colors"
+    >
+      {continueLoading ? "Please wait..." : "Continue to Shipping →"}
+    </button>
+  </div>
+)}
       </div>
 
       {/* ---------- Modal form (select mode only) ---------- */}

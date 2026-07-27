@@ -15,7 +15,7 @@ export default function HowItWorks() {
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-4 gap-6">
           <div className="p-8 rounded-2xl border bg-background">
             <h3 className="text-xl font-semibold mb-4">
               Step 1 — Choose Your Product
@@ -43,6 +43,17 @@ export default function HowItWorks() {
 
             <p className="text-muted-foreground">
               Review your proof and move to final production.
+            </p>
+          </div>
+          <div className="p-8 rounded-2xl border bg-background">
+            <h3 className="text-xl font-semibold mb-4">
+              Step 4 — receive your order
+            </h3>
+
+            <p className="text-muted-foreground">
+
+              Every order is produced with precision, carefully inspected, and shipped directly to you for a seamless experience from start to finish.
+
             </p>
           </div>
         </div>

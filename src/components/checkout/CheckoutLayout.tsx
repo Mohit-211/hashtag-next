@@ -67,7 +67,7 @@ export default function CheckoutLayout() {
   const { addOrder } = useOrders();
 
   const [step, setStep] = useState<CheckoutStep>("address");
-
+console.log(step,"step===>")
   const [selectedAddressId, setSelectedAddressId] =
     useState<number | null>(null);
 

@@ -539,7 +539,7 @@ export default function ContactUs() {
     <main className="bg-surface">
       <div className="container  lg:py-20">
         <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-14">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Contact Us</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Submit Your Sourcing Request</h1>
           <p className="mt-3 text-base text-muted-foreground">
             Questions about an order, a return, or anything else? Send us a message and our team will get back to you shortly.
           </p>

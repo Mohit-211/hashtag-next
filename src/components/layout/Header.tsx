@@ -32,7 +32,7 @@ const navLinks = [
   { label: "Orders", href: "/orders" },
   { label: "Saved", href: "/saved" },
   { label: "Gallery", href: "/gallery" },
-  { label: "Contact", href: "/contact-us" },
+  { label: "Submit Your Sourcing Request", href: "/contact-us" },
 ];
 
 export default function Header() {
@@ -86,11 +86,16 @@ export default function Header() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Close menu on route change
+  // ✅ Close menu on route change — also clears any stale, un-submitted
+  // search text so navigating to a different nav link (Home, All Products,
+  // Orders, Saved, Gallery, Contact) never leaves an old search query
+  // sitting in the box. Without this, the header persists across routes
+  // and a typed-but-not-submitted query would silently survive navigation.
   useEffect(() => {
     setUserDropdownOpen(false);
     setMobileOpen(false);
     setMobileSearchOpen(false);
+    setSearchQuery("");
   }, [pathname]);
 
   // ✅ Recalculate position on scroll/resize while open, so it doesn't

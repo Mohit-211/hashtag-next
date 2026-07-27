@@ -299,7 +299,7 @@ export default function AddProductConfigurationModal({
         <div className="sticky top-0 flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-white z-10">
           <div>
             <h2 className="text-lg font-bold text-gray-900">
-              {mode === "customized" ? "Complete Your Order" : "Add to Cart"}
+              {mode === "customized" ? "Need to add more colors ?" : "Add to Cart"}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5 truncate max-w-[420px]">{productName}</p>
           </div>

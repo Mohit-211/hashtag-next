@@ -90,7 +90,7 @@ export default function Footer() {
             </h4>
 
             <p className="text-sm  ">
-              hello@hashtagbillionaire.com
+              patrick@hashtagbillioniare.net
             </p>
           </div>
         </div>

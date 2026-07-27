@@ -45,3 +45,14 @@ export const ProductVariantApi = (payload: any) =>
 
 export const ProductVariantByIdApi = (id: number | string) =>
   client.get(PRODUCT_ENDPOINTS.PRODUCT_VARIANT_DETAIL(id));
+export interface IndustryQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export const IndustryApi = (params?: IndustryQueryParams) => {
+  return client.get(PRODUCT_ENDPOINTS.INDUSTRY, {
+    params,
+  });
+};

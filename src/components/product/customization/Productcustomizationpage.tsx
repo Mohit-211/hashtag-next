@@ -774,6 +774,17 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     selectedColor: string;
     selectedSizes: { variant_id: number; quantity: number; size_name: string }[];
   } | null>(null);
+  /* ── Local, per-keystroke text buffer for the typeable Apparel quantity
+     input. Kept separate from the numeric `currentQty` state so the user
+     can freely clear the field / type multi-digit numbers without each
+     keystroke being clamped mid-typing. Synced from currentQty whenever
+     the active variant/qty changes from elsewhere (+/- buttons, color
+     switch, material floor, etc.), and reconciled back into real state
+     on blur. ── */
+  const [apparelQtyInput, setApparelQtyInput] = useState<string>(String(currentQty || ""));
+  useEffect(() => {
+    setApparelQtyInput(currentQty > 0 ? String(currentQty) : "");
+  }, [currentQty, activeVariant?.id]);
   /* ── Load product image onto canvas ── */
   /* ── Canvas base image: real product photo, EXCEPT for Hat parent
      category, where we show the garment mockup (Front/Back/Side per
@@ -1923,7 +1934,20 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                         </select>
                         <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden h-10">
                           <button onClick={() => updateOrderRow(row.id, "qty", Math.max(1, row.qty - 1))} className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"><Minus size={12} /></button>
-                          <span className="flex-1 text-center text-xs font-black text-gray-900">{row.qty}</span>
+                          <input
+                            type="number"
+                            value={row.qty}
+                            min={1}
+                            onChange={e => {
+                              const val = Number(e.target.value);
+                              updateOrderRow(row.id, "qty", Number.isFinite(val) ? val : 1);
+                            }}
+                            onBlur={e => {
+                              const val = Number(e.target.value);
+                              updateOrderRow(row.id, "qty", Math.max(1, Number.isFinite(val) ? val : 1));
+                            }}
+                            className="flex-1 w-full text-center text-xs font-black text-gray-900 outline-none bg-transparent"
+                          />
                           <button onClick={() => updateOrderRow(row.id, "qty", row.qty + 1)} className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"><Plus size={12} /></button>
                         </div>
                         <select value={row.variantId} onChange={e => updateOrderRow(row.id, "variantId", Number(e.target.value))}
@@ -2192,7 +2216,34 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       >
                         <Minus size={16} />
                       </button>
-                      <span className="text-lg font-black">{currentQty}</span>
+                      {/* ★ CHANGED — was a static <span>{currentQty}</span> that
+                          could only be changed via the +/- buttons. Now a real
+                          typeable <input>. `apparelQtyInput` is a local string
+                          buffer so the field can be freely cleared / retyped
+                          without each keystroke snapping back to a clamped
+                          value; the real `variantQty` state (and therefore
+                          pricing/validation) is only updated on blur, clamped
+                          to this variant's own min_order_quantity. */}
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={apparelQtyInput}
+                        min={activeVariant?.min_order_quantity || 1}
+                        onChange={(e) => setApparelQtyInput(e.target.value)}
+                        onBlur={(e) => {
+                          if (!activeVariant) return;
+                          const min = activeVariant.min_order_quantity || 1;
+                          const val = Number(e.target.value);
+                          const safe = Number.isFinite(val) && val > 0 ? Math.floor(val) : min;
+                          const clamped = Math.max(min, safe);
+                          setQty(activeVariant.id, clamped);
+                          setApparelQtyInput(String(clamped));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                        className="w-16 text-lg font-black text-center outline-none focus:border-[#F5D800] border-2 border-transparent focus:border-2 rounded-lg bg-transparent"
+                      />
                       <button
                         onClick={() => {
                           if (!activeVariant) return;

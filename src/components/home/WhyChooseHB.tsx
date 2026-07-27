@@ -12,6 +12,10 @@ export default function WhyChooseHB() {
       title: "Transparent Process",
       desc: "No hidden fees, ever",
     },
+ {
+  title: "Industry-Specific Solutions",
+  desc: "Customized printing solutions for every business and profession.",
+}
   ];
 
   return (
@@ -24,7 +28,7 @@ export default function WhyChooseHB() {
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-4 gap-6">
           {items.map((item) => (
             <div
               key={item.title}
