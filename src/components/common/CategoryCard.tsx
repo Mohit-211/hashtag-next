@@ -17,7 +17,7 @@ function resolveImageSrc(image?: string) {
 
   // avoid "https://cdn.com" + "/foo.jpg" -> fine, but also guard "https://cdn.com/" + "/foo.jpg"
   const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
-  const trimmedPath = image.startsWith("/") ? image : `/${image}`;
+  const trimmedPath = image.startsWith("/") ? image : ``;
   return `${trimmedBase}${trimmedPath}`;
 }
 
@@ -33,7 +33,7 @@ export default function CategoryCard({
       <img
         src={src}
         alt={title}
-        
+
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         crossOrigin="anonymous"
         className="[object-fit:inherit] transition-transform duration-500 group-hover:scale-105"
