@@ -8,26 +8,26 @@ interface CategoryCardProps {
 }
 
 function resolveImageSrc(image?: string) {
-  const FALLBACK = "/placeholder.png"; // adjust to whatever fallback asset you actually have
+  const FALLBACK = "/placeholder.png";
+
   if (!image) return FALLBACK;
   if (image.startsWith("http")) return image;
 
   const base = process.env.NEXT_PUBLIC_IMAGE_URL ?? "";
   if (!base) return FALLBACK;
 
-  // avoid "https://cdn.com" + "/foo.jpg" -> fine, but also guard "https://cdn.com/" + "/foo.jpg"
-  const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
-  const trimmedPath = image.startsWith("/") ? image : ``;
-  return `${trimmedBase}${trimmedPath}`;
-}
+  const trimmedBase = base.replace(/\/$/, "");
+  const trimmedPath = image.replace(/^\//, "");
 
+  return `${trimmedBase}/${trimmedPath}`;
+}
 export default function CategoryCard({
   image,
   title,
   count,
 }: CategoryCardProps) {
   const src = resolveImageSrc(image);
-
+console.log(src,"src")
   return (
     <div className="group relative overflow-hidden rounded-xl aspect-[3/2] block cursor-pointer">
       <img
