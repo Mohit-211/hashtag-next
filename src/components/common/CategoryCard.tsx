@@ -30,10 +30,10 @@ export default function CategoryCard({
 console.log(src,"src")
   return (
     <div className="group relative overflow-hidden rounded-xl aspect-[3/2] block cursor-pointer">
-      <img
+      <Image
         src={src}
         alt={title}
-
+fill
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         crossOrigin="anonymous"
         className="[object-fit:inherit] transition-transform duration-500 group-hover:scale-105"
