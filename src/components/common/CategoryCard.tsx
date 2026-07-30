@@ -35,6 +35,7 @@ export default function CategoryCard({
         alt={title}
         fill
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+        crossOrigin="anonymous"
         className="[object-fit:inherit] transition-transform duration-500 group-hover:scale-105"
       />
       <div className="absolute inset-0 bg-foreground/40 group-hover:bg-foreground/50 transition-colors" />
