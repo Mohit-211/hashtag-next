@@ -10,8 +10,8 @@ import ProfileSection from "@/components/account/ProfileSection";
 import AddressSection from "@/components/account/AddressSection";
 import PasswordSection from "@/components/account/PasswordSection";
 import LoginRequired from "@/components/account/LoginRequired";
-
 import { Section } from "@/data/types";
+
 
 export default function Account() {
   const router = useRouter();
