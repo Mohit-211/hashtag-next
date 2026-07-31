@@ -387,10 +387,10 @@ export const categoriesViewStyles = `
 
   /* ── shared image treatment for industry + use-case cards ── */
   .ucgate-card-image-wrap {
-    position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: 12px;
+    position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 12px;
     overflow: hidden; margin-bottom: 16px; background: var(--color-secondary); flex-shrink: 0;
   }
-  .ucgate-card-image { object-fit: cover; transition: transform .4s ease; }
+  .ucgate-card-image { object-fit: inherit; transition: transform .4s ease; }
   .ucgate-industry-card:hover .ucgate-card-image,
   .ucgate-usecase-row:hover .ucgate-card-image { transform: scale(1.05); }
 
