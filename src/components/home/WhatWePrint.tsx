@@ -28,7 +28,7 @@ export default function WhatWePrint() {
     const fetchIndustries = async () => {
       try {
         setLoading(true);
-        const res = await IndustryApi({ page: 1, limit: 10 });
+        const res = await IndustryApi({ page: 1, limit: 20 });
         console.log(res, "res")
         console.log(res?.data?.data?.data, " res?.data?.data")
         // 👇 uncomment temporarily to inspect the real shape
