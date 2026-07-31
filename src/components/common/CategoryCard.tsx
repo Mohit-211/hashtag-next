@@ -27,13 +27,13 @@ export default function CategoryCard({
   count,
 }: CategoryCardProps) {
   const src = resolveImageSrc(image);
-console.log(src,"src")
+  console.log(src, "src")
   return (
-    <div className="group relative overflow-hidden rounded-xl aspect-[3/2] block cursor-pointer">
+    <div className="group relative overflow-hidden rounded-xl aspect-[4/3] block cursor-pointer">
       <Image
         src={src}
         alt={title}
-fill
+        fill
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
         crossOrigin="anonymous"
         className="[object-fit:inherit] transition-transform duration-500 group-hover:scale-105"
