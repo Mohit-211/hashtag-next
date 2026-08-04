@@ -1,10 +1,21 @@
-import React from 'react'
-import SendOtpClient from './SendOtpClient'
+"use client";
 
-const SendOtpPage = () => {
+import { Suspense } from "react";
+import AuthCard from "@/components/login/AuthCard";
+import SendOtpClient from "./SendOtpClient";
+
+export const dynamic = "force-dynamic";
+
+export default function SendOtpPage() {
   return (
-   <SendOtpClient/>
-  )
+    <section className="py-12 lg:py-20">
+      <div className="container max-w-md">
+        <AuthCard>
+          <Suspense fallback={<div className="text-center py-10">Loading…</div>}>
+            <SendOtpClient />
+          </Suspense>
+        </AuthCard>
+      </div>
+    </section>
+  );
 }
-
-export default SendOtpPage

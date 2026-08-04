@@ -416,6 +416,12 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
 }
 /* ─────────────────────────────────────────── Main Component ── */
 interface Props { productDataId: number; variantDataId: number }
+/* ★ NEW — sessionStorage key + helpers for "guest customization" persistence.
+   When a not-logged-in user builds out a full customization and then hits
+   Add to Cart, we snapshot everything needed to reproduce that exact
+   selection, stash it in sessionStorage, send them to /login, and restore
+   it the moment they land back on this same page already authenticated. */
+const CUSTOMIZATION_SESSION_KEY = "pendingCustomization";
 export default function ProductCustomizationPage({ productDataId, variantDataId }: Props) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -431,6 +437,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const canvasBlobRef = useRef<Blob | null>(null);
   const lastMaterialFloorRef = useRef<number>(1);
+  /* ★ NEW — guards against the color-change reset effect wiping out
+     variantQty the instant we restore a saved selection after login. */
+  const isRestoringSessionRef = useRef(false);
+  /* ★ NEW — prevents the restore effect from running more than once per
+     mount even if its dependency array re-fires (e.g. product refetches). */
+  const hasAttemptedRestoreRef = useRef(false);
   /* ══════════════════════════════════════════════════════════════════════
      FETCH
   ══════════════════════════════════════════════════════════════════════ */
@@ -504,10 +516,123 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const isPromo = !isApparel && !isPreMade;
   /* ── Auth ── */
   const [showLoginModal, setShowLoginModal] = useState(false);
+  /* ★ NEW — builds a full snapshot of every piece of state needed to
+     reproduce the current customization, and writes it to sessionStorage.
+     Kept as a plain function (not a hook) so it can be called imperatively
+     from requireLogin() and from the "Sign In" button. */
+  const saveCustomizationToSession = () => {
+    if (typeof window === "undefined") return;
+    try {
+      const snapshot = {
+        productDataId,
+        variantDataId,
+        selectedColor,
+        variantQty,
+        selectedLocations,
+        selectedMaterial,
+        spColorCount,
+        dtgStyle,
+        customText,
+        textSize,
+        textColor,
+        textRotation,
+        fontFamily,
+        textBold,
+        textItalic,
+        textShadow,
+        textOpacity,
+        textPos,
+        logoSrc,
+        logoSize,
+        logoRotation,
+        logoOpacity,
+        logoPos,
+        configuredVariants,
+        orderRows,
+        returnTo: window.location.pathname + window.location.search,
+        savedAt: Date.now(),
+      };
+      sessionStorage.setItem(CUSTOMIZATION_SESSION_KEY, JSON.stringify(snapshot));
+    } catch (e) {
+      // Storage can fail (quota exceeded by a large logo dataURL, private
+      // mode, etc.) — never let this block the actual login flow.
+      console?.error("Failed to save customization to session:", e);
+    }
+  };
   const requireLogin = () => {
-    if (!isLoggedIn) { setShowLoginModal(true); return true; }
+    if (!isLoggedIn) {
+      saveCustomizationToSession();
+      setShowLoginModal(true);
+      return true;
+    }
     return false;
   };
+  /* ★ NEW — restores a previously-saved guest customization once the user
+     is back on this page AND logged in AND the product/variant data has
+     finished loading (so color/variant lookups below have something to
+     resolve against). Runs at most once per mount. */
+  useEffect(() => {
+    if (!mounted || !isLoggedIn || !product || loading) return;
+    if (hasAttemptedRestoreRef.current) return;
+    if (typeof window === "undefined") return;
+    let raw: string | null = null;
+    try {
+      raw = sessionStorage.getItem(CUSTOMIZATION_SESSION_KEY);
+    } catch (e) {
+      console?.error("Failed to read saved customization:", e);
+    }
+    if (!raw) { hasAttemptedRestoreRef.current = true; return; }
+    hasAttemptedRestoreRef.current = true;
+    try {
+      const saved = JSON.parse(raw);
+      // Only restore if this saved snapshot actually belongs to the
+      // product/variant currently being viewed — never bleed a saved
+      // selection from one product onto another.
+      if (Number(saved.productDataId) !== Number(productDataId)) {
+        sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
+        return;
+      }
+      // Optional: expire stale snapshots older than 30 minutes so a very
+      // old abandoned session doesn't unexpectedly reappear.
+      if (saved.savedAt && Date.now() - saved.savedAt > 30 * 60 * 1000) {
+        sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
+        return;
+      }
+      // Prevent the color-change effect from wiping variantQty the moment
+      // we call setSelectedColor below.
+      isRestoringSessionRef.current = true;
+      if (saved.selectedColor) setSelectedColor(saved.selectedColor);
+      if (saved.variantQty && Object.keys(saved.variantQty).length > 0) {
+        setVariantQty(saved.variantQty);
+      }
+      if (Array.isArray(saved.selectedLocations)) setSelectedLocations(saved.selectedLocations);
+      if (saved.selectedMaterial) setSelectedMaterial(saved.selectedMaterial);
+      if (saved.spColorCount) setSpColorCount(saved.spColorCount);
+      if (saved.dtgStyle) setDtgStyle(saved.dtgStyle);
+      if (saved.customText) setCustomText(saved.customText);
+      if (saved.textSize) setTextSize(saved.textSize);
+      if (saved.textColor) setTextColor(saved.textColor);
+      if (saved.textRotation !== undefined) setTextRotation(saved.textRotation);
+      if (saved.fontFamily) setFontFamily(saved.fontFamily);
+      if (saved.textBold !== undefined) setTextBold(saved.textBold);
+      if (saved.textItalic !== undefined) setTextItalic(saved.textItalic);
+      if (saved.textShadow !== undefined) setTextShadow(saved.textShadow);
+      if (saved.textOpacity !== undefined) setTextOpacity(saved.textOpacity);
+      if (saved.textPos) setTextPos(saved.textPos);
+      if (saved.logoSrc) setLogoSrc(saved.logoSrc);
+      if (saved.logoSize) setLogoSize(saved.logoSize);
+      if (saved.logoRotation !== undefined) setLogoRotation(saved.logoRotation);
+      if (saved.logoOpacity !== undefined) setLogoOpacity(saved.logoOpacity);
+      if (saved.logoPos) setLogoPos(saved.logoPos);
+      if (Array.isArray(saved.configuredVariants)) setConfiguredVariants(saved.configuredVariants);
+      if (Array.isArray(saved.orderRows) && saved.orderRows.length > 0) setOrderRows(saved.orderRows);
+      sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
+    } catch (e) {
+      console?.error("Failed to restore saved customization:", e);
+      try { sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY); } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, isLoggedIn, product, loading, productDataId]);
   const grandCategory = useMemo((): string => {
     if (!product) return "";
     return (
@@ -567,6 +692,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   }, [variantData, product]);
   /* Reset qty/canvas when color changes (but keep configuredVariants intact) */
   useEffect(() => {
+    // ★ NEW — if this color change was triggered by the post-login restore
+    // effect (which calls setSelectedColor before setVariantQty), skip the
+    // reset exactly once so the restored quantities aren't wiped out.
+    if (isRestoringSessionRef.current) {
+      isRestoringSessionRef.current = false;
+      return;
+    }
     setVariantQty({});
     setProductImg(null);
     setLogoPos({ x: 190, y: 190 });
@@ -1519,10 +1651,21 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               </button>
             </div>
             <h2 className="text-xl font-black text-gray-900 mb-2">Sign in to continue</h2>
-            <p className="text-sm text-gray-500 leading-relaxed mb-6">Login to customize products, save to wishlist, and add to cart.</p>
+            <p className="text-sm text-gray-500 leading-relaxed mb-6">Login to customize products, save to wishlist, and add to cart. Your current customization will be saved.</p>
             <div className="flex gap-3">
               <button onClick={() => setShowLoginModal(false)} className="flex-1 h-11 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600">Cancel</button>
-              <button onClick={() => router.push("/login")} className="flex-1 h-11 rounded-xl bg-[#F5D800] text-black text-sm font-black">Sign In</button>
+              <button
+                onClick={() => {
+                  // ★ NEW — snapshot again right before navigating, in case
+                  // anything changed between opening the modal and clicking
+                  // Sign In (e.g. user tweaked qty behind the modal).
+                  saveCustomizationToSession();
+                  router.push("/login");
+                }}
+                className="flex-1 h-11 rounded-xl bg-[#F5D800] text-black text-sm font-black"
+              >
+                Sign In
+              </button>
             </div>
           </div>
         </div>

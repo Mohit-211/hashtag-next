@@ -5,8 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { sendOtpApi, verifyOtpApi } from "@/api/auth/auth.api";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Mail, ShieldCheck, Loader2 } from "lucide-react";
 
 const OTP_LENGTH = 4;
+const RESEND_SECONDS = 30;
 
 export default function VerifyOtpClient() {
   const router = useRouter();
@@ -20,7 +22,13 @@ export default function VerifyOtpClient() {
 
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
-  const [timer, setTimer] = useState(30);
+  const [timer, setTimer] = useState(RESEND_SECONDS);
+  const [hasError, setHasError] = useState(false);
+
+  /* ── Autofocus first box on mount ─────────────────────────────────────── */
+  useEffect(() => {
+    inputRefs.current[0]?.focus();
+  }, []);
 
   /* ── Timer ─────────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -35,6 +43,7 @@ export default function VerifyOtpClient() {
     const updated = [...digits];
     updated[index] = digit;
     setDigits(updated);
+    if (hasError) setHasError(false);
 
     // Auto-advance
     if (digit && index < OTP_LENGTH - 1) {
@@ -62,6 +71,7 @@ export default function VerifyOtpClient() {
     const updated = Array(OTP_LENGTH).fill("");
     pasted.split("").forEach((ch, i) => (updated[i] = ch));
     setDigits(updated);
+    if (hasError) setHasError(false);
     // Focus last filled or last box
     const focusIndex = Math.min(pasted.length, OTP_LENGTH - 1);
     inputRefs.current[focusIndex]?.focus();
@@ -70,56 +80,60 @@ export default function VerifyOtpClient() {
   const otpValue = digits.join("");
 
   /* ── Verify ─────────────────────────────────────────────────────────────── */
- async function handleVerify() {
-  if (otpValue.length !== OTP_LENGTH) {
-    toast.error("Please enter the complete 4-digit OTP ⚠️");
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const payload = {
-      email,
-      otp: otpValue,
-      type,
-    };
-
-    const res = await verifyOtpApi(payload);
-
-    if (res?.data?.success || res?.data?.status) {
-      toast.success(res.data.message || "OTP verified successfully 🎉");
-
-      setTimeout(() => {
-        if (type === "forgot_password") {
-          router.push(
-            `/forgot-password?email=${encodeURIComponent(email)}&type=${type}&token=${btoa(res?.data?.data?.token || "")}`
-          );
-        } else {
-          router.push("/login");
-        }
-      }, 1000);
-    } else {
-      toast.error(res?.data?.message || "Invalid OTP ❌");
+  async function handleVerify() {
+    if (otpValue.length !== OTP_LENGTH) {
+      setHasError(true);
+      toast.error("Please enter the complete 4-digit OTP ⚠️");
+      return;
     }
-  } catch (err: any) {
-    toast.error(err?.response?.data?.message || "Verification failed ❌");
-  } finally {
-    setLoading(false);
+
+    try {
+      setLoading(true);
+
+      const payload = {
+        email,
+        otp: otpValue,
+        type,
+      };
+
+      const res = await verifyOtpApi(payload);
+
+      if (res?.data?.success || res?.data?.status) {
+        toast.success(res.data.message || "OTP verified successfully 🎉");
+
+        setTimeout(() => {
+          if (type === "forgot_password") {
+            router.push(
+              `/forgot-password?email=${encodeURIComponent(email)}&type=${type}&token=${btoa(res?.data?.data?.token || "")}`
+            );
+          } else {
+            router.push("/login");
+          }
+        }, 1000);
+      } else {
+        setHasError(true);
+        toast.error(res?.data?.message || "Invalid OTP ❌");
+      }
+    } catch (err: any) {
+      setHasError(true);
+      toast.error(err?.response?.data?.message || "Verification failed ❌");
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   /* ── Resend ─────────────────────────────────────────────────────────────── */
   async function handleResend() {
     try {
       setResendLoading(true);
 
-      const res = await sendOtpApi({email, type});
+      const res = await sendOtpApi({ email, type });
 
       if (res?.data?.success || res?.data?.status) {
         toast.success(res.data.message || "OTP sent successfully 📧");
         setDigits(Array(OTP_LENGTH).fill(""));
-        setTimer(30);
+        setHasError(false);
+        setTimer(RESEND_SECONDS);
         inputRefs.current[0]?.focus();
       } else {
         toast.error(res?.data?.message || "Failed to resend OTP ❌");
@@ -132,82 +146,116 @@ export default function VerifyOtpClient() {
   }
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
-  return (
-    <>
-      {/* Header — matches RegisterForm style */}
-      <div className="text-center space-y-1">
-        <h1 className="text-xl font-heading font-bold">Verify Your Email</h1>
-        <p className="text-sm text-muted-foreground">
-          We've sent a 4-digit code to
+
+ return (
+  <div className="flex items-center justify-center">
+    <div className="w-full max-w-md p-6 bg-white rounded-2xl shadow-md">
+      <div className="text-center mb-6">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 mb-3">
+          <ShieldCheck className="h-6 w-6 text-blue-600" />
+        </div>
+
+        <h2 className="text-2xl font-semibold mb-2">
+          Verify OTP
+        </h2>
+
+        <p className="text-sm text-gray-500">
+          Enter the 4-digit OTP sent to
         </p>
-        <p className="text-sm font-semibold text-primary truncate">{email}</p>
+
+        <p className="text-sm font-medium text-gray-700 mt-1 break-all">
+          {email}
+        </p>
       </div>
 
-      {/* OTP Boxes */}
-      <div className="flex justify-center gap-3" onPaste={handlePaste}>
-        {digits.map((digit, i) => (
-          <input
-            key={i}
-            ref={(el) => { inputRefs.current[i] = el; }}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => handleChange(i, e.target.value)}
-            onKeyDown={(e) => handleKeyDown(i, e)}
-            className={`
-              w-14 h-14 text-center text-xl font-bold rounded-lg border
-              bg-background text-foreground
-              focus:outline-none focus:ring-2 focus:ring-primary
-              transition-all duration-150
-              ${digit ? "border-primary" : "border-input"}
-            `}
-          />
-        ))}
+      {/* OTP Inputs */}
+      <div className="space-y-2 mb-5">
+        <div
+          className="flex justify-center gap-3"
+          onPaste={handlePaste}
+        >
+          {digits.map((digit, i) => (
+            <input
+              key={i}
+              ref={(el) => {
+                inputRefs.current[i] = el;
+              }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              disabled={loading}
+              onChange={(e) => handleChange(i, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(i, e)}
+              className={`h-14 w-12 rounded-lg border text-center text-2xl font-semibold outline-none transition-all
+                ${
+                  hasError
+                    ? "border-red-500"
+                    : digit
+                    ? "border-blue-500"
+                    : "border-gray-300"
+                }
+                focus:ring-2 focus:ring-blue-500 disabled:opacity-50`}
+            />
+          ))}
+        </div>
+
+        {hasError && (
+          <p className="text-center text-sm text-red-500">
+            Invalid OTP. Please try again.
+          </p>
+        )}
       </div>
 
       {/* Verify Button */}
       <Button
         type="button"
-        onClick={handleVerify}
         variant="hero"
         size="lg"
         className="w-full"
         disabled={loading || otpValue.length !== OTP_LENGTH}
+        onClick={handleVerify}
       >
-        {loading ? "Verifying..." : "Verify OTP"}
+        {loading ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Verifying...
+          </span>
+        ) : (
+          "Verify OTP"
+        )}
       </Button>
 
       {/* Resend */}
-      <div className="text-center">
+      <div className="text-center mt-5">
         {timer > 0 ? (
-          <p className="text-sm text-muted-foreground select-none">
+          <p className="text-sm text-gray-500">
             Resend OTP in{" "}
-            <span className="font-semibold text-primary">{timer}s</span>
+            <span className="font-semibold text-blue-600">
+              {timer}s
+            </span>
           </p>
         ) : (
           <button
             type="button"
             onClick={handleResend}
             disabled={resendLoading}
-            className="text-sm font-semibold text-primary hover:underline disabled:opacity-50"
+            className="text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
           >
             {resendLoading ? "Sending..." : "Resend OTP"}
           </button>
         )}
       </div>
 
-      {/* Back to login — matches RegisterForm footer style */}
-      <p className="text-sm text-center text-muted-foreground">
-        Wrong email?{" "}
-        <button
-          type="button"
-          onClick={() => router.push("/login")}
-          className="font-semibold text-primary hover:underline"
-        >
-          Go back
-        </button>
-      </p>
-    </>
-  );
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700"
+      >
+        Back
+      </button>
+    </div>
+  </div>
+);
+  
 }

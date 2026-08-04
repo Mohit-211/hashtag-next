@@ -1,23 +1,17 @@
 "use client";
-
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-
 import { useCart } from "@/contexts/CartContext";
 import { useOrders } from "@/contexts/OrdersContext";
-
 import {
   CreatePaymentApi,
   GetSquareConfigApi,
 } from "@/api/operations/payment.api";
-
 import {
   CreateOrderApi,
   CreateShipmentLabelApi,
 } from "@/api/operations/order.api";
-
 import { GetShippingRatesApi } from "@/api/operations/shipping.api";
-
 import EmptyCart from "./EmptyCart";
 import ProcessingScreen from "./ProcessingScreen";
 import SuccessScreen from "./SuccessScreen";
@@ -26,14 +20,12 @@ import ShippingSection from "./ShippingSection";
 import PaymentSection from "./PaymentSection";
 import OrderSummary from "./OrderSummary";
 import AddressSection from "../account/AddressSection";
-
 export type CheckoutStep =
   | "address"
   | "shipping"
   | "payment"
   | "processing"
   | "done";
-
 export interface ShippingRate {
   label: string;
   service_code: string;
@@ -45,16 +37,15 @@ export interface ShippingRate {
   delivery_text?: string;
   trackable?: boolean;
 }
-
 export type SquareMethod =
   | "CARD"
   | "GOOGLE_PAY"
   | "APPLE_PAY"
   | "BANK_ACCOUNT";
-
+// Tax is applied to (subtotal + customization), never to shipping.
+const TAX_RATE = 8.25;
 export default function CheckoutLayout() {
   const router = useRouter();
-
   const {
     items,
     subtotal,
@@ -63,81 +54,57 @@ export default function CheckoutLayout() {
     refreshCart,
     pending_order,
   } = useCart();
-
   const { addOrder } = useOrders();
-
   const [step, setStep] = useState<CheckoutStep>("address");
-console.log(step,"step===>")
+  console.log(step, "step===>")
   const [selectedAddressId, setSelectedAddressId] =
     useState<number | null>(null);
-
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
-
   const [selectedRate, setSelectedRate] = useState<ShippingRate | null>(null);
-
   const [processing, setProcessing] = useState(false);
-
   const [orderError, setOrderError] = useState<string | null>(null);
-
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
-
   const [hasPendingOrder, setHasPendingOrder] = useState(false);
-
+  const [orderTax, setOrderTax] = useState<{
+    subtotal: number;
+    taxAmount: number;
+    taxRate: number;
+    totalAmount: number;
+  } | null>(null);
   const shippingAmount = selectedRate?.price ?? 0;
-
-  // ─────────────────────────────────────────────
-  // GUARD REF — once checkout has finished (or is
-  // actively finishing), never let a stale
-  // `pending_order` update from refreshCart() knock
-  // the step back to "payment".
-  // ─────────────────────────────────────────────
+  const estimatedTaxableBase =
+    (subtotal || 0) + (customizationTotal || 0);
+  const estimatedTaxAmount = +(estimatedTaxableBase * (TAX_RATE / 100)).toFixed(2);
+  const taxAmount = orderTax ? orderTax.taxAmount : estimatedTaxAmount;
+  const taxRate = orderTax ? orderTax.taxRate : TAX_RATE;
   const checkoutCompletedRef = useRef(false);
-
-  // ─────────────────────────────────────────────
-  // AUTO DETECT PENDING ORDER
-  // ─────────────────────────────────────────────
   useEffect(() => {
     if (checkoutCompletedRef.current) return;
     if (step === "processing" || step === "done") return;
-
     if (
       pending_order?.order_id &&
       pending_order?.payment_status === "PENDING"
     ) {
       setCreatedOrderId(pending_order.order_id);
-
       setHasPendingOrder(true);
-
       setSelectedRate({
         label: "Saved Shipping",
         service_code: "saved",
         carrier_code: "saved",
         price: pending_order.shipping_amount || 0,
       });
-
       setStep("payment");
     }
   }, [pending_order, step]);
-
-  // NOTE: Address loading now lives entirely inside <AddressSection mode="select" />
-  // via the shared useAddresses hook — no address state or fetching here.
-
-  // ─────────────────────────────────────────────
-  // FETCH SHIPPING RATES
-  // ─────────────────────────────────────────────
   const fetchRates = useCallback(async (addressId: number) => {
     try {
       setProcessing(true);
-
       const response = await GetShippingRatesApi({
         address_id: addressId,
       });
-
       const rates: ShippingRate[] =
         response?.data?.data ?? response?.data?.rates ?? [];
-
       setShippingRates(rates);
-
       if (rates.length > 0) {
         setSelectedRate(rates[0]);
       }
@@ -147,34 +114,36 @@ console.log(step,"step===>")
       setProcessing(false);
     }
   }, []);
-
-  // ─────────────────────────────────────────────
-  // CONFIRM SHIPPING
-  // ─────────────────────────────────────────────
   const handleConfirmShipping = useCallback(async () => {
     try {
       setOrderError(null);
       setProcessing(true);
-
       if (!selectedAddressId) throw new Error("Please select address");
       if (!selectedRate) throw new Error("Please select shipping");
-
       const orderResponse = await CreateOrderApi({
         address_id: selectedAddressId,
         selected_service_code: selectedRate.service_code,
         selected_carrier_code: selectedRate.carrier_code,
         shipping_amount: selectedRate.price ?? 0,
       });
-
-      const orderId = orderResponse?.data?.data?.id;
+      const orderData = orderResponse?.data?.data;
+      const orderId = orderData?.id;
       if (!orderId) throw new Error("Order creation failed");
-
       setCreatedOrderId(orderId);
-
+      const parsedTaxAmount = parseFloat(orderData?.tax_amount);
+      const parsedTaxRate = parseFloat(orderData?.tax_rate);
+      const parsedSubtotal = parseFloat(orderData?.subtotal_amount);
+      const parsedTotal = parseFloat(orderData?.total_amount);
+      if (!isNaN(parsedTaxAmount) && !isNaN(parsedTotal)) {
+        setOrderTax({
+          subtotal: isNaN(parsedSubtotal) ? estimatedTaxableBase : parsedSubtotal,
+          taxAmount: parsedTaxAmount,
+          taxRate: isNaN(parsedTaxRate) ? TAX_RATE : parsedTaxRate,
+          totalAmount: parsedTotal,
+        });
+      }
       await CreateShipmentLabelApi({ order_id: orderId });
-
       await refreshCart();
-
       setStep("payment");
     } catch (err: any) {
       console.error(err);
@@ -185,10 +154,6 @@ console.log(step,"step===>")
       setProcessing(false);
     }
   }, [selectedAddressId, selectedRate, refreshCart]);
-
-  // ─────────────────────────────────────────────
-  // PLACE ORDER
-  // ─────────────────────────────────────────────
   const handlePlaceOrder = async (
     sourceId?: string,
     method?: SquareMethod
@@ -197,66 +162,41 @@ console.log(step,"step===>")
       setOrderError(null);
       setProcessing(true);
       setStep("processing");
-
       if (!createdOrderId) {
         throw new Error("No order found");
       }
-
       if (method !== "BANK_ACCOUNT" && !sourceId) {
         throw new Error("Payment token missing");
       }
-
       const paymentConfig = await GetSquareConfigApi();
-
       if (!paymentConfig) {
         throw new Error("Unable to load payment configuration");
       }
-
       await CreatePaymentApi({
         order_id: createdOrderId,
         sourceId,
         payment_mode: method,
       });
-
-      // ✅ Lock the checkout as complete BEFORE refreshCart() runs.
-      // This stops the pending-order effect from reacting to a
-      // possibly-stale `pending_order.payment_status === "PENDING"`
-      // value and forcing step back to "payment".
       checkoutCompletedRef.current = true;
-
-      // ✅ Move to "done" before refreshing cart, so there's no
-      // window where the pending-order effect can fire against
-      // an intermediate step value.
       setStep("done");
-
-      // ✅ Refresh cart after payment success
       await refreshCart();
-
-      // ✅ Add order in context
       addOrder?.({
         id: createdOrderId,
       } as any);
-
-      // ✅ Redirect after 2 seconds
       setTimeout(() => {
         router.push("/categories");
       }, 3000);
     } catch (err: any) {
       console.error(err);
-
       setOrderError(
         err?.response?.data?.message || err?.message || "Payment failed"
       );
-
-      // Payment failed — checkout is not complete, allow the
-      // pending-order effect to behave normally again.
       checkoutCompletedRef.current = false;
       setStep("payment");
     } finally {
       setProcessing(false);
     }
   };
-
   // ─────────────────────────────────────────────
   // GUARDS
   // NOTE: order matters. "processing" and "done" are
@@ -268,20 +208,16 @@ console.log(step,"step===>")
   if (step === "processing") {
     return <ProcessingScreen />;
   }
-
   if (step === "done") {
     return <SuccessScreen orderId={createdOrderId} />;
   }
-
   if (items.length === 0) {
     return <EmptyCart />;
   }
-
   return (
     <section className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 lg:py-12">
       <div className="container max-w-5xl px-4 mx-auto">
         <ProgressRail current={step} />
-
         <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-3">
             {step === "address" && !hasPendingOrder && (
@@ -297,7 +233,6 @@ console.log(step,"step===>")
                 continueLoading={processing}
               />
             )}
-
             {step === "shipping" && !hasPendingOrder && (
               <ShippingSection
                 shippingRates={shippingRates}
@@ -311,7 +246,6 @@ console.log(step,"step===>")
                 onBack={() => setStep("address")}
               />
             )}
-
             {step === "payment" && (
               <PaymentSection
                 onPlaceOrder={handlePlaceOrder}
@@ -321,14 +255,19 @@ console.log(step,"step===>")
               />
             )}
           </div>
-
           <div className="lg:col-span-2">
             <OrderSummary
               items={items}
               subtotal={subtotal}
               customizationTotal={customizationTotal}
+              taxAmount={taxAmount}
+              taxRate={taxRate}
               shippingAmount={shippingAmount}
-              total={grandTotal + shippingAmount}
+              total={
+                orderTax
+                  ? orderTax.totalAmount
+                  : grandTotal + taxAmount + shippingAmount
+              }
               selectedRate={selectedRate}
             />
           </div>

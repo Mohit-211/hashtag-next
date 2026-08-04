@@ -7,6 +7,7 @@ import {
   Loader2,
   Clock,
   Info,
+  Scissors,
 } from "lucide-react";
 
 import ShippingRateCard from "./ShippingRateCard";
@@ -39,23 +40,23 @@ export default function ShippingSection({
   onBack,
 }: Props) {
   return (
-    <div className="rounded-3xl bg-white dark:bg-slate-900 p-6 lg:p-8 border border-slate-200 dark:border-slate-700 shadow-sm">
+    <div className="rounded-3xl bg-card p-6 lg:p-8 border border-border shadow-sm">
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="h-10 w-10 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
+        <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Truck
-            className="h-5 w-5 text-blue-600 dark:text-blue-400"
+            className="h-5 w-5 text-primary"
             strokeWidth={1.75}
           />
         </div>
 
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
+          <h2 className="text-lg font-semibold font-heading text-foreground">
             Shipping Method
           </h2>
 
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             Choose your preferred delivery option
           </p>
         </div>
@@ -64,9 +65,9 @@ export default function ShippingSection({
       {/* Loading */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 animate-spin text-violet-600 dark:text-violet-400" />
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
 
-          <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400">
+          <p className="mt-4 text-sm font-medium text-muted-foreground">
             Loading shipping rates...
           </p>
         </div>
@@ -86,7 +87,7 @@ export default function ShippingSection({
         </div>
       ) : (
         /* Empty State */
-        <div className="text-center py-10 text-slate-400 dark:text-slate-500">
+        <div className="text-center py-10 text-muted-foreground">
           <Truck
             className="h-10 w-10 mx-auto mb-3 opacity-30"
             strokeWidth={1.5}
@@ -106,31 +107,48 @@ export default function ShippingSection({
       <div className="mt-5 space-y-3">
 
         {/* Estimated Delivery */}
-        <div className="flex gap-3 rounded-2xl bg-blue-50 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/50 px-4 py-3.5">
-          <Clock className="h-4 w-4 text-blue-500 dark:text-blue-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+        <div className="flex gap-3 rounded-2xl bg-secondary border border-border px-4 py-3.5">
+          <Clock className="h-4 w-4 text-foreground/70 shrink-0 mt-0.5" strokeWidth={1.75} />
           <div>
-            <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">
+            <p className="text-xs font-semibold text-foreground mb-1">
               Estimated Delivery
             </p>
-            <p className="text-xs text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
-              We strive to ship everything within <span className="font-medium">10 days</span> but some items do take longer. Please note that delivery times are estimates and may vary due to factors such as courier schedules, holidays, or remote delivery locations.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              We strive to ship everything within <span className="font-medium text-foreground">10 days</span> but some items do take longer. Please note that delivery times are estimates and may vary due to factors such as courier schedules, holidays, or remote delivery locations.
             </p>
           </div>
         </div>
 
         {/* Production Variability */}
-        <div className="flex gap-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 px-4 py-3.5">
-          <Info className="h-4 w-4 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+        <div className="flex gap-3 rounded-2xl bg-primary/10 border border-primary/30 px-4 py-3.5">
+          <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" strokeWidth={1.75} />
           <div>
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">
+            <p className="text-xs font-semibold text-foreground mb-1">
               Production Variability &amp; Unexpected Delays
             </p>
-            <p className="text-xs text-amber-700/75 dark:text-amber-400/80 leading-relaxed">
+            <p className="text-xs text-foreground/70 leading-relaxed">
               Because many of our products are custom-made, occasional production delays may occur. Factors such as machine maintenance, needle breaks, garment defects, or the need to re-run an item to meet our quality standards can extend the normal processing timeline. These situations are rare, but they are a natural part of custom apparel production.
             </p>
-            <p className="text-xs text-amber-700/75 dark:text-amber-400/80 leading-relaxed mt-2">
+            <p className="text-xs text-foreground/70 leading-relaxed mt-2">
               If your order is affected by an unexpected production delay, our team will notify you promptly with an updated timeline. We are committed to delivering high-quality products and will never ship an item that does not meet our standards.
             </p>
+          </div>
+        </div>
+
+        {/* Embroidery Stitch Count Policy */}
+        <div className="flex gap-3 rounded-2xl bg-secondary border border-border px-4 py-3.5">
+          <Scissors className="h-4 w-4 text-foreground/70 shrink-0 mt-0.5" strokeWidth={1.75} />
+          <div>
+            <p className="text-xs font-semibold text-foreground mb-1">
+              🧵 Embroidery Stitch Count Policy
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              All pricing is based on standard stitch estimates per location (e.g., left chest ≈ 7,000 stitches). If your design's actual stitch count differs significantly from the estimated range, we'll review it after receiving your file.
+            </p>
+            <ul className="text-xs text-muted-foreground leading-relaxed mt-2 space-y-1 list-disc pl-4">
+              <li>Minor variations (within ~15%) are covered by the listed price.</li>
+              <li>Major differences (typically 20% or more above the range) may require a price adjustment before production. We'll contact you first if any change is needed — no surprises.</li>
+            </ul>
           </div>
         </div>
 
@@ -138,10 +156,10 @@ export default function ShippingSection({
 
       {/* Order error */}
       {orderError && (
-        <div className="mt-4 flex items-start gap-3 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 px-4 py-3">
-          <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+        <div className="mt-4 flex items-start gap-3 rounded-2xl bg-destructive/10 border border-destructive/30 px-4 py-3">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
 
-          <p className="text-sm text-red-600 dark:text-red-400">
+          <p className="text-sm text-destructive">
             {orderError}
           </p>
         </div>
@@ -153,11 +171,8 @@ export default function ShippingSection({
           variant="hero"
           size="lg"
           className="w-full"
-
-
           onClick={onContinue}
           disabled={!selectedRate || processing || loading}
-        // className="w-full bg-[#F5D800] hover:bg-[#e6ca00] disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 dark:disabled:text-slate-500 disabled:cursor-not-allowed text-black py-3.5 rounded-2xl font-semibold text-sm tracking-wide transition-all duration-200 hover:shadow-lg hover:shadow-yellow-200 active:scale-[0.99] flex items-center justify-center gap-2"
         >
           {processing ? (
             <>
@@ -172,7 +187,7 @@ export default function ShippingSection({
         <button
           onClick={onBack}
           disabled={processing || loading}
-          className="w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to address

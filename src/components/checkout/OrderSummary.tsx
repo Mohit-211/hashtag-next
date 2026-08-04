@@ -1,5 +1,5 @@
 "use client";
-import { ShoppingBag, Tag, Truck, Receipt } from "lucide-react";
+import { ShoppingBag, Tag, Truck, Receipt, Percent } from "lucide-react";
 import ProxyImage from "../ProxyImage";
 
 function fmt(n: any): string {
@@ -9,7 +9,14 @@ function fmt(n: any): string {
 }
 
 export default function OrderSummary({
-  items, subtotal, customizationTotal, shippingAmount, total, selectedRate,
+  items,
+  subtotal,
+  customizationTotal,
+  taxAmount,
+  taxRate,
+  shippingAmount,
+  total,
+  selectedRate,
 }: any) {
   return (
     <div className="bg-white border border-[#E0DFDB] border-t-[3px] border-t-[#F5D800] sticky top-6">
@@ -83,6 +90,15 @@ export default function OrderSummary({
             { icon: Receipt, label: "Subtotal", value: `$${fmt(subtotal)}` },
             ...(parseFloat(customizationTotal) > 0
               ? [{ icon: Tag, label: "Customization", value: `$${fmt(customizationTotal)}` }]
+              : []),
+            ...(taxAmount !== undefined && taxAmount !== null
+              ? [
+                  {
+                    icon: Percent,
+                    label: `Tax${taxRate ? ` (${fmt(taxRate)}%)` : ""}`,
+                    value: `$${fmt(taxAmount)}`,
+                  },
+                ]
               : []),
             ...(parseFloat(shippingAmount) !== 0
               ? [{ icon: Truck, label: selectedRate?.label || "Shipping", value: `$${fmt(shippingAmount)}` }]
