@@ -38,8 +38,22 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
 
   if (res.success) {
     toast.success("Login successful 🎉");
-    // router.push("/");
-    router.back();
+
+    // If a product customization was saved before being sent here to log in
+    // (see Productcustomizationpage.tsx's "pendingCustomization" snapshot),
+    // return to that same page so it can restore the selection.
+    let returnTo = "/categories";
+    try {
+      const raw = sessionStorage.getItem("pendingCustomization");
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved?.returnTo) returnTo = saved.returnTo;
+      }
+    } catch (e) {
+      console?.error("Failed to read pending customization:", e);
+    }
+
+    router.push(returnTo);
   } else {
     if (res.error?.toLowerCase().includes("not verified")) {
       toast.warning("Please verify your email first 📧");

@@ -73,32 +73,46 @@ console.log(formattedUser,"formattedUser")
   }, []);
 
   // ✅ LOGIN
- const login = useCallback(async (email: string, password: string) => {
-  try {
-    const res = await loginApi({ email, password });
+  // Retries on a "not verified" response: right after OTP verification the
+  // backend can take a moment to make that write visible to the login read
+  // (replica lag / cache), so the very next login can spuriously see the
+  // account as unverified. A couple of short retries absorb that lag
+  // without masking a genuinely unverified account.
+  const login = useCallback(async (email: string, password: string) => {
+    const MAX_NOT_VERIFIED_RETRIES = 4;
+    const RETRY_DELAY_MS = 900;
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    const token = res?.data?.data?.tokens?.access?.token;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await loginApi({ email, password });
 
-    if (!token) {
-      return { success: false, error: "Invalid response from server" };
+        const token = res?.data?.data?.tokens?.access?.token;
+
+        if (!token) {
+          return { success: false, error: "Invalid response from server" };
+        }
+
+        // ✅ Store token (same key everywhere)
+        localStorage.setItem("hastagBillionaire", token);
+
+        // ✅ Fetch user AFTER login
+        // await fetchUser();
+
+        return { success: true };
+      } catch (err: any) {
+        const message = err?.response?.data?.message || "Login failed";
+        const isNotVerified = message.toLowerCase().includes("not verified");
+
+        if (isNotVerified && attempt < MAX_NOT_VERIFIED_RETRIES) {
+          await sleep(RETRY_DELAY_MS);
+          continue;
+        }
+
+        return { success: false, error: message };
+      }
     }
-
-    // ✅ Store token (same key everywhere)
-    localStorage.setItem("hastagBillionaire", token);
-
-    // ✅ Fetch user AFTER login
-    await fetchUser();
-
-    return { success: true };
-  } catch (err: any) {
-    const message = err?.response?.data?.message || "Login failed";
-
-    return {
-      success: false,
-      error: message,
-    };
-  }
-}, []);
+  }, []);
 
   // ✅ LOGOUT
   const logout = useCallback(() => {

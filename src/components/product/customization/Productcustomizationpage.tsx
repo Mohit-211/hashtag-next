@@ -117,9 +117,9 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     {
       key: "FRONT", label: "Front", mockup: "/assets/customization_preview_image/tshirt_front.png",
       hotspots: [
-        { id: "LEFT_CHEST", label: "L. Chest", top: "28%", left: "38%" },
-        { id: "RIGHT_CHEST", label: "R. Chest", top: "28%", left: "62%" },
-        { id: "FULL_FRONT", label: "Full Front", top: "44%", left: "50%" },
+        { id: "LEFT_CHEST", label: "L. Chest", top: "35%", left: "60%" },
+        { id: "RIGHT_CHEST", label: "R. Chest", top: "35%", left: "32%" },
+        { id: "FULL_FRONT", label: "Full Front", top: "53%", left: "46%" },
       ]
     },
     {
@@ -128,29 +128,29 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
     {
       key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "/assets/customization_preview_image/tshirt_left_sleevs.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "30%", left: "30%" }]
+      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "33%", left: "64%" }]
     },
     {
       key: "RIGHT_SLEEVE", label: "Right Sleeve", mockup: "/assets/customization_preview_image/tshirt_right_sleevs.png",
-      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "30%", left: "70%" }]
+      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "33%", left: "29%" }]
     },
   ],
   hoodie: [
     {
       key: "FRONT", label: "Front", mockup: "/assets/customization_preview_image/hoodies_front.png",
       hotspots: [
-        { id: "LEFT_CHEST", label: "L. Chest", top: "28%", left: "38%" },
-        { id: "RIGHT_CHEST", label: "R. Chest", top: "28%", left: "62%" },
-        { id: "FULL_FRONT", label: "Full Front", top: "44%", left: "50%" },
+        { id: "LEFT_CHEST", label: "L. Chest", top: "45%", left: "65%" },
+        { id: "RIGHT_CHEST", label: "R. Chest", top: "45%", left: "32%" },
+        { id: "FULL_FRONT", label: "Full Front", top: "58%", left: "49%" },
       ]
     },
     {
       key: "BACK", label: "Back", mockup: "/assets/customization_preview_image/hoodies_back.png",
-      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }]
+      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "45%", left: "52%" }]
     },
     {
       key: "SIDE", label: "Side", mockup: "/assets/customization_preview_image/hoodies_side.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "35%", left: "50%" }]
+      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "50%", left: "63%" }]
     },
   ],
   hat: [
@@ -160,20 +160,20 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
     {
       key: "BACK", label: "Back", mockup: "/assets/customization_preview_image/hat_back.png",
-      hotspots: [{ id: "HAT_BACK_ARCH", label: "Back Arch", top: "40%", left: "50%" }]
+      hotspots: [{ id: "HAT_BACK_ARCH", label: "Back Arch", top: "35%", left: "50%" }]
     },
     {
       key: "SIDE", label: "Side", mockup: "/assets/customization_preview_image/hat_side.png",
-      hotspots: [{ id: "HAT_SIDE", label: "Side", top: "40%", left: "50%" }]
+      hotspots: [{ id: "HAT_SIDE", label: "Side", top: "40%", left: "27%" }]
     },
   ],
   polo: [
     {
       key: "FRONT", label: "Front", mockup: "/assets/customization_preview_image/polo_front.png",
       hotspots: [
-        { id: "LEFT_CHEST", label: "L. Chest", top: "28%", left: "38%" },
-        { id: "RIGHT_CHEST", label: "R. Chest", top: "28%", left: "62%" },
-        { id: "FULL_FRONT", label: "Full Front", top: "44%", left: "50%" },
+        { id: "LEFT_CHEST", label: "L. Chest", top: "38%", left: "70%" },
+        { id: "RIGHT_CHEST", label: "R. Chest", top: "38%", left: "32%" },
+        { id: "FULL_FRONT", label: "Full Front", top: "51%", left: "52%" },
       ]
     },
     {
@@ -182,7 +182,7 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
     {
       key: "SIDE", label: "Side", mockup: "/assets/customization_preview_image/polo_side.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "35%", left: "50%" }]
+      hotspots: [{ id: "SLEEVE_LEFT", label: "Sleeve", top: "32%", left: "70%" }]
     },
   ],
 };
@@ -443,6 +443,20 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   /* ★ NEW — prevents the restore effect from running more than once per
      mount even if its dependency array re-fires (e.g. product refetches). */
   const hasAttemptedRestoreRef = useRef(false);
+/* ★ NEW — true while we know there's a saved guest customization waiting
+   to be restored, so we can keep showing a loading state instead of
+   flashing empty defaults before the restore effect can run. */
+const [restorePending, setRestorePending] = useState(false);
+useEffect(() => {
+  if (typeof window === "undefined" || !mounted || !isLoggedIn) return;
+  try {
+    if (sessionStorage.getItem(CUSTOMIZATION_SESSION_KEY)) {
+      setRestorePending(true);
+    }
+  } catch (e) {
+    console?.error("Failed to check for saved customization:", e);
+  }
+}, [mounted, isLoggedIn]);
   /* ══════════════════════════════════════════════════════════════════════
      FETCH
   ══════════════════════════════════════════════════════════════════════ */
@@ -520,6 +534,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
      reproduce the current customization, and writes it to sessionStorage.
      Kept as a plain function (not a hook) so it can be called imperatively
      from requireLogin() and from the "Sign In" button. */
+
   const saveCustomizationToSession = () => {
     if (typeof window === "undefined") return;
     try {
@@ -548,7 +563,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         logoOpacity,
         logoPos,
         configuredVariants,
-        orderRows,
+        orderRows: orderRowsRef.current,
         returnTo: window.location.pathname + window.location.search,
         savedAt: Date.now(),
       };
@@ -571,68 +586,88 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
      is back on this page AND logged in AND the product/variant data has
      finished loading (so color/variant lookups below have something to
      resolve against). Runs at most once per mount. */
-  useEffect(() => {
-    if (!mounted || !isLoggedIn || !product || loading) return;
-    if (hasAttemptedRestoreRef.current) return;
-    if (typeof window === "undefined") return;
-    let raw: string | null = null;
-    try {
-      raw = sessionStorage.getItem(CUSTOMIZATION_SESSION_KEY);
-    } catch (e) {
-      console?.error("Failed to read saved customization:", e);
-    }
-    if (!raw) { hasAttemptedRestoreRef.current = true; return; }
+     
+useEffect(() => {
+  if (!mounted || !isLoggedIn || !product || loading) return;
+  if (hasAttemptedRestoreRef.current) return;
+  if (allProductVariants.length === 0) return;
+  if (typeof window === "undefined") return;
+  let raw: string | null = null;
+  try {
+    raw = sessionStorage.getItem(CUSTOMIZATION_SESSION_KEY);
+  } catch (e) {
+    console?.error("Failed to read saved customization:", e);
+  }
+  if (!raw) {
     hasAttemptedRestoreRef.current = true;
-    try {
-      const saved = JSON.parse(raw);
-      // Only restore if this saved snapshot actually belongs to the
-      // product/variant currently being viewed — never bleed a saved
-      // selection from one product onto another.
-      if (Number(saved.productDataId) !== Number(productDataId)) {
-        sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
-        return;
-      }
-      // Optional: expire stale snapshots older than 30 minutes so a very
-      // old abandoned session doesn't unexpectedly reappear.
-      if (saved.savedAt && Date.now() - saved.savedAt > 30 * 60 * 1000) {
-        sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
-        return;
-      }
-      // Prevent the color-change effect from wiping variantQty the moment
-      // we call setSelectedColor below.
-      isRestoringSessionRef.current = true;
-      if (saved.selectedColor) setSelectedColor(saved.selectedColor);
-      if (saved.variantQty && Object.keys(saved.variantQty).length > 0) {
-        setVariantQty(saved.variantQty);
-      }
-      if (Array.isArray(saved.selectedLocations)) setSelectedLocations(saved.selectedLocations);
-      if (saved.selectedMaterial) setSelectedMaterial(saved.selectedMaterial);
-      if (saved.spColorCount) setSpColorCount(saved.spColorCount);
-      if (saved.dtgStyle) setDtgStyle(saved.dtgStyle);
-      if (saved.customText) setCustomText(saved.customText);
-      if (saved.textSize) setTextSize(saved.textSize);
-      if (saved.textColor) setTextColor(saved.textColor);
-      if (saved.textRotation !== undefined) setTextRotation(saved.textRotation);
-      if (saved.fontFamily) setFontFamily(saved.fontFamily);
-      if (saved.textBold !== undefined) setTextBold(saved.textBold);
-      if (saved.textItalic !== undefined) setTextItalic(saved.textItalic);
-      if (saved.textShadow !== undefined) setTextShadow(saved.textShadow);
-      if (saved.textOpacity !== undefined) setTextOpacity(saved.textOpacity);
-      if (saved.textPos) setTextPos(saved.textPos);
-      if (saved.logoSrc) setLogoSrc(saved.logoSrc);
-      if (saved.logoSize) setLogoSize(saved.logoSize);
-      if (saved.logoRotation !== undefined) setLogoRotation(saved.logoRotation);
-      if (saved.logoOpacity !== undefined) setLogoOpacity(saved.logoOpacity);
-      if (saved.logoPos) setLogoPos(saved.logoPos);
-      if (Array.isArray(saved.configuredVariants)) setConfiguredVariants(saved.configuredVariants);
-      if (Array.isArray(saved.orderRows) && saved.orderRows.length > 0) setOrderRows(saved.orderRows);
+    setRestorePending(false); // ★ NEW — nothing to restore, stop showing the loader
+    return;
+  }
+  hasAttemptedRestoreRef.current = true;
+  try {
+    const saved = JSON.parse(raw);
+    if (Number(saved.productDataId) !== Number(productDataId)) {
       sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
-    } catch (e) {
-      console?.error("Failed to restore saved customization:", e);
-      try { sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY); } catch {}
+      setRestorePending(false); // ★ NEW
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, isLoggedIn, product, loading, productDataId]);
+    if (saved.savedAt && Date.now() - saved.savedAt > 30 * 60 * 1000) {
+      sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
+      setRestorePending(false); // ★ NEW
+      return;
+    }
+    isRestoringSessionRef.current = true;
+    if (saved.selectedColor) setSelectedColor(saved.selectedColor);
+    if (saved.variantQty && Object.keys(saved.variantQty).length > 0) {
+      setVariantQty(saved.variantQty);
+    }
+    if (Array.isArray(saved.selectedLocations)) setSelectedLocations(saved.selectedLocations);
+    if (saved.selectedMaterial) {
+      setSelectedMaterial(saved.selectedMaterial);
+      lastMaterialFloorRef.current = getMaterialFloor(saved.selectedMaterial);
+    }
+    if (saved.spColorCount) setSpColorCount(saved.spColorCount);
+    if (saved.dtgStyle) setDtgStyle(saved.dtgStyle);
+    if (saved.customText) setCustomText(saved.customText);
+    if (saved.textSize) setTextSize(saved.textSize);
+    if (saved.textColor) setTextColor(saved.textColor);
+    if (saved.textRotation !== undefined) setTextRotation(saved.textRotation);
+    if (saved.fontFamily) setFontFamily(saved.fontFamily);
+    if (saved.textBold !== undefined) setTextBold(saved.textBold);
+    if (saved.textItalic !== undefined) setTextItalic(saved.textItalic);
+    if (saved.textShadow !== undefined) setTextShadow(saved.textShadow);
+    if (saved.textOpacity !== undefined) setTextOpacity(saved.textOpacity);
+    if (saved.textPos) setTextPos(saved.textPos);
+    if (saved.logoSrc) setLogoSrc(saved.logoSrc);
+    if (saved.logoSize) setLogoSize(saved.logoSize);
+    if (saved.logoRotation !== undefined) setLogoRotation(saved.logoRotation);
+    if (saved.logoOpacity !== undefined) setLogoOpacity(saved.logoOpacity);
+    if (saved.logoPos) setLogoPos(saved.logoPos);
+    if (Array.isArray(saved.configuredVariants)) setConfiguredVariants(saved.configuredVariants);
+    if (Array.isArray(saved.orderRows) && saved.orderRows.length > 0) {
+      const variantsSource = allProductVariants.length > 0 ? allProductVariants : product.variants;
+      const revalidated = saved.orderRows
+        .map((r: OrderRow) => {
+          const v = variantsSource.find(vv => vv.id === r.variantId && vv.color === r.color);
+          if (!v) return null;
+          const min = Math.max(1, v.min_order_quantity || 1);
+          return { ...r, qty: Math.max(r.qty, min) };
+        })
+        .filter((r: OrderRow | null): r is OrderRow => r !== null);
+      setOrderRows(revalidated.length > 0 ? revalidated : [{ id: Date.now(), color: "", qty: 1, variantId: "" }]);
+    }
+    sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
+    setTimeout(() => {
+      isRestoringSessionRef.current = false;
+      setRestorePending(false); // ★ NEW — restore fully applied, safe to render real UI
+    }, 0);
+  } catch (e) {
+    console?.error("Failed to restore saved customization:", e);
+    try { sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY); } catch { }
+    setRestorePending(false); // ★ NEW — don't get stuck loading forever on error
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [mounted, isLoggedIn, product, loading, productDataId, allProductVariants]);
   const grandCategory = useMemo((): string => {
     if (!product) return "";
     return (
@@ -685,6 +720,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return Array.from(map.entries()).map(([name, hex]) => ({ name, hex }));
   }, [product, allProductVariants]);
   useEffect(() => {
+    // ★ FIX — a session restore may be about to set selectedColor (and the
+    // matching variantQty) in this very same effect-commit. Since this
+    // effect still reads the pre-restore ("") closure value of
+    // selectedColor, it would otherwise win the race and overwrite the
+    // restored color with the product's default one — which then makes
+    // every downstream variant/qty lookup miss the restored quantity
+    // entirely (currentVariantId no longer matches the ids inside the
+    // restored variantQty map), so the qty silently falls back to the
+    // same default every time regardless of what was picked pre-login.
+    if (isRestoringSessionRef.current) return;
     if (!selectedColor) {
       const first = variantData?.color || product?.variants?.[0]?.color;
       if (first) setSelectedColor(first);
@@ -719,8 +764,29 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
      QUANTITY STATE (current, "in progress" variant being configured)
   ══════════════════════════════════════════════════════════════════════ */
   const [variantQty, setVariantQty] = useState<Record<number, number>>({});
-  const setQty = (variantId: number, qty: number) =>
-    setVariantQty(prev => ({ ...prev, [variantId]: Math.max(1, qty) }));
+  const setQty = (variantId: number, qty: number) => {
+    const safeQty = Math.max(1, qty);
+    setVariantQty(prev => ({ ...prev, [variantId]: safeQty }));
+
+    setOrderRows(prev => {
+      const idx = prev.findIndex(r => r.variantId === variantId);
+      if (idx !== -1) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], qty: safeQty };
+        return next;
+      }
+      const variant = (allProductVariants.length > 0 ? allProductVariants : product?.variants ?? [])
+        .find(v => v.id === variantId);
+      const rowData = { color: variant?.color ?? selectedColor, qty: safeQty, variantId };
+      const blankIdx = prev.findIndex(r => !r.variantId);
+      if (blankIdx !== -1) {
+        const next = [...prev];
+        next[blankIdx] = { ...next[blankIdx], ...rowData };
+        return next;
+      }
+      return [...prev, { id: Date.now(), ...rowData }];
+    });
+  };
   const totalQty = useMemo(
     () => Object.values(variantQty).reduce((a, b) => a + b, 0),
     [variantQty]
@@ -740,6 +806,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   );
   const currentQty = currentVariantId ? (variantQty[currentVariantId] ?? 0) : 0;
   console.log(currentVariantId, "currentVariantId")
+  useEffect(() => {
+    setApparelQtyInput(currentQty > 0 ? String(currentQty) : "");
+  }, [currentQty, activeVariant?.id]);
   const activeSizes = useMemo(
     () => Object.entries(variantQty)
       .filter(([, q]) => q > 0)
@@ -780,6 +849,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
      lower value and never drops below the floor, and now correctly uses
      THIS product's own SAGE minimum instead of a fixed 100. ── */
   useEffect(() => {
+    // ★ FIX — same restore race as the default-color effect above: this
+    // effect's `variantQty` closure is still the pre-restore ({}) value
+    // within the same commit that the restore effect calls setVariantQty
+    // in, so without this guard it would seed the floor qty for
+    // activeVariant and stomp the just-restored quantity right back down
+    // to promoMinQty on the very first render after login.
+    if (isRestoringSessionRef.current) return;
     if (!isPromo || !activeVariant) return;
     if (Object.keys(variantQty).length > 0) return;
     setQty(activeVariant.id, promoMinQty);
@@ -787,6 +863,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   /* ── Apparel/Pre-Made: floor quantity at 1 (or the variant's own
      min_order_quantity if higher) whenever nothing has been picked yet. ── */
   useEffect(() => {
+    // ★ FIX — see the promo effect above; same restore race applies here.
+    if (isRestoringSessionRef.current) return;
     if (isPromo || !activeVariant) return;
     if (Object.keys(variantQty).length > 0) return;
     const floor = Math.max(1, activeVariant.min_order_quantity || 1);
@@ -813,30 +891,40 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [showPriceTable, setShowPriceTable] = useState(false);
   const [spColorCount, setSpColorCount] = useState<"1 Color" | "2 Color" | "3 Color">("1 Color");
   const [dtgStyle, setDtgStyle] = useState<keyof typeof DTG_PRICES>("Front Regular");
+  // ★ CHANGED — single source of truth for a print method's minimum
+  // quantity. Screen Print floors at 50; Embroidery/DTF floor at 1; DTG
+  // falls back to the variant's own min_order_quantity (or 1 if unset).
+  // Used both to seed the qty when a material is picked AND by the
+  // quantity stepper below, so the enforced minimum stays in sync with
+  // whichever print method is currently selected instead of always
+  // reflecting just the variant's base min_order_quantity.
+  const getMaterialFloor = (id: MaterialId | null): number => {
+    if (id === "screenprint") return 50;
+    if (id === "embroidery" || id === "dtf") return 1;
+    // dtg (and no material selected yet) falls back to the variant's own
+    // min_order_quantity.
+    return Math.max(1, activeVariant?.min_order_quantity || 1);
+  };
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
 
-    // ★ CHANGED — floor is now decided explicitly per method via if/else
-    // instead of a single ternary. Embroidery, DTF, and Screen Print all
-    // floor at 1 (no forced Screen Print minimum of 50 anymore); DTG falls
-    // back to the variant's own min_order_quantity (or 1 if unset).
-    let floor: number;
-    if (id === "embroidery") {
-      floor = 1;
-    } else if (id === "screenprint") {
-      floor = 50;
-    } else if (id === "dtf") {
-      floor = 1;
-    } else {
-      floor = Math.max(1, activeVariant?.min_order_quantity || 1);
-    }
+    const floor = getMaterialFloor(id);
+    // ★ FIX — capture the outgoing floor before the ref is overwritten.
+    // setVariantQty's updater runs later, during React's deferred render
+    // pass, by which point `lastMaterialFloorRef.current = floor` below
+    // would already have executed — so reading the ref live inside the
+    // updater always compared against the NEW floor instead of the old
+    // one. That made resets silently no-op whenever the floor decreased
+    // (e.g. Screen Print's 50 -> Embroidery's 1 never actually dropped),
+    // while increases still worked by coincidence via Math.max.
+    const previousFloor = lastMaterialFloorRef.current;
 
     setVariantQty(prev => {
       const updated: Record<number, number> = { ...prev };
 
       Object.entries(prev).forEach(([k, v]) => {
-        updated[Number(k)] = v === lastMaterialFloorRef.current ? floor : Math.max(floor, v);
+        updated[Number(k)] = v === previousFloor ? floor : Math.max(floor, v);
       });
 
       // Seed the active variant if it has no entry yet (fresh page load).
@@ -1100,27 +1188,55 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       done: totalQty >= promoMinQty,
     }] : []),
   ];
+  console.log(REQUIREMENTS, "REQUIREMENTS")
   const allMet = REQUIREMENTS.every(r => r.done);
   /* ── Order rows (Pre-Made only) ── */
   interface OrderRow { id: number; color: string; qty: number; variantId: number | "" }
   const [orderRows, setOrderRows] = useState<OrderRow[]>([
     { id: Date.now(), color: "", qty: 1, variantId: "" }
   ]);
+  const orderRowsRef = useRef(orderRows);
+  useEffect(() => { orderRowsRef.current = orderRows; }, [orderRows]);
   const addOrderRow = () => setOrderRows(prev => [...prev, { id: Date.now(), color: "", qty: 1, variantId: "" }]);
   const removeOrderRow = (id: number) => setOrderRows(prev => prev.filter(r => r.id !== id));
-  const updateOrderRow = (id: number, field: keyof OrderRow, value: any) =>
-    setOrderRows(prev => prev.map(r => {
-      if (r.id !== id) return r;
-      const updated = { ...r, [field]: value };
-      if (field === "color") updated.variantId = "";
-      return updated;
-    }));
+  const updateOrderRow = (
+    id: number,
+    field: keyof OrderRow,
+    value: any
+  ) => {
+    setOrderRows((prev) =>
+      prev.map((r) => {
+        if (r.id !== id) return r;
+
+        const updated = { ...r, [field]: value };
+
+        if (field === "color") {
+          updated.variantId = "";
+          updated.qty = 1;
+        }
+
+        if (field === "variantId") {
+          const variant = product.variants.find((v) => v.id === value);
+          updated.qty = Math.max(1, variant?.min_order_quantity || 1);
+        }
+
+        if (field === "qty") {
+          updated.qty = Number(value);
+        }
+
+        return updated;
+      })
+    );
+  };
   const saveOrderRows = () => {
-    const valid = orderRows.filter(r => r.color && r.variantId && r.qty >= 1);
-    const newQty: Record<number, number> = {};
-    valid.forEach(r => { newQty[Number(r.variantId)] = (newQty[Number(r.variantId)] || 0) + r.qty; });
-    setVariantQty(newQty);
-    if (!selectedColor && valid[0]) setSelectedColor(valid[0].color);
+    setOrderRows((currentRows) => {
+      const valid = currentRows.filter(r => r.color && r.variantId && r.qty >= 1);
+      const newQty: Record<number, number> = {};
+      valid.forEach(r => { newQty[Number(r.variantId)] = (newQty[Number(r.variantId)] || 0) + r.qty; });
+      setVariantQty(newQty);
+      if (!selectedColor && valid[0]) setSelectedColor(valid[0].color);
+      return currentRows; // rows themselves don't need remapping, just read fresh
+    });
   };
   const cancelOrderRows = () => {
     setOrderRows([{ id: Date.now(), color: "", qty: 1, variantId: "" }]);
@@ -1383,6 +1499,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (isPreMade) {
       const tooLow = activeSizes.find(s => {
         const v = product?.variants.find(vv => vv.id === s.variant_id);
+        console.log(v, "ceckkk order ")
         const min = v?.min_order_quantity ?? 1;
         return s.quantity < min;
       });
@@ -1608,16 +1725,29 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     } catch { setPreviewError(true); }
   };
   /* ── Loading / not-found ── */
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-10 h-10 animate-spin text-[#F5D800] mx-auto" />
-          <p className="text-sm text-gray-500 font-medium">Loading product…</p>
+if (loading || restorePending) {
+  return (
+    <div className="min-h-screen bg-[#fafafa]">
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 h-14 animate-pulse" />
+      <div className="container max-w-6xl mx-auto px-4 py-8">
+        {restorePending && (
+          <div className="mb-4 flex items-center gap-2 text-xs font-semibold text-[#b89000] bg-[#F5D800]/10 border border-[#F5D800]/20 rounded-xl px-3 py-2 w-fit">
+            <Loader2 size={13} className="animate-spin" />
+            Restoring your saved customization…
+          </div>
+        )}
+        <div className="grid xl:grid-cols-[1fr_380px] gap-6">
+          <div className="space-y-5">
+            <div className="h-64 rounded-2xl bg-gray-200 animate-pulse" />
+            <div className="h-40 rounded-2xl bg-gray-200 animate-pulse" />
+            <div className="h-72 rounded-2xl bg-gray-200 animate-pulse" />
+          </div>
+          <div className="h-96 rounded-2xl bg-gray-200 animate-pulse" />
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
   if (!product) {
     return (
       <section className="min-h-[60vh] flex items-center justify-center">
@@ -1941,16 +2071,28 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {Object.entries(EMB_PRICES).map(([key, prices], i) => (
-                                              <tr key={key} className={cn("border-b border-gray-100", selectedLocations.includes(key) ? "bg-[#F5D800]/8" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                                <td className="px-3 py-2 font-semibold text-gray-600 border-r border-gray-200">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
-                                                {prices.map((p, j) => (
-                                                  <td key={j} className="px-2 py-2 text-center border-r border-gray-100 text-gray-500">
-                                                    ${formatMoney(basePrice + p)}
-                                                  </td>
-                                                ))}
+                                            {selectedLocations.length === 0 ? (
+                                              <tr>
+                                                <td colSpan={EMB_TIERS.length + 1} className="px-3 py-3 text-center text-gray-400">
+                                                  Select a print location above to see pricing.
+                                                </td>
                                               </tr>
-                                            ))}
+                                            ) : (
+                                              selectedLocations.map(key => {
+                                                const prices = EMB_PRICES[key];
+                                                if (!prices) return null;
+                                                return (
+                                                  <tr key={key} className="border-b border-gray-100 bg-[#F5D800]/8">
+                                                    <td className="px-3 py-2 font-semibold text-gray-600 border-r border-gray-200">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
+                                                    {prices.map((p, j) => (
+                                                      <td key={j} className="px-2 py-2 text-center border-r border-gray-100 text-gray-500">
+                                                        ${formatMoney(basePrice + p)}
+                                                      </td>
+                                                    ))}
+                                                  </tr>
+                                                );
+                                              })
+                                            )}
                                           </tbody>
                                         </table>
                                       )}
@@ -2065,8 +2207,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 </div>
                 <div className="space-y-2 mb-3">
                   {orderRows.map(row => {
-                    const sizesForColor = product.variants.filter(v =>
-                      v.color === row.color && (v.stock ?? 0) > 0
+
+                    const sizesForColor = product.variants.filter(
+                      (v) => v.color === row.color
                     );
                     return (
                       <div key={row.id} className="grid gap-2 items-center" style={{ gridTemplateColumns: "1fr 100px 1fr 36px" }}>
@@ -2352,7 +2495,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
-                          const min = activeVariant.min_order_quantity || 1;
+                          const min = getMaterialFloor(selectedMaterial);
                           setQty(activeVariant.id, Math.max(min, currentQty - 1));
                         }}
                         className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
@@ -2366,16 +2509,17 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           without each keystroke snapping back to a clamped
                           value; the real `variantQty` state (and therefore
                           pricing/validation) is only updated on blur, clamped
-                          to this variant's own min_order_quantity. */}
+                          to the currently selected print method's minimum
+                          (see getMaterialFloor). */}
                       <input
                         type="number"
                         inputMode="numeric"
                         value={apparelQtyInput}
-                        min={activeVariant?.min_order_quantity || 1}
+                        min={getMaterialFloor(selectedMaterial)}
                         onChange={(e) => setApparelQtyInput(e.target.value)}
                         onBlur={(e) => {
                           if (!activeVariant) return;
-                          const min = activeVariant.min_order_quantity || 1;
+                          const min = getMaterialFloor(selectedMaterial);
                           const val = Number(e.target.value);
                           const safe = Number.isFinite(val) && val > 0 ? Math.floor(val) : min;
                           const clamped = Math.max(min, safe);

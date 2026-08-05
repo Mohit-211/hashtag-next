@@ -32,13 +32,21 @@ export default function PasswordSection() {
     match: newPw === confirmPw && confirmPw.length > 0,
   };
 
-  // ✅ Strength meter
-  const getStrength = () => {
-    const passed = Object.values(passwordRules).filter(Boolean).length;
-    if (passed <= 2) return "Weak";
-    if (passed <= 4) return "Medium";
-    return "Strong";
-  };
+const getStrength = () => {
+  let score = 0;
+
+  if (newPw.length >= 8) score++;
+  if (/[A-Z]/.test(newPw)) score++;
+  if (/[0-9]/.test(newPw)) score++;
+  if (/[^A-Za-z0-9]/.test(newPw)) score++;
+
+  if (score <= 2) return { label: "Weak", color: "text-red-500" };
+  if (score === 3) return { label: "Medium", color: "text-yellow-500" };
+
+  return { label: "Strong", color: "text-green-600" };
+};
+
+const strength = getStrength();
 
   // ✅ Final validation
   const pwValid =
@@ -175,26 +183,28 @@ export default function PasswordSection() {
             </button>
           </div>
 
-          {/* ✅ Validation UI */}
-          <div className="text-xs space-y-1 mt-2">
-            <p className={passwordRules.length ? "text-green-600" : "text-red-500"}>
-              {passwordRules.length ? "✔" : "✖"} At least 8 characters
-            </p>
-            <p className={passwordRules.uppercase ? "text-green-600" : "text-red-500"}>
-              {passwordRules.uppercase ? "✔" : "✖"} One uppercase letter
-            </p>
-            <p className={passwordRules.number ? "text-green-600" : "text-red-500"}>
-              {passwordRules.number ? "✔" : "✖"} One number
-            </p>
-            <p className={passwordRules.special ? "text-green-600" : "text-red-500"}>
-              {passwordRules.special ? "✔" : "✖"} One special character
-            </p>
-          </div>
+          {/* ✅ Validation UI — only list requirements that aren't met yet */}
+          {newPw && !Object.values(passwordRules).slice(0, 4).every(Boolean) && (
+            <div className="text-xs space-y-1 mt-2">
+              {!passwordRules.length && (
+                <p className="text-red-500">✖ At least 8 characters</p>
+              )}
+              {!passwordRules.uppercase && (
+                <p className="text-red-500">✖ One uppercase letter</p>
+              )}
+              {!passwordRules.number && (
+                <p className="text-red-500">✖ One number</p>
+              )}
+              {!passwordRules.special && (
+                <p className="text-red-500">✖ One special character</p>
+              )}
+            </div>
+          )}
 
           {/* Strength */}
           {newPw && (
-            <p className="text-xs mt-1 text-muted-foreground">
-              Strength: {getStrength()}
+            <p className={`text-xs mt-1 ${strength.color}`}>
+              Strength: {strength.label}
             </p>
           )}
         </div>
