@@ -1216,7 +1216,7 @@ useEffect(() => {
         }
 
         if (field === "variantId") {
-          const variant = product.variants.find((v) => v.id === value);
+         const variant = product?.variants?.find((v) => v.id === value);
           updated.qty = Math.max(1, variant?.min_order_quantity || 1);
         }
 
