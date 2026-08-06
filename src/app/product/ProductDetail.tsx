@@ -490,6 +490,7 @@ export default function ProductDetail({ id }: { id: string }) {
       {/* ── MAIN CONTENT ── */}
       <section className="py-8 lg:py-14">
         <div className="container mx-auto max-w-7xl px-4">
+          
           <div className="grid lg:grid-cols-[55%_45%] gap-8 xl:gap-14">
 
             {/* ── GALLERY ── */}

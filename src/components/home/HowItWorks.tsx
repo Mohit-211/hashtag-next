@@ -11,7 +11,7 @@ export default function HowItWorks() {
           </p>
 
           <h2 className="text-3xl sm:text-4xl font-bold">
-            3-Step Process
+            4-Step Process
           </h2>
         </div>
 

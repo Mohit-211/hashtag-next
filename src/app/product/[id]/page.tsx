@@ -1,16 +1,35 @@
+"use client";
+
 import React from "react";
 import ProductDetail from "../ProductDetail";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
+const ProductDetailsPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
 
-const ProductDetailsPage = async ({ params }: Props) => {
-  const { id } = await params;
+  const handleBack = (e: React.MouseEvent) => {
+    
+      router.push("/categories");
+    
+  };
 
   return (
     <main>
-      <ProductDetail id={id} />
+      <div className="max-w-7xl mx-auto px-6 md:px-10">
+        <div className="pt-10 pb-4">
+          <Link
+            href="/categories"
+            onClick={handleBack}
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-black transition-colors"
+          >
+            <ArrowLeft size={14} /> Back to categories
+          </Link>
+        </div>
+        <ProductDetail id={id} />
+      </div>
     </main>
   );
 };
