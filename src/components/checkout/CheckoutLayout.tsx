@@ -48,12 +48,11 @@ export default function CheckoutLayout() {
   const router = useRouter();
   const {
     items,
-    subtotal,
-    customizationTotal,
-    grandTotal,
+    summary,
     refreshCart,
     pending_order,
   } = useCart();
+  const subtotal = summary?.items_total ?? 0;
   const { addOrder } = useOrders();
   const [step, setStep] = useState<CheckoutStep>("address");
   console.log(step, "step===>")
@@ -71,9 +70,28 @@ export default function CheckoutLayout() {
     taxRate: number;
     totalAmount: number;
   } | null>(null);
-  const shippingAmount = selectedRate?.price ?? 0;
-  const estimatedTaxableBase =
-    (subtotal || 0) + (customizationTotal || 0);
+  // ★ ADDED — the shipping rate the user picked at checkout is only an
+  // estimate. CreateShipmentLabelApi actually buys the label with the
+  // carrier and can return a different (often higher) real price — see
+  // pricing_breakdown.actual_shipping vs .estimated_shipping in that
+  // response. This tracks the post-label authoritative numbers once
+  // they're known, so the UI reflects what the order actually costs.
+  const [shipmentPricing, setShipmentPricing] = useState<{
+    estimatedShipping: number;
+    actualShipping: number;
+    shippingDifference: number;
+    explanation: string | null;
+    trackingNumber: string | null;
+    trackingUrl: string | null;
+    labelUrl: string | null;
+    carrier: string | null;
+  } | null>(null);
+  console.log(selectedRate,"selectedRate")
+  // ★ FIXED — was always `selectedRate?.price` (the pre-label estimate),
+  // even after the label was created with a different actual price.
+  const shippingAmount = shipmentPricing?.actualShipping ?? selectedRate?.price ?? 0;
+  console.log(subtotal,"subtotal")
+  const estimatedTaxableBase = subtotal || 0;
   const estimatedTaxAmount = +(estimatedTaxableBase * (TAX_RATE / 100)).toFixed(2);
   const taxAmount = orderTax ? orderTax.taxAmount : estimatedTaxAmount;
   const taxRate = orderTax ? orderTax.taxRate : TAX_RATE;
@@ -130,19 +148,53 @@ export default function CheckoutLayout() {
       const orderId = orderData?.id;
       if (!orderId) throw new Error("Order creation failed");
       setCreatedOrderId(orderId);
-      const parsedTaxAmount = parseFloat(orderData?.tax_amount);
-      const parsedTaxRate = parseFloat(orderData?.tax_rate);
-      const parsedSubtotal = parseFloat(orderData?.subtotal_amount);
-      const parsedTotal = parseFloat(orderData?.total_amount);
-      if (!isNaN(parsedTaxAmount) && !isNaN(parsedTotal)) {
-        setOrderTax({
-          subtotal: isNaN(parsedSubtotal) ? estimatedTaxableBase : parsedSubtotal,
-          taxAmount: parsedTaxAmount,
-          taxRate: isNaN(parsedTaxRate) ? TAX_RATE : parsedTaxRate,
-          totalAmount: parsedTotal,
+
+      // ★ FIXED — response was discarded (`await CreateShipmentLabelApi(...)`
+      // with no assignment). This is where the carrier locks in the real
+      // shipping price via pricing_breakdown, which supersedes the
+      // estimate used above and the order-creation response's own
+      // tax/subtotal numbers.
+      const shipmentResponse = await CreateShipmentLabelApi({ order_id: orderId });
+      const shipmentData = shipmentResponse?.data?.data;
+      const pricing = shipmentData?.pricing_breakdown;
+
+      if (pricing) {
+        setShipmentPricing({
+          estimatedShipping: pricing.estimated_shipping ?? selectedRate.price ?? 0,
+          actualShipping: pricing.actual_shipping ?? selectedRate.price ?? 0,
+          shippingDifference: pricing.shipping_difference ?? 0,
+          explanation: shipmentData?.explanation ?? null,
+          trackingNumber: shipmentData?.tracking_number ?? null,
+          trackingUrl: shipmentData?.tracking_url ?? null,
+          labelUrl: shipmentData?.label_url ?? null,
+          carrier: shipmentData?.carrier ?? null,
         });
+
+        setOrderTax({
+          subtotal: pricing.subtotal ?? estimatedTaxableBase,
+          taxAmount: pricing.tax ?? estimatedTaxAmount,
+          // pricing_breakdown doesn't echo a tax_rate, so fall back to the
+          // order-creation response's rate, then the flat TAX_RATE const.
+          taxRate: parseFloat(orderData?.tax_rate) || TAX_RATE,
+          totalAmount: pricing.final_total ?? subtotal + estimatedTaxAmount + (pricing.actual_shipping ?? 0),
+        });
+      } else {
+        // Fallback: no pricing_breakdown came back — use whatever the
+        // order-creation response provided, same as before.
+        const parsedTaxAmount = parseFloat(orderData?.tax_amount);
+        const parsedTaxRate = parseFloat(orderData?.tax_rate);
+        const parsedSubtotal = parseFloat(orderData?.subtotal_amount);
+        const parsedTotal = parseFloat(orderData?.total_amount);
+        if (!isNaN(parsedTaxAmount) && !isNaN(parsedTotal)) {
+          setOrderTax({
+            subtotal: isNaN(parsedSubtotal) ? estimatedTaxableBase : parsedSubtotal,
+            taxAmount: parsedTaxAmount,
+            taxRate: isNaN(parsedTaxRate) ? TAX_RATE : parsedTaxRate,
+            totalAmount: parsedTotal,
+          });
+        }
       }
-      await CreateShipmentLabelApi({ order_id: orderId });
+
       await refreshCart();
       setStep("payment");
     } catch (err: any) {
@@ -153,7 +205,7 @@ export default function CheckoutLayout() {
     } finally {
       setProcessing(false);
     }
-  }, [selectedAddressId, selectedRate, refreshCart]);
+  }, [selectedAddressId, selectedRate, refreshCart, estimatedTaxableBase, estimatedTaxAmount, subtotal]);
   const handlePlaceOrder = async (
     sourceId?: string,
     method?: SquareMethod
@@ -218,6 +270,17 @@ export default function CheckoutLayout() {
     <section className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 lg:py-12">
       <div className="container max-w-5xl px-4 mx-auto">
         <ProgressRail current={step} />
+
+        {/* ★ ADDED — surface it when the carrier's actual label price
+            differs from the estimate the user picked, instead of
+            silently swapping the total on the payment step. */}
+        {/* {shipmentPricing && shipmentPricing.shippingDifference !== 0 && (
+          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            {shipmentPricing.explanation ??
+              `Shipping was updated to $${shipmentPricing.actualShipping.toFixed(2)} based on the carrier's final rate.`}
+          </div>
+        )} */}
+
         <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
           <div className="lg:col-span-3">
             {step === "address" && !hasPendingOrder && (
@@ -259,14 +322,13 @@ export default function CheckoutLayout() {
             <OrderSummary
               items={items}
               subtotal={subtotal}
-              customizationTotal={customizationTotal}
               taxAmount={taxAmount}
               taxRate={taxRate}
               shippingAmount={shippingAmount}
               total={
                 orderTax
                   ? orderTax.totalAmount
-                  : grandTotal + taxAmount + shippingAmount
+                  : subtotal + taxAmount + shippingAmount
               }
               selectedRate={selectedRate}
             />

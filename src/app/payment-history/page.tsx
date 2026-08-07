@@ -2,7 +2,7 @@
 
 import { GetPaymentHistoryApi } from "@/api/operations/payment.api";
 import PaymentHistoryCard, { Payment } from "@/components/PaymentHistoryCard/PaymentHistoryCard";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface PaginationMeta {
@@ -10,6 +10,8 @@ interface PaginationMeta {
   current_page: number;
   total_pages: number;
 }
+
+const PAGE_SIZE = 3;
 
 // ─── Skeleton loader ────────────────────────────────────────────────────────
 function SkeletonCard() {
@@ -68,67 +70,6 @@ function EmptyState() {
   );
 }
 
-// ─── Pagination ──────────────────────────────────────────────────────────────
-function Pagination({
-  meta,
-  onPageChange,
-}: {
-  meta: PaginationMeta;
-  onPageChange: (page: number) => void;
-}) {
-  if (meta.total_pages <= 1) return null;
-
-  const pages = Array.from({ length: meta.total_pages }, (_, i) => i + 1);
-
-  return (
-    <div className="flex items-center justify-between mt-8">
-      <p className="text-sm text-muted-foreground">
-        Showing page{" "}
-        <span className="font-semibold text-foreground">{meta.current_page}</span>{" "}
-        of{" "}
-        <span className="font-semibold text-foreground">{meta.total_pages}</span>{" "}
-        · {meta.total} total
-      </p>
-
-      <div className="flex items-center gap-1">
-        <button
-          onClick={() => onPageChange(meta.current_page - 1)}
-          disabled={meta.current_page === 1}
-          className="p-2 rounded-md border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        {pages.map((p) => (
-          <button
-            key={p}
-            onClick={() => onPageChange(p)}
-            className={`w-9 h-9 rounded-md text-sm font-semibold transition-colors ${
-              p === meta.current_page
-                ? "bg-primary text-primary-foreground"
-                : "border border-border text-foreground hover:bg-secondary"
-            }`}
-          >
-            {p}
-          </button>
-        ))}
-
-        <button
-          onClick={() => onPageChange(meta.current_page + 1)}
-          disabled={meta.current_page === meta.total_pages}
-          className="p-2 rounded-md border border-border text-foreground hover:bg-secondary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function PaymentHistoryPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -137,15 +78,29 @@ export default function PaymentHistoryPage() {
     current_page: 1,
     total_pages: 1,
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchPayments = useCallback(async (page: number) => {
-    setLoading(true);
+  // ★ CHANGED — was page-based click pagination. Now infinite scroll:
+  // `limit` grows by PAGE_SIZE each time the sentinel at the bottom of
+  // the list scrolls into view, and every fetch re-requests page 1 with
+  // the larger limit — so the response naturally returns the full
+  // accumulated set and we can just replace `payments` wholesale rather
+  // than merging/deduping pages by hand.
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const [loading, setLoading] = useState(true); // first load only
+  const [loadingMore, setLoadingMore] = useState(false); // subsequent scroll-triggered loads
+  const [error, setError] = useState<string | null>(null);
+  const isFirstLoad = useRef(true);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  const fetchPayments = useCallback(async (currentLimit: number) => {
+    if (isFirstLoad.current) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
     try {
-      const res = await GetPaymentHistoryApi({ page, limit: 10 });
+      const res = await GetPaymentHistoryApi({ page: 1, limit: currentLimit });
       if (!res?.success) throw new Error(res?.message || "Failed to fetch");
       setPayments(res.data.payments);
       setMeta({
@@ -157,12 +112,41 @@ export default function PaymentHistoryPage() {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+      isFirstLoad.current = false;
     }
   }, []);
 
   useEffect(() => {
-    fetchPayments(currentPage);
-  }, [currentPage, fetchPayments]);
+    fetchPayments(limit);
+  }, [limit, fetchPayments]);
+
+  const hasMore = payments.length < meta.total;
+
+  // Observe the sentinel and grow `limit` once it's on screen — skipped
+  // while a fetch is already in flight or nothing more is left to load.
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setLimit((prev) => prev + PAGE_SIZE);
+        }
+      },
+      { rootMargin: "300px" } // start loading a bit before it's actually visible
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading, loadingMore, hasMore]);
+
+  const handleRetry = () => {
+    isFirstLoad.current = payments.length === 0;
+    fetchPayments(limit);
+  };
 
   return (
     <main className="min-h-screen bg-background">
@@ -206,7 +190,12 @@ export default function PaymentHistoryPage() {
               <p className="font-heading text-lg font-extrabold text-foreground">{meta.total}</p>
             </div>
             <div className="bg-card border border-border rounded-md px-4 py-2.5">
-              <p className="text-xs text-muted-foreground font-medium">Total Spent</p>
+              {/* Note: this sums only the payments loaded so far, not all
+                  {meta.total} — accurate once everything's scrolled into
+                  view, an undercount before that. */}
+              <p className="text-xs text-muted-foreground font-medium">
+                Total Spent {hasMore ? "(loaded)" : ""}
+              </p>
               <p className="font-heading text-lg font-extrabold text-foreground">
                 $
                 {payments
@@ -222,7 +211,7 @@ export default function PaymentHistoryPage() {
           <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-5 text-center">
             <p className="text-sm font-semibold text-destructive mb-2">{error}</p>
             <button
-              onClick={() => fetchPayments(currentPage)}
+              onClick={handleRetry}
               className="text-xs font-bold text-destructive underline underline-offset-2"
             >
               Try again
@@ -248,7 +237,20 @@ export default function PaymentHistoryPage() {
               ))}
             </div>
 
-            <Pagination meta={meta} onPageChange={(page) => setCurrentPage(page)} />
+            {/* Scroll sentinel + status. Kept mounted whenever there's
+                more to load so the observer above always has something
+                to watch; swapped for a plain "you've reached the end"
+                line once hasMore is false. */}
+            <div ref={hasMore ? sentinelRef : null} className="mt-8 flex justify-center">
+              {loadingMore && (
+                <div className="grid gap-8 sm:grid-cols-3 w-full">
+                  <SkeletonCard />
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </div>
+              )}
+              
+            </div>
           </>
         )}
       </div>

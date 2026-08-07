@@ -134,11 +134,12 @@ export default function ProductDetail({ id }: { id: string }) {
     }
   };
   useEffect(() => { fetchProduct(); }, [id]);
-
+console.log(product,"product---")
   /* default variant */
   useEffect(() => {
     if (!product?.variants?.length) return;
     const first = product.variants[0];
+    console.log(first,"first")
     setSelectedColor(first.color);
     setSelectedSize(first.size_details);
     setVariantData(first);
@@ -395,11 +396,12 @@ export default function ProductDetail({ id }: { id: string }) {
       </section>
     );
   }
-
-  const displayPrice =
-    variantData?.price
-      ? Number(variantData.price)
-      : product.price;
+console.log(variantData,"variantData")
+  
+   const displayPrice =
+  variantData?.price != null
+    ? Number(variantData.price)
+    : Number(product?.price ?? 0);
   const displayAttachments =
     variantData?.images && variantData.images.length > 0
       ? variantData.images.map((img) => ({
@@ -407,6 +409,7 @@ export default function ProductDetail({ id }: { id: string }) {
         url: img.file_name?.startsWith("http") ? img.file_name : `${BASE_URL}${img.file_uri}`,
       }))
       : product?.attachments || [];
+      console.log(displayPrice,"displayPrice")
   const category = product?.categories?.[0]?.parent_categories?.[0];
   console.log(category, "category-----")
   // Grand category tells us the product family (e.g. "Pre-Made products" vs customizable apparel)

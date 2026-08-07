@@ -16,7 +16,11 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 import SageQuantityPricing, { getSageUnitPrice, getSageUnitPriceWithMarkup, parseSageMeta } from "./Sagequantitypricing";
 import AddProductConfigurationModal from "../Addproductconfigurationmodal/Addproductconfigurationmodal";
-import { calculateVariantTotal, sumVariantTotals, formatMoney } from "./pricing";
+import {
+  calculateVariantTotal, sumVariantTotals, formatMoney,
+  EMB_TIERS, EMB_PRICES, DTF_TIERS, DTF_PRICES, SP_PRICES, DTG_PRICES,
+  getPrintPriceTotal, getDigitizingFee,
+} from "./pricing";
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
 interface VariantImage { id: number; file_name: string; file_uri: string; is_primary: boolean }
@@ -197,40 +201,9 @@ const ALL_PRINT_LOCATIONS = [
   { id: "HAT_SIDE", label: "Hat Side" },
   { id: "HAT_BACK_ARCH", label: "Hat Back (Arch)" },
 ];
-const EMB_TIERS = [
-  { label: "1–11", min: 1, max: 11 },
-  { label: "12–23", min: 12, max: 23 },
-  { label: "24–35", min: 24, max: 35 },
-  { label: "36–71", min: 36, max: 71 },
-  { label: "72–95", min: 72, max: 95 },
-  { label: "96–143", min: 96, max: 143 },
-  { label: "144+", min: 144, max: Infinity },
-];
-const EMB_PRICES: Record<string, number[]> = {
-  LEFT_CHEST: [12, 11, 10, 9, 8, 7, 6],
-  RIGHT_CHEST: [12, 11, 10, 9, 8, 7, 6],
-  SLEEVE_LEFT: [12, 11, 10, 9, 8, 7, 6],
-  SLEEVE_RIGHT: [12, 11, 10, 9, 8, 7, 6],
-  FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
-  FULL_BACK: [18, 16, 14, 13, 12, 11, 10],
-  HAT_FRONT: [15, 14, 12, 11, 10, 9, 8],
-  HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
-  HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],
-};
-const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
-const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
-const SP_PRICES: Record<string, number[]> = {
-  "1 Color": [6.58, 4.40],
-  "2 Color": [9.43, 7.98],
-  "3 Color": [11.55, 9.54],
-};
+/* Display-only tier boundaries for the DTG price table below — pricing
+   itself comes from getPrintPriceTotal (pricing.ts). */
 const DTG_TIERS = [{ min: 1 }, { min: 24 }, { min: 48 }, { min: 100 }];
-const DTG_PRICES: Record<string, number[]> = {
-  "Front Regular": [15, 12, 11, 9],
-  "Oversized": [20, 17, 16, 14],
-  "Front & Back Regular": [30, 24, 22, 18],
-  "Front & Back Oversized": [40, 34, 32, 28],
-};
 const FONTS = [
   { label: "Georgia", value: "Georgia, serif" },
   { label: "Montserrat", value: "'Montserrat', sans-serif" },
@@ -1096,57 +1069,26 @@ useEffect(() => {
   }, [dragging, dragOffset, logoSize, textSize]);
   const stopDrag = () => setDragging(null);
   const getCursor = () => dragging ? "grabbing" : (logoImg || customText.trim()) ? "grab" : "default";
-  /* ── Apparel print pricing ── */
+  /* ── Apparel print pricing — delegates to the shared getPrintPriceTotal
+     (pricing.ts) so this page and AddProductConfigurationModal (which prices
+     each of its rows at that row's own quantity) can never drift apart. ── */
   const getPrintPrice = (): number | null => {
     if (!isApparel) return null;
-    if (!selectedMaterial) return null;
-    if (selectedLocations.length === 0) return null;
-    const qty = currentQty;
-    if (qty <= 0) return null;
-    switch (selectedMaterial) {
-      case "embroidery": {
-        const tierIndex = EMB_TIERS.findIndex(
-          t => qty >= t.min && qty <= t.max
-        );
-        let total = 0;
-        selectedLocations.forEach(location => {
-          const row = EMB_PRICES[location];
-          if (!row) return;
-          total += row[tierIndex] * qty;
-        });
-        if (qty <= 11) total += 35;
-        return total;
-      }
-      case "dtf": {
-        const tier =
-          qty >= 144 ? 6 :
-            qty >= 96 ? 5 :
-              qty >= 72 ? 4 :
-                qty >= 36 ? 3 :
-                  qty >= 24 ? 2 :
-                    qty >= 12 ? 1 : 0;
-        return DTF_PRICES[tier] * qty * selectedLocations.length;
-      }
-      case "screenprint": {
-        if (qty < 50) return null;
-        const price =
-          qty >= 100
-            ? SP_PRICES[spColorCount][1]
-            : SP_PRICES[spColorCount][0];
-        return price * qty * selectedLocations.length;
-      }
-      case "dtg": {
-        const tier =
-          qty >= 100 ? 3 :
-            qty >= 48 ? 2 :
-              qty >= 24 ? 1 : 0;
-        return DTG_PRICES[dtgStyle][tier] * qty;
-      }
-      default:
-        return null;
-    }
+    return getPrintPriceTotal({
+      material: selectedMaterial ?? "",
+      locations: selectedLocations,
+      quantity: currentQty,
+      spColorCount,
+      dtgStyle,
+    });
   };
   const printPrice = getPrintPrice();
+  /* ── Embroidery digitizing fee — already folded into printPrice's total
+     (see getPrintPriceTotal's "if (qty <= 11) total += 35") and therefore into
+     decorationUnitPrice/decorationTotal below. This is purely the display
+     value so Order Summary can call the $35 out as its own line instead of
+     leaving it silently smeared across the per-unit decoration price. ── */
+  const digitizingFee = getDigitizingFee(selectedMaterial ?? "", currentQty);
   /* ★ CHANGED — basePrice now uses the shared getVariantPrice() helper,
      so it's guaranteed to prefer original_price the exact same way every
      other price lookup in this file does */
@@ -1165,6 +1107,7 @@ useEffect(() => {
   });
   const productTotal = currentSelectionPricing.productTotal;
   const decorationTotal = currentSelectionPricing.decorationTotal;
+  console.log(productTotal,"productTotal")
   const estimatedTotal = currentSelectionPricing.total;
   const promoUnitPrice: number | null = useMemo(() => {
     if (!isPromo) return null;
@@ -2005,14 +1948,14 @@ if (loading || restorePending) {
                under its own button, instead of after the whole list ── */}
                           {isSelected && (
                             <div className="mt-2 mb-1">
-                              {mat.id === "embroidery" && (
+                              {/* {mat.id === "embroidery" && (
                                 <div className="flex items-start gap-2 bg-[#FFFBEA] border border-[#F5D800]/30 rounded-xl px-3.5 py-2.5">
                                   <AlertCircle size={13} className="text-[#b89000] flex-shrink-0 mt-0.5" />
                                   <p className="text-xs text-[#b89000] font-medium">
                                     Orders of 1–11 pieces include a one-time <span className="font-black">$35 digitizing fee</span>, charged once per order (not per piece).
                                   </p>
                                 </div>
-                              )}
+                              )} */}
 
                               {mat.id === "screenprint" && (
                                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
@@ -2541,6 +2484,7 @@ if (loading || restorePending) {
                         <Plus size={16} />
                       </button>
                     </div>
+                   
                   </div>
                 )}
                 {isApparel && currentQty > 0 && (
@@ -2589,18 +2533,36 @@ if (loading || restorePending) {
                           </span>
                         </div>
                       )}
+             
                       {printPrice !== null && (
                         <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
                           <span className="text-xs text-gray-500">
-                            Price
+                             price
                           </span>
                           {/* ★ decorationTotal here is the SAME value used everywhere
                               else (currentSelectionPricing.decorationTotal) — not a
-                              separate re-derivation of printPrice. */}
-                          <span className="text-xs font-black text-gray-900">${formatMoney(productTotal + decorationTotal)}
+                              separate re-derivation of printPrice. Already includes
+                              digitizingFee (smeared into decorationUnitPrice by
+                              getPrintPrice), so digitizingFee is shown above purely
+                              as a breakdown line, not added again here. */}
+                          <span className="text-xs font-black text-gray-900">${formatMoney((productTotal + decorationTotal)-digitizingFee)}
                           </span>
                         </div>
                       )}
+                             {digitizingFee > 0 && (
+  <div className="flex items-center justify-between gap-2 bg-[#FFFBEA] -mx-3 px-3 py-1.5 border-t border-[#F5D800]/20">
+    <span className="text-xs text-[#b89000] font-semibold">
+      Digitizing Fee{" "}
+      <span className="text-[10px] font-normal text-[#8A6D00]">
+        (Free on 12+ pieces)
+      </span>
+    </span>
+
+    <span className="text-xs font-black text-[#b89000]">
+      ${formatMoney(digitizingFee)}
+    </span>
+  </div>
+)}
                     </div>
                   </div>
                 )}
@@ -2689,7 +2651,10 @@ if (loading || restorePending) {
           mode="customized"
           isSubmitting={configSubmitting}
           decorationUnitPrice={decorationUnitPrice}
+          selectedMaterial={selectedMaterial ?? undefined}
           selectedLocations={selectedLocations}
+          spColorCount={spColorCount}
+          dtgStyle={dtgStyle}
           isApparel={isApparel}
           isPreMade={isPreMade}
           isPromo={isPromo}

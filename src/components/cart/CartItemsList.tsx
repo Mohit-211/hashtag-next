@@ -16,8 +16,7 @@ export type CustomizationBreakdownItem = {
 };
 
 export type CartItemType = {
-  id: string;
-  cart_id: string;
+  cart_id: number;
   product_id?: number;
   variant_id?: number;
 
@@ -25,23 +24,26 @@ export type CartItemType = {
   image: string;
   logo_image?: string;
 
-  size: string;
+  size?: string;
   color?: string;
-  colorCode?: string | null;
+  color_code?: string | null;
 
-  basePrice: number;
-  totalPrice?: number;
+  base_price: number;
+  price?: number;
+  total_price?: number;
   quantity: number;
 
-  canIncrease?: boolean;
-  canDecrease?: boolean;
+  can_increase?: boolean;
+  can_decrease?: boolean;
 
-  customization?: {
-    printMethod: string | null;
+  // ★ FIXED — this is the single source of truth for print method /
+  // locations now (CartItem.tsx reads item.customization_config
+  // directly). The old parallel `customization: {...}` shape built by
+  // page.tsx's mapper is no longer read anywhere, so it's dropped here
+  // to stop the type lying about what's actually available.
+  customization_config?: {
+    print_method: string | null;
     locations: CustomizationLocation[];
-    breakdown: CustomizationBreakdownItem[];
-    uploadedImage: string | null;
-    uploadedImageName: string | null;
   };
 };
 
@@ -74,7 +76,7 @@ export default function CartItemsList({ items, onRefresh }: Props) {
 
       <div className="space-y-4">
         {items.map((item) => (
-          <CartItem key={item.cart_id || item.id} item={item} onRefresh={onRefresh} />
+          <CartItem key={item.cart_id} item={item} onRefresh={onRefresh} />
         ))}
       </div>
     </div>

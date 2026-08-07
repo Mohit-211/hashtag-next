@@ -10,11 +10,18 @@ export interface PaymentPreview {
   print_method: string;
 }
 
+// ★ FIXED — subtotal_amount, tax_amount, and tax_rate were missing here
+// even though the API sends them (see cost breakdown below). Without
+// them, the card was faking a "subtotal" by subtracting shipping off
+// total_amount — which still includes tax, so it wasn't a real subtotal.
 export interface PaymentOrder {
   order_id: number;
   order_number: string;
-  total_amount: number;
+  subtotal_amount: number;
+  tax_amount: number;
+  tax_rate: number;
   shipping_amount: number;
+  total_amount: number;
   payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
   shipment_status: "SUCCESS" | "FAILED" | "PENDING" | "IN_TRANSIT";
   tracking_number: string;
@@ -156,12 +163,22 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
           </div>
         </div>
 
-        {/* Cost breakdown */}
+        {/* Cost breakdown — ★ FIXED: was deriving "subtotal" as
+            total_amount - shipping_amount, which still had tax baked in
+            since total_amount = subtotal + tax + shipping. Using the
+            real subtotal_amount / tax_amount fields from the API
+            directly instead. */}
         <div className="bg-secondary rounded-md px-4 py-3 mb-5 space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Subtotal</span>
             <span className="font-medium text-foreground">
-              ${(order.total_amount - order.shipping_amount).toFixed(2)}
+              ${(order.subtotal_amount ?? 0).toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Tax{order.tax_rate ? ` (${order.tax_rate}%)` : ""}</span>
+            <span className="font-medium text-foreground">
+              ${(order.tax_amount ?? 0).toFixed(2)}
             </span>
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">

@@ -1,5 +1,5 @@
 "use client";
-import { ShoppingBag, Tag, Truck, Receipt, Percent } from "lucide-react";
+import { ShoppingBag, Truck, Receipt, Percent } from "lucide-react";
 import ProxyImage from "../ProxyImage";
 
 function fmt(n: any): string {
@@ -11,13 +11,14 @@ function fmt(n: any): string {
 export default function OrderSummary({
   items,
   subtotal,
-  customizationTotal,
   taxAmount,
   taxRate,
   shippingAmount,
   total,
   selectedRate,
 }: any) {
+  console.log(items,"items")
+  console.log(shippingAmount,"shippingAmount")
   return (
     <div className="bg-white border border-[#E0DFDB] border-t-[3px] border-t-[#F5D800] sticky top-6">
 
@@ -38,10 +39,10 @@ export default function OrderSummary({
           {items.map((item: any) => {
             const unit = parseFloat(item.price);
             const qty  = parseInt(item.quantity ?? 1, 10);
-            const line = isNaN(unit) || isNaN(qty) ? null : unit * qty;
+            // const line = isNaN(unit) || isNaN(qty) ? null : unit * qty;
 
             return (
-              <div key={item.id} className="flex items-start gap-3">
+              <div key={item.cart_id} className="flex items-start gap-3">
                 <div className="relative h-10 w-10 shrink-0">
                   <div className="h-full w-full overflow-hidden bg-[#F5F4F0] border border-[#E0DFDB] flex items-center justify-center">
                     {item.image ? (
@@ -75,7 +76,7 @@ export default function OrderSummary({
                   <p className="text-xs text-[#9A9A9A] mt-0.5">Qty {qty}</p>
                 </div>
                 <p className="font-condensed font-bold text-sm text-[#1A1A1A] shrink-0">
-                  {line !== null ? `$${fmt(line)}` : "—"}
+                  {item.total_price}
                 </p>
               </div>
             );
@@ -88,9 +89,6 @@ export default function OrderSummary({
         <div className="flex flex-col gap-2">
           {[
             { icon: Receipt, label: "Subtotal", value: `$${fmt(subtotal)}` },
-            ...(parseFloat(customizationTotal) > 0
-              ? [{ icon: Tag, label: "Customization", value: `$${fmt(customizationTotal)}` }]
-              : []),
             ...(taxAmount !== undefined && taxAmount !== null
               ? [
                   {

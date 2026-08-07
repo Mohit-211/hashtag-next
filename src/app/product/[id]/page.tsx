@@ -25,7 +25,7 @@ const ProductDetailsPage = () => {
             onClick={handleBack}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-black transition-colors"
           >
-            <ArrowLeft size={14} /> Back to categories
+            <ArrowLeft size={14} />Back to All Product
           </Link>
         </div>
         <ProductDetail id={id} />

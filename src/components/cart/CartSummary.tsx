@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+// ★ FIXED — the cart API's `summary` object is
+// { items_total, shipping_cost, grand_total }. There's no
+// `customization_total` in the response, so that line item is gone;
+// `shippingCost` is now rendered instead (as "Free" when it's 0).
 interface Props {
-  subtotal: number;
-  customizationTotal: number;
+  itemsTotal: number;
+  shippingCost: number;
   grandTotal: number;
 }
 
 export default function CartSummary({
-  subtotal,
-  customizationTotal,
+  itemsTotal,
+  shippingCost,
   grandTotal,
 }: Props) {
   const router = useRouter();
@@ -21,7 +24,7 @@ export default function CartSummary({
   return (
     <div className="lg:col-span-1">
       <div className="sticky top-24 bg-card border border-border rounded-2xl p-6 space-y-5">
-        
+
         <h2 className="font-heading text-xl font-semibold tracking-tight">
           Order Summary
         </h2>
@@ -30,17 +33,10 @@ export default function CartSummary({
         <div className="space-y-2.5">
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Subtotal</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>${itemsTotal.toFixed(2)}</span>
           </div>
 
-          {customizationTotal > 0 && (
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Customization</span>
-              <span className="text-primary">+${customizationTotal.toFixed(2)}</span>
-            </div>
-          )}
-
-         
+        
         </div>
 
         {/* Divider */}

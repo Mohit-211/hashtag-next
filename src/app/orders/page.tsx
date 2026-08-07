@@ -36,7 +36,7 @@ export default function Orders() {
 
   const isLoggedIn =
     typeof window !== "undefined" && !!localStorage.getItem("hastagBillionaire");
-
+  console.log(orders, "ordersordersorders111")
   useEffect(() => {
     if (!isLoggedIn) {
       setLoading(false);
@@ -50,6 +50,7 @@ export default function Orders() {
       setLoading(true);
       const response = await GetAllOrderApi();
       const orderData = response?.data?.data?.data || [];
+      console.log(orderData, "orderData")
       setOrders(orderData);
     } catch (error) {
       console.error("Failed to fetch orders:", error);

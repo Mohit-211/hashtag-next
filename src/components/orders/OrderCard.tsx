@@ -1,5 +1,4 @@
 "use client";
-
 import Link from "next/link";
 import {
   Package,
@@ -18,15 +17,12 @@ import {
   Sparkles,
   Ban,
 } from "lucide-react";
-
 import OrderPriceSummary from "./OrderPriceSummary";
 import ProxyImage from "../ProxyImage";
 import { Button } from "@/components/ui/button";
-
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-
 export interface OrderData {
   id: string | number;
   orderId?: string;
@@ -41,7 +37,6 @@ export interface OrderData {
   shipment_status?: string;
   tracking_number?: string;
   tracking_url?: string;
-
   preview?: {
     original_image?: string;
     customized_image?: string;
@@ -49,7 +44,6 @@ export interface OrderData {
     product_id?: string | number;
     total_items?: number;
     print_method?: string;
-
     customization_summary?: Array<{
       type: string;
       location: string;
@@ -58,11 +52,10 @@ export interface OrderData {
       total: number;
     }>;
   };
-
   [key: string]: any;
 }
-
 export interface OrderDetail {
+  tax_amount: number;
   id: number;
   order_number: string;
   subtotal_amount: number;
@@ -77,7 +70,6 @@ export interface OrderDetail {
   tracking_number?: string;
   tracking_url?: string;
   shipped_at?: string;
-
   address?: {
     name: string;
     phone: string;
@@ -87,7 +79,6 @@ export interface OrderDetail {
     postal_code: string;
     country: string;
   };
-
   items: Array<{
     product_id: number;
     product_name: string;
@@ -100,14 +91,12 @@ export interface OrderDetail {
     price: number;
     quantity: number;
     total: number;
-
     customization_config?: {
       print_method: string;
       locations: Array<{ id: string }>;
       quantity: number;
       custom_text: string;
     };
-
     pricing_breakdown?: {
       actual_product_price: number;
       supplier_markup: number;
@@ -119,7 +108,6 @@ export interface OrderDetail {
     };
   }>;
 }
-
 interface OrderCardProps {
   order: OrderData;
   expanded: boolean;
@@ -129,11 +117,9 @@ interface OrderCardProps {
   onCancel?: () => void;
   cancelling?: boolean;
 }
-
 // ─────────────────────────────────────────────
 // Status Config
 // ─────────────────────────────────────────────
-
 const statusConfig: Record<
   string,
   {
@@ -148,49 +134,42 @@ const statusConfig: Record<
     dot: "bg-amber-400",
     icon: <Clock className="h-3 w-3" />,
   },
-
   PENDING: {
     pill:
       "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-300 dark:border-yellow-500/20",
     dot: "bg-yellow-400",
     icon: <RotateCcw className="h-3 w-3" />,
   },
-
   PROCESSING: {
     pill:
       "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20",
     dot: "bg-blue-400",
     icon: <RotateCcw className="h-3 w-3 animate-spin" />,
   },
-
   SHIPPED: {
     pill:
       "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20",
     dot: "bg-violet-400",
     icon: <Truck className="h-3 w-3" />,
   },
-
   OUT_FOR_DELIVERY: {
     pill:
       "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/20",
     dot: "bg-indigo-400",
     icon: <Truck className="h-3 w-3" />,
   },
-
   DELIVERED: {
     pill:
       "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
     dot: "bg-emerald-400",
     icon: <CheckCircle2 className="h-3 w-3" />,
   },
-
   SUCCESS: {
     pill:
       "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/20",
     dot: "bg-green-400",
     icon: <CheckCircle2 className="h-3 w-3" />,
   },
-
   CANCELLED: {
     pill:
       "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20",
@@ -198,17 +177,14 @@ const statusConfig: Record<
     icon: <XCircle className="h-3 w-3" />,
   },
 };
-
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
-
 function decodeHtml(str: string) {
   return str.replace(/&#(\d+);/g, (_, code) =>
     String.fromCharCode(Number(code))
   );
 }
-
 function SectionLabel({
   children,
 }: {
@@ -220,11 +196,9 @@ function SectionLabel({
     </p>
   );
 }
-
 // ─────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────
-
 export default function OrderCard({
   order,
   expanded,
@@ -234,10 +208,10 @@ export default function OrderCard({
   onCancel,
   cancelling,
 }: OrderCardProps) {
+  console.log(order, "order3")
   const cardKey = String(order?.orderId || order?.id);
-
+  console.log(detail, "====hh bn===")
   const rawDate = order?.created_at || order?.date;
-
   const orderDate = rawDate
     ? new Date(rawDate).toLocaleDateString("en-IN", {
       day: "numeric",
@@ -245,23 +219,19 @@ export default function OrderCard({
       year: "numeric",
     })
     : "N/A";
-
   const orderStatus = (
     order?.payment_status ||
     order?.status ||
     "PENDING"
   ).toUpperCase();
-
   const config = statusConfig[orderStatus] || {
     pill: "bg-secondary text-foreground border-border",
     dot: "bg-muted-foreground",
     icon: <Clock className="h-3 w-3" />,
   };
-
   const productName = order?.preview?.product_name
     ? decodeHtml(order.preview.product_name)
     : null;
-
   // ✅ FIXED TOTAL ITEMS
   const totalItems =
     order?.preview?.total_items ||
@@ -270,7 +240,6 @@ export default function OrderCard({
       0
     ) ||
     0;
-
   const customizationTotal =
     detail?.items?.reduce(
       (acc, item) =>
@@ -279,7 +248,7 @@ export default function OrderCard({
         item.quantity,
       0
     ) ?? 0;
-
+  console.log(detail, "detail")
   return (
     <div
       className={`
@@ -324,7 +293,6 @@ export default function OrderCard({
                 <Package className="h-5 w-5 text-muted-foreground/50" />
               )}
             </div>
-
             {/* Customized Overlay */}
             {order?.preview?.customized_image && (
               <div className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-md overflow-hidden border-2 border-background shadow-md bg-card">
@@ -335,7 +303,6 @@ export default function OrderCard({
                 />
               </div>
             )}
-
             {/* Quantity Badge */}
             {totalItems > 1 && (
               <span className="absolute -top-1 -left-1 h-4 min-w-4 px-1 bg-foreground text-background rounded-full text-[9px] font-bold flex items-center justify-center z-10">
@@ -344,14 +311,12 @@ export default function OrderCard({
             )}
           </div>
         </div>
-
         {/* Info */}
         <div className="flex-1 min-w-0 space-y-0.5">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-[13px] font-semibold text-foreground tracking-tight">
               #{order?.order_number || cardKey}
             </p>
-
             <span
               className={`
                 inline-flex items-center gap-1 text-[10px]
@@ -365,17 +330,14 @@ export default function OrderCard({
               {orderStatus.replace(/_/g, " ")}
             </span>
           </div>
-
           <p className="text-xs text-muted-foreground">
             {orderDate}
           </p>
-
           {productName && (
             <p className="text-[11px] text-muted-foreground/80 truncate leading-relaxed">
               {productName}
             </p>
           )}
-
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {totalItems > 0 && (
               <span className="text-[10px] text-muted-foreground">
@@ -385,11 +347,9 @@ export default function OrderCard({
                 items
               </span>
             )}
-
             {order?.preview?.print_method && (
               <>
                 <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-
                 <span className="text-[10px] bg-violet-100 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 font-semibold px-2 py-0.5 rounded-full">
                   {order.preview.print_method}
                 </span>
@@ -397,7 +357,6 @@ export default function OrderCard({
             )}
           </div>
         </div>
-
         {/* Price + Actions */}
         <div className="flex items-center gap-2.5 shrink-0">
           <div className="text-right">
@@ -422,13 +381,11 @@ export default function OrderCard({
               ) : (
                 <Ban className="h-3 w-3" />
               )}
-
               <span className="hidden sm:inline">
                 {cancelling ? "Cancelling Order..." : "Cancel Order"}
               </span>
             </Button>
           )} */}
-
           <div
             className={`
               h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200
@@ -446,7 +403,6 @@ export default function OrderCard({
           </div>
         </div>
       </div>
-
       {/* Expanded Content */}
       {expanded && (
         <div className="border-t border-border/60 px-5 py-5 bg-muted/10">
@@ -458,7 +414,6 @@ export default function OrderCard({
               </span>
             </div>
           )}
-
           {!loadingDetail && !detail && (
             <div className="flex flex-col items-center justify-center gap-2 py-12">
               <AlertCircle className="h-5 w-5 text-muted-foreground/60" />
@@ -467,7 +422,6 @@ export default function OrderCard({
               </p>
             </div>
           )}
-
           {!loadingDetail && detail && (
             <>
               {/* Items */}
@@ -475,14 +429,11 @@ export default function OrderCard({
                 <SectionLabel>
                   Items ({detail.items.length})
                 </SectionLabel>
-
                 <div className="space-y-3">
                   {detail.items.map((item, idx) => {
                     const name = decodeHtml(item.product_name);
-
                     const displayImage =
                       item.original_image;
-
                     return (
                       <div
                         key={`${item.product_id}-${idx}`}
@@ -508,30 +459,25 @@ export default function OrderCard({
                               )}
                             </div>
                           </div>
-
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-medium text-foreground line-clamp-2 leading-snug">
                               {name}
                             </p>
-
                             <div className="flex flex-wrap items-center gap-1 mt-1.5">
                               {item.color && (
                                 <span className="text-[10px] bg-muted/80 text-muted-foreground px-1.5 py-0.5 rounded-md border border-border/60">
                                   {item.color}
                                 </span>
                               )}
-
                               {item.size && (
                                 <span className="text-[10px] bg-muted/80 text-muted-foreground px-1.5 py-0.5 rounded-md border border-border/60">
                                   {item.size}
                                 </span>
                               )}
-
                               <span className="text-[10px] bg-muted/80 text-muted-foreground px-1.5 py-0.5 rounded-md border border-border/60">
                                 Qty: {item.quantity}
                               </span>
                             </div>
-
                             {item.customization_config && (
                               <div className="flex flex-wrap items-center gap-1 mt-1.5">
                                 <span className="inline-flex items-center gap-0.5 text-[10px] bg-primary/8 text-primary border border-primary/15 px-1.5 py-0.5 rounded-full font-semibold">
@@ -544,16 +490,14 @@ export default function OrderCard({
                               </div>
                             )}
                           </div>
-
                           <div className="shrink-0 flex flex-col items-end">
                             <span className="text-sm font-bold text-foreground">
                               ${item.total.toFixed(2)}
                             </span>
-
-                            <span className="text-[11px] text-muted-foreground">
+                            {/* <span className="text-[11px] text-muted-foreground">
                               ${item.price.toFixed(2)} ×{" "}
                               {item.quantity}
-                            </span>
+                            </span> */}
                           </div>
                         </Link>
                       </div>
@@ -561,18 +505,15 @@ export default function OrderCard({
                   })}
                 </div>
               </section>
-
               {/* Payment */}
               <section className="rounded-xl border border-border/70 bg-card px-4 py-3 mt-5">
                 <div className="flex items-center gap-2.5">
                   <div className="h-7 w-7 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center shrink-0">
                     <CreditCard className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                   </div>
-
                   <span className="text-xs font-medium text-muted-foreground">
                     Payment
                   </span>
-
                   <span
                     className={`ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full border ${detail.payment_status === "SUCCESS"
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
@@ -583,20 +524,21 @@ export default function OrderCard({
                   </span>
                 </div>
               </section>
-
               {/* Summary */}
               <div className="mt-5">
                 <OrderPriceSummary
                   order={{
                     subtotal: Number(
-                      detail.subtotal_amount || 0
+                      order.subtotal_amount || 0
                     ),
                     customizationTotal,
                     shippingCost: Number(
-                      detail.shipping_amount || 0
+                      order.shipping_amount || 0
                     ),
-                    tax: 0,
-                    total: Number(detail.total_amount || 0),
+                    tax: Number(
+                      order.tax_amount
+                    ),
+                    total: Number(order.total_amount || 0),
                   }}
                 />
               </div>

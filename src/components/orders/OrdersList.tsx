@@ -11,12 +11,13 @@ interface OrdersListProps {
 }
 
 export default function OrdersList({ orders }: OrdersListProps) {
+  console.log(orders,"ordersordersordersordersorders2222")
   const [localOrders, setLocalOrders] = useState<OrderData[]>(orders);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [orderDetails, setOrderDetails] = useState<Record<string, any>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
   const [cancellingOrders, setCancellingOrders] = useState<Record<string, boolean>>({});
-
+console.log(orderDetails,"orderDetails")
   // Keep local copy in sync if parent refetches/passes new orders
   useEffect(() => {
     setLocalOrders(orders);
@@ -101,7 +102,7 @@ export default function OrdersList({ orders }: OrdersListProps) {
         const realId = order?.id ?? order?.orderId;
         const status = String(order?.status || "").toLowerCase();
         const isCancellable = !["cancelled", "delivered", "completed"].includes(status);
-
+console.log(cardKey,"cardKey")
         return (
           <OrderCard
             key={cardKey}

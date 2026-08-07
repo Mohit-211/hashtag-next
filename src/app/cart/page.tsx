@@ -56,13 +56,7 @@ function CartSkeleton() {
 }
 
 export default function Cart() {
-  const {
-    items = [],
-    subtotal,
-    customizationTotal,
-    grandTotal,
-    refreshCart,
-  } = useCart();
+  const { items = [], summary, refreshCart } = useCart();
 
   const [loading, setLoading] = useState(true);
 
@@ -89,63 +83,17 @@ export default function Cart() {
     return <CartEmpty />;
   }
 
-  // Map the raw API cart item -> the shape the UI components expect.
-  // Real API shape (per your sample payload):
-  // { cart_id, quantity, product_id, variant_id, base_price, color, color_code,
-  //   customization_config: { print_method, locations: [{location}], customizations: [...] },
-  //   image, logo_image, name, price, size, total_price, can_increase, can_decrease, ... }
-  const formattedItems: CartItemType[] = items.map((item: any) => {
-    const config = item.customization_config ?? {};
-
-    const uploadedImage =
-      config.uploaded_image ?? item.uploaded_image ?? null;
-
-    const uploadedImageName =
-      config.uploaded_image_name ??
-      item.uploaded_file_name ??
-      (uploadedImage ? String(uploadedImage).split("/").pop() : null);
-
-    return {
-      id: String(item.cart_id ?? item.product_id ?? ""),
-      cart_id: String(item.cart_id ?? ""),
-      product_id: item.product_id,
-      variant_id: item.variant_id,
-
-      name: item.name ?? "",
-      size: item.size ?? "",
-      color: item.color ?? "",
-
-      image: item.image ?? "",
-      logo_image: item.logo_image ?? "",
-
-      basePrice: Number(item.base_price ?? item.price ?? 0),
-      totalPrice: Number(item.total_price ?? 0),
-      quantity: Number(item.quantity ?? 1),
-
-      canIncrease: item.can_increase ?? true,
-      canDecrease: item.can_decrease ?? true,
-
-      customization: {
-        printMethod: config.print_method ?? null,
-        locations: config.locations ?? [],
-        breakdown: config.customizations ?? [],
-        uploadedImage,
-        uploadedImageName,
-      },
-    };
-  });
-
   return (
     <section className="py-8">
       <div className="container grid lg:grid-cols-3 gap-8">
         {/* 🛒 Items */}
-        <CartItemsList items={formattedItems} onRefresh={refreshCart} />
+        <CartItemsList items={items as CartItemType[]} onRefresh={refreshCart} />
 
         {/* 💰 Summary */}
         <CartSummary
-          subtotal={subtotal}
-          customizationTotal={customizationTotal}
-          grandTotal={grandTotal}
+          itemsTotal={summary?.items_total ?? 0}
+          shippingCost={summary?.shipping_cost ?? 0}
+          grandTotal={summary?.grand_total ?? 0}
         />
       </div>
     </section>

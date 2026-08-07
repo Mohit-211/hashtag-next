@@ -18,8 +18,6 @@ import {
   Send,
   AlertCircle,
   CheckCircle2,
-  Headset,
-  Clock,
   ChevronDown,
 } from "lucide-react";
 import { AddToContactApi } from "@/api/operations/contact.api";
@@ -64,7 +62,6 @@ const contactFormSchema = z
       .min(1, "Mobile number is required.")
       .regex(MOBILE_REGEX, "Enter a valid mobile number (10–15 digits, numbers only)."),
 
-
     reason: z.enum(CONTACT_REASONS, {
       message: "Please select a reason for contact.",
     }),
@@ -106,13 +103,15 @@ function cx(...parts: Array<string | false | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
+// Themed off the project's design tokens (globals.css): a light
+// bg-card surface with a bordered outline, matching
+// ConciergeSourcingSection, with the brand's primary gold reserved
+// for the submit CTA, focus rings, and small accent labels.
 const fieldBase =
-  "w-full rounded-lg border bg-background text-sm text-foreground placeholder:text-muted-foreground transition-colors " +
-  "focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:cursor-not-allowed disabled:opacity-60";
+  "w-full rounded-md border bg-background text-[14px] text-foreground placeholder:text-muted-foreground transition-colors " +
+  "focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60";
 
-// Fixed icon-column width. Inputs/selects/textareas reserve this much
-// space on the left via inline style so it can never be collapsed by
-// conflicting/overridden Tailwind classes passed through `className`.
+// Fixed icon-column width, kept from the original implementation.
 const ICON_COL = "2.75rem"; // 44px
 
 /* ------------------------------------------------------------------ */
@@ -136,10 +135,10 @@ function FormField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-foreground">
+      <label htmlFor={id} className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
         {label}
         {required && (
-          <span className="ml-0.5 text-destructive" aria-hidden="true">
+          <span className="ml-0.5 text-primary" aria-hidden="true">
             *
           </span>
         )}
@@ -147,14 +146,10 @@ function FormField({
 
       {children}
 
-      {hint && !error && (
-        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-          {hint}
-        </p>
-      )}
+      {hint && !error && <p className="text-[11px] text-muted-foreground">{hint}</p>}
 
       {error && (
-        <p id={`${id}-error`} role="alert" className="flex items-center gap-1.5 text-xs font-medium text-destructive">
+        <p role="alert" className="flex items-center gap-1.5 text-xs font-medium text-destructive">
           <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           {error}
         </p>
@@ -163,12 +158,6 @@ function FormField({
   );
 }
 
-/**
- * Icon wrapper: reserves a fixed-width column (w-10) pinned to the full
- * height of the field via inset-y-0, and centers the icon inside it with
- * flex. This guarantees the icon can never visually overlap the field's
- * text, regardless of input height, line-height, or class-merge order.
- */
 function FieldIcon({ children }: { children: ReactNode }) {
   return (
     <span className="pointer-events-none absolute inset-y-0 left-0 z-10 flex w-10 items-center justify-center text-muted-foreground">
@@ -183,7 +172,12 @@ const IconInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElem
       <FieldIcon>{icon}</FieldIcon>
       <input
         ref={ref}
-        className={cx(fieldBase, "py-2.5 pr-3", hasError ? "border-destructive focus:ring-destructive" : "border-input", className)}
+        className={cx(
+          fieldBase,
+          "py-2.5 pr-3",
+          hasError ? "border-destructive/70 focus:border-destructive focus:ring-destructive/70" : "border-border",
+          className
+        )}
         style={{ paddingLeft: ICON_COL, ...style }}
         aria-invalid={hasError || undefined}
         {...props}
@@ -203,8 +197,8 @@ const IconSelect = forwardRef<
       ref={ref}
       className={cx(
         fieldBase,
-        "appearance-none py-2.5 pr-9",
-        hasError ? "border-destructive focus:ring-destructive" : "border-input",
+        "appearance-none bg-background py-2.5 pr-9",
+        hasError ? "border-destructive/70 focus:border-destructive focus:ring-destructive/70" : "border-border",
         className
       )}
       style={{ paddingLeft: ICON_COL, ...style }}
@@ -231,7 +225,7 @@ const IconTextarea = forwardRef<
       className={cx(
         fieldBase,
         "min-h-[120px] resize-y py-2.5 pr-3",
-        hasError ? "border-destructive focus:ring-destructive" : "border-input",
+        hasError ? "border-destructive/70 focus:border-destructive focus:ring-destructive/70" : "border-border",
         className
       )}
       style={{ paddingLeft: ICON_COL, ...style }}
@@ -243,90 +237,17 @@ const IconTextarea = forwardRef<
 IconTextarea.displayName = "IconTextarea";
 
 /* ------------------------------------------------------------------ */
-/* Support info sidebar                                                */
-/* ------------------------------------------------------------------ */
-
-function SupportInfoCard() {
-  return (
-    <aside
-      aria-labelledby="support-heading"
-      className="flex h-fit flex-col gap-6 rounded-2xl border border-border bg-foreground p-6 text-background shadow-sm sm:p-8"
-    >
-      <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
-          <Headset className="h-5 w-5" aria-hidden="true" />
-        </span>
-        <h2 id="support-heading" className="text-lg font-semibold">
-          Customer Support
-        </h2>
-      </div>
-
-      <p className="text-sm text-background/70">
-        Have a quick question? Reach our team directly, or send us a message and we&apos;ll follow up by email.
-      </p>
-
-      <ul className="flex flex-col gap-4">
-        <li className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/10">
-            <Mail className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wide text-background/50">Email</span>
-            <a
-              href="mailto:support@yourstore.com"
-              className="text-sm font-medium text-background underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
-            >
-              support@yourstore.com
-            </a>
-          </div>
-        </li>
-
-        <li className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/10">
-            <Phone className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wide text-background/50">Phone</span>
-            <a
-              href="tel:+12345678900"
-              className="text-sm font-medium text-background underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
-            >
-              +1 (234) 567-8900
-            </a>
-          </div>
-        </li>
-
-        <li className="flex items-start gap-3">
-          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/10">
-            <Clock className="h-4 w-4" aria-hidden="true" />
-          </span>
-          <div className="flex flex-col">
-            <span className="text-xs uppercase tracking-wide text-background/50">Working hours</span>
-            <span className="text-sm font-medium text-background">Monday – Saturday</span>
-            <span className="text-sm text-background/70">9:00 AM – 6:00 PM</span>
-          </div>
-        </li>
-      </ul>
-    </aside>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Success state                                                       */
 /* ------------------------------------------------------------------ */
 
 function SuccessMessage({ onSendAnother }: { onSendAnother: () => void }) {
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-background px-6 py-14 text-center"
-    >
-      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-primary">
+    <div role="status" aria-live="polite" className="flex flex-col items-center gap-4 px-6 py-14 text-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary/70 bg-primary/10 text-primary">
         <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
       </span>
       <div className="flex max-w-sm flex-col gap-1.5">
-        <h3 className="text-lg font-semibold text-foreground">Message sent</h3>
+        <h3 className="text-lg">Message sent</h3>
         <p className="text-sm text-muted-foreground">
           Thank you for contacting us! Our support team will get back to you within 24–48 hours.
         </p>
@@ -334,7 +255,7 @@ function SuccessMessage({ onSendAnother }: { onSendAnother: () => void }) {
       <button
         type="button"
         onClick={onSendAnother}
-        className="mt-2 rounded-lg border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring"
+        className="mt-2 rounded-full border border-border bg-transparent px-5 py-2.5 text-[13px] font-semibold uppercase tracking-[0.08em] text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary"
       >
         Send another message
       </button>
@@ -365,8 +286,6 @@ function ContactForm() {
 
   const onSubmit = async (values: ContactFormValues) => {
     try {
-      // Final reason sent to the API: if "Other" was picked, send the
-      // free-text reason the user typed instead of the literal word "Other".
       const finalReason = values.reason === "Other" ? values.otherReason?.trim() || "Other" : values.reason;
 
       const formData = new FormData();
@@ -376,8 +295,7 @@ function ContactForm() {
       formData.append("reason", finalReason);
       formData.append("message", values.description);
 
-      await AddToContactApi
-        (formData);
+      await AddToContactApi(formData);
 
       setIsSuccess(true);
     } catch {
@@ -400,8 +318,8 @@ function ContactForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-5" aria-describedby="contact-form-required-note">
-      <p id="contact-form-required-note" className="text-xs text-muted-foreground">
-        Fields marked <span className="text-destructive">*</span> are required.
+      <p id="contact-form-required-note" className="text-[11px] text-muted-foreground">
+        Fields marked <span className="text-primary">*</span> are required.
       </p>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -412,7 +330,6 @@ function ContactForm() {
             placeholder="Jordan Lee"
             autoComplete="name"
             hasError={!!errors.fullName}
-            aria-describedby={errors.fullName ? "fullName-error" : undefined}
             {...register("fullName")}
           />
         </FormField>
@@ -425,7 +342,6 @@ function ContactForm() {
             placeholder="you@example.com"
             autoComplete="email"
             hasError={!!errors.email}
-            aria-describedby={errors.email ? "email-error" : undefined}
             {...register("email")}
           />
         </FormField>
@@ -441,7 +357,6 @@ function ContactForm() {
             placeholder="9876543210"
             autoComplete="tel"
             hasError={!!errors.mobile}
-            aria-describedby={errors.mobile ? "mobile-error" : undefined}
             {...register("mobile")}
           />
         </FormField>
@@ -452,7 +367,6 @@ function ContactForm() {
             icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
             defaultValue=""
             hasError={!!errors.reason}
-            aria-describedby={errors.reason ? "reason-error" : undefined}
             {...register("reason")}
           >
             <option value="" disabled>
@@ -474,7 +388,6 @@ function ContactForm() {
             icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
             placeholder="Tell us briefly what this is about"
             hasError={!!errors.otherReason}
-            aria-describedby={errors.otherReason ? "otherReason-error" : undefined}
             {...register("otherReason")}
           />
         </FormField>
@@ -492,7 +405,6 @@ function ContactForm() {
           icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />}
           placeholder="Share your order number, issue details, or question..."
           hasError={!!errors.description}
-          aria-describedby={errors.description ? "description-error" : "description-hint"}
           {...register("description")}
         />
       </FormField>
@@ -502,7 +414,7 @@ function ContactForm() {
           type="button"
           onClick={handleReset}
           disabled={isSubmitting}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-input bg-background px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-transparent px-5 py-2.5 text-[13px] font-semibold uppercase tracking-[0.08em] text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
         >
           <RotateCcw className="h-4 w-4" aria-hidden="true" />
           Reset
@@ -511,7 +423,7 @@ function ContactForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-5 py-2.5 text-[13px] font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-card disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? (
             <>
@@ -531,29 +443,33 @@ function ContactForm() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Page                                                                 */
+/* Page — one plain card, themed off project design tokens             */
 /* ------------------------------------------------------------------ */
 
 export default function ContactUs() {
   return (
     <main className="bg-surface">
-      <div className="container  lg:py-20">
+      <div className="container py-14 lg:py-20">
         <div className="mx-auto mb-10 max-w-2xl text-center sm:mb-14">
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Submit Your Sourcing Request</h1>
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
+            Sourcing Desk · Contact
+          </p>
+          <h1 className="text-3xl leading-[1.1] sm:text-4xl">Submit your sourcing request</h1>
           <p className="mt-3 text-base text-muted-foreground">
             Questions about an order, a return, or anything else? Send us a message and our team will get back to you shortly.
           </p>
         </div>
 
-     <div className="mx-auto w-4/5">
-          <section aria-labelledby="contact-form-heading" className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+        <div className="mx-auto w-full max-w-2xl">
+          <section
+            aria-labelledby="contact-form-heading"
+            className="rounded-lg border border-border bg-card p-6 text-card-foreground shadow-sm sm:p-8"
+          >
             <h2 id="contact-form-heading" className="sr-only">
               Contact form
             </h2>
             <ContactForm />
           </section>
-
-          {/* <SupportInfoCard /> */}
         </div>
       </div>
     </main>

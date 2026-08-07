@@ -38,20 +38,27 @@ export default function CartItem({ item, onRefresh }: Props) {
     setQtyInput(String(item.quantity));
   }, [item.quantity]);
 
-  const locations = item.customization?.locations ?? [];
-  const breakdown = item.customization?.breakdown ?? [];
-  const printMethod = item.customization?.printMethod ?? null;
-  // const uploadedImageName = item.customization?.uploadedImageName ?? null;
-  const uploadedImage = item.logo_image?? null;
-  const colorCode = item.colorCode ?? null;
+  // ★ FIXED — the API nests print method / locations under
+  // `customization_config`, not `customization`, and does not include a
+  // `breakdown` array on the item at all (each size/color variant now
+  // arrives as its own separate cart item, e.g. cart_id 18 vs 19 — see
+  // response shape). The old `.customization?.breakdown` lookup always
+  // resolved to undefined, so that section is removed rather than fixed.
+  const locations = item.customization_config?.locations ?? [];
+  const printMethod = item.customization_config?.print_method ?? null;
+  const uploadedImage = item.logo_image ?? null;
+  const colorCode = item.color_code ?? null;
 
+  // ★ FIXED — was item.basePrice / item.totalPrice, neither of which
+  // exist on the API response (base_price / total_price).
   const itemTotal =
-    item.totalPrice && item.totalPrice > 0
-      ? item.totalPrice
-      : item.basePrice * item.quantity;
+    item.total_price && item.total_price > 0
+      ? item.total_price
+      : item.base_price * item.quantity;
 
   const handleDecrease = async () => {
-    if (item.quantity <= 1 || loading || item.canDecrease === false) return;
+    // ★ FIXED — was item.canDecrease, API sends can_decrease.
+    if (item.quantity <= 1 || loading || item.can_decrease === false) return;
     try {
       setLoading(true);
       await DecrementCartItemApi({ cart_id: item.cart_id });
@@ -66,7 +73,8 @@ export default function CartItem({ item, onRefresh }: Props) {
   };
 
   const handleIncrease = async () => {
-    if (loading || item.canIncrease === false) return;
+    // ★ FIXED — was item.canIncrease, API sends can_increase.
+    if (loading || item.can_increase === false) return;
     try {
       setLoading(true);
       await IncrementCartItemApi({ cart_id: item.cart_id });
@@ -83,7 +91,7 @@ export default function CartItem({ item, onRefresh }: Props) {
   /* ── Reconcile a manually-typed quantity ──
      Clamps to a 1-piece floor, does nothing if the value is unchanged or
      invalid, then walks the gap one call at a time (respecting
-     canIncrease/canDecrease the same way the +/- buttons do) so any
+     can_increase/can_decrease the same way the +/- buttons do) so any
      stock-ceiling or floor enforced by those flags is still honored. */
   const commitTypedQty = async (raw: string) => {
     const parsed = Number(raw);
@@ -101,13 +109,15 @@ export default function CartItem({ item, onRefresh }: Props) {
       let current = item.quantity;
       if (safeTarget > current) {
         while (current < safeTarget) {
-          if (item.canIncrease === false) break;
+          // ★ FIXED — was item.canIncrease.
+          if (item.can_increase === false) break;
           await IncrementCartItemApi({ cart_id: item.cart_id });
           current += 1;
         }
       } else {
         while (current > safeTarget) {
-          if (current <= 1 || item.canDecrease === false) break;
+          // ★ FIXED — was item.canDecrease.
+          if (current <= 1 || item.can_decrease === false) break;
           await DecrementCartItemApi({ cart_id: item.cart_id });
           current -= 1;
         }
@@ -137,8 +147,8 @@ export default function CartItem({ item, onRefresh }: Props) {
     }
   };
 
-  const hasSpecs =
-    printMethod || locations.length > 0 || uploadedImage || breakdown.length > 0;
+  // ★ FIXED — breakdown removed from the check, see note above.
+  const hasSpecs = printMethod || locations.length > 0 || uploadedImage;
 
   return (
     <div className="relative overflow-visible rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -173,10 +183,7 @@ export default function CartItem({ item, onRefresh }: Props) {
             <div className="space-y-1">
               <h3 className="font-semibold leading-tight truncate">{item.name}</h3>
 
-              <p className="text-sm text-muted-foreground">
-                ${item.basePrice}
-                <span className="font-mono text-xs">/pcs</span>
-              </p>
+             
 
               <div className="flex items-center gap-3 pt-0.5">
                 {item.size && (
@@ -207,8 +214,6 @@ export default function CartItem({ item, onRefresh }: Props) {
           </div>
         </div>
       </div>
-
-   
 
       {/* Production ticket: print method, locations, artwork proof */}
       {hasSpecs && (
@@ -275,34 +280,10 @@ export default function CartItem({ item, onRefresh }: Props) {
 
             <div className="min-w-0 leading-tight">
               <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                Artwork 
+                Artwork
               </p>
-              {/* {uploadedImageName ? (
-                <p className="text-xs font-medium truncate max-w-[180px]" title={uploadedImageName}>
-                  {uploadedImageName}
-                </p>
-              ) : (
-                <p className="text-xs italic text-muted-foreground">None uploaded</p>
-              )} */}
             </div>
           </div>
-
-          {/* Mixed size/color breakdown */}
-          {breakdown.length > 1 && (
-            <div className="rounded-md bg-muted/50 divide-y divide-border/60 overflow-hidden">
-              {breakdown.map((b, idx) => (
-                <div
-                  key={`${b.variant_id}-${idx}`}
-                  className="flex justify-between px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground"
-                >
-                  <span>
-                    {b.size ?? ""} {b.color ? `· ${b.color}` : ""} × {b.quantity}
-                  </span>
-                  <span className="text-foreground/80">${b.total_price.toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
@@ -311,7 +292,7 @@ export default function CartItem({ item, onRefresh }: Props) {
         <div className="flex items-center rounded-full border border-border overflow-hidden bg-background">
           <button
             onClick={handleDecrease}
-            disabled={loading || item.quantity <= 1 || item.canDecrease === false}
+            disabled={loading || item.quantity <= 1 || item.can_decrease === false}
             className="p-2 hover:bg-muted disabled:opacity-40 transition-colors"
             aria-label="Decrease quantity"
           >
@@ -350,7 +331,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
           <button
             onClick={handleIncrease}
-            disabled={loading || item.canIncrease === false}
+            disabled={loading || item.can_increase === false}
             className="p-2 hover:bg-muted disabled:opacity-40 transition-colors"
             aria-label="Increase quantity"
           >

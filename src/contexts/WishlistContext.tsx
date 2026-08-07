@@ -59,7 +59,7 @@ export const WishlistProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  const { addItem } = useCart();
+  const { refreshCart } = useCart();
 
   const [wishlist, setWishlist] = useState<
     WishlistItem[]
@@ -193,19 +193,7 @@ export const WishlistProvider = ({
         wishlist_id: item.id,
       });
 
-      addItem({
-        id: `wishlist-${item.id}`,
-        image: item.image,
-        name: item.name,
-        basePrice: item.price,
-        quantity: 1,
-
-        customization: {
-          placements: [],
-          uploadFee: 30,
-          uploadedImage: undefined,
-        },
-      });
+      await refreshCart();
 
       setWishlist((prev) =>
         prev.filter((i) => i.id !== item.id)

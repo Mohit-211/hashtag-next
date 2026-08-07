@@ -349,7 +349,7 @@ export const categoriesViewStyles = `
     z-index: 0;
   }
   .ucgate-header, .ucgate-body { position: relative; z-index: 1; }
-  .ucgate-header { max-width: 1200px; margin: 0 auto; padding: 64px 24px 12px; text-align: center; }
+  .ucgate-header {  margin: 0 auto;  text-align: center; }
   .ucgate-eyebrow {
     display: inline-flex; align-items: center; gap: 8px;
     font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
@@ -455,7 +455,7 @@ export const categoriesViewStyles = `
   .ucgate-industry-card:hover .ucgate-usecase-chip { border-color: var(--color-border); }
 
   /* ── use-case selection: same card-grid treatment as the industry grid ── */
-  .ucgate-usecase-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 18px; }
+  .ucgate-usecase-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
   .ucgate-usecase-row {
     position: relative; text-align: left; padding: 16px 20px 24px; border: 1.5px solid var(--color-border);
     border-radius: 18px; background: var(--color-card); cursor: pointer; overflow: hidden;

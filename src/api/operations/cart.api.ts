@@ -17,24 +17,24 @@ export const GetAllCartItemsApi = () =>
   client.get(CART_ENDPOINTS.GET_ALL);
 
 // 🔼 Increment quantity
-export const IncrementCartItemApi = (payload: { cart_id: string }) =>
+export const IncrementCartItemApi = (payload: { cart_id: string | number }) =>
   client.put(CART_ENDPOINTS.INCREMENT, payload);
 
 // 🔽 Decrement quantity
-export const DecrementCartItemApi = (payload: { cart_id: string }) =>
+export const DecrementCartItemApi = (payload: { cart_id: string | number }) =>
   client.put(CART_ENDPOINTS.DECREMENT, payload);
 
 // 🔄 Update quantity (optional full control)
 export const UpdateCartQuantityApi = (payload: {
-  cart_id: string;
+  cart_id: string | number;
   quantity: number;
 }) => client.put(CART_ENDPOINTS.UPDATE_QUANTITY, payload);
 
 // ❌ Remove item from cart (FIXED)
-export const RemoveFromCartApi = (cart_id: string) =>
+export const RemoveFromCartApi = (cart_id: string | number) =>
   client.delete(CART_ENDPOINTS.REMOVE_FROM_CART(cart_id));
 
 // ❤️ Move item to wishlist
-export const MoveCartToWishlistApi = (payload: { cart_id: string }) =>
+export const MoveCartToWishlistApi = (payload: { cart_id: string | number }) =>
   client.post(CART_ENDPOINTS.MOVE_TO_WISHLIST, payload);
 // ❤️ Move item to wishlist

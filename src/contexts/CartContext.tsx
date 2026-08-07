@@ -11,20 +11,43 @@ import {
 
 import { GetAllCartItemsApi } from "@/api/operations/cart.api";
 
+// Raw cart item, as sent by the API — no remapping. Extra fields
+// (stock, pricing_snapshot, is_purchasable, etc.) pass through via the
+// index signature so nothing downstream has to guess what exists.
 export interface CartItem {
-  id: string;
+  cart_id: number;
+  product_id: number;
+  variant_id?: number;
+  quantity: number;
+
   name: string;
   image?: string;
   logo_image?: string;
-  basePrice: number;
-  quantity: number;
-  cart_id?: number;
+  size?: string;
+  color?: string;
+  color_code?: string;
 
-  customization: {
-    uploadedImage: any;
-    placements: any[];
-    uploadFee: number;
+  base_price: number;
+  price?: number;
+  total_price?: number;
+
+  can_increase?: boolean;
+  can_decrease?: boolean;
+
+  customization_config?: {
+    print_method?: string | null;
+    locations?: { location: string }[];
+    [key: string]: any;
   };
+
+  [key: string]: any;
+}
+
+// The API's own computed totals — no need to recompute these client-side.
+export interface CartSummary {
+  items_total: number;
+  shipping_cost: number;
+  grand_total: number;
 }
 
 export interface PendingOrder {
@@ -40,63 +63,37 @@ export interface PendingOrder {
 
 interface CartContextType {
   items: CartItem[];
-
   totalItems: number;
-  subtotal: number;
-  customizationTotal: number;
-  grandTotal: number;
-
+  summary: CartSummary | null;
   pending_order: PendingOrder | null;
-
   cartData: any;
-
   refreshCart: () => Promise<void>;
-
-  addItem: (item: CartItem) => void;
 }
-const CartContext =
-  createContext<CartContextType | null>(
-    null
-  );
+
+const CartContext = createContext<CartContextType | null>(null);
 
 export const useCart = () => {
   const ctx = useContext(CartContext);
 
   if (!ctx) {
-    throw new Error(
-      "useCart must be used within CartProvider"
-    );
+    throw new Error("useCart must be used within CartProvider");
   }
 
   return ctx;
 };
 
-export const CartProvider = ({
-  children,
-}: {
-  children: ReactNode;
-}) => {
-  const [items, setItems] = useState<
-    CartItem[]
-  >([]);
+export const CartProvider = ({ children }: { children: ReactNode }) => {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [summary, setSummary] = useState<CartSummary | null>(null);
   const [cartData, setCartData] = useState<any>(null);
+  const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
 
-  const [pendingOrder, setPendingOrder] =
-    useState<PendingOrder | null>(null);
-
-  // ✅ LOGIN CHECK
-  const isLoggedIn =
-    typeof window !== "undefined" &&
-    !!localStorage.getItem(
-      "hastagBillionaire"
-    );
-
-  // ✅ FETCH CART
   const fetchCart = useCallback(async () => {
     const token = localStorage.getItem("hastagBillionaire");
 
     if (!token) {
       setItems([]);
+      setSummary(null);
       setPendingOrder(null);
       setCartData(null);
       return;
@@ -104,128 +101,37 @@ export const CartProvider = ({
 
     try {
       const res = await GetAllCartItemsApi();
-
-      console.log("Cart API Response:", res);
-
       const data = res?.data?.data || res?.data;
 
-      console.log("Cart Data:", data);
-
-      // Store complete response
       setCartData(data);
-
-      // Store pending order
-      setPendingOrder(data?.pending_order || null);
-
-      // Format cart items
-     const formatted: CartItem[] = (data?.items || []).map((item: any) => ({
-  ...item, // ✅ Include all API fields
-
-  id: String(item.product_id),
-  name: item.name || item.product_name || "",
-  image: item.image ,
-  logo_image: item.logo_image ,
-  basePrice: Number(item.price ?? item.base_price ?? 0),
-  quantity: Number(item.quantity ?? 1),
-  cart_id: item.cart_id,
-
-  customization: {
-    uploadedImage: item.uploaded_image || null,
-    placements: item.placements || [],
-    uploadFee: Number(item.customization_price ?? 0),
-  },
-}));
-      setItems(formatted);
-
-      console.log("Formatted Cart Items:", formatted);
+      setItems(data?.items ?? []);
+      setSummary(data?.summary ?? null);
+      setPendingOrder(data?.pending_order ?? null);
     } catch (err) {
       console.error("Fetch Cart Error:", err);
 
       setItems([]);
+      setSummary(null);
       setPendingOrder(null);
       setCartData(null);
     }
   }, []);
 
-  // ✅ INITIAL FETCH
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
 
-  // ✅ ADD ITEM
-  const addItem = (
-    item: CartItem
-  ) => {
-    if (!isLoggedIn) return;
-
-    setItems((prev) => {
-      const existing = prev.find(
-        (i) => i.id === item.id
-      );
-
-      // ✅ Increase qty
-      if (existing) {
-        return prev.map((i) =>
-          i.id === item.id
-            ? {
-              ...i,
-              quantity:
-                i.quantity +
-                item.quantity,
-            }
-            : i
-        );
-      }
-
-      // ✅ Add new
-      return [...prev, item];
-    });
-  };
-
-  // ✅ TOTAL ITEMS
-  const totalItems = items.reduce(
-    (sum, item) =>
-      sum + item.quantity,
-    0
-  );
-
-  // ✅ SUBTOTAL
-  const subtotal = items.reduce(
-    (sum, item) =>
-      sum +
-      item.basePrice *
-      item.quantity,
-    0
-  );
-
-  // ✅ CUSTOMIZATION TOTAL
-  const customizationTotal =
-    items.reduce(
-      (sum, item) =>
-        sum +
-        (item.customization
-          .uploadFee || 0) *
-        item.quantity,
-      0
-    );
-
-  // ✅ GRAND TOTAL
-  const grandTotal =
-    subtotal +
-    customizationTotal;
+  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <CartContext.Provider
       value={{
         items,
-        cartData,
         totalItems,
-        subtotal,
-        customizationTotal,
-        grandTotal,
+        summary,
         pending_order: pendingOrder,
+        cartData,
         refreshCart: fetchCart,
-        addItem,
       }}
     >
       {children}

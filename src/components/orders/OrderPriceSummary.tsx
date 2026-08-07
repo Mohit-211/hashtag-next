@@ -14,13 +14,14 @@ interface OrderPriceSummaryProps {
 }
 
 export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
-  console.log("OrderPriceSummary:", order);
+  console.log(order,"orderorderorder")
   const subtotal = Number(order?.subtotal || 0);
   const customizationTotal = Number(order?.customizationTotal || 0);
   const shippingCost = Number(order?.shippingCost || 0);
   const tax = Number(order?.tax || 0);
   const total = Number(order?.total || 0);
-
+console.log(shippingCost,"shippingCost")
+console.log(tax,"tax")
   return (
     <div className="rounded-2xl overflow-hidden border border-border/60">
       {/* Header */}

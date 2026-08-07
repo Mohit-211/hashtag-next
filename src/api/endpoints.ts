@@ -32,7 +32,7 @@ export const CART_ENDPOINTS = {
   INCREMENT: "product/cart/increment",
   DECREMENT: "product/cart/decrement",
   UPDATE_QUANTITY: "product/cart",
-  REMOVE_FROM_CART: (cart_id: string) => `product/cart/${cart_id}`,
+  REMOVE_FROM_CART: (cart_id: string | number) => `product/cart/${cart_id}`,
   MOVE_TO_WISHLIST: "product/cart/move",
 
 };
