@@ -17,7 +17,7 @@ export default function OrderedItems({ items }: OrderedItemsProps) {
       <div className="space-y-3">
         {items.map((item) => {
           const placementCost = item.customization.placements.reduce(
-            (s, p) => s + p.cost,
+            (s: any, p: { cost: any; }) => s + p.cost,
             0
           );
 
