@@ -440,7 +440,7 @@ export default function OrderCard({
                         className="rounded-xl border border-border/70 bg-card overflow-hidden"
                       >
                         <Link
-                          href={`/product/${item.product_id}`}
+                          href={`/product/${item.product_id}?variant_id=${item.variant_id}`}
                           className="group/item flex items-start gap-3 p-3.5 hover:bg-muted/20 transition-colors"
                         >
                           <div className="relative w-[52px] h-[52px] shrink-0">

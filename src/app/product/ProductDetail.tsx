@@ -8,15 +8,11 @@ import {
   Heart,
   Sparkles,
   Loader2,
-  X,
-  ChevronRight,
-  Shield,
   CheckCircle2,
 } from "lucide-react";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductInfo from "@/components/product/ProductInfo";
 import ProductAccordion from "@/components/product/ProductAccordion";
-import RelatedProducts from "@/components/product/RelatedProducts";
 import {
   ProductDetailApi,
   ProductDetailGuestApi,
@@ -74,7 +70,7 @@ interface Product {
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 /* ───────────────────────────────────────────────── component */
-export default function ProductDetail({ id }: { id: string }) {
+export default function ProductDetail({ id, variantId }: { id: string; variantId?: string | null }) {
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,7 +78,6 @@ export default function ProductDetail({ id }: { id: string }) {
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [variantData, setVariantData] = useState<Variant | null>(null);
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
-
   /* auth */
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
@@ -134,18 +129,19 @@ export default function ProductDetail({ id }: { id: string }) {
     }
   };
   useEffect(() => { fetchProduct(); }, [id]);
-console.log(product,"product---")
   /* default variant */
   useEffect(() => {
     if (!product?.variants?.length) return;
-    const first = product.variants[0];
-    console.log(first,"first")
-    setSelectedColor(first.color);
-    setSelectedSize(first.size_details);
-    setVariantData(first);
-    setInCart(Boolean(first.is_in_cart));
-    setQuantity(first.min_order_quantity || 1);
-  }, [product]);
+    const preselected = variantId
+      ? product.variants.find((v) => v.id === Number(variantId))
+      : undefined;
+    const initial = preselected || product.variants[0];
+    setSelectedColor(initial.color);
+    setSelectedSize(initial.size_details);
+    setVariantData(initial);
+    setInCart(Boolean(initial.is_in_cart));
+    setQuantity(initial.min_order_quantity || 1);
+  }, [product, variantId]);
 
   /* update variant */
   useEffect(() => {
@@ -386,7 +382,6 @@ console.log(product,"product---")
   }
 
   if (!product) {
-    console.log(product, "product---")
     return (
       <section className="min-h-screen flex items-center justify-center py-10">
         <div className="text-center">
@@ -396,12 +391,11 @@ console.log(product,"product---")
       </section>
     );
   }
-console.log(variantData,"variantData")
-  
-   const displayPrice =
-  variantData?.price != null
-    ? Number(variantData.price)
-    : Number(product?.price ?? 0);
+
+  const displayPrice =
+    variantData?.price != null
+      ? Number(variantData.price)
+      : Number(product?.price ?? 0);
   const displayAttachments =
     variantData?.images && variantData.images.length > 0
       ? variantData.images.map((img) => ({
@@ -409,9 +403,7 @@ console.log(variantData,"variantData")
         url: img.file_name?.startsWith("http") ? img.file_name : `${BASE_URL}${img.file_uri}`,
       }))
       : product?.attachments || [];
-      console.log(displayPrice,"displayPrice")
   const category = product?.categories?.[0]?.parent_categories?.[0];
-  console.log(category, "category-----")
   // Grand category tells us the product family (e.g. "Pre-Made products" vs customizable apparel)
   const grandCategory = category?.grand_categories?.[0];
   const isPreMade = grandCategory?.title === "Pre-Made products";
@@ -463,32 +455,6 @@ console.log(variantData,"variantData")
           </div>
         </div>
       )}
-
-      {/* ── BREADCRUMB ── */}
-      {/* <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-gray-100">
-        <div className="container mx-auto max-w-7xl px-4">
-          <nav className="flex items-center gap-2 py-3 text-sm">
-            <a href="/" className="text-gray-500 hover:text-black">Home</a>
-            <ChevronRight size={14} className="text-gray-300" />
-            <a href="/categories" className="text-gray-500 hover:text-black">
-              Products
-            </a>
-            {category?.title && (
-              <>
-                <ChevronRight size={14} className="text-gray-300" />
-                <a
-                  href={`/categories?parent=${Base64.encodeURI(String(category.id))}`}
-                  className="text-gray-500 hover:text-black"
-                >
-                  {category.title}
-                </a>
-              </>
-            )}
-            <ChevronRight size={14} className="text-gray-300" />
-            <span className="font-semibold text-black truncate">{product.name}</span>
-          </nav>
-        </div>
-      </div> */}
 
       {/* ── MAIN CONTENT ── */}
       <section className="py-8 lg:py-14">

@@ -20,10 +20,13 @@ export interface ConfiguredSize {
   size: string;
   quantity: number;
   unit_price: number;
-  /** Decoration price per unit, captured on the size line itself. 0 when
-   *  none was selected or the config step was skipped. Defaults to 0 for
-   *  backward compatibility with any caller that hasn't been updated yet. */
+  /** Decoration price per unit, captured on the size line itself — NEVER
+   *  includes the flat digitizing fee. 0 when none was selected or the
+   *  config step was skipped. */
   decoration_unit_price?: number;
+  /** ★ Flat, one-time fee (e.g. embroidery digitizing at qty<=11). Never
+   *  multiplied by quantity, never folded into decoration_unit_price. */
+  digitizing_fee?: number;
 }
 export interface ConfiguredVariant {
   variantId: number;
@@ -36,6 +39,8 @@ export interface ConfiguredVariant {
   totalPrice: number;
   productTotal?: number;
   decorationTotal?: number;
+  /** ★ Σ(digitizing_fee) across this variant's sizes — flat, not qty-scaled. */
+  digitizingFeeTotal?: number;
 }
 
 interface AddToCartModalProps {
@@ -49,21 +54,15 @@ interface AddToCartModalProps {
   printPricePerPiece?: number;
   digitizingFee?: number;
   onSuccess?: () => void;
-  customization?: string; // JSON string (single payload object, may already contain `variants`)
+  customization?: string;
   canvasBlob?: Blob | null;
   sageMetaStr?: string | Record<string, unknown> | null;
-  /** Every variant the user explicitly configured on the customization
-   * page. When provided, the modal renders each one separately and the
-   * grand total/qty are summed across all of them — instead of a single
-   * flat quantity × price line. */
   configuredVariants?: ConfiguredVariant[];
   isApparel?: boolean;
   isPromo?: boolean;
   isPreMade?: boolean;
 }
 
-/* Treat missing/blank/transparent/white-on-white color codes as "no swatch"
-   rather than rendering an empty-looking circle. */
 const isRenderableSwatch = (code?: string) => {
   if (!code) return false;
   const c = code.trim().toLowerCase();
@@ -91,7 +90,6 @@ export default function AddToCartModal({
   isPromo,
   isPreMade
 }: AddToCartModalProps) {
-  console.log(isApparel,isPromo,isPreMade,"====")
   const quantity = initialQuantity;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -110,13 +108,7 @@ export default function AddToCartModal({
 
   const hasConfigured = !!configuredVariants && configuredVariants.length > 0;
 
-  /* ── Fallback single-variant pricing (legacy path / no configuredVariants) ──
-     This is the ONLY place printPricePerPiece is ever consulted. Once
-     configuredVariants exists, every size line already carries its own
-     decoration_unit_price (0 if skipped/none), so re-applying
-     printPricePerPiece on top of that would double- or hidden-charge
-     decoration — which was the root cause of the "Skip still adds a price"
-     bug. */
+  /* ── Fallback single-variant pricing (legacy path / no configuredVariants) ── */
   const effectiveUnitPrice = useMemo(() => {
     if (!sageMetaStr) return price;
     return getSageUnitPriceWithMarkup(sageMetaStr, quantity) ?? price;
@@ -131,11 +123,11 @@ export default function AddToCartModal({
   const decorationTotal = legacyPricing.decorationTotal;
 
   /* ── Grand totals — SINGLE SOURCE OF TRUTH for the configured-variants
-     path: every size line's own productPrice/decorationPrice/quantity is
-     fed through sumVariantTotals. Nothing here re-derives price from
-     page-level state (like the old `printPricePerPiece * grandQty`) —
-     decoration only ever comes from what was actually captured on each
-     line when it was added. ── */
+     path. Every size line's own productPrice/decorationPrice/quantity is
+     fed through sumVariantTotals, and digitizing fees are summed
+     separately as FLAT amounts (never multiplied by quantity, never run
+     through sumVariantTotals). This is what closes the gap with the
+     customization page's own displayTotal, which does the same split. ── */
   const configuredPricing = useMemo(() => {
     if (!hasConfigured) return null;
     const lines = configuredVariants!.flatMap((cv) =>
@@ -145,17 +137,30 @@ export default function AddToCartModal({
         quantity: s.quantity,
       }))
     );
-    return sumVariantTotals(lines);
+    const base = sumVariantTotals(lines);
+    const digitizingFeeTotal = configuredVariants!.reduce(
+      (sum, cv) =>
+        sum +
+        cv.sizes.reduce((s2, s) => s2 + (s.digitizing_fee ?? 0), 0),
+      0
+    );
+    return { ...base, digitizingFeeTotal };
   }, [hasConfigured, configuredVariants]);
-console.log(configuredVariants,"configuredVariants")
+
   const grandQty = hasConfigured
     ? configuredVariants!.reduce((s, cv) => s + cv.totalQty, 0)
     : quantity;
 
   const garmentConfiguredTotal = hasConfigured ? configuredPricing!.productTotal : garmentTotal;
   const configuredDecorationTotal = hasConfigured ? configuredPricing!.decorationTotal : decorationTotal;
+  const configuredDigitizingFeeTotal = hasConfigured ? configuredPricing!.digitizingFeeTotal : digitizingFee;
 
-  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + digitizingFee;
+  // ★ FIX — digitizing fee is now sourced from the actual configured
+  // lines (summed flat) when configuredVariants exist, instead of always
+  // trusting whatever flat `digitizingFee` prop the parent passed in
+  // (which was previously hardcoded to 0 on the configured-variants path,
+  // silently dropping the fee from the modal's total).
+  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + configuredDigitizingFeeTotal;
   const perPiece = grandQty > 0 ? grandTotal / grandQty : 0;
 
   /* ✅ Parse customization JSON safely (legacy single-payload shape) */
@@ -200,20 +205,14 @@ console.log(configuredVariants,"configuredVariants")
       setLoading(true);
       setError(null);
 
-      // Build the final payload. If configuredVariants were supplied, ALWAYS
-      // send the full multi-variant array — never just the active selection.
       let customizationPayload: any;
 
       if (hasConfigured) {
-        // ★ FIX — every selected variant/size line becomes one customization
+        // Every selected variant/size line becomes one customization
         // object carrying its own product_price / decoration_price /
-        // total_price, computed via the SAME calculateVariantTotal helper
-        // used everywhere else (Order Summary, this modal's own line items,
-        // the page's buildPayload). This guarantees the number submitted in
-        // the payload is identical to what was shown on screen — previously
-        // this branch dropped all pricing fields and sent only
-        // variant_id/size_id/quantity, and only for a single flat
-        // "sizes" array instead of one customization per line.
+        // digitizing_fee / total_price, computed via the SAME
+        // calculateVariantTotal helper used everywhere else, with the
+        // flat fee added once — never folded into total via multiplication.
         const customizations = configuredVariants!.flatMap((cv) =>
           cv.sizes.map((s) => {
             const linePricing = calculateVariantTotal({
@@ -221,6 +220,7 @@ console.log(configuredVariants,"configuredVariants")
               decorationPrice: s.decoration_unit_price ?? 0,
               quantity: s.quantity,
             });
+            const fee = s.digitizing_fee ?? 0;
             return {
               variant_id: s.variant_id,
               color: cv.color,
@@ -228,7 +228,8 @@ console.log(configuredVariants,"configuredVariants")
               quantity: s.quantity,
               product_price: s.unit_price,
               decoration_price: s.decoration_unit_price ?? 0,
-              total_price: linePricing.total,
+              digitizing_fee: fee,
+              total_price: linePricing.total + fee,
             };
           })
         );
@@ -242,8 +243,6 @@ console.log(configuredVariants,"configuredVariants")
               ? { locations: customizationObj.locations }
               : {}),
             customizations,
-            // Kept for backward compatibility with any consumer still
-            // reading the old flat "sizes" shape.
             sizes: configuredVariants!.flatMap((cv) =>
               cv.sizes.map((s) => ({
                 variant_id: s.variant_id,
@@ -254,10 +253,8 @@ console.log(configuredVariants,"configuredVariants")
           },
         ];
       } else if (customizationObj?.customizations || customizationObj?.variants) {
-        // Already in the new multi-variant shape from buildPayload()
         customizationPayload = customizationObj;
       } else {
-        // Legacy single-variant fallback shape
         customizationPayload = {
           product_id: productId,
           variants: [
@@ -367,7 +364,6 @@ console.log(configuredVariants,"configuredVariants")
             </button>
           </div>
 
-          {/* Grand total summary in header (always single source of truth) */}
           <div className="flex items-end justify-between border-t border-[#111111]/15 pt-3 mt-1">
             <div>
               <p className="text-[10px] font-medium text-[#111111]/40 uppercase tracking-[0.1em] mb-1">
@@ -377,21 +373,13 @@ console.log(configuredVariants,"configuredVariants")
                 ${formatMoney(grandTotal)}
               </p>
             </div>
-            {/* <div className="flex items-center gap-1.5 bg-[#111111]/10 border border-[#111111]/15 rounded-[10px] px-2.5 py-1.5 flex-shrink-0">
-              <Package size={12} className="text-[#111111]" />
-              <span className="text-[11px] font-medium text-[#111111]">
-                ${formatMoney(perPiece)}/pc
-              </span>
-            </div> */}
           </div>
         </div>
 
-        {/* Divider */}
         <div className="h-[1.5px] bg-[#111111] flex-shrink-0" />
 
         {/* ── BODY (the ONLY scrollable region) ── */}
         <div className="px-5 pt-4 pb-2 space-y-4 bg-white overflow-y-auto flex-1 min-h-0">
-          {/* Customization pill */}
           {customizationObj && (methodLabel || locationLabel) && (
             <div className="flex items-center gap-3 rounded-[12px] border border-black/10 bg-black/[0.03] px-3.5 py-2.5">
               <div className="w-8 h-8 rounded-[9px] bg-[#111111] flex items-center justify-center flex-shrink-0">
@@ -413,17 +401,15 @@ console.log(configuredVariants,"configuredVariants")
             </div>
           )}
 
-          {/* ── Itemized list — every configured variant shown separately ── */}
           {hasConfigured ? (
             <div className="space-y-3">
               <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#111111]/40">
                 {configuredVariants!.length} variant{configuredVariants!.length > 1 ? "s" : ""} in this order
               </p>
               {configuredVariants!.map((cv) => {
-                // ★ SINGLE SOURCE OF TRUTH — recompute this variant's totals
-                // from its own size lines rather than trusting a stored
-                // cv.totalPrice that could be stale or (on older callers)
-                // missing decoration entirely.
+                // ★ Recompute this variant's totals from its own size
+                // lines — never trust a stored cv.totalPrice that could
+                // be stale, and sum digitizing fees flat, separately.
                 const cvPricing = sumVariantTotals(
                   cv.sizes.map((s) => ({
                     productPrice: s.unit_price,
@@ -431,6 +417,12 @@ console.log(configuredVariants,"configuredVariants")
                     quantity: s.quantity,
                   }))
                 );
+                const cvDigitizingFeeTotal = cv.sizes.reduce(
+                  (sum, s) => sum + (s.digitizing_fee ?? 0),
+                  0
+                );
+                const cvGrandTotal = cvPricing.total + cvDigitizingFeeTotal;
+
                 return (
                   <div
                     key={`${cv.variantId}-${cv.variantName}`}
@@ -438,18 +430,12 @@ console.log(configuredVariants,"configuredVariants")
                   >
                     <div className="flex items-center justify-between mb-2 gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        {/* {isRenderableSwatch(cv.colorCode) && (
-                          <span
-                            className="w-4 h-4 rounded-full border border-black/15 flex-shrink-0"
-                            style={{ background: cv.colorCode }}
-                          />
-                        )} */}
                         <p className="text-[13px] font-semibold text-[#111111] truncate">
                           {cv.variantName || cv.color || `Variant #${cv.variantId}`}
                         </p>
                       </div>
                       <span className="text-[12px] font-bold text-[#111111] flex-shrink-0">
-                        ${formatMoney(cvPricing.total)}
+                        ${formatMoney(cvGrandTotal)}
                       </span>
                     </div>
                     <div className="space-y-1">
@@ -459,6 +445,7 @@ console.log(configuredVariants,"configuredVariants")
                           decorationPrice: s.decoration_unit_price ?? 0,
                           quantity: s.quantity,
                         });
+                        const lineFee = s.digitizing_fee ?? 0;
                         return (
                           <div
                             key={`${s.variant_id}-${s.size_id}`}
@@ -468,26 +455,21 @@ console.log(configuredVariants,"configuredVariants")
                               {s.size && s.size !== "—" ? s.size : "Standard"} · ×{s.quantity}
                             </span>
                             <span className="font-medium text-[#111111]/70">
-                              ${formatMoney(linePricing.total)}
+                              ${formatMoney(linePricing.total + lineFee)}
                             </span>
                           </div>
                         );
                       })}
                     </div>
-                    {/* Product Total / Decoration Total breakdown */}
-                    {/* <div className="flex items-center justify-between text-[10px] text-[#111111]/45 pt-1.5 mt-1.5 border-t border-black/5">
-                      <span>Product</span>
-                      <span>${formatMoney(cvPricing.productTotal)}</span>
-                    </div> */}
-                    {/* {cvPricing.decorationTotal > 0 && (
-                      <div className="flex items-center justify-between text-[10px] text-[#111111]/45">
-                        <span>Decoration</span>
-                        <span>${formatMoney(cvPricing.decorationTotal)}</span>
+                    {cvDigitizingFeeTotal > 0 && (
+                      <div className="flex items-center justify-between text-[10px] text-[#b89000] font-semibold pt-1.5 mt-1.5 border-t border-black/5">
+                        <span>Digitizing Fee (one-time)</span>
+                        <span>${formatMoney(cvDigitizingFeeTotal)}</span>
                       </div>
-                    )} */}
+                    )}
                     <div className="flex items-center justify-between text-[11px] font-semibold text-[#111111]/80 pt-1 mt-1">
                       <span>{cv.totalQty} pcs</span>
-                      <span>${formatMoney(cvPricing.total)}</span>
+                      <span>${formatMoney(cvGrandTotal)}</span>
                     </div>
                   </div>
                 );
@@ -517,16 +499,26 @@ console.log(configuredVariants,"configuredVariants")
                   ${formatMoney(garmentTotal)}
                 </span>
               </div>
-            {isApparel && decorationTotal > 0 && (
-  <div className="flex justify-between mt-1">
-    <span className="text-xs text-gray-400">
-      Decoration ({quantity} × ${formatMoney(printPricePerPiece)})
-    </span>
-    <span className="text-xs font-medium text-gray-600">
-      ${formatMoney(decorationTotal)}
-    </span>
-  </div>
-)}
+              {isApparel && decorationTotal > 0 && (
+                <div className="flex justify-between mt-1">
+                  <span className="text-xs text-gray-400">
+                    Decoration ({quantity} × ${formatMoney(printPricePerPiece)})
+                  </span>
+                  <span className="text-xs font-medium text-gray-600">
+                    ${formatMoney(decorationTotal)}
+                  </span>
+                </div>
+              )}
+              {digitizingFee > 0 && (
+                <div className="flex justify-between mt-1">
+                  <span className="text-xs text-[#b89000] font-semibold">
+                    Digitizing Fee (one-time)
+                  </span>
+                  <span className="text-xs font-bold text-[#b89000]">
+                    ${formatMoney(digitizingFee)}
+                  </span>
+                </div>
+              )}
               <p className="text-xs text-gray-400 mt-2">
                 Quantity selected on the product page.
               </p>
@@ -538,7 +530,6 @@ console.log(configuredVariants,"configuredVariants")
             </div>
           )}
 
-          {/* Error */}
           {error && (
             <div className="flex items-start gap-2.5 rounded-[10px] border border-red-300/50 bg-red-50 px-3.5 py-3">
               <div className="w-3.5 h-3.5 rounded-full bg-red-400 flex-shrink-0 mt-0.5" />

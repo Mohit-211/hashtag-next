@@ -11,9 +11,6 @@ import {
 
 import { GetAllCartItemsApi } from "@/api/operations/cart.api";
 
-// Raw cart item, as sent by the API — no remapping. Extra fields
-// (stock, pricing_snapshot, is_purchasable, etc.) pass through via the
-// index signature so nothing downstream has to guess what exists.
 export interface CartItem {
   cart_id: number;
   product_id: number;
@@ -43,7 +40,6 @@ export interface CartItem {
   [key: string]: any;
 }
 
-// The API's own computed totals — no need to recompute these client-side.
 export interface CartSummary {
   items_total: number;
   shipping_cost: number;
@@ -68,6 +64,7 @@ interface CartContextType {
   pending_order: PendingOrder | null;
   cartData: any;
   refreshCart: () => Promise<void>;
+  clearCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -117,11 +114,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  // Runs once when CartProvider mounts — this is what re-syncs the cart
+  // from the server every time the provider is freshly mounted, e.g. after
+  // a full page reload triggered by window.location.href.
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Resets local cart state immediately, without waiting on a server
+  // round trip — used right after a successful payment so the header
+  // badge clears at once instead of lagging behind refreshCart().
+  const clearCart = useCallback(() => {
+    setItems([]);
+    setSummary(null);
+    setPendingOrder(null);
+    setCartData(null);
+  }, []);
 
   return (
     <CartContext.Provider
@@ -132,6 +142,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         pending_order: pendingOrder,
         cartData,
         refreshCart: fetchCart,
+        clearCart,
       }}
     >
       {children}

@@ -4,11 +4,13 @@ import React from "react";
 import ProductDetail from "../ProductDetail";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 const ProductDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const variantId = searchParams.get("variant_id");
 
   const handleBack = (e: React.MouseEvent) => {
     
@@ -28,7 +30,7 @@ const ProductDetailsPage = () => {
             <ArrowLeft size={14} />Back to All Product
           </Link>
         </div>
-        <ProductDetail id={id} />
+        <ProductDetail id={id} variantId={variantId} />
       </div>
     </main>
   );

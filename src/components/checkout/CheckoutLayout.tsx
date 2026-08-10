@@ -50,6 +50,7 @@ export default function CheckoutLayout() {
     items,
     summary,
     refreshCart,
+    clearCart,
     pending_order,
   } = useCart();
   const subtotal = summary?.items_total ?? 0;
@@ -231,12 +232,12 @@ export default function CheckoutLayout() {
       });
       checkoutCompletedRef.current = true;
       setStep("done");
-      await refreshCart();
+      clearCart();
       addOrder?.({
         id: createdOrderId,
       } as any);
       setTimeout(() => {
-        router.push("/categories");
+       window.location.href = "/categories";
       }, 3000);
     } catch (err: any) {
       console.error(err);
