@@ -1005,7 +1005,9 @@ const setPromoQty = (variantId: number, qty: number) => {
   const [apparelQtyInput, setApparelQtyInput] = useState<string>(String(currentQty || "1"));
   console.log(apparelQtyInput,"apparelQtyInput")
 
- 
+  useEffect(() => {
+    setApparelQtyInput(currentQty > 0 ? String(currentQty) : "1");
+  }, [currentQty, activeVariant?.id]);
   const useMockupOnCanvas = isApparel;
   const canvasBaseImageSrc = useMockupOnCanvas ? (activeView?.mockup ?? null) : displayImage;
 
