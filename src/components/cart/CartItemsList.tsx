@@ -15,6 +15,14 @@ export type CustomizationBreakdownItem = {
   total_price: number;
 };
 
+export type PricingSnapshot = {
+  handling_charge?: {
+    amount: number;
+    label?: string;
+  };
+  [key: string]: unknown;
+};
+
 export type CartItemType = {
   cart_id: number;
   product_id?: number;
@@ -45,6 +53,11 @@ export type CartItemType = {
     print_method: string | null;
     locations: CustomizationLocation[];
   };
+
+  // ★ NEW — was being read via optional-chaining in a console.log with
+  // no type backing it. Added properly so handling_charge (and anything
+  // else in the snapshot) is type-safe wherever it's read.
+  pricing_snapshot?: PricingSnapshot;
 };
 
 interface Props {
@@ -63,6 +76,15 @@ export default function CartItemsList({ items, onRefresh }: Props) {
 
   const totalItems = items.reduce((acc, i) => acc + i.quantity, 0);
 
+  // ★ NEW — handling charges are now shown per-item in CartItem.tsx.
+  // This cart-level line is the SUM of every item's own handling charge
+  // (each item can carry a different amount), only counting items whose
+  // charge is > 1 — consistent with the per-item display threshold.
+  const totalHandlingCharge = items.reduce((sum, i) => {
+    const amt = i.pricing_snapshot?.handling_charge?.amount ?? 0;
+    return amt > 1 ? sum + amt : sum;
+  }, 0);
+
   return (
     <div className="lg:col-span-2 space-y-4">
       <div className="flex items-baseline justify-between">
@@ -73,6 +95,13 @@ export default function CartItemsList({ items, onRefresh }: Props) {
           {String(totalItems).padStart(2, "0")} {totalItems === 1 ? "item" : "items"}
         </span>
       </div>
+
+      {/* {totalHandlingCharge > 1 && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-700">
+          <span>Total Handling Charges</span>
+          <span>${totalHandlingCharge.toFixed(2)}</span>
+        </div>
+      )} */}
 
       <div className="space-y-4">
         {items.map((item) => (

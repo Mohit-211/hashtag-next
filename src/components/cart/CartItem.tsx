@@ -56,6 +56,11 @@ export default function CartItem({ item, onRefresh }: Props) {
       ? item.total_price
       : item.base_price * item.quantity;
 
+  // ★ NEW — per-item handling charge from pricing_snapshot. Only shown
+  // when > 1 so negligible/zero fees don't clutter the card.
+  const handlingCharge = item.pricing_snapshot?.handling_charge;
+  const showHandlingCharge = !!handlingCharge && handlingCharge.amount > 1;
+
   const handleDecrease = async () => {
     // ★ FIXED — was item.canDecrease, API sends can_decrease.
     if (item.quantity <= 1 || loading || item.can_decrease === false) return;
@@ -284,6 +289,18 @@ export default function CartItem({ item, onRefresh }: Props) {
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Handling charge, if applicable */}
+      {showHandlingCharge && (
+        <div className="flex items-center justify-between px-0.5 pt-3 mt-1">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {handlingCharge?.label || "Handling Charge"}
+          </span>
+          <span className="font-mono text-xs font-semibold text-muted-foreground">
+            +${handlingCharge!.amount.toFixed(2)}
+          </span>
         </div>
       )}
 

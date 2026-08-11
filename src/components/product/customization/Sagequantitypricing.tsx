@@ -99,31 +99,31 @@ export function parseSageMeta(
 
   const rows: { minQty: number; price: number; netPrice?: number }[] = [];
 
- for (let i = 0; i < count; i++) {
-  const minQty = Number(rawQtyTiers[i]);
-  const price = Number(rawPriceTiers[i]);
+  for (let i = 0; i < count; i++) {
+    const minQty = Number(rawQtyTiers[i]);
+    const price = Number(rawPriceTiers[i]);
 
-  const netPrice =
-    Array.isArray(rawNetTiers) && rawNetTiers[i] != null
-      ? Number(rawNetTiers[i])
-      : undefined;
+    const netPrice =
+      Array.isArray(rawNetTiers) && rawNetTiers[i] != null
+        ? Number(rawNetTiers[i])
+        : undefined;
 
-  // Skip invalid / empty / zero tiers
-  if (
-    !Number.isFinite(minQty) ||
-    minQty <= 0 ||
-    !Number.isFinite(price) ||
-    price <= 0
-  ) {
-    continue;
+    // Skip invalid / empty / zero tiers
+    if (
+      !Number.isFinite(minQty) ||
+      minQty <= 0 ||
+      !Number.isFinite(price) ||
+      price <= 0
+    ) {
+      continue;
+    }
+
+    rows.push({
+      minQty,
+      price,
+      netPrice: Number.isFinite(netPrice) ? netPrice : undefined,
+    });
   }
-
-  rows.push({
-    minQty,
-    price,
-    netPrice: Number.isFinite(netPrice) ? netPrice : undefined,
-  });
-}
 
   if (rows.length === 0) return null;
 
@@ -218,172 +218,40 @@ function cn(...classes: (string | boolean | undefined | null)[]) {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   MAIN COMPONENT
+   SUB-COMPONENTS
+   Pulled out to module scope (rather than declared inside the main
+   component body) and wrapped in React.memo. Declaring them inside
+   the parent function meant React saw a *new component type* on
+   every parent render, forcing a full unmount/remount of each
+   subtree — dropping input focus, restarting CSS transitions, and
+   doing far more DOM work than a normal re-render needs. Hoisting
+   them out + memoizing means they only re-render when their own
+   props actually change.
 ════════════════════════════════════════════════════════════════ */
 
-export default function SageQuantityPricing({
-  metaStr,
-  minOrderQuantity = 1,
-  stock,
-  variant = "compact",
-  itemId,
-  onChange,
-  initialQty,
-}: SageQuantityPricingProps) {
-  const applyMarkup = applySageMarkup;
+interface TierTableProps {
+  priceTiers: PriceTier[];
+  activeTier: PriceTier | null;
+  baseTierPrice: number;
+  onJumpToTier: (tier: PriceTier) => void;
+}
 
-  const meta = useMemo(() => parseSageMeta(metaStr), [metaStr]);
-
-  // Effective minimum = max(variant minOrderQty, first tier's minQty)
-  const effectiveMin = useMemo(() => {
-    const tierMin = meta?.priceTiers[0]?.minQty ?? 1;
-    return Math.max(minOrderQuantity, tierMin);
-  }, [meta, minOrderQuantity]);
-
-  const [qty, setQty] = useState<number>(() => {
-    const start = initialQty ?? effectiveMin;
-    return Math.max(start, effectiveMin);
-  });
-
-  useEffect(() => {
-    setQty(q => (q < effectiveMin ? effectiveMin : q));
-  }, [effectiveMin]);
-
-  const [showTable, setShowTable] = useState(true);
-
-  const activeTier = useMemo(
-    () => meta ? findActiveTier(meta.priceTiers, qty) : null,
-    [meta, qty]
-  );
-
-  const unitPrice = activeTier ? applyMarkup(activeTier.price) : 0;
-  const total = unitPrice * qty + (meta?.setupFee ?? 0);
-
-  const baseTierPrice = applyMarkup(meta?.priceTiers?.[0]?.price ?? 0);
-  const saving = Math.max(0, (baseTierPrice - unitPrice) * qty);
-
-  // Keep the latest onChange in a ref so the emitting effect doesn't need
-  // it in its dependency array — avoids re-firing (and potential update
-  // loops) just because a caller passed a fresh inline arrow function.
-  const onChangeRef = useRef(onChange);
-  useEffect(() => {
-    onChangeRef.current = onChange;
-  }, [onChange]);
-
-  const resolvedItemId = itemId ?? meta?.sku;
-
-  useEffect(() => {
-    onChangeRef.current?.({
-      itemId: resolvedItemId,
-      sku: meta?.sku,
-      productName: meta?.productName,
-      quantity: qty,
-      unitPrice,
-      total,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [qty, unitPrice, total, resolvedItemId, meta?.sku, meta?.productName]);
-
-  // A supplier feed can report stock as null/undefined (unknown/untracked),
-  // 0, or even negative (e.g. backordered/oversold). Only a genuinely
-  // positive number represents a real ceiling on how many can be ordered —
-  // anything else should NOT clamp or disable the stepper.
-  const stockLimit = stock != null && stock > 0 ? stock : null;
-
-  const changeQty = useCallback((next: number) => {
-    let clamped = Math.max(effectiveMin, Math.round(next));
-    if (stockLimit != null) clamped = Math.min(clamped, stockLimit);
-    setQty(clamped);
-  }, [effectiveMin, stockLimit]);
-
-  const jumpToTier = (tier: PriceTier) => changeQty(tier.minQty);
-
-  const nextTier = useMemo(() => {
-    if (!meta) return null;
-    return meta.priceTiers
-      .filter(t => t.minQty > qty)
-      .sort((a, b) => a.minQty - b.minQty)[0] ?? null;
-  }, [meta, qty]);
-
-  /* ── Shared "typeable" quantity input logic ──
-     A number input bound directly to a clamped `qty` state has a nasty
-     bug: clearing the field to type a new value fires onChange with
-     value === "", Number("") is 0 (not NaN), changeQty(0) clamps straight
-     back up to effectiveMin, and the field snaps to that value mid-keystroke
-     — making it impossible to type a smaller-then-larger multi-digit qty.
-     Fix: buffer the raw text locally, only reconcile from the committed
-     `qty` while the field isn't focused, and only clamp on blur. */
-  const [qtyInput, setQtyInput] = useState(String(qty));
-  const inputFocusedRef = useRef(false);
-
-  useEffect(() => {
-    if (!inputFocusedRef.current) setQtyInput(String(qty));
-  }, [qty]);
-
-  const handleQtyInputFocus = () => {
-    inputFocusedRef.current = true;
-  };
-
-  const handleQtyInputChange = (raw: string) => {
-    setQtyInput(raw);
-    if (raw.trim() === "") return; // let the field sit empty while typing
-    const v = Number(raw);
-    if (Number.isFinite(v)) changeQty(v);
-  };
-
-  const handleQtyInputBlur = (raw: string) => {
-    inputFocusedRef.current = false;
-    const v = Number(raw);
-    changeQty(Number.isFinite(v) ? v : effectiveMin);
-    // changeQty updates `qty`, and the effect above will re-sync qtyInput
-    // now that the field is no longer focused.
-  };
-
-  /* ── No meta: simple fallback stepper ── */
-  if (!meta) {
-    return (
-      <div className="flex items-center justify-center gap-4 py-4">
-        <button
-          onClick={() => changeQty(qty - 1)}
-          disabled={qty <= effectiveMin}
-          aria-label="Decrease quantity"
-          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          −
-        </button>
-        <input
-          type="number"
-          value={qtyInput}
-          min={effectiveMin}
-          onFocus={handleQtyInputFocus}
-          onChange={e => handleQtyInputChange(e.target.value)}
-          onBlur={e => handleQtyInputBlur(e.target.value)}
-          className="w-20 h-11 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
-        />
-        <button
-          onClick={() => changeQty(qty + 1)}
-          disabled={stockLimit != null && qty >= stockLimit}
-          aria-label="Increase quantity"
-          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          +
-        </button>
-      </div>
-    );
-  }
-
-  /* ─── Sub-components ─── */
-
-const TierTable = () => {
-  const cheapestPrice = applyMarkup(
-    meta.priceTiers.reduce((min, t) => Math.min(min, t.price), Infinity)
+const TierTable = React.memo(function TierTable({
+  priceTiers,
+  activeTier,
+  baseTierPrice,
+  onJumpToTier,
+}: TierTableProps) {
+  const cheapestPrice = useMemo(
+    () => applySageMarkup(priceTiers.reduce((min, t) => Math.min(min, t.price), Infinity)),
+    [priceTiers]
   );
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-      {meta.priceTiers.map((tier) => {
+      {priceTiers.map((tier) => {
         const active = activeTier?.minQty === tier.minQty;
-        const markedPrice = applyMarkup(tier.price);
+        const markedPrice = applySageMarkup(tier.price);
         const isBestValue = markedPrice === cheapestPrice && tier.maxQty === null;
         const pctOff = baseTierPrice > 0
           ? Math.round((1 - markedPrice / baseTierPrice) * 100)
@@ -392,7 +260,7 @@ const TierTable = () => {
         return (
           <button
             key={tier.minQty}
-            onClick={() => jumpToTier(tier)}
+            onClick={() => onJumpToTier(tier)}
             className={cn(
               "group relative rounded-2xl border p-3.5 text-left transition-all duration-150",
               active
@@ -431,61 +299,87 @@ const TierTable = () => {
       })}
     </div>
   );
-};
+});
 
-const QtyStepper = () => (
-  <div className="flex flex-col items-center gap-4">
-    <div className="flex items-center gap-3">
-      <button
-        onClick={() => changeQty(qty - 1)}
-        disabled={qty <= effectiveMin}
-        aria-label="Decrease quantity"
-        className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 hover:border-gray-300 hover:bg-gray-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-      >
-        −
-      </button>
+interface QtyStepperProps {
+  qty: number;
+  qtyInput: string;
+  effectiveMin: number;
+  stockLimit: number | null;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  onFocus: () => void;
+  onInputChange: (raw: string) => void;
+  onInputBlur: (raw: string) => void;
+}
 
-      <div className="flex flex-col items-center">
-        <input
-          type="number"
-          value={qtyInput}
-          min={effectiveMin}
-          max={stockLimit ?? undefined}
-          onFocus={handleQtyInputFocus}
-          onChange={(e) => handleQtyInputChange(e.target.value)}
-          onBlur={(e) => handleQtyInputBlur(e.target.value)}
-          className="w-32 h-12 rounded-2xl border-2 border-gray-200 text-center text-xl font-black text-gray-900 outline-none focus:border-[#F5D800] focus:ring-4 focus:ring-[#F5D800]/15 transition-all tabular-nums"
-        />
-        {/* <p className="text-[10px] text-gray-400 mt-1">
-          min {effectiveMin.toLocaleString()}{stockLimit != null ? ` · stock ${stockLimit.toLocaleString()}` : ""}
-        </p> */}
+const QtyStepper = React.memo(function QtyStepper({
+  qty,
+  qtyInput,
+  effectiveMin,
+  stockLimit,
+  onDecrease,
+  onIncrease,
+  onFocus,
+  onInputChange,
+  onInputBlur,
+}: QtyStepperProps) {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onDecrease}
+          disabled={qty <= effectiveMin}
+          aria-label="Decrease quantity"
+          className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 hover:border-gray-300 hover:bg-gray-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          −
+        </button>
+
+        <div className="flex flex-col items-center">
+          <input
+            type="number"
+            value={qtyInput}
+            min={effectiveMin}
+            max={stockLimit ?? undefined}
+            onFocus={onFocus}
+            onChange={(e) => onInputChange(e.target.value)}
+            onBlur={(e) => onInputBlur(e.target.value)}
+            className="w-32 h-12 rounded-2xl border-2 border-gray-200 text-center text-xl font-black text-gray-900 outline-none focus:border-[#F5D800] focus:ring-4 focus:ring-[#F5D800]/15 transition-all tabular-nums"
+          />
+        </div>
+
+        <button
+          onClick={onIncrease}
+          disabled={stockLimit != null && qty >= stockLimit}
+          aria-label="Increase quantity"
+          className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 hover:border-gray-300 hover:bg-gray-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          +
+        </button>
       </div>
-
-      <button
-        onClick={() => changeQty(qty + 1)}
-        disabled={stockLimit != null && qty >= stockLimit}
-        aria-label="Increase quantity"
-        className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 hover:border-gray-300 hover:bg-gray-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-      >
-        +
-      </button>
     </div>
+  );
+});
 
-    {/* <div className="flex items-center gap-2 text-center">
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Unit price</p>
-        <p className="text-2xl font-black text-gray-900 leading-tight tabular-nums">{fmt(unitPrice)}</p>
-      </div>
-      {saving > 0 && (
-        <span className="ml-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-full">
-          −{fmt(saving)}
-        </span>
-      )}
-    </div> */}
-  </div>
-);
+interface PriceBarProps {
+  qty: number;
+  unitPrice: number;
+  total: number;
+  setupFee?: number;
+  saving: number;
+  activeTier: PriceTier | null;
+}
 
-  const PriceBar = () => (
+const PriceBar = React.memo(function PriceBar({
+  qty,
+  unitPrice,
+  total,
+  setupFee,
+  saving,
+  activeTier,
+}: PriceBarProps) {
+  return (
     <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 text-white p-5 overflow-hidden relative">
       <div className="flex items-start justify-between mb-4">
         <div>
@@ -509,10 +403,10 @@ const QtyStepper = () => (
           <span className="text-gray-400">Unit price</span>
           <span className="font-semibold text-gray-100 tabular-nums">{fmt(unitPrice)}</span>
         </div>
-        {meta?.setupFee ? (
+        {setupFee ? (
           <div className="flex justify-between text-xs">
             <span className="text-gray-400">Setup fee</span>
-            <span className="font-semibold text-gray-100 tabular-nums">{fmt(meta.setupFee)}</span>
+            <span className="font-semibold text-gray-100 tabular-nums">{fmt(setupFee)}</span>
           </div>
         ) : null}
         {saving > 0 && (
@@ -524,37 +418,220 @@ const QtyStepper = () => (
       </div>
     </div>
   );
+});
 
-  const NextTierNudge = () => {
-    if (!nextTier || !activeTier) return null;
-    const needed = nextTier.minQty - qty;
-    const savingPerPc = (
-      applyMarkup(activeTier.price) -
-      applyMarkup(nextTier.price)
-    ).toFixed(2);
+interface NextTierNudgeProps {
+  qty: number;
+  activeTier: PriceTier | null;
+  nextTier: PriceTier | null;
+  onJumpToTier: (tier: PriceTier) => void;
+}
+
+const NextTierNudge = React.memo(function NextTierNudge({
+  qty,
+  activeTier,
+  nextTier,
+  onJumpToTier,
+}: NextTierNudgeProps) {
+  if (!nextTier || !activeTier) return null;
+  const needed = nextTier.minQty - qty;
+  const savingPerPc = (
+    applySageMarkup(activeTier.price) -
+    applySageMarkup(nextTier.price)
+  ).toFixed(2);
+  return (
+    <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+      <span className="relative flex-shrink-0">
+        <Zap size={14} className="text-amber-500 relative z-10" />
+        <span className="absolute inset-0 rounded-full bg-amber-300/50 animate-ping" />
+      </span>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-bold text-amber-800">
+          {needed.toLocaleString()} more unlocks {fmt(applySageMarkup(nextTier.price))}/pc
+        </p>
+        <p className="text-[11px] text-amber-600 mt-0.5">
+          Save ${savingPerPc}/pc at {nextTier.minQty.toLocaleString()}+ units
+        </p>
+      </div>
+      <button
+        onClick={() => onJumpToTier(nextTier)}
+        className="text-[10px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-1.5 rounded-full hover:bg-amber-200 transition-colors flex-shrink-0"
+      >
+        Jump to {nextTier.minQty.toLocaleString()}
+      </button>
+    </div>
+  );
+});
+
+/* ════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+════════════════════════════════════════════════════════════════ */
+
+export default function SageQuantityPricing({
+  metaStr,
+  minOrderQuantity = 1,
+  stock,
+  variant = "compact",
+  itemId,
+  onChange,
+  initialQty,
+}: SageQuantityPricingProps) {
+  const meta = useMemo(() => parseSageMeta(metaStr), [metaStr]);
+
+  // Effective minimum = max(variant minOrderQty, first tier's minQty)
+  const effectiveMin = useMemo(() => {
+    const tierMin = meta?.priceTiers[0]?.minQty ?? 1;
+    return Math.max(minOrderQuantity, tierMin);
+  }, [meta, minOrderQuantity]);
+
+  const [qty, setQty] = useState<number>(() => {
+    const start = initialQty ?? effectiveMin;
+    return Math.max(start, effectiveMin);
+  });
+
+  useEffect(() => {
+    setQty(q => (q < effectiveMin ? effectiveMin : q));
+  }, [effectiveMin]);
+
+  const [showTable, setShowTable] = useState(true);
+
+  const activeTier = useMemo(
+    () => meta ? findActiveTier(meta.priceTiers, qty) : null,
+    [meta, qty]
+  );
+
+  const unitPrice = useMemo(
+    () => activeTier ? applySageMarkup(activeTier.price) : 0,
+    [activeTier]
+  );
+
+  const total = useMemo(
+    () => unitPrice * qty + (meta?.setupFee ?? 0),
+    [unitPrice, qty, meta?.setupFee]
+  );
+
+  const baseTierPrice = useMemo(
+    () => applySageMarkup(meta?.priceTiers?.[0]?.price ?? 0),
+    [meta]
+  );
+
+  const saving = useMemo(
+    () => Math.max(0, (baseTierPrice - unitPrice) * qty),
+    [baseTierPrice, unitPrice, qty]
+  );
+
+  // Keep the latest onChange in a ref so the emitting effect doesn't need
+  // it in its dependency array — avoids re-firing (and potential update
+  // loops) just because a caller passed a fresh inline arrow function.
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const resolvedItemId = itemId ?? meta?.sku;
+
+  useEffect(() => {
+    onChangeRef.current?.({
+      itemId: resolvedItemId,
+      sku: meta?.sku,
+      productName: meta?.productName,
+      quantity: qty,
+      unitPrice,
+      total,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qty, unitPrice, total, resolvedItemId, meta?.sku, meta?.productName]);
+
+  // A supplier feed can report stock as null/undefined (unknown/untracked),
+  // 0, or even negative (e.g. backordered/oversold). Only a genuinely
+  // positive number represents a real ceiling on how many can be ordered —
+  // anything else should NOT clamp or disable the stepper.
+  const stockLimit = stock != null && stock > 0 ? stock : null;
+
+  const changeQty = useCallback((next: number) => {
+    let clamped = Math.max(effectiveMin, Math.round(next));
+    if (stockLimit != null) clamped = Math.min(clamped, stockLimit);
+    setQty(clamped);
+  }, [effectiveMin, stockLimit]);
+
+  const jumpToTier = useCallback((tier: PriceTier) => changeQty(tier.minQty), [changeQty]);
+
+  const nextTier = useMemo(() => {
+    if (!meta) return null;
+    return meta.priceTiers
+      .filter(t => t.minQty > qty)
+      .sort((a, b) => a.minQty - b.minQty)[0] ?? null;
+  }, [meta, qty]);
+
+  /* ── Shared "typeable" quantity input logic ──
+     A number input bound directly to a clamped `qty` state has a nasty
+     bug: clearing the field to type a new value fires onChange with
+     value === "", Number("") is 0 (not NaN), changeQty(0) clamps straight
+     back up to effectiveMin, and the field snaps to that value mid-keystroke
+     — making it impossible to type a smaller-then-larger multi-digit qty.
+     Fix: buffer the raw text locally, only reconcile from the committed
+     `qty` while the field isn't focused, and only clamp on blur. */
+  const [qtyInput, setQtyInput] = useState(String(qty));
+  const inputFocusedRef = useRef(false);
+
+  useEffect(() => {
+    if (!inputFocusedRef.current) setQtyInput(String(qty));
+  }, [qty]);
+
+  const handleQtyInputFocus = useCallback(() => {
+    inputFocusedRef.current = true;
+  }, []);
+
+  const handleQtyInputChange = useCallback((raw: string) => {
+    setQtyInput(raw);
+    if (raw.trim() === "") return; // let the field sit empty while typing
+    const v = Number(raw);
+    if (Number.isFinite(v)) changeQty(v);
+  }, [changeQty]);
+
+  const handleQtyInputBlur = useCallback((raw: string) => {
+    inputFocusedRef.current = false;
+    const v = Number(raw);
+    changeQty(Number.isFinite(v) ? v : effectiveMin);
+    // changeQty updates `qty`, and the effect above will re-sync qtyInput
+    // now that the field is no longer focused.
+  }, [changeQty, effectiveMin]);
+
+  const handleDecrease = useCallback(() => changeQty(qty - 1), [changeQty, qty]);
+  const handleIncrease = useCallback(() => changeQty(qty + 1), [changeQty, qty]);
+
+  /* ── No meta: simple fallback stepper ── */
+  if (!meta) {
     return (
-      <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-        <span className="relative flex-shrink-0">
-          <Zap size={14} className="text-amber-500 relative z-10" />
-          <span className="absolute inset-0 rounded-full bg-amber-300/50 animate-ping" />
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-bold text-amber-800">
-            {needed.toLocaleString()} more unlocks {fmt(applyMarkup(nextTier.price))}/pc
-          </p>
-          <p className="text-[11px] text-amber-600 mt-0.5">
-            Save ${savingPerPc}/pc at {nextTier.minQty.toLocaleString()}+ units
-          </p>
-        </div>
+      <div className="flex items-center justify-center gap-4 py-4">
         <button
-          onClick={() => jumpToTier(nextTier)}
-          className="text-[10px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-1.5 rounded-full hover:bg-amber-200 transition-colors flex-shrink-0"
+          onClick={handleDecrease}
+          disabled={qty <= effectiveMin}
+          aria-label="Decrease quantity"
+          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
-          Jump to {nextTier.minQty.toLocaleString()}
+          −
+        </button>
+        <input
+          type="number"
+          value={qtyInput}
+          min={effectiveMin}
+          onFocus={handleQtyInputFocus}
+          onChange={e => handleQtyInputChange(e.target.value)}
+          onBlur={e => handleQtyInputBlur(e.target.value)}
+          className="w-20 h-11 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
+        />
+        <button
+          onClick={handleIncrease}
+          disabled={stockLimit != null && qty >= stockLimit}
+          aria-label="Increase quantity"
+          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+        >
+          +
         </button>
       </div>
     );
-  };
+  }
 
   /* ── Compact layout (inside SectionCard) ── */
   if (variant === "compact") {
@@ -571,21 +648,45 @@ const QtyStepper = () => (
             </span>
             Volume Pricing
             <span className="text-gray-400 font-medium">
-              · {meta.priceTiers.length} tiers · {fmt(applyMarkup(meta.priceTiers[meta.priceTiers.length - 1]?.price ?? 0))}–{fmt(applyMarkup(meta.priceTiers[0]?.price ?? 0))}/pc
+              · {meta.priceTiers.length} tiers · {fmt(applySageMarkup(meta.priceTiers[meta.priceTiers.length - 1]?.price ?? 0))}–{fmt(applySageMarkup(meta.priceTiers[0]?.price ?? 0))}/pc
             </span>
           </div>
           {showTable ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
         </button>
 
-        {showTable && <TierTable />}
+        {showTable && (
+          <TierTable
+            priceTiers={meta.priceTiers}
+            activeTier={activeTier}
+            baseTierPrice={baseTierPrice}
+            onJumpToTier={jumpToTier}
+          />
+        )}
 
         <div className="pt-1">
           <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Select Quantity</p>
-          <QtyStepper />
+          <QtyStepper
+            qty={qty}
+            qtyInput={qtyInput}
+            effectiveMin={effectiveMin}
+            stockLimit={stockLimit}
+            onDecrease={handleDecrease}
+            onIncrease={handleIncrease}
+            onFocus={handleQtyInputFocus}
+            onInputChange={handleQtyInputChange}
+            onInputBlur={handleQtyInputBlur}
+          />
         </div>
 
-        <NextTierNudge />
-        <PriceBar />
+        <NextTierNudge qty={qty} activeTier={activeTier} nextTier={nextTier} onJumpToTier={jumpToTier} />
+        <PriceBar
+          qty={qty}
+          unitPrice={unitPrice}
+          total={total}
+          setupFee={meta.setupFee}
+          saving={saving}
+          activeTier={activeTier}
+        />
       </div>
     );
   }
@@ -598,15 +699,37 @@ const QtyStepper = () => (
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
             <Tag size={12} className="text-[#F5D800]" /> Quantity Breaks
           </p>
-          <TierTable />
+          <TierTable
+            priceTiers={meta.priceTiers}
+            activeTier={activeTier}
+            baseTierPrice={baseTierPrice}
+            onJumpToTier={jumpToTier}
+          />
         </div>
         <div className="space-y-4">
           <p className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
             <Package size={12} className="text-[#F5D800]" /> Your Order
           </p>
-          <QtyStepper />
-          <NextTierNudge />
-          <PriceBar />
+          <QtyStepper
+            qty={qty}
+            qtyInput={qtyInput}
+            effectiveMin={effectiveMin}
+            stockLimit={stockLimit}
+            onDecrease={handleDecrease}
+            onIncrease={handleIncrease}
+            onFocus={handleQtyInputFocus}
+            onInputChange={handleQtyInputChange}
+            onInputBlur={handleQtyInputBlur}
+          />
+          <NextTierNudge qty={qty} activeTier={activeTier} nextTier={nextTier} onJumpToTier={jumpToTier} />
+          <PriceBar
+            qty={qty}
+            unitPrice={unitPrice}
+            total={total}
+            setupFee={meta.setupFee}
+            saving={saving}
+            activeTier={activeTier}
+          />
         </div>
       </div>
     </div>

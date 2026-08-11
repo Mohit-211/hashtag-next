@@ -268,7 +268,7 @@ export default function CheckoutLayout() {
     return <EmptyCart />;
   }
   return (
-    <section className="min-h-screen bg-slate-50 dark:bg-slate-950 py-8 lg:py-12">
+    <section className="min-h-screen bg-slate-50 py-8 lg:py-12">
       <div className="container max-w-5xl px-4 mx-auto">
         <ProgressRail current={step} />
 

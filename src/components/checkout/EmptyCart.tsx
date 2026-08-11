@@ -7,7 +7,7 @@ export default function EmptyCart() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-slate-50 dark:bg-slate-950">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-slate-50">
       <div className="max-w-sm w-full text-center">
         {/* Illustration */}
         <div className="relative h-28 w-28 mx-auto">
