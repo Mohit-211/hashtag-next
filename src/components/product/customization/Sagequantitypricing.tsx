@@ -242,6 +242,7 @@ const TierTable = React.memo(function TierTable({
   baseTierPrice,
   onJumpToTier,
 }: TierTableProps) {
+  console.log("TierTable render", { priceTiers, activeTier, baseTierPrice },onJumpToTier);
   const cheapestPrice = useMemo(
     () => applySageMarkup(priceTiers.reduce((min, t) => Math.min(min, t.price), Infinity)),
     [priceTiers]
