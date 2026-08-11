@@ -142,11 +142,11 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
     {
       key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452412048.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "33%", left: "64%" }]
+      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "33%", left: "31%" }]
     },
     {
       key: "RIGHT_SLEEVE", label: "Right Sleeve", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452412026.png",
-      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "33%", left: "29%" }]
+      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "33%", left: "65%" }]
     },
   ],
   hoodie: [
@@ -173,7 +173,7 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
       hotspots: [{ id: "HAT_FRONT", label: "Front", top: "40%", left: "50%" }]
     },
     {
-      key: "BACK", label: "Back", mockup: "https://node.hashtagbillionaire.com/images/images-1786452408986.png",
+      key: "BACK", label: "Back", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452411444.png",
       hotspots: [{ id: "HAT_BACK_ARCH", label: "Back Arch", top: "35%", left: "50%" }]
     },
     {
