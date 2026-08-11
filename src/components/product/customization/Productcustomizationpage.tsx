@@ -336,12 +336,12 @@ const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
 const loadImage = (src: string): Promise<HTMLImageElement> =>
   new Promise((res, rej) => {
     const img = new Image();
-    const needsCrossOrigin = /^https?:\/\//i.test(src);
-    if (needsCrossOrigin) img.crossOrigin = "anonymous";
+    img.crossOrigin = "anonymous";
     img.onload = () => res(img);
     img.onerror = rej;
     img.src = src;
   });
+
 const isValidCssColor = (value: string): boolean => {
   if (!value) return false;
   if (typeof window === "undefined" || typeof CSS === "undefined" || !CSS.supports) return true;
