@@ -1968,7 +1968,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                               {DTF_PRICES.map((p, i) => (
                                                 <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium",
                                                   DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>
-                                                  ${formatMoney(p)}
+                                                  ${formatMoney(basePrice + p)}
                                                 </td>
                                               ))}
                                             </tr>
@@ -2002,8 +2002,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                 <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">
                                                   {k} <span className="text-[10px] font-normal text-gray-400">(per location)</span>
                                                 </td>
-                                                <td className="px-3 py-2.5 text-center border-r border-gray-100 text-gray-500">${formatMoney(p[0])}</td>
-                                                <td className="px-3 py-2.5 text-center text-gray-500">${formatMoney(p[1])}</td>
+                                                <td className="px-3 py-2.5 text-center border-r border-gray-100 text-gray-500">${formatMoney(basePrice + p[0])}</td>
+                                                <td className="px-3 py-2.5 text-center text-gray-500">${formatMoney(basePrice + p[1])}</td>
                                               </tr>
                                             ))}
                                             {/* {selectedLocations.length > 0 && (

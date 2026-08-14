@@ -214,7 +214,7 @@ export default function ConciergeSourcingSection() {
                 >
                   <option value="BRAND">Brand</option>
                   <option value="PRODUCT">Product</option>
-                  <option value="CUSTOM">Custom Item</option>
+                  {/* <option value="CUSTOM">Custom Item</option> */}
                 </select>
               </div>
 
