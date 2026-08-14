@@ -13,6 +13,7 @@ import { UserProfileApi } from "@/api/users/users.api";
 import { loginApi } from "@/api/auth/auth.api";
 
 export interface User {
+  id: string | number;
   name: string;
   email: string;
   mobile?: string;
@@ -48,6 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = res?.data?.data;
       console.log(data, "data")
       const formattedUser: User = {
+        id: data?.id ?? data?._id,
         name: data?.user_profile?.name,
         email: data?.email,
         mobile: data?.user_profile.mobile,
@@ -85,7 +87,7 @@ console.log(formattedUser,"formattedUser")
 
     for (let attempt = 0; ; attempt++) {
       try {
-        const res = await loginApi({ email, password });
+        const res = await loginApi({ email, password, role_id: 6 });
 
         const token = res?.data?.data?.tokens?.access?.token;
 

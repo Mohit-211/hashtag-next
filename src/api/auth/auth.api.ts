@@ -5,7 +5,7 @@ interface SendOtpPayload {
   type: string;
 }
 // Auth
-export const loginApi = (payload: { email: string; password: string; }) => client.post(AUTH_ENDPOINTS.LOGIN, payload);
+export const loginApi = (payload: { email: string; password: string; role_id: number; }) => client.post(AUTH_ENDPOINTS.LOGIN, payload);
 export const registerApi = (payload: FormData) => client.post(AUTH_ENDPOINTS.REGISTER, payload);
 export const logoutApi = () => client.get(AUTH_ENDPOINTS.LOGOUT);
 

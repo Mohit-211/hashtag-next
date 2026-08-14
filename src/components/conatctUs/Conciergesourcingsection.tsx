@@ -20,7 +20,6 @@ export interface SourcingRequestPayload {
   name: string;
   email: string;
   company: string;
-  request_type: "BRAND" | "PRODUCT" | "CUSTOM";
   requested_name: string;
   details: string;
 }
@@ -32,7 +31,6 @@ export default function ConciergeSourcingSection() {
     name: "",
     email: "",
     company: "",
-    request_type: "BRAND",
     requested_name: "",
     details: "",
   });
@@ -55,7 +53,6 @@ export default function ConciergeSourcingSection() {
       formData.append("name", form.name);
       formData.append("email", form.email);
       formData.append("company", form.company);
-      formData.append("request_type", form.request_type);
       formData.append("requested_name", form.requested_name);
       formData.append("details", form.details);
 
@@ -76,7 +73,6 @@ export default function ConciergeSourcingSection() {
       name: "",
       email: "",
       company: "",
-      request_type: "BRAND",
       requested_name: "",
       details: "",
     });
@@ -203,20 +199,6 @@ export default function ConciergeSourcingSection() {
                 placeholder="Smith & Co."
               />
 
-              <div>
-                <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
-                  Request Type
-                </label>
-                <select
-                  value={form.request_type}
-                  onChange={update("request_type")}
-                  className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
-                >
-                  <option value="BRAND">Brand</option>
-                  <option value="PRODUCT">Product</option>
-                  {/* <option value="CUSTOM">Custom Item</option> */}
-                </select>
-              </div>
 
               <Field
                 label="Brand or product you need"
