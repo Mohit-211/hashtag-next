@@ -1629,6 +1629,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       </section>
     );
   }
+  console.log(activeView,"activeView===>")
   return (
     <div className="min-h-screen bg-[#fafafa]">
       {showLoginModal && (
@@ -1923,13 +1924,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                       <td className="px-3 py-2 font-semibold text-gray-600 border-r border-gray-200">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
                                                       {prices.map((p, j) => (
                                                         <td key={j} className="px-2 py-2 text-center border-r border-gray-100 text-gray-500">
-                                                          ${formatMoney(p)}
+                                                          ${formatMoney(basePrice + p)}
                                                         </td>
                                                       ))}
                                                     </tr>
                                                   );
                                                 })}
-                                                <tr className="border-t-2 border-gray-300 bg-gray-50">
+                                                {/* <tr className="border-t-2 border-gray-300 bg-gray-50">
                                                   <td className="px-3 py-2.5 font-black text-gray-900 border-r border-gray-200">
                                                     Total ({selectedLocations.length} location{selectedLocations.length > 1 ? "s" : ""})
                                                   </td>
@@ -1944,7 +1945,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                       </td>
                                                     );
                                                   })}
-                                                </tr>
+                                                </tr> */}
                                               </>
                                             )}
                                           </tbody>
@@ -1971,7 +1972,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                 </td>
                                               ))}
                                             </tr>
-                                            {selectedLocations.length > 0 && (
+                                            {/* {selectedLocations.length > 0 && (
                                               <tr className="border-t-2 border-gray-300 bg-gray-50">
                                                 <td className="px-3 py-2.5 font-black text-gray-900 border-r border-gray-200">
                                                   Total ({selectedLocations.length} location{selectedLocations.length > 1 ? "s" : ""})
@@ -1982,7 +1983,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                   </td>
                                                 ))}
                                               </tr>
-                                            )}
+                                            )} */}
                                           </tbody>
                                         </table>
                                       )}
@@ -2005,7 +2006,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                 <td className="px-3 py-2.5 text-center text-gray-500">${formatMoney(p[1])}</td>
                                               </tr>
                                             ))}
-                                            {selectedLocations.length > 0 && (
+                                            {/* {selectedLocations.length > 0 && (
                                               <tr className="border-t-2 border-gray-300 bg-gray-50">
                                                 <td className="px-3 py-2.5 font-black text-gray-900 border-r border-gray-200">
                                                   Total ({spColorCount}, {selectedLocations.length} location{selectedLocations.length > 1 ? "s" : ""})
@@ -2017,7 +2018,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                   ${formatMoney(basePrice + SP_PRICES[spColorCount][1] * selectedLocations.length)}
                                                 </td>
                                               </tr>
-                                            )}
+                                            )} */}
                                           </tbody>
                                         </table>
                                       )}

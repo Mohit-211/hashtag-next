@@ -9,7 +9,7 @@ const ContactUsPage = () => {
         <ConciergeSourcingSection />
       </div>
 
-      <ContactUs />
+      {/* <ContactUs /> */}
     </div>
   )
 }

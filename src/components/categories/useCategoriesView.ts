@@ -36,6 +36,7 @@ export function useCategoriesView({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const urlSearch = searchParams.get("search")?.trim() ?? "";
+  const urlBrowseAll = searchParams.get("view") === "all";
   const urlSearchRef = useRef(urlSearch);
   useEffect(() => { urlSearchRef.current = urlSearch; }, [urlSearch]);
   const allSortOptions = sortOptions;
@@ -77,7 +78,7 @@ export function useCategoriesView({
   });
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const [sortBy, setSortBy] = useState<SortOption["value"]>("" as SortOption["value"]);
-  const hasUrlFilterParam = !!initialCategoryId || !!initialBrandId || !!initialIndustryId || !!urlSearch;
+  const hasUrlFilterParam = !!initialCategoryId || !!initialBrandId || !!initialIndustryId || !!urlSearch || urlBrowseAll;
   const [urlRestoreAttempted, setUrlRestoreAttempted] = useState(!hasUrlFilterParam);
   const [viewMode, setViewMode] = useState<"picker" | "products">(hasUrlFilterParam ? "products" : "picker");
   const [pickerIndustryId, setPickerIndustryId] = useState<number | null>(null);
@@ -394,12 +395,22 @@ export function useCategoriesView({
       !!searchParams.get("category_id") ||
       !!searchParams.get("industry_id") ||
       !!searchParams.get("search") ||
-      !!searchParams.get("brand_id");
+      !!searchParams.get("brand_id") ||
+      searchParams.get("view") === "all";
     if (hasFilterParam) return; // deep-linked/shared URL — keep products view
 
     resetToInitialFlow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams, resetToInitialFlow]);
+
+  // Remember the current filtered products URL so a product detail page's
+  // "Back to All Products" link can restore it (filters + pills intact)
+  // instead of always landing on the bare unfiltered "view=all" state.
+  useEffect(() => {
+    if (typeof window === "undefined" || viewMode !== "products") return;
+    const key = `${pathname}?${searchParams.toString()}`.replace(/\?$/, "");
+    window.sessionStorage.setItem("categoriesReturnUrl", key);
+  }, [pathname, searchParams, viewMode]);
 
   const clearActiveSearch = useCallback(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -449,6 +460,7 @@ export function useCategoriesView({
       sort ? sp.set("sort", sort) : sp.delete("sort");
       min > PRICE_MIN ? sp.set("min_price", String(min)) : sp.delete("min_price");
       max < PRICE_MAX ? sp.set("max_price", String(max)) : sp.delete("max_price");
+      sp.delete("view"); // any explicit filter change means it's no longer the unfiltered "browse all" state
       if (next.clearSearch) {
         sp.delete("search");
         if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -491,6 +503,7 @@ export function useCategoriesView({
     setSelectedUseCase(null);
     setCameFromGate(true);
     setViewMode("products");
+    router.replace("/categories?view=all", { scroll: false });
   };
 
   const handleBackToUseCases = () => {

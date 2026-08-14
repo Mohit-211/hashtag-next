@@ -13,7 +13,8 @@ export const USER_ENDPOINTS = {
 };
 export const CONTACT_ENDPOINTS = {
   ADD: "contactUs",
-}
+  SOURCING_REQUEST: "sourcing-requests/create"
+};
 export const PRODUCT_ENDPOINTS = {
   PRODUCT: "product",
   PRODUCT_DETAIL: (id: string) => `product/${id}`,

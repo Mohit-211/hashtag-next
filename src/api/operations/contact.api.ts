@@ -6,6 +6,10 @@ import { CONTACT_ENDPOINTS } from "../endpoints";
 
 export const AddToContactApi = (formData: FormData) => {
   return client.post(CONTACT_ENDPOINTS.ADD, formData, {
-    
+
   });
 };
+export const AddToSourcingRequestApi = (formData: FormData) => {
+  return client.post(CONTACT_ENDPOINTS.SOURCING_REQUEST, formData, {});
+};
+

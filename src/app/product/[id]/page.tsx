@@ -12,19 +12,19 @@ const ProductDetailsPage = () => {
   const searchParams = useSearchParams();
   const variantId = searchParams.get("variant_id");
 
-  const handleBack = (e: React.MouseEvent) => {
-    
-      router.push("/categories");
-    
-  };
+  // const handleBack = (e: React.MouseEvent) => {
+  //   e.preventDefault();
+  //   const returnUrl = typeof window !== "undefined" ? sessionStorage.getItem("categoriesReturnUrl") : null;
+  //   router.push(returnUrl || "/categories?view=all");
+  // };
 
   return (
     <main>
       <div className="max-w-7xl mx-auto px-6 md:px-10">
         <div className="pt-10 pb-4">
           <Link
-            href="/categories"
-            onClick={handleBack}
+            href="/categories?view=all"
+            // onClick={handleBack}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-black transition-colors"
           >
             <ArrowLeft size={14} />Back to All Product

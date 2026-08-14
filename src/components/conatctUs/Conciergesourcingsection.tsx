@@ -1,5 +1,6 @@
 "use client";
 
+import { AddToSourcingRequestApi } from "@/api/operations/contact.api";
 import { useState, FormEvent } from "react";
 
 /**
@@ -9,23 +10,8 @@ import { useState, FormEvent } from "react";
  * carries the concierge sourcing pitch + partner-brand swatches.
  * Right column holds the "Start a custom source request" form,
  * shown inline at all times (no drawer/modal).
- *
- * Usage:
- *   <ConciergeSourcingSection onSubmit={async (data) => { ... }} />
- *
- * If no onSubmit is passed, it falls back to a stub that just logs
- * — wire this to your API route (e.g. POST /api/sourcing-request).
  * -------------------------------------------------------------
  */
-
-const PARTNER_BRANDS = [
-  "Adidas",
-  "Columbia",
-  "Brooks Brothers",
-  "RTIC",
-  "The North Face",
-  "Carhartt",
-];
 
 const SOURCING_PHONE_DISPLAY = "832 752 6450";
 const SOURCING_PHONE_TEL = "+18327526450";
@@ -34,52 +20,68 @@ export interface SourcingRequestPayload {
   name: string;
   email: string;
   company: string;
-  brand: string;
+  request_type: "BRAND" | "PRODUCT" | "CUSTOM";
+  requested_name: string;
   details: string;
 }
 
-interface ConciergeSourcingSectionProps {
-  onSubmit?: (data: SourcingRequestPayload) => Promise<void> | void;
-}
+type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
-export default function ConciergeSourcingSection({
-  onSubmit,
-}: ConciergeSourcingSectionProps) {
-  const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">(
-    "idle"
-  );
+export default function ConciergeSourcingSection() {
   const [form, setForm] = useState<SourcingRequestPayload>({
     name: "",
     email: "",
     company: "",
-    brand: "",
+    request_type: "BRAND",
+    requested_name: "",
     details: "",
   });
 
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+
   const update =
     (field: keyof SourcingRequestPayload) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-      setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+        setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setStatus("submitting");
+    setError(null);
+
     try {
-      if (onSubmit) {
-        await onSubmit(form);
-      } else {
-        // eslint-disable-next-line no-console
-        console.log("Sourcing request submitted:", form);
-      }
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("email", form.email);
+      formData.append("company", form.company);
+      formData.append("request_type", form.request_type);
+      formData.append("requested_name", form.requested_name);
+      formData.append("details", form.details);
+
+      await AddToSourcingRequestApi(formData);
       setStatus("success");
     } catch (err) {
       setStatus("error");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again."
+      );
     }
   };
 
   const resetForm = () => {
+    setForm({
+      name: "",
+      email: "",
+      company: "",
+      request_type: "BRAND",
+      requested_name: "",
+      details: "",
+    });
     setStatus("idle");
-    setForm({ name: "", email: "", company: "", brand: "", details: "" });
+    setError(null);
   };
 
   return (
@@ -92,55 +94,38 @@ export default function ConciergeSourcingSection({
       <div className="relative grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
         {/* Left column — pitch */}
         <div>
-          <p className="mb-3 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-primary">
-            <span className="h-px w-4 bg-primary/60" aria-hidden="true" />
-            Sourcing Desk · By Request Only
-          </p>
           <h2 className="mb-4 max-w-lg text-3xl leading-[1.1] md:text-4xl">
-            Looking for a specific brand or a custom item?
+            Looking for a Specific Brand or Custom Item?
           </h2>
+
+          <h3 className="mb-5 max-w-lg text-xl font-medium leading-snug md:text-2xl">
+            Our Concierge Sourcing Team Has You Covered.
+          </h3>
+
           <p className="max-w-md text-[15px] leading-relaxed text-muted-foreground">
-            Our public catalog represents the peak of modern corporate identity —
-            but our Concierge Sourcing Team reaches further. We hold direct,
-            elite-tier access to thousands of additional retail brands, and
-            we&apos;ll custom-source and decorate any of them to your exact
-            retail-grade standard.
+            We curate our public catalog to represent the absolute peak of modern
+            corporate identity. However, we have direct, elite-tier access to
+            thousands of additional retail brands—including Adidas, Columbia,
+            Brooks Brothers, RTIC, and more.
           </p>
 
-          <div className="mt-7">
-            <p className="mb-2.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              A sample of what&apos;s reachable
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {PARTNER_BRANDS.map((brand) => (
-                <span
-                  key={brand}
-                  className="rounded-full border border-border px-3 py-1 text-[12.5px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                >
-                  {brand}
-                </span>
-              ))}
-              <span className="rounded-full border border-primary/50 bg-primary/10 px-3 py-1 text-[12.5px] font-medium text-foreground">
-                + thousands more
-              </span>
-            </div>
-          </div>
-
-          <p className="mt-7 max-w-md text-[15px] leading-relaxed text-muted-foreground">
-            Send existing brand guidelines, specific apparel requirements, or a
-            vision for something you don&apos;t see here — we&apos;ll build a
-            custom digital mockup deck for your team.
+          <p className="mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            If you have existing brand guidelines, specific apparel requirements, or
+            a vision for a custom product you don&apos;t see here, we will custom-source
+            and decorate it to your exact retail-grade standards.
           </p>
 
-          <div className="mt-8 text-[13px] text-muted-foreground">
-            Prefer to talk it through?{" "}
+          <p className="mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            Text our Sourcing Desk directly at{" "}
             <a
-              href={`tel:${SOURCING_PHONE_TEL}`}
+              href="tel:8327526450"
               className="font-medium text-foreground underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary"
             >
-              {SOURCING_PHONE_DISPLAY}
-            </a>
-          </div>
+              832 752 6450
+            </a>{" "}
+            or drop your details below, and we&apos;ll build a custom digital mockup
+            deck for your team.
+          </p>
         </div>
 
         {/* Right column — form */}
@@ -157,14 +142,24 @@ export default function ConciergeSourcingSection({
           {status === "success" ? (
             <div className="flex flex-col items-start gap-4 py-2">
               <span className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary/70 bg-primary/10 text-primary">
-                <span className="absolute inset-0 animate-ping rounded-full bg-primary/20 [animation-iteration-count:2]" aria-hidden="true" />
+                <span
+                  className="absolute inset-0 animate-ping rounded-full bg-primary/20 [animation-iteration-count:2]"
+                  aria-hidden="true"
+                />
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M20 6L9 17l-5-5"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </span>
+
               <p className="text-[14px] leading-relaxed text-muted-foreground">
-                Our Sourcing Desk will follow up with a custom mockup deck
-                shortly. Need it faster? Text{" "}
+                Our Sourcing Desk will follow up with a custom mockup deck shortly.
+                Need it faster? Text{" "}
                 <a
                   href={`tel:${SOURCING_PHONE_TEL}`}
                   className="text-primary underline underline-offset-2"
@@ -173,6 +168,7 @@ export default function ConciergeSourcingSection({
                 </a>
                 .
               </p>
+
               <button
                 type="button"
                 onClick={resetForm}
@@ -188,31 +184,51 @@ export default function ConciergeSourcingSection({
                 required
                 value={form.name}
                 onChange={update("name")}
-                placeholder="Jordan Blake"
+                placeholder="John Smith"
               />
+
               <Field
                 label="Email"
                 type="email"
                 required
                 value={form.email}
                 onChange={update("email")}
-                placeholder="jordan@company.com"
+                placeholder="john.smith@company.com"
               />
+
               <Field
                 label="Company"
                 value={form.company}
                 onChange={update("company")}
-                placeholder="Company / Team name"
+                placeholder="Smith & Co."
               />
-              <Field
-                label="Brand or product you need"
-                value={form.brand}
-                onChange={update("brand")}
-                placeholder="e.g. Adidas quarter-zips, size run S–3XL"
-              />
+
               <div>
                 <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
-                  Details / brand guidelines
+                  Request Type
+                </label>
+                <select
+                  value={form.request_type}
+                  onChange={update("request_type")}
+                  className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+                >
+                  <option value="BRAND">Brand</option>
+                  <option value="PRODUCT">Product</option>
+                  <option value="CUSTOM">Custom Item</option>
+                </select>
+              </div>
+
+              <Field
+                label="Brand or product you need"
+                required
+                value={form.requested_name}
+                onChange={update("requested_name")}
+                placeholder="e.g. Adidas Quarter-Zip"
+              />
+
+              <div>
+                <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Details / Brand Guidelines
                 </label>
                 <textarea
                   value={form.details}
@@ -223,6 +239,12 @@ export default function ConciergeSourcingSection({
                 />
               </div>
 
+              {status === "error" && (
+                <p className="text-[13px] text-red-500">
+                  {error ?? "Couldn't send your request. Please try again or text us directly."}
+                </p>
+              )}
+
               <div className="mt-2 flex flex-col gap-3 border-t border-border pt-5">
                 <button
                   type="submit"
@@ -231,12 +253,6 @@ export default function ConciergeSourcingSection({
                 >
                   {status === "submitting" ? "Sending..." : "Send to Sourcing Desk"}
                 </button>
-                {status === "error" && (
-                  <span className="text-[13px] text-destructive">
-                    Something went wrong — please try again or text{" "}
-                    {SOURCING_PHONE_DISPLAY}.
-                  </span>
-                )}
               </div>
             </form>
           )}

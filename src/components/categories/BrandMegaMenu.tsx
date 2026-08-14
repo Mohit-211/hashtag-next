@@ -1,4 +1,5 @@
 "use client";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { Check, ChevronDown } from "lucide-react";
 import { brandInitials } from "@/lib/utils";
@@ -25,14 +26,27 @@ export default function BrandMegaMenu({
   onClose,
   onToggleBrand,
 }: BrandMegaMenuProps) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [megaTop, setMegaTop] = useState(60);
+
+  // Nav can be in its natural flow position (page not scrolled yet) or
+  // stuck to the viewport top (after scrolling past the site header), so the
+  // dropdown's offset is measured fresh from the trigger each time it opens
+  // rather than assumed to always be 60px from the viewport top.
+  const handleOpen = () => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (rect) setMegaTop(rect.bottom);
+    onOpen();
+  };
+
   return (
-    <div className="brand-tab-wrap" onMouseEnter={onOpen} onMouseLeave={onClose}>
+    <div className="brand-tab-wrap" ref={wrapRef} onMouseEnter={handleOpen} onMouseLeave={onClose}>
       <button className={`brand-tab-btn ${open || activeBrands.length ? "active" : ""}`}>
         Brands
         {activeBrands.length > 0 && <span className="brand-tab-count">{activeBrands.length}</span>}
         <ChevronDown size={14} className={`brand-chevron ${open ? "open" : ""}`} />
       </button>
-      <div className={`brand-mega ${open ? "open" : ""}`}>
+      <div className={`brand-mega ${open ? "open" : ""}`} style={{ top: megaTop }}>
         <div className="brand-mega-inner">
           <div className="brand-mega-head">
             <span className="brand-mega-title">Shop by brand</span>
