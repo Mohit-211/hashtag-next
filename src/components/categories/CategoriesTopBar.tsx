@@ -32,6 +32,7 @@ export default function CategoriesTopBar({
   allSortOptions,
   onSortChange,
 }: CategoriesTopBarProps) {
+  console.log(pills,"pillspills")
   return (
     <div className="cat-topbar">
       <div className="cat-topbar-left">

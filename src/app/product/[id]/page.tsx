@@ -12,11 +12,11 @@ const ProductDetailsPage = () => {
   const searchParams = useSearchParams();
   const variantId = searchParams.get("variant_id");
 
-  // const handleBack = (e: React.MouseEvent) => {
-  //   e.preventDefault();
-  //   const returnUrl = typeof window !== "undefined" ? sessionStorage.getItem("categoriesReturnUrl") : null;
-  //   router.push(returnUrl || "/categories?view=all");
-  // };
+  const handleBack = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const returnUrl = typeof window !== "undefined" ? sessionStorage.getItem("categoriesReturnUrl") : null;
+    router.push(returnUrl || "/categories?view=all");
+  };
 
   return (
     <main>
@@ -24,7 +24,7 @@ const ProductDetailsPage = () => {
         <div className="pt-10 pb-4">
           <Link
             href="/categories?view=all"
-            // onClick={handleBack}
+            onClick={handleBack}
             className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-black transition-colors"
           >
             <ArrowLeft size={14} />Back to All Product

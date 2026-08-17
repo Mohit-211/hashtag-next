@@ -78,7 +78,9 @@ export function useCategoriesView({
   });
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const [sortBy, setSortBy] = useState<SortOption["value"]>("" as SortOption["value"]);
-  const hasUrlFilterParam = !!initialCategoryId || !!initialBrandId || !!initialIndustryId || !!urlSearch || urlBrowseAll;
+  const hasUrlFilterParam =
+    !!initialCategoryId || !!initialBrandId || !!initialIndustryId || !!urlSearch || urlBrowseAll ||
+    !!searchParams.get("category_id") || !!searchParams.get("industry_id");
   const [urlRestoreAttempted, setUrlRestoreAttempted] = useState(!hasUrlFilterParam);
   const [viewMode, setViewMode] = useState<"picker" | "products">(hasUrlFilterParam ? "products" : "picker");
   const [pickerIndustryId, setPickerIndustryId] = useState<number | null>(null);
@@ -338,15 +340,11 @@ export function useCategoriesView({
     }
   }, [urlSearch]);
 
-  // FIX: whenever the pathname becomes exactly bare "/categories" (e.g.
-  // Header's "All Products" plain link, or any other navigation that
-  // lands on /categories with no filter/search param), reset everything
-  // back to the initial picker flow. We track pathname changes (not just
-  // query-string-empty) so this is reliable across every navigation path,
-  // including same-route re-clicks. Deep-linked/shared URLs that DO carry
-  // a filter or search param are left alone — they should still show
-  // their products view, not get reset.
-  const resetToInitialFlow = useCallback(() => {
+  // Clears every active filter (category, industry, brand, and all facets)
+  // without touching viewMode — used whenever the URL itself says "no
+  // filters" (bare /categories or /categories?view=all) but stale filter
+  // state may still be sitting in React state from a previous selection.
+  const clearAllFilterState = useCallback(() => {
     const all: GrandCategory = { id: null, name: "All", parent_categories: [] };
     setActiveCategory(all);
     activeCategoryRef.current = all;
@@ -370,12 +368,26 @@ export function useCategoriesView({
     persistSelection(null, null);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setSearchInput("");
+  }, []);
+
+  const resetToInitialFlow = useCallback(() => {
+    clearAllFilterState();
     setSelectedUseCase(null);
     setCameFromGate(false);
     setPickerIndustryId(null);
     setViewMode("picker");
-  }, []);
+  }, [clearAllFilterState]);
 
+  // Whenever the pathname becomes exactly bare "/categories" (e.g.
+  // Header's "All Products" plain link, browser back/forward, or any other
+  // navigation that lands on /categories with no filter/search param),
+  // reset everything back to the initial picker flow. We track pathname
+  // changes (not just query-string-empty) so this is reliable across every
+  // navigation path, including same-route re-clicks. Deep-linked/shared
+  // URLs that DO carry a filter or search param are left alone — they
+  // should still show their products view, not get reset. A bare
+  // "?view=all" is treated separately below: it means "no filters" but
+  // should stay on the products grid rather than the picker gate.
   const prevUrlKeyRef = useRef(`${pathname}?${searchParams.toString()}`);
   const isFirstPathCheckRef = useRef(true);
   useEffect(() => {
@@ -395,13 +407,23 @@ export function useCategoriesView({
       !!searchParams.get("category_id") ||
       !!searchParams.get("industry_id") ||
       !!searchParams.get("search") ||
-      !!searchParams.get("brand_id") ||
-      searchParams.get("view") === "all";
+      !!searchParams.get("brand_id");
     if (hasFilterParam) return; // deep-linked/shared URL — keep products view
+
+    if (searchParams.get("view") === "all") {
+      // Explicit "browse all, no filters" state (set by Skip/Clear-filters,
+      // and revisited via browser back/forward). The URL says no filters
+      // are active, so any stale category/industry/facet selection left
+      // over from a previous route (e.g. picking a category, then going
+      // back) must be cleared too — but stay on the products grid instead
+      // of bouncing back to the picker gate.
+      clearAllFilterState();
+      return;
+    }
 
     resetToInitialFlow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, searchParams, resetToInitialFlow]);
+  }, [pathname, searchParams, resetToInitialFlow, clearAllFilterState]);
 
   // Remember the current filtered products URL so a product detail page's
   // "Back to All Products" link can restore it (filters + pills intact)
@@ -826,8 +848,9 @@ export function useCategoriesView({
   };
 
   const handleClearFilter = () => {
-    resetToInitialFlow();
-    router.push("/categories", { scroll: false });
+    clearAllFilterState();
+    setViewMode("products");
+    router.push("/categories?view=all", { scroll: false });
   };
 
   // ── Header search box ──
@@ -926,7 +949,10 @@ export function useCategoriesView({
   if (activeCategory.id !== null && !activeParents.length) {
     pills.push({ key: "cat", label: activeCategory.name, onRemove: () => handleCategoryTabSelect({ id: null, name: "All", parent_categories: [] }) });
   }
+  const seenCategoryPillIds = new Set<number>(); // a category can reach activeParents AND activeIndustryCategories (multiple use cases) — one pill per id
   activeParents.forEach((p) => {
+    if (seenCategoryPillIds.has(p.id)) return;
+    seenCategoryPillIds.add(p.id);
     pills.push({
       key: `parent-${p.grandId}-${p.id}`,
       label: p.title,
@@ -944,11 +970,13 @@ export function useCategoriesView({
     pills.push({ key: "industry", label: activeIndustry.title, onRemove: () => handleIndustrySelect({ id: null, title: "All", use_cases: [] }) });
   }
   activeIndustryCategories.forEach((c) => {
+    if (seenCategoryPillIds.has(c.id)) return; // same category can belong to multiple use cases — show one pill
+    seenCategoryPillIds.add(c.id);
     pills.push({
-      key: `indcat-${c.industryId}-${c.useCaseId}-${c.id}`,
+      key: `indcat-${c.id}`,
       label: c.title,
       onRemove: () => {
-        const next = activeIndustryCategories.filter((x) => !(x.industryId === c.industryId && x.useCaseId === c.useCaseId && x.id === c.id));
+        const next = activeIndustryCategories.filter((x) => x.id !== c.id);
         setActiveIndustryCategories(next);
         activeIndustryCategoriesRef.current = next;
         syncQueryString({
@@ -967,8 +995,8 @@ export function useCategoriesView({
     pills.push({ key: "price", label: `$${priceRange[0]}–$${priceRange[1]}`, onRemove: () => commitPriceRange([PRICE_MIN, PRICE_MAX]) });
   }
   const totalFacetCount =
-    (activeCategory.id !== null ? 1 : 0) + activeParents.length +
-    (activeIndustry.id !== null ? 1 : 0) + activeIndustryCategories.length +
+    (activeCategory.id !== null && !activeParents.length ? 1 : 0) + seenCategoryPillIds.size +
+    (activeIndustry.id !== null && !activeIndustryCategories.some((c) => c.industryId === activeIndustry.id) ? 1 : 0) +
     activeBrands.length + activeSizes.length +
     activeColors.length + activeGenders.length + activeFabrics.length + (inStockOnly ? 1 : 0) +
     (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX ? 1 : 0);

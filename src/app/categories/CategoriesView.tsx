@@ -64,7 +64,7 @@ console.log(v.industries,"-----------")
       </div>
     );
   }
-
+console.log(v,'v=============')
   return (
     <div className="cat-root">
       <style>{categoriesViewStyles}</style>
