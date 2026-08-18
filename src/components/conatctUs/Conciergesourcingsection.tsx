@@ -1,7 +1,8 @@
 "use client";
 
 import { AddToSourcingRequestApi } from "@/api/operations/contact.api";
-import { useState, FormEvent } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
+import { Upload, X, ImageIcon } from "lucide-react";
 
 /**
  * ConciergeSourcingSection
@@ -15,6 +16,10 @@ import { useState, FormEvent } from "react";
 
 const SOURCING_PHONE_DISPLAY = "832 752 6450";
 const SOURCING_PHONE_TEL = "+18327526450";
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/svg+xml"];
+const ALLOWED_IMAGE_ACCEPT = ".jpg,.jpeg,.png,.svg";
+const MAX_IMAGES = 10;
 
 export interface SourcingRequestPayload {
   name: string;
@@ -37,11 +42,56 @@ export default function ConciergeSourcingSection() {
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((url) => URL.revokeObjectURL(url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const update =
     (field: keyof SourcingRequestPayload) =>
       (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
         setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    if (selected.length === 0) return;
+
+    const typeFiltered = selected.filter((file) => ALLOWED_IMAGE_TYPES.includes(file.type));
+    const rejectedByType = selected.length - typeFiltered.length;
+
+    const remainingSlots = Math.max(0, MAX_IMAGES - files.length);
+    const accepted = typeFiltered.slice(0, remainingSlots);
+    const rejectedByLimit = typeFiltered.length - accepted.length;
+
+    if (accepted.length > 0) {
+      setFiles((prev) => [...prev, ...accepted]);
+      setPreviews((prev) => [...prev, ...accepted.map((file) => URL.createObjectURL(file))]);
+    }
+
+    if (rejectedByLimit > 0) {
+      setError(`You can upload up to ${MAX_IMAGES} images.`);
+    } else if (rejectedByType > 0) {
+      setError("Only JPG, PNG, or SVG files are allowed.");
+    } else {
+      setError(null);
+    }
+
+    e.target.value = "";
+  };
+
+  const removeFile = (index: number) => {
+    setPreviews((prev) => {
+      URL.revokeObjectURL(prev[index]);
+      return prev.filter((_, i) => i !== index);
+    });
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -55,6 +105,7 @@ export default function ConciergeSourcingSection() {
       formData.append("company", form.company);
       formData.append("requested_name", form.requested_name);
       formData.append("details", form.details);
+      files.forEach((file) => formData.append("images", file));
 
       await AddToSourcingRequestApi(formData);
       setStatus("success");
@@ -76,6 +127,9 @@ export default function ConciergeSourcingSection() {
       requested_name: "",
       details: "",
     });
+    previews.forEach((url) => URL.revokeObjectURL(url));
+    setFiles([]);
+    setPreviews([]);
     setStatus("idle");
     setError(null);
   };
@@ -119,15 +173,14 @@ export default function ConciergeSourcingSection() {
             >
               832 752 6450
             </a>{" "}
-            or drop your details below, and we&apos;ll build a custom digital mockup
-            deck for your team.
+            or drop your details.
           </p>
         </div>
 
         {/* Right column — form */}
         <div className="rounded-lg border border-border bg-background/60 p-6 md:p-8">
           <div className="mb-6 border-b border-border pb-5">
-            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
+            <p className="mb-1.5 inline-block bg-black px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-[#FAE52E]">
               Sourcing Desk
             </p>
             <h3 className="text-2xl leading-tight">
@@ -221,7 +274,64 @@ export default function ConciergeSourcingSection() {
                 />
               </div>
 
-              {status === "error" && (
+              <div>
+                <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
+                  Logo / Reference Images
+                </label>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ALLOWED_IMAGE_ACCEPT}
+                  multiple
+                  onChange={handleFilesSelected}
+                  className="hidden"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={files.length >= MAX_IMAGES}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background px-3.5 py-4 text-[13px] text-muted-foreground transition-all hover:border-primary hover:bg-primary/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-background"
+                >
+                  <Upload size={16} />
+                  {files.length >= MAX_IMAGES
+                    ? `Maximum ${MAX_IMAGES} images reached`
+                    : "Click to upload logo or images"}
+                </button>
+
+                {previews.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2.5">
+                    {previews.map((src, index) => (
+                      <div
+                        key={src}
+                        className="group relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border border-border bg-background"
+                      >
+                        <img
+                          src={src}
+                          alt={files[index]?.name ?? "Uploaded file"}
+                          className="h-full w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeFile(index)}
+                          aria-label={`Remove ${files[index]?.name ?? "file"}`}
+                          className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <ImageIcon size={12} />
+                  PNG, JPG, or SVG — up to {MAX_IMAGES} images ({files.length}/{MAX_IMAGES}).
+                </p>
+              </div>
+
+              {(status === "error" || error) && (
                 <p className="text-[13px] text-red-500">
                   {error ?? "Couldn't send your request. Please try again or text us directly."}
                 </p>
