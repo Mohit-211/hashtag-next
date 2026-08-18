@@ -1,18 +1,5 @@
 "use client";
-/**
- * SageQuantityPricing.tsx
- *
- * Handles SAGE-style parallel-array tiered pricing:
- *
- *  meta = {
- *    priceTiers : ["3.98","2.72","1.56","1.44","1.08","0.94"],  ← retail price per unit
- *    netTiers   : ["1.99","1.36","0.78","0.72","0.54","0.47"],  ← net cost (ignored in UI)
- *    qtyTiers   : ["100","200","300","500","1000","100000"],     ← min qty to unlock that price
- *  }
- *
- *  Rule: priceTiers[i] applies when qty >= qtyTiers[i]
- *        The last qtyTier with minQty <= qty wins.
- */
+
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Zap, Package, Tag, TrendingDown, Check } from "lucide-react";
@@ -92,16 +79,16 @@ export function parseSageMeta(
   const rawNetTiers = obj.netTiers;
   const rawQtyTiers = obj.qtyTiers;
 
-  if (!Array.isArray(rawPriceTiers) || !Array.isArray(rawQtyTiers)) return null;
-  if (rawPriceTiers.length === 0 || rawQtyTiers.length === 0) return null;
+  if (!Array.isArray(rawNetTiers) || !Array.isArray(rawQtyTiers)) return null;
+  if (rawNetTiers.length === 0 || rawQtyTiers.length === 0) return null;
 
-  const count = Math.min(rawPriceTiers.length, rawQtyTiers.length);
+  const count = Math.min(rawNetTiers.length, rawQtyTiers.length);
 
   const rows: { minQty: number; price: number; netPrice?: number }[] = [];
 
   for (let i = 0; i < count; i++) {
     const minQty = Number(rawQtyTiers[i]);
-    const price = Number(rawPriceTiers[i]);
+    const price = Number(rawNetTiers[i]);
 
     const netPrice =
       Array.isArray(rawNetTiers) && rawNetTiers[i] != null
@@ -177,6 +164,7 @@ export function getSageUnitPrice(
   qty: number
 ): number | null {
   const meta = parseSageMeta(raw);
+  console.log(meta,"meta==1")
   if (!meta) return null;
   return findActiveTier(meta.priceTiers, qty)?.price ?? null;
 }
@@ -636,6 +624,7 @@ export default function SageQuantityPricing({
 
   /* ── Compact layout (inside SectionCard) ── */
   if (variant === "compact") {
+    console.log(meta,"meta")
     return (
       <div className="space-y-4">
         {/* Collapsible tier table */}
