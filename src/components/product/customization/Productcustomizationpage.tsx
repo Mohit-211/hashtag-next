@@ -649,8 +649,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         setRestorePending(false);
         return;
       }
-      isRestoringSessionRef.current = true;
-      if (saved.selectedColor) setSelectedColor(saved.selectedColor);
+      // Only arm the "restoring" guard when selectedColor is actually about
+      // to change — the guard is disarmed by the [selectedColor] effect
+      // below, which only re-fires when the value changes. If the saved
+      // color already matches the page's default color, that effect never
+      // re-runs, so the ref would stay stuck `true` forever, silently
+      // blocking every future color-change qty reset (including for Sage
+      // promo products, where switching colors afterwards would then leave
+      // variantQty/currentQty un-initialized for the new variant).
+      if (saved.selectedColor && saved.selectedColor !== selectedColor) {
+        isRestoringSessionRef.current = true;
+        setSelectedColor(saved.selectedColor);
+      }
       if (saved.variantQty && Object.keys(saved.variantQty).length > 0) {
         variantQtyRef.current = saved.variantQty;
         setVariantQty(saved.variantQty);
@@ -692,7 +702,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       }
       setSageRemountKey(k => k + 1);
       sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
-
+      setRestorePending(false);
     } catch (e) {
       console?.error("Failed to restore saved customization:", e);
       try { sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY); } catch { }
@@ -861,36 +871,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     const floor = isApparel ? 1 : Math.max(1, activeVariant.min_order_quantity || 1);
     setQty(activeVariant.id, floor);
   }, [isPromo, isApparel, activeVariant, selectedColor]);
-  // Real, current-variant image for Promo/Pre-Made (and Apparel too when
-  useEffect(() => {
-    if (isRestoringSessionRef.current) return;
-    if (isPromo || !activeVariant) return;
-    if (Object.keys(variantQty).length > 0) return;
-    const floor = isApparel ? 1 : Math.max(1, activeVariant.min_order_quantity || 1);
-    setQty(activeVariant.id, floor);
-  }, [isPromo, isApparel, activeVariant, selectedColor]);
-  useEffect(() => {                                                          // ← YE PURA BLOCK DELETE KARO
-    if (isRestoringSessionRef.current) return;
-    if (isPromo || !activeVariant) return;
-    if (Object.keys(variantQty).length > 0) return;
-    const floor = Math.max(1, activeVariant.min_order_quantity || 1);
-    setQty(activeVariant.id, floor);
-  }, [isPromo, activeVariant, selectedColor]);                               // ← YAHAN TAK
-  // Real, current-variant image for Promo/Pre-Made (and Apparel too when
-  useEffect(() => {
-    if (isRestoringSessionRef.current) return;
-    if (isPromo || !activeVariant) return;
-    if (Object.keys(variantQty).length > 0) return;
-    const floor = isApparel ? 1 : Math.max(1, activeVariant.min_order_quantity || 1);
-    setQty(activeVariant.id, floor);
-  }, [isPromo, isApparel, activeVariant, selectedColor]);
-  useEffect(() => {
-    if (isRestoringSessionRef.current) return;
-    if (isPromo || !activeVariant) return;
-    if (Object.keys(variantQty).length > 0) return;
-    const floor = Math.max(1, activeVariant.min_order_quantity || 1);
-    setQty(activeVariant.id, floor);
-  }, [isPromo, activeVariant, selectedColor]);
   // Real, current-variant image for Promo/Pre-Made (and Apparel too when
   // not using a mockup) — prefers the active variant's own images before
   // falling back to product-level images.
@@ -1595,6 +1575,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     } catch { setPreviewError(true); }
   };
   if (loading || restorePending) {
+    console.log(restorePending,"restorePending")
     return (
       <div className="min-h-screen bg-[#fafafa]">
         <div className="sticky top-0 z-20 bg-white border-b border-gray-100 h-14 animate-pulse" />
