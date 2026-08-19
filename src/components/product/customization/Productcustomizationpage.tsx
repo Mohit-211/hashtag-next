@@ -339,8 +339,11 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
     img.crossOrigin = "anonymous";
     img.onload = () => res(img);
     img.onerror = rej;
-    // img.src = src;
-    img.src = src.includes("?") ? `${src}&_cb=${Date.now()}` : `${src}?_cb=${Date.now()}`;
+    // Cache-busting query params only make sense for real URLs — appending
+    // one to a data: URI corrupts the base64 payload and breaks decoding.
+    img.src = src.startsWith("data:")
+      ? src
+      : src.includes("?") ? `${src}&_cb=${Date.now()}` : `${src}?_cb=${Date.now()}`;
   });
 
 const isValidCssColor = (value: string): boolean => {
