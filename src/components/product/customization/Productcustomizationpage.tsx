@@ -952,7 +952,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   const [isRemovingLogoBg, setIsRemovingLogoBg] = useState(false);
-  const [autoRemoveBg, setAutoRemoveBg] = useState(true);
+  const [autoRemoveBg, setAutoRemoveBg] = useState(false);
   const [bgRemoved, setBgRemoved] = useState(false);
   const [logoSize, setLogoSize] = useState(120);
   const [logoRotation, setLogoRotation] = useState(0);
