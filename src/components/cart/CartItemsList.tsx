@@ -20,6 +20,10 @@ export type PricingSnapshot = {
     amount: number;
     label?: string;
   };
+  customization_price?: {
+    total_customization_price: number;
+    setup_fee: number;
+  };
   [key: string]: unknown;
 };
 

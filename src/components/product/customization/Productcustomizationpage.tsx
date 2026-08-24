@@ -2352,26 +2352,29 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       >
                         <Minus size={16} />
                       </button>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        value={apparelQtyInput}
-                        min={getMaterialFloor(selectedMaterial)}
-                        onChange={(e) => setApparelQtyInput(e.target.value)}
-                        onBlur={(e) => {
-                          if (!activeVariant) return;
-                          const min = getMaterialFloor(selectedMaterial);
-                          const val = Number(e.target.value);
-                          const safe = Number.isFinite(val) && val > 0 ? Math.floor(val) : min;
-                          const clamped = Math.max(min, safe);
-                          setQty(activeVariant.id, clamped);
-                          setApparelQtyInput(String(clamped));
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                        }}
-                        className="w-16 text-lg font-black text-center outline-none focus:border-[#F5D800] border-2 border-transparent focus:border-2 rounded-lg bg-transparent"
-                      />
+                   <input
+  type="text"
+  inputMode="numeric"
+  
+  value={apparelQtyInput}
+  onChange={(e) => {
+    const digitsOnly = e.target.value.replace(/\D/g, "");
+    setApparelQtyInput(digitsOnly);
+  }}
+  onBlur={(e) => {
+    if (!activeVariant) return;
+    const min = getMaterialFloor(selectedMaterial);
+    const val = Number(e.target.value);
+    const safe = Number.isFinite(val) && val > 0 ? Math.floor(val) : min;
+    const clamped = Math.max(min, safe);
+    setQty(activeVariant.id, clamped);
+    setApparelQtyInput(String(clamped));
+  }}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+  }}
+  className="w-16 text-lg font-black text-center outline-none focus:border-[#F5D800] border-2 border-transparent focus:border-2 rounded-lg bg-transparent"
+/>
                       <button
                         onClick={() => {
                           if (!activeVariant) return;

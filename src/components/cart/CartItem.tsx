@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Minus, Plus, Trash2, UploadCloud, Stamp, Loader2 } from "lucide-react";
 import { message } from "antd";
 
@@ -60,6 +61,9 @@ export default function CartItem({ item, onRefresh }: Props) {
   // when > 1 so negligible/zero fees don't clutter the card.
   const handlingCharge = item.pricing_snapshot?.handling_charge;
   const showHandlingCharge = !!handlingCharge && handlingCharge.amount > 1;
+
+  const designFee = item.pricing_snapshot?.customization_price?.setup_fee;
+  const showDesignFee = !!designFee && designFee > 0;
 
   const handleDecrease = async () => {
     // ★ FIXED — was item.canDecrease, API sends can_decrease.
@@ -159,7 +163,10 @@ export default function CartItem({ item, onRefresh }: Props) {
     <div className="relative overflow-visible rounded-xl border border-border bg-card p-5 shadow-sm">
       {/* Top: garment block */}
       <div className="flex gap-4">
-        <div className="relative w-24 h-24 shrink-0">
+        <Link
+          href={item.product_id ? `/product/${item.product_id}` : "#"}
+          className="relative w-24 h-24 shrink-0"
+        >
           <div className="w-full h-full rounded-lg overflow-hidden bg-secondary ring-1 ring-border">
             <ProxyImage
               src={item?.image}
@@ -181,12 +188,17 @@ export default function CartItem({ item, onRefresh }: Props) {
               />
             </div>
           )}
-        </div>
+        </Link>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
-              <h3 className="font-semibold leading-tight truncate">{item.name}</h3>
+              <Link
+                href={item.product_id ? `/product/${item.product_id}` : "#"}
+                className="font-semibold leading-tight truncate hover:text-primary transition-colors block"
+              >
+                {item.name}
+              </Link>
 
              
 
@@ -304,6 +316,18 @@ export default function CartItem({ item, onRefresh }: Props) {
         </div>
       )}
 
+      {/* Design fee, if applicable */}
+      {showDesignFee && (
+        <div className="flex items-center justify-between px-0.5 pt-3 mt-1">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            Design Fee
+          </span>
+          <span className="font-mono text-xs font-semibold text-muted-foreground">
+            +${designFee!.toFixed(2)}
+          </span>
+        </div>
+      )}
+
       {/* Bottom: quantity + total */}
       <div className="flex items-center justify-between pt-4 mt-1 border-t border-border/60">
         <div className="flex items-center rounded-full border border-border overflow-hidden bg-background">
@@ -326,7 +350,7 @@ export default function CartItem({ item, onRefresh }: Props) {
               reconciliation is in flight, `loading` disables the field
               and shows a small spinner instead of the +/- buttons area
               being separately clickable, avoiding overlapping requests. */}
-          <div className="relative w-9 flex items-center justify-center">
+          <div className="relative w-12 flex items-center justify-center">
             {loading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
             ) : (
