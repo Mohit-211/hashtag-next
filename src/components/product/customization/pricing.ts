@@ -182,7 +182,7 @@ export function getPrintPriceTotal({
                   quantity >= 12 ? 1 : 0;
       return DTF_PRICES[tier] * quantity * locations.length;
     }
-    case "screenprint": {
+    case "screen_print": {
       if (quantity < 50) return null;
       const price = quantity >= 100 ? SP_PRICES[spColorCount][1] : SP_PRICES[spColorCount][0];
       return price * quantity * locations.length;

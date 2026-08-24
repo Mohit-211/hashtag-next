@@ -5,7 +5,7 @@ import { X, Plus, Minus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSageUnitPriceWithMarkup, parseSageMeta } from "../customization/Sagequantitypricing";
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../customization/pricing";
-import { getPromoMinQty, getMaterialPrintTotal, getDigitizingFee } from "../customization/Productcustomizationpage";
+import { getPromoMinQty, getMaterialPrintTotal, getDigitizingFee, SpColorCount } from "../customization/Productcustomizationpage";
 
 /* ─────────────────────────────────────────── Types ── */
 interface Size {
@@ -64,7 +64,7 @@ interface Props {
   decorationUnitPrice?: number;
   selectedMaterial?: string;
   selectedLocations?: string[];
-  spColorCount?: "1 Color" | "2 Color" | "3 Color";
+  spColorCount?: SpColorCount;
   dtgStyle?: string;
   isApparel?: boolean;
   isPromo?: boolean;

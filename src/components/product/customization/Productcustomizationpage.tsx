@@ -114,11 +114,11 @@ const PROMO_MIN_QTY = 100; // ← DEFAULT fallback floor, only used when a
 // its own min_order_quantity. Per-product minimum should come from the
 // product's own data (see getPromoMinQty below) — this is not a global
 // floor applied to every Promo product regardless of its actual meta.
-type MaterialId = "embroidery" | "dtf" | "screenprint" | "dtg";
+type MaterialId = "embroidery" | "dtf" | "screen_print" | "dtg";
 const MATERIALS = [
   { id: "embroidery" as MaterialId, label: "Embroidery", desc: "Premium thread-stitched branding", bestFor: "Polos, jackets, uniforms", badge: "All Fabrics", emoji: "🧵" },
   { id: "dtf" as MaterialId, label: "DTF Print", desc: "Full-color Direct-to-Film transfers", bestFor: "Small runs, multi-color logos", badge: "No Minimum", emoji: "🖨️" },
-  { id: "screenprint" as MaterialId, label: "Screen Print", desc: "Bold solid colors for bulk orders", bestFor: "Tees, hoodies, bulk orders", badge: "Min 50 pcs", emoji: "🎨" },
+  { id: "screen_print" as MaterialId, label: "Screen Print", desc: "Bold solid colors for bulk orders", bestFor: "Tees, hoodies, bulk orders", badge: "Min 12 pcs", emoji: "🎨" },
   { id: "dtg" as MaterialId, label: "DTG Print", desc: "Photo-quality prints on cotton", bestFor: "100% cotton tees", badge: "No Minimum", emoji: "👕" },
 ];
 type GarmentType = "tshirt" | "hoodie" | "hat" | "polo";
@@ -234,10 +234,29 @@ const EMB_PRICES: Record<string, number[]> = {
 const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
 const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
 const SP_PRICES: Record<string, number[]> = {
-  "1 Color": [6.58, 4.40],
-  "2 Color": [9.43, 7.98],
-  "3 Color": [11.55, 9.54],
+  "1 Color": [11.19, 7.46, 4.85, 3.36, 2.24, 1.87],
+  "2 Color": [22.39, 11.19, 7.09, 5.22, 3.36, 3.21],
+  "3 Color": [37.31, 14.93, 9.33, 7.46, 4.48, 4.25],
+  "4 Color": [52.24, 26.87, 11.19, 10.07, 5.60, 5.37],
+  "5 Color": [67.16, 32.84, 14.93, 11.57, 6.72, 6.49],
+  "6 Color": [82.09, 37.31, 17.16, 13.06, 8.58, 7.61],
 };
+/** Number-of-colours options for Screen Print — derived from SP_PRICES so
+ *  adding/removing a colour tier there automatically updates the picker. */
+export type SpColorCount = keyof typeof SP_PRICES;
+const SP_COLOR_COUNTS = Object.keys(SP_PRICES) as SpColorCount[];
+/** Screen Print quantity tiers — order/count must match each SP_PRICES row.
+ *  Single source of truth for the min order qty, the price-index lookup,
+ *  and the "View Full Price Table" headers. */
+const SP_TIERS = [
+  { label: "12–23", min: 12 },
+  { label: "24–47", min: 24 },
+  { label: "48–99", min: 48 },
+  { label: "100–299", min: 100 },
+  { label: "300–499", min: 300 },
+  { label: "500+", min: 500 },
+];
+const SP_MIN_QTY = SP_TIERS[0].min;
 const DTG_TIERS = [{ min: 1 }, { min: 24 }, { min: 48 }, { min: 100 }];
 const DTG_PRICES: Record<string, number[]> = {
   "Front Regular": [15, 12, 11, 9],
@@ -252,7 +271,7 @@ export function getMaterialPrintTotal(
   material: MaterialId | null,
   locations: string[],
   qty: number,
-  spColorCount: "1 Color" | "2 Color" | "3 Color" = "1 Color",
+  spColorCount: SpColorCount = "1 Color",
   dtgStyle: keyof typeof DTG_PRICES = "Front Regular"
 ): number | null {
   if (!material) return null;
@@ -280,11 +299,16 @@ export function getMaterialPrintTotal(
                   qty >= 12 ? 1 : 0;
       return DTF_PRICES[tier] * qty * locations.length;
     }
-    case "screenprint": {
-      if (qty < 50) return null;
-      const price = qty >= 100 ? SP_PRICES[spColorCount][1] : SP_PRICES[spColorCount][0];
-      return price * qty * locations.length;
-    }
+  case "screen_print": {
+  if (qty < SP_MIN_QTY) return null;
+
+  const priceIndex = SP_TIERS.reduce((found, t, idx) => (qty >= t.min ? idx : found), 0);
+  const price = SP_PRICES[spColorCount]?.[priceIndex];
+
+  if (price == null) return null;
+
+  return price * qty * locations.length;
+}
     case "dtg": {
       const tier =
         qty >= 100 ? 3 :
@@ -775,12 +799,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       const floor = isPromo
         ? promoMinQty
         : isApparel
-          ? 1
+          ? getMaterialFloor(selectedMaterial)
           : Math.max(1, activeVariant.min_order_quantity || 1);
       setQty(activeVariant.id, floor);
     } else {
       setVariantQty({ 1: 1 });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedColor]);
   const colorVariants = useMemo(() => {
     const pool = allProductVariants.length > 0 ? allProductVariants : (product?.variants ?? []);
@@ -868,8 +893,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (isRestoringSessionRef.current) return;
     if (isPromo || !activeVariant) return;
     if (Object.keys(variantQty).length > 0) return;
-    const floor = isApparel ? 1 : Math.max(1, activeVariant.min_order_quantity || 1);
+    const floor = isApparel ? getMaterialFloor(selectedMaterial) : Math.max(1, activeVariant.min_order_quantity || 1);
     setQty(activeVariant.id, floor);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPromo, isApparel, activeVariant, selectedColor]);
   // Real, current-variant image for Promo/Pre-Made (and Apparel too when
   // not using a mockup) — prefers the active variant's own images before
@@ -897,10 +923,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     );
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
   const [showPriceTable, setShowPriceTable] = useState(false);
-  const [spColorCount, setSpColorCount] = useState<"1 Color" | "2 Color" | "3 Color">("1 Color");
+  const [spColorCount, setSpColorCount] = useState<SpColorCount>("1 Color");
   const [dtgStyle, setDtgStyle] = useState<keyof typeof DTG_PRICES>("Front Regular");
   const getMaterialFloor = (id: MaterialId | null): number => {
-    if (id === "screenprint") return 50;
+    if (id === "screen_print") return SP_MIN_QTY;
     return 1; // embroidery, dtf, dtg, or no material yet — apparel always floors at 1
   };
   const handleSelectMaterial = (id: MaterialId) => {
@@ -925,6 +951,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [productImg, setProductImg] = useState<HTMLImageElement | null>(null);
   const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [isRemovingLogoBg, setIsRemovingLogoBg] = useState(false);
+  const [autoRemoveBg, setAutoRemoveBg] = useState(true);
+  const [bgRemoved, setBgRemoved] = useState(false);
   const [logoSize, setLogoSize] = useState(120);
   const [logoRotation, setLogoRotation] = useState(0);
   const [logoOpacity, setLogoOpacity] = useState(1);
@@ -990,6 +1019,29 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     loadImage(logoSrc).then(img => { if (!cancelled) setLogoImg(img); });
     return () => { cancelled = true; };
   }, [logoSrc]);
+  /** Makes the logo transparent by cutting out its background, entirely in
+   *  the browser (no upload to a third-party API — @imgly/background-removal
+   *  runs the model client-side via WASM). Loaded on demand so the ~large
+   *  model/wasm bundle isn't fetched until a user actually clicks the button. */
+  const handleRemoveLogoBackground = useCallback(async (srcOverride?: string) => {
+    const src = srcOverride ?? logoSrc;
+    if (!src || isRemovingLogoBg) return;
+    setIsRemovingLogoBg(true);
+    try {
+      const { removeBackground } = await import("@imgly/background-removal");
+      const blob = await removeBackground(src);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoSrc(reader.result as string);
+        setBgRemoved(true);
+      };
+      reader.readAsDataURL(blob);
+    } catch (err) {
+      console.error("Failed to remove logo background:", err);
+    } finally {
+      setIsRemovingLogoBg(false);
+    }
+  }, [logoSrc, isRemovingLogoBg]);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1838,13 +1890,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           </button>
                           {isSelected && (
                             <div className="mt-2 mb-1">
-                              {mat.id === "screenprint" && (
+                              {mat.id === "screen_print" && (
                                 <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                                   <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Number of Colours</p>
-                                  <div className="flex gap-2">
-                                    {(["1 Color", "2 Color", "3 Color"] as const).map(c => (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {SP_COLOR_COUNTS.map(c => (
                                       <button key={c} onClick={() => setSpColorCount(c)}
-                                        className={cn("flex-1 h-10 rounded-xl border-2 text-xs font-bold transition-all",
+                                        className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all",
                                           spColorCount === c ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
                                         {c}
                                       </button>
@@ -1879,7 +1931,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                     <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 text-[11px] font-bold uppercase tracking-widest text-gray-600">
                                       {mat.id === "embroidery" && "Embroidery — Price per Location"}
                                       {mat.id === "dtf" && "DTF Print Pricing"}
-                                      {mat.id === "screenprint" && "Screen Print Pricing"}
+                                      {mat.id === "screen_print" && "Screen Print Pricing"}
                                       {mat.id === "dtg" && "DTG Print Pricing"}
                                     </div>
                                     <div className="overflow-x-auto">
@@ -1971,13 +2023,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                           </tbody>
                                         </table>
                                       )}
-                                      {mat.id === "screenprint" && (
-                                        <table className="w-full border-collapse min-w-[320px]">
+                                      {mat.id === "screen_print" && (
+                                        <table className="w-full border-collapse min-w-[640px]">
                                           <thead>
                                             <tr className="bg-gray-50 border-b border-gray-200">
                                               <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Colors</th>
-                                              <th className="px-3 py-2 font-bold text-gray-500 border-r border-gray-100 text-center">50–99 pcs</th>
-                                              <th className="px-3 py-2 font-bold text-gray-500 text-center">100+ pcs</th>
+                                              {SP_TIERS.map((t, i) => (
+                                                <th key={t.label} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center last:border-r-0",
+                                                  SP_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{t.label}</th>
+                                              ))}
                                             </tr>
                                           </thead>
                                           <tbody>
@@ -1986,8 +2040,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                 <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">
                                                   {k} <span className="text-[10px] font-normal text-gray-400">(per location)</span>
                                                 </td>
-                                                <td className="px-3 py-2.5 text-center border-r border-gray-100 text-gray-500">${formatMoney(basePrice + p[0])}</td>
-                                                <td className="px-3 py-2.5 text-center text-gray-500">${formatMoney(basePrice + p[1])}</td>
+                                                {SP_TIERS.map((t, j) => (
+                                                  <td key={t.label} className="px-2 py-2.5 text-center border-r border-gray-100 text-gray-500 last:border-r-0">${formatMoney(basePrice + p[j])}</td>
+                                                ))}
                                               </tr>
                                             ))}
                                             {/* {selectedLocations.length > 0 && (
@@ -2600,6 +2655,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       handleOpenPreview, setLogoImg,
       CANVAS_SIZE, FONTS, PRESET_COLORS,
       garmentViews, activeViewIdx, setActiveViewIdx, isApparel,
+      handleRemoveLogoBackground, isRemovingLogoBg,
+      autoRemoveBg, setAutoRemoveBg, bgRemoved, setBgRemoved,
     };
   }
 }
@@ -2615,6 +2672,8 @@ function LogoCanvasSection({
   handleOpenPreview, setLogoImg,
   CANVAS_SIZE, FONTS, PRESET_COLORS,
   garmentViews, activeViewIdx, setActiveViewIdx, isApparel,
+  handleRemoveLogoBackground, isRemovingLogoBg,
+  autoRemoveBg, setAutoRemoveBg, bgRemoved, setBgRemoved,
 }: any) {
   return (
     <div className="flex flex-col xl:flex-row gap-5 items-start">
@@ -2686,16 +2745,37 @@ function LogoCanvasSection({
                     if (!file) return;
                     const r = new FileReader();
                     r.onloadend = () => {
-                      setLogoSrc(r.result as string);
+                      const dataUrl = r.result as string;
+                      setBgRemoved(false);
+                      setLogoSrc(dataUrl);
                       setLogoRotation(0);
                       const defaultSize = 120;
                       setLogoSize(defaultSize);
                       setLogoPos({ x: (CANVAS_SIZE - defaultSize) / 2, y: (CANVAS_SIZE - defaultSize) / 2 });
+                      if (autoRemoveBg) handleRemoveLogoBackground(dataUrl);
                     };
                     r.readAsDataURL(file);
                   }}
                   className="hidden"
                 />
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-sm font-semibold text-gray-700">Auto-remove background</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={autoRemoveBg}
+                    onClick={() => setAutoRemoveBg((p: boolean) => !p)}
+                    className={cn(
+                      "relative w-11 h-6 rounded-full transition-colors flex-shrink-0",
+                      autoRemoveBg ? "bg-[#F5D800]" : "bg-gray-200"
+                    )}
+                  >
+                    <span className={cn(
+                      "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+                      autoRemoveBg ? "translate-x-5" : "translate-x-0"
+                    )} />
+                  </button>
+                </div>
                 {!logoImg ? (
                   <div onClick={() => fileRef.current?.click()}
                     className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#F5D800]/60 hover:bg-[#FFFBEA] transition-all group">
@@ -2715,11 +2795,22 @@ function LogoCanvasSection({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-gray-900">Logo uploaded</p>
-                        <p className="text-[10px] text-gray-400">Drag on canvas to reposition</p>
+                        <p className="text-[10px] text-gray-400">
+                          {isRemovingLogoBg
+                            ? "Removing background…"
+                            : bgRemoved
+                              ? "Background removed — drag on canvas to reposition"
+                              : "Drag on canvas to reposition"}
+                        </p>
                       </div>
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <button onClick={() => handleRemoveLogoBackground()} disabled={isRemovingLogoBg}
+                          title={isRemovingLogoBg ? "Removing background…" : "Remove Background"}
+                          className="w-8 h-8 rounded-lg border border-[#F5D800]/60 bg-[#FFFBEA] flex items-center justify-center hover:bg-[#F5D800]/20 text-[#b89000] disabled:opacity-60 disabled:cursor-not-allowed">
+                          {isRemovingLogoBg ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                        </button>
                         <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-100 text-gray-500"><Upload size={13} /></button>
-                        <button onClick={() => { setLogoSrc(null); setLogoImg(null); }} className="w-8 h-8 rounded-lg border border-red-100 flex items-center justify-center hover:bg-red-50 text-red-400"><Trash2 size={13} /></button>
+                        <button onClick={() => { setLogoSrc(null); setLogoImg(null); setBgRemoved(false); }} className="w-8 h-8 rounded-lg border border-red-100 flex items-center justify-center hover:bg-red-50 text-red-400"><Trash2 size={13} /></button>
                       </div>
                     </div>
                     <Slider label="Size" value={logoSize} min={40} max={280} unit="px" onChange={setLogoSize} />
