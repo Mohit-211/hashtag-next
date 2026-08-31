@@ -380,7 +380,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
       </section>
     );
   }
-
+console.log(product,"product")
   if (!product) {
     return (
       <section className="min-h-screen flex items-center justify-center py-10">

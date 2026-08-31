@@ -493,9 +493,9 @@ export function useCategoriesView({
     [router]
   );
 
-  const handleSelectUseCase = (industry: Industry, useCase: UseCase) => {
+  const handleSelectUseCase = (industry: Industry, useCase: UseCase, selectedCategories?: ParentCategory[]) => {
     if (industry.id == null) return;
-    const cats = useCase.parent_categories ?? [];
+    const cats = selectedCategories ?? useCase.parent_categories ?? [];
     const mapped: SelectedIndustryCategory[] = cats.map((cat) => ({
       ...cat,
       industryId: industry.id as number,

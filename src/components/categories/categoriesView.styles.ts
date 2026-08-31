@@ -454,7 +454,14 @@ export const categoriesViewStyles = `
   }
   .ucgate-industry-card:hover .ucgate-usecase-chip { border-color: var(--color-border); }
 
-  /* ── use-case selection: same card-grid treatment as the industry grid ── */
+  /* ── use-case selection, clubbed by industry: each industry gets its own
+     labeled section so use cases from the same industry group together ── */
+  .ucgate-industry-group { margin-bottom: 40px; text-align: left; }
+  .ucgate-industry-group:last-child { margin-bottom: 0; }
+  .ucgate-industry-group-title {
+    font-family: var(--font-heading); font-size: 20px; font-weight: 700; color: var(--color-foreground);
+    letter-spacing: -0.015em; margin: 0 0 16px;
+  }
   .ucgate-usecase-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
   .ucgate-usecase-row {
     position: relative; text-align: left; padding: 16px 20px 24px; border: 1.5px solid var(--color-border);
@@ -512,6 +519,51 @@ export const categoriesViewStyles = `
     background: linear-gradient(90deg, var(--color-secondary) 25%, var(--color-border) 50%, var(--color-secondary) 75%);
     background-size: 800px 100%; animation: shimmer 1.5s infinite;
   }
+
+  /* ── modal shown after picking a use case, to narrow down to specific items ── */
+  .ucgate-modal-backdrop {
+    position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+    padding: 20px; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+  }
+  .ucgate-modal-panel {
+    width: 100%; max-width: 440px; max-height: 82vh; display: flex; flex-direction: column;
+    background: var(--color-background, #fff); border-radius: 18px; overflow: hidden;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.22);
+  }
+  .ucgate-modal-header {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    padding: 20px 20px 16px; border-bottom: 1px solid var(--color-border); flex-shrink: 0;
+  }
+  .ucgate-modal-eyebrow {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--color-primary); margin-bottom: 4px;
+  }
+  .ucgate-modal-title { font-size: 19px; font-weight: 700; color: var(--color-foreground); line-height: 1.25; }
+  .ucgate-modal-close {
+    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex-shrink: 0;
+    border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-muted-foreground);
+    transition: background .15s ease, color .15s ease;
+  }
+  .ucgate-modal-close:hover { background: var(--color-secondary); color: var(--color-foreground); }
+  .ucgate-modal-body { padding: 14px 20px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+  .ucgate-modal-empty { font-size: 13.5px; color: var(--color-muted-foreground); padding: 12px 0; }
+  .ucgate-modal-selectall { padding-bottom: 10px; margin-bottom: 8px; border-bottom: 1px solid var(--color-border); font-weight: 600; }
+  .ucgate-modal-list { display: flex; flex-direction: column; gap: 2px; }
+  .ucgate-modal-footer {
+    display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+    padding: 14px 20px; border-top: 1px solid var(--color-border); flex-shrink: 0;
+  }
+  .ucgate-modal-cancel {
+    font-size: 13.5px; font-weight: 500; color: var(--color-muted-foreground); padding: 9px 14px; border-radius: 10px;
+    transition: color .15s ease, background .15s ease;
+  }
+  .ucgate-modal-cancel:hover { color: var(--color-foreground); background: var(--color-secondary); }
+  .ucgate-modal-confirm {
+    font-size: 13.5px; font-weight: 600; color: var(--color-primary-foreground, #fff); background: var(--color-primary);
+    padding: 10px 18px; border-radius: 10px; transition: opacity .15s ease;
+  }
+  .ucgate-modal-confirm:hover { opacity: 0.9; }
+  .ucgate-modal-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
 
   @media (prefers-reduced-motion: reduce) {
     .ucgate-industry-card, .ucgate-usecase-row, .ucgate-back-btn, .ucgate-skip-link,
