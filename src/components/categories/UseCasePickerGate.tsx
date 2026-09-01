@@ -1,10 +1,7 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { X } from "lucide-react";
 import type { Industry, ParentCategory, UseCase } from "@/data/types";
 import { categoriesViewStyles } from "./categoriesView.styles";
-import CheckRow from "./Checkrow";
 interface UseCasePickerGateProps {
   industries: Industry[];
   industriesLoading: boolean;
@@ -38,13 +35,9 @@ function resolveImageSrc(image?: string | null) {
  * each group rendered as its own labeled section, instead of one flat grid
  * mixing use cases from every industry together.
  *
- * Picking a use case doesn't redirect immediately — it opens a modal
- * (`UseCaseItemsModal` below) listing the real product categories
- * (`uc.parent_categories`) under that use case, so the user can narrow down
- * to just the items they want before landing on the filtered product grid.
- * Confirming checks the exact same real category ids that the sidebar's
- * "select all" use-case checkbox would check — see `onSelectUseCase` in the
- * parent hook. */
+ * Picking a use case opens the filtered product grid directly, checking the
+ * exact same real category ids that the sidebar's "select all" use-case
+ * checkbox would check — see `onSelectUseCase` in the parent hook. */
 export default function UseCasePickerGate({
   industries,
   industriesLoading,
@@ -54,7 +47,6 @@ export default function UseCasePickerGate({
   const industryGroups = industries
     .map((ind) => ({ industry: ind, useCases: ind.use_cases ?? [] }))
     .filter((g) => g.useCases.length > 0);
-  const [activePick, setActivePick] = useState<{ industry: Industry; useCase: UseCase } | null>(null);
   return (
     <div className="container p-10">
       <div className="max-w-2xl mb-10">
@@ -103,7 +95,7 @@ export default function UseCasePickerGate({
                           padding: 0,
                           background: "transparent",
                         }}
-                        onClick={() => setActivePick({ industry, useCase: uc })}
+                        onClick={() => onSelectUseCase(industry, uc)}
                       >
                         <Image
                           src={resolveImageSrc((uc as any).image)}
@@ -186,122 +178,6 @@ export default function UseCasePickerGate({
             ));
           })()
         )}
-      </div>
-      {activePick && (
-        <UseCaseItemsModal
-          industry={activePick.industry}
-          useCase={activePick.useCase}
-          onClose={() => setActivePick(null)}
-          onConfirm={(selectedCategories) => {
-            onSelectUseCase(activePick.industry, activePick.useCase, selectedCategories);
-            setActivePick(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-interface UseCaseItemsModalProps {
-  industry: Industry;
-  useCase: UseCase;
-  onClose: () => void;
-  onConfirm: (selectedCategories: ParentCategory[]) => void;
-}
-
-/** Modal shown after picking a use case: lets the shopper pick which of the
- * use case's categories they actually want before redirecting into the
- * filtered product grid. Nothing is pre-checked — the shopper must
- * explicitly choose at least one item, which also keeps "View products"
- * disabled until they do. */
-function UseCaseItemsModal({ industry, useCase, onClose, onConfirm }: UseCaseItemsModalProps) {
-  const categories = useMemo(() => useCase.parent_categories ?? [], [useCase]);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
-
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [categories]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
-  const toggleCategory = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const allSelected = categories.length > 0 && selectedIds.size === categories.length;
-  const toggleAll = () => setSelectedIds(allSelected ? new Set() : new Set(categories.map((c) => c.id)));
-
-  const selectedCategories = categories.filter((c) => selectedIds.has(c.id));
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Choose items for ${useCase.title}`}
-      className="ucgate-modal-backdrop"
-      onClick={onClose}
-    >
-      <div className="ucgate-modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="ucgate-modal-header">
-          <div>
-            <div className="ucgate-modal-eyebrow">{industry.title}</div>
-            <h2 className="ucgate-modal-title">{useCase.title}</h2>
-          </div>
-          <button type="button" className="ucgate-modal-close" onClick={onClose} aria-label="Close">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="ucgate-modal-body">
-          {categories.length === 0 ? (
-            <p className="ucgate-modal-empty">No product categories are set up for this use case yet.</p>
-          ) : (
-            <>
-              <div className="ucgate-modal-selectall">
-                <CheckRow
-                  checked={allSelected}
-                  label="Select all items"
-                  onToggle={toggleAll}
-                />
-              </div>
-              <div className="ucgate-modal-list">
-                {categories.map((cat) => (
-                  <CheckRow
-                    key={cat.id}
-                    checked={selectedIds.has(cat.id)}
-                    label={cat.title}
-                    count={cat.count}
-                    onToggle={() => toggleCategory(cat.id)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="ucgate-modal-footer">
-          <button type="button" className="ucgate-modal-cancel" onClick={onClose}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="ucgate-modal-confirm"
-            disabled={selectedCategories.length === 0}
-            onClick={() => onConfirm(selectedCategories)}
-          >
-            View products{selectedCategories.length > 0 ? ` (${selectedCategories.length})` : ""}
-          </button>
-        </div>
       </div>
     </div>
   );

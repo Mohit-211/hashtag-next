@@ -16,7 +16,7 @@ export interface PriceTier {
 }
 
 export interface SageMeta {
-  priceTiers: PriceTier[];
+  netTiers: PriceTier[];
   qtyTiers: number[];
   setupFee?: number;
   currency?: string;
@@ -117,10 +117,10 @@ export function parseSageMeta(
   // IMPORTANT: sort ascending by minQty before deriving maxQty bands.
   // SAGE doesn't guarantee the incoming arrays are already in qty order,
   // and everything downstream (effectiveMin, "BEST" badge, base-tier
-  // savings comparison) assumes priceTiers[0] is the lowest tier.
+  // savings comparison) assumes netTiers[0] is the lowest tier.
   rows.sort((a, b) => a.minQty - b.minQty);
 
-  const priceTiers: PriceTier[] = rows.map((row, i) => ({
+  const netTiers: PriceTier[] = rows.map((row, i) => ({
     minQty: row.minQty,
     price: row.price,
     netPrice: row.netPrice,
@@ -128,8 +128,8 @@ export function parseSageMeta(
   }));
 
   return {
-    priceTiers,
-    qtyTiers: priceTiers.map(t => t.minQty),
+    netTiers,
+    qtyTiers: netTiers.map(t => t.minQty),
     setupFee: typeof obj.setupFee === "number" ? obj.setupFee : undefined,
     currency: "USD",
     productName: obj.productName as string | undefined,
@@ -166,7 +166,7 @@ export function getSageUnitPrice(
   const meta = parseSageMeta(raw);
   console.log(meta,"meta==1")
   if (!meta) return null;
-  return findActiveTier(meta.priceTiers, qty)?.price ?? null;
+  return findActiveTier(meta.netTiers, qty)?.price ?? null;
 }
 
 /**
@@ -218,27 +218,27 @@ function cn(...classes: (string | boolean | undefined | null)[]) {
 ════════════════════════════════════════════════════════════════ */
 
 interface TierTableProps {
-  priceTiers: PriceTier[];
+  netTiers: PriceTier[];
   activeTier: PriceTier | null;
   baseTierPrice: number;
   onJumpToTier: (tier: PriceTier) => void;
 }
 
 const TierTable = React.memo(function TierTable({
-  priceTiers,
+  netTiers,
   activeTier,
   baseTierPrice,
   onJumpToTier,
 }: TierTableProps) {
-  console.log("TierTable render", { priceTiers, activeTier, baseTierPrice },onJumpToTier);
+  console.log("TierTable render", { netTiers, activeTier, baseTierPrice },onJumpToTier);
   const cheapestPrice = useMemo(
-    () => applySageMarkup(priceTiers.reduce((min, t) => Math.min(min, t.price), Infinity)),
-    [priceTiers]
+    () => applySageMarkup(netTiers.reduce((min, t) => Math.min(min, t.price), Infinity)),
+    [netTiers]
   );
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-      {priceTiers.map((tier) => {
+      {netTiers.map((tier) => {
         const active = activeTier?.minQty === tier.minQty;
         const markedPrice = applySageMarkup(tier.price);
         const isBestValue = markedPrice === cheapestPrice && tier.maxQty === null;
@@ -469,7 +469,7 @@ export default function SageQuantityPricing({
 
   // Effective minimum = max(variant minOrderQty, first tier's minQty)
   const effectiveMin = useMemo(() => {
-    const tierMin = meta?.priceTiers[0]?.minQty ?? 1;
+    const tierMin = meta?.netTiers[0]?.minQty ?? 1;
     return Math.max(minOrderQuantity, tierMin);
   }, [meta, minOrderQuantity]);
 
@@ -485,7 +485,7 @@ export default function SageQuantityPricing({
   const [showTable, setShowTable] = useState(true);
 
   const activeTier = useMemo(
-    () => meta ? findActiveTier(meta.priceTiers, qty) : null,
+    () => meta ? findActiveTier(meta.netTiers, qty) : null,
     [meta, qty]
   );
 
@@ -500,7 +500,7 @@ export default function SageQuantityPricing({
   );
 
   const baseTierPrice = useMemo(
-    () => applySageMarkup(meta?.priceTiers?.[0]?.price ?? 0),
+    () => applySageMarkup(meta?.netTiers?.[0]?.price ?? 0),
     [meta]
   );
 
@@ -547,7 +547,7 @@ export default function SageQuantityPricing({
 
   const nextTier = useMemo(() => {
     if (!meta) return null;
-    return meta.priceTiers
+    return meta.netTiers
       .filter(t => t.minQty > qty)
       .sort((a, b) => a.minQty - b.minQty)[0] ?? null;
   }, [meta, qty]);
@@ -638,7 +638,7 @@ export default function SageQuantityPricing({
             </span>
             Volume Pricing
             <span className="text-gray-400 font-medium">
-              · {meta.priceTiers.length} tiers · {fmt(applySageMarkup(meta.priceTiers[meta.priceTiers.length - 1]?.price ?? 0))}–{fmt(applySageMarkup(meta.priceTiers[0]?.price ?? 0))}/pc
+              · {meta.netTiers.length} tiers · {fmt(applySageMarkup(meta.netTiers[meta.netTiers.length - 1]?.price ?? 0))}–{fmt(applySageMarkup(meta.netTiers[0]?.price ?? 0))}/pc
             </span>
           </div>
           {showTable ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
@@ -646,7 +646,7 @@ export default function SageQuantityPricing({
 
         {showTable && (
           <TierTable
-            priceTiers={meta.priceTiers}
+            netTiers={meta.netTiers}
             activeTier={activeTier}
             baseTierPrice={baseTierPrice}
             onJumpToTier={jumpToTier}
@@ -690,7 +690,7 @@ export default function SageQuantityPricing({
             <Tag size={12} className="text-[#F5D800]" /> Quantity Breaks
           </p>
           <TierTable
-            priceTiers={meta.priceTiers}
+            netTiers={meta.netTiers}
             activeTier={activeTier}
             baseTierPrice={baseTierPrice}
             onJumpToTier={jumpToTier}

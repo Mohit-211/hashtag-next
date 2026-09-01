@@ -241,8 +241,8 @@ export default function AddProductConfigurationModal({
     const parsed = parseSageMeta(v.meta ?? null);
     const hasTiers = !!(
       parsed &&
-      Array.isArray((parsed as any).priceTiers) &&
-      (parsed as any).priceTiers.length > 0
+      Array.isArray((parsed as any).netTiers) &&
+      (parsed as any).netTiers.length > 0
     );
     if (!hasTiers) return flat;
     return getSageUnitPriceWithMarkup(v.meta, qty) ?? flat;

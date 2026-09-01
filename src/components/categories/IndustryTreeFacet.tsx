@@ -37,10 +37,11 @@ export default function IndustryTreeFacet({
   onToggleUseCaseCategories,
   onClear,
 }: IndustryTreeFacetProps) {
+  const uniqueSelectedCategoryCount = new Set(activeIndustryCategories.map((c) => c.id)).size;
   return (
     <FacetSection
       title="Industry"
-      count={activeIndustryCategories.length || (activeIndustry.id !== null ? 1 : 0)}
+      count={uniqueSelectedCategoryCount || (activeIndustry.id !== null ? 1 : 0)}
       open={open}
       onToggle={onToggleSection}
       onClear={onClear}

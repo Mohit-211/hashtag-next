@@ -211,6 +211,19 @@ const ALL_PRINT_LOCATIONS = [
   { id: "HAT_SIDE", label: "Hat Side" },
   { id: "HAT_BACK_ARCH", label: "Hat Back (Arch)" },
 ];
+/* ── Drinkware print options (parent category "Drinkware") ── */
+const DRINKWARE_PRINT_TYPES = [
+  { id: "COLOR_IMPRINT", label: "Color Imprint" },
+  { id: "LASER_ENGRAVING", label: "Laser Engraving" },
+] as const;
+type DrinkwarePrintType = typeof DRINKWARE_PRINT_TYPES[number]["id"];
+const DRINKWARE_PRINT_LOCATIONS = [
+  { id: "FRONT", label: "Front" },
+  { id: "BACK", label: "Back" },
+] as const;
+type DrinkwarePrintLocation = typeof DRINKWARE_PRINT_LOCATIONS[number]["id"];
+/** Per-product surcharge for each print location beyond the first (first is free). */
+const DRINKWARE_SECOND_LOCATION_FEE = 8;
 const EMB_TIERS = [
   { label: "1–11", min: 1, max: 11 },
   { label: "12–23", min: 12, max: 23 },
@@ -609,6 +622,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         variantQty: variantQtyRef.current,
         selectedLocations,
         selectedMaterial,
+        selectedPrintType,
+        selectedPrintLocations,
         spColorCount,
         dtgStyle,
         customText,
@@ -694,6 +709,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         setSelectedMaterial(saved.selectedMaterial);
         lastMaterialFloorRef.current = getMaterialFloor(saved.selectedMaterial);
       }
+      if (saved.selectedPrintType) setSelectedPrintType(saved.selectedPrintType);
+      if (Array.isArray(saved.selectedPrintLocations)) setSelectedPrintLocations(saved.selectedPrintLocations);
       if (saved.spColorCount) setSpColorCount(saved.spColorCount);
       if (saved.dtgStyle) setDtgStyle(saved.dtgStyle);
       if (saved.customText) setCustomText(saved.customText);
@@ -753,6 +770,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         .find(Boolean) ?? ""
     );
   }, [product]);
+  const isDrinkware = isPromo && parentCategory.includes("drinkware");
   const garmentType = useMemo<GarmentType>(() => {
     const cat = grandCategory.toLowerCase();
     if (cat.includes("apparel") || cat.includes("uniform") || cat === "clothing") {
@@ -877,8 +895,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const parsedPromoMeta = useMemo(() => parseSageMeta(promoMetaStr), [promoMetaStr]);
   const hasTierPricing = !!(
     parsedPromoMeta &&
-    Array.isArray(parsedPromoMeta.priceTiers) &&
-    parsedPromoMeta.priceTiers.length > 0
+    Array.isArray(parsedPromoMeta.netTiers) &&
+    parsedPromoMeta.netTiers.length > 0
   );
   const promoMinQty = useMemo(
     () => getPromoMinQty(promoMetaStr, activeVariant?.min_order_quantity),
@@ -922,6 +940,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
     );
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
+  const [selectedPrintType, setSelectedPrintType] = useState<DrinkwarePrintType | null>(null);
+  const [selectedPrintLocations, setSelectedPrintLocations] = useState<DrinkwarePrintLocation[]>([]);
+  const toggleDrinkwareLocation = (id: DrinkwarePrintLocation) =>
+    setSelectedPrintLocations(prev =>
+      prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
+    );
+  /** First location is free; every additional location adds a flat $8/product. */
+  const drinkwareLocationFee = isDrinkware
+    ? Math.max(0, selectedPrintLocations.length - 1) * DRINKWARE_SECOND_LOCATION_FEE
+    : 0;
   const [showPriceTable, setShowPriceTable] = useState(false);
   const [spColorCount, setSpColorCount] = useState<SpColorCount>("1 Color");
   const [dtgStyle, setDtgStyle] = useState<keyof typeof DTG_PRICES>("Front Regular");
@@ -1159,9 +1187,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const estimatedTotal = currentSelectionPricing.total + digitizingFee;
   const promoUnitPrice: number | null = useMemo(() => {
     if (!isPromo) return null;
-    if (hasTierPricing) return getSageUnitPriceWithMarkup(promoMetaStr, currentQty) ?? basePrice;
-    return basePrice;
-  }, [isPromo, hasTierPricing, promoMetaStr, currentQty, basePrice]);
+    const base = hasTierPricing
+      ? (getSageUnitPriceWithMarkup(promoMetaStr, currentQty) ?? basePrice)
+      : basePrice;
+    return base + drinkwareLocationFee;
+  }, [isPromo, hasTierPricing, promoMetaStr, currentQty, basePrice, drinkwareLocationFee]);
   const promoTotal = (promoUnitPrice ?? 0) * currentQty;
   const REQUIREMENTS = [
     ...((isApparel || isPreMade) ? [{ key: "color", label: "Color", done: !!selectedColor }] : []),
@@ -1170,6 +1200,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       { key: "mat", label: "Print method", done: !!selectedMaterial },
     ] : []),
     ...(isPreMade ? [{ key: "size", label: "Size & qty", done: activeSizes.length > 0 }] : []),
+    ...(isDrinkware ? [
+      { key: "printtype", label: "Print type", done: !!selectedPrintType },
+      { key: "printloc", label: "Print location", done: selectedPrintLocations.length > 0 },
+    ] : []),
     ...(isPromo ? [{
       key: "qty",
       label: `Quantity (min ${promoMinQty})`,
@@ -1402,6 +1436,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (isApparel) {
       base.print_method = selectedMaterial?.toUpperCase() ?? null;
       base.locations = selectedLocations.map(loc => ({ location: loc }));
+    }
+    if (isDrinkware) {
+      base.print_method = selectedPrintType ?? null;
+      base.locations = selectedPrintLocations.map(loc => ({ location: loc }));
+      base.second_location_fee = drinkwareLocationFee;
     }
     return base;
   };
@@ -2249,7 +2288,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       ><Plus size={20} /></button>
                       <div className="pl-2 border-l border-gray-200">
                         <p className="text-[10px] text-gray-400">Unit price</p>
-                        <p className="text-xl font-black text-gray-900">${basePrice.toFixed(2)}</p>
+                        <p className="text-xl font-black text-gray-900">${(basePrice + drinkwareLocationFee).toFixed(2)}</p>
                       </div>
                     </div>
                   )}
@@ -2259,8 +2298,61 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </p>
                   )}
                 </SectionCard>
+                {isDrinkware && (
+                  <SectionCard
+                    step={2} title="Print Type & Location"
+                    subtitle="Choose how and where your logo will be applied."
+                    status={(selectedPrintType && selectedPrintLocations.length > 0) ? "done" : "required"}
+                  >
+                    <div className="mb-5">
+                      <p className="text-xs font-bold text-gray-700 mb-2">Print Type</p>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {DRINKWARE_PRINT_TYPES.map(pt => {
+                          const isSelected = selectedPrintType === pt.id;
+                          return (
+                            <label key={pt.id} className={cn(
+                              "flex items-center gap-2.5 rounded-xl border-2 px-3.5 py-3 cursor-pointer transition-all",
+                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                            )}>
+                              <input
+                                type="radio" name="drinkware-print-type" className="accent-[#F5D800]"
+                                checked={isSelected}
+                                onChange={() => setSelectedPrintType(pt.id)}
+                              />
+                              <span className="text-xs font-bold text-gray-800">{pt.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-700 mb-2">Print Location</p>
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {DRINKWARE_PRINT_LOCATIONS.map(loc => {
+                          const isSelected = selectedPrintLocations.includes(loc.id);
+                          return (
+                            <label key={loc.id} className={cn(
+                              "flex flex-col items-center gap-1 rounded-xl border-2 px-3 py-3 cursor-pointer transition-all text-center",
+                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                            )}>
+                              <input
+                                type="checkbox" className="accent-[#F5D800]"
+                                checked={isSelected}
+                                onChange={() => toggleDrinkwareLocation(loc.id)}
+                              />
+                              <span className="text-xs font-bold text-gray-800">{loc.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[11px] text-gray-400 mt-2">
+                        The first location is free — each additional location adds ${DRINKWARE_SECOND_LOCATION_FEE} per product.
+                      </p>
+                    </div>
+                  </SectionCard>
+                )}
                 <SectionCard
-                  step={2} title="Upload Your Logo"
+                  step={isDrinkware ? 3 : 2} title="Upload Your Logo"
                   subtitle="Upload a logo or add custom text to personalize this product."
                   status="optional"
                 >
@@ -2464,6 +2556,38 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             : ""}
                         </span>
                       </div>
+                    </div>
+                  </div>
+                )}
+                {isDrinkware && (selectedPrintType || selectedPrintLocations.length > 0) && (
+                  <div className="rounded-xl border border-gray-100 overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Print Details</div>
+                    <div className="px-3 py-2 space-y-1.5">
+                      {selectedPrintType && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">Print Type</span>
+                          <span className="text-xs font-bold text-gray-800">
+                            {DRINKWARE_PRINT_TYPES.find(pt => pt.id === selectedPrintType)?.label}
+                          </span>
+                        </div>
+                      )}
+                      {selectedPrintLocations.length > 0 && (
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs text-gray-500 flex-shrink-0">Locations</span>
+                          <span className="text-xs font-bold text-gray-800 text-right">
+                            {selectedPrintLocations.map(id => DRINKWARE_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id).join(", ")}
+                          </span>
+                        </div>
+                      )}
+                      {drinkwareLocationFee > 0 && (
+                        <div className="flex items-center justify-between gap-2 bg-[#FFFBEA] -mx-3 px-3 py-1.5 border-t border-[#F5D800]/20">
+                          <span className="text-xs text-[#b89000] font-semibold">
+                            Extra Location Fee ({selectedPrintLocations.length - 1} × $
+                            {DRINKWARE_SECOND_LOCATION_FEE}, per product)
+                          </span>
+                          <span className="text-xs font-black text-[#b89000]">${drinkwareLocationFee.toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

@@ -35,6 +35,7 @@ interface VariantImage {
   is_primary: boolean;
 }
 interface Variant {
+  pricing_tiers_customer: any;
   id: number;
   product_id: number;
   sku: string;
@@ -53,6 +54,7 @@ interface Variant {
   images: VariantImage[];
   size_details: Size;
   meta?: string | null;
+  supplier?: string | null;
 }
 interface Product {
   brand: any;
@@ -380,7 +382,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
       </section>
     );
   }
-console.log(product,"product")
+  console.log(product, "product")
   if (!product) {
     return (
       <section className="min-h-screen flex items-center justify-center py-10">
@@ -392,10 +394,16 @@ console.log(product,"product")
     );
   }
 
-  const displayPrice =
-    variantData?.price != null
+  const sageNetPrice =
+    variantData?.supplier === "SAGE"
+      ? product?.variants[0]?.pricing_tiers_customer?.[0]?.net
+      : undefined;
+  const displayPrice = sageNetPrice != null
+    ? sageNetPrice
+    : variantData?.price != null
       ? Number(variantData.price)
       : Number(product?.price ?? 0);
+
   const displayAttachments =
     variantData?.images && variantData.images.length > 0
       ? variantData.images.map((img) => ({
@@ -427,6 +435,7 @@ console.log(product,"product")
     : undefined;
 
   /* ───────────────────────────────────────────────── render */
+  console.log(product, "product")
   return (
     <div className="min-h-screen">
 
@@ -459,7 +468,7 @@ console.log(product,"product")
       {/* ── MAIN CONTENT ── */}
       <section className="py-8 lg:py-14">
         <div className="container mx-auto max-w-7xl px-4">
-          
+
           <div className="grid lg:grid-cols-[55%_45%] gap-8 xl:gap-14">
 
             {/* ── GALLERY ── */}
