@@ -57,10 +57,11 @@ export const IndustryApi = (params?: IndustryQueryParams) => {
 };
 
 export const ProductsByUseCaseApi = (
-  useCaseId: string | number,
+  useCaseId: string | number | Array<string | number>,
   params?: ProductQueryParams
 ) => {
-  return client.get(PRODUCT_ENDPOINTS.USE_CASE_PRODUCTS(useCaseId), {
-    params,
+  const use_case_ids = Array.isArray(useCaseId) ? useCaseId.join(",") : useCaseId;
+  return client.get(PRODUCT_ENDPOINTS.USE_CASE_PRODUCTS, {
+    params: { ...params, use_case_ids },
   });
 };

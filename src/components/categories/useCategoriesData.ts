@@ -149,19 +149,24 @@ export function useCategoriesData() {
    * category_id path AllProductsApi uses for the sidebar's use-case
    * checkboxes. Only supports page/limit, no other facets. */
   const fetchProductsByUseCase = useCallback(
-    async (useCaseId: number | string, pageNumber: number, isLoadMore: boolean) => {
+    async (
+      useCaseId: number | string | Array<number | string>,
+      pageNumber: number,
+      isLoadMore: boolean,
+      limit: number = LOAD_MORE_LIMIT
+    ) => {
       const thisFetchId = ++fetchIdRef.current;
       try {
         setProductLoading(true);
         const res: ProductApiResponse = await ProductsByUseCaseApi(useCaseId, {
           page: pageNumber,
-          limit: LOAD_MORE_LIMIT,
+          limit,
         });
         if (thisFetchId !== fetchIdRef.current) return;
         const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
         setProducts((prev) => (isLoadMore ? [...prev, ...raw] : raw));
         setTotalProducts(res?.data?.data?.pagination?.total ?? 0);
-        const more = raw.length === LOAD_MORE_LIMIT;
+        const more = raw.length === limit;
         setHasMore(more);
         hasMoreRef.current = more;
       } catch (err) {

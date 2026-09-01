@@ -91,8 +91,8 @@ export function useCategoriesView({
   // only, no category_id) instead of the merged-facet AllProductsApi path.
   // Any other filter/facet interaction clears it and falls back to normal
   // browsing (see syncQueryString, handleCategoryTabSelect, toggleBrand).
-  const [activeUseCaseId, setActiveUseCaseId] = useState<number | string | null>(null);
-  const activeUseCaseIdRef = useRef<number | string | null>(null);
+  const [activeUseCaseId, setActiveUseCaseId] = useState<number | string | Array<number | string> | null>(null);
+  const activeUseCaseIdRef = useRef<number | string | Array<number | string> | null>(null);
   const [cameFromGate, setCameFromGate] = useState(false);
   const [hoveredCatId, setHoveredCatId] = useState<number | null | "none">("none");
   const [dropdownPos, setDropdownPos] = useState({ top: 0 });
@@ -240,17 +240,24 @@ export function useCategoriesView({
     industryRestoreAttemptedRef.current = true;
     const qUseCaseId = searchParams.get("use_case_id");
     if (qUseCaseId) {
+      const wantedIds = qUseCaseId.split(",").map((s) => s.trim()).filter(Boolean);
+      const matches: { ind: Industry; uc: UseCase }[] = [];
       for (const ind of industries) {
-        const uc = (ind.use_cases ?? []).find((u) => String(u.id) === String(qUseCaseId));
-        if (uc && ind.id != null) {
-          setActiveUseCaseId(uc.id);
-          activeUseCaseIdRef.current = uc.id;
-          setExpandedIndustryIds((prev) => new Set([...prev, ind.id as number]));
-          setSelectedUseCase({ industry: ind.title, useCase: uc.title, categoryNames: (uc.parent_categories ?? []).map((c) => c.title) });
-          setCameFromGate(true);
-          setViewMode("products");
-          break;
+        for (const uc of ind.use_cases ?? []) {
+          if (wantedIds.some((id) => String(uc.id) === id)) matches.push({ ind, uc });
         }
+      }
+      if (matches.length) {
+        const ids = matches.map((m) => m.uc.id);
+        setActiveUseCaseId(ids.length === 1 ? ids[0] : ids);
+        activeUseCaseIdRef.current = ids.length === 1 ? ids[0] : ids;
+        setExpandedIndustryIds((prev) => new Set([...prev, ...matches.map((m) => m.ind.id as number)]));
+        const industryTitles = Array.from(new Set(matches.map((m) => m.ind.title)));
+        const useCaseTitles = matches.map((m) => m.uc.title);
+        const categoryNames = Array.from(new Set(matches.flatMap((m) => (m.uc.parent_categories ?? []).map((c) => c.title))));
+        setSelectedUseCase({ industry: industryTitles.join(", "), useCase: useCaseTitles.join(", "), categoryNames });
+        setCameFromGate(true);
+        setViewMode("products");
       }
       return;
     }

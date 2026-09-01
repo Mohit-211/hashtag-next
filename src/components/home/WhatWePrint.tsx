@@ -109,12 +109,10 @@ export default function WhatWePrint() {
   };
 
   const handleSelectUseCases = (useCases: UseCase[]) => {
-    const ids = Array.from(
-      new Set(useCases.flatMap((uc) => (uc.parent_categories ?? []).map((c) => String(c.id))))
-    );
+    const ids = Array.from(new Set(useCases.map((uc) => String(uc.id))));
     setActiveIndustry(null);
     if (ids.length === 0) return;
-    router.push(`/categories?category_id=${ids.join(",")}`);
+    router.push(`/categories?use_case_id=${ids.join(",")}`);
   };
 
   return (
