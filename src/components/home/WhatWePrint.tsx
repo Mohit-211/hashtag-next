@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { X } from "lucide-react";
-import CategoryCard from "@/components/common/CategoryCard";
+import CategoryCard, { resolveImageSrc } from "@/components/common/CategoryCard";
 import { IndustryApi } from "@/api/operations/product.api";
 import type { ParentCategory } from "@/data/types";
 
@@ -246,6 +247,16 @@ function IndustryUseCaseModal({ industry, onClose, onViewAll, onConfirm }: Indus
                       checked={selectedIds.has(uc.id)}
                       onChange={() => toggleUseCase(uc.id)}
                     />
+                    <span className="wwp-modal-usecase-thumb">
+                      <Image
+                        src={resolveImageSrc(uc.image)}
+                        alt={uc.title}
+                        fill
+                        sizes="40px"
+                        crossOrigin="anonymous"
+                        className="object-cover"
+                      />
+                    </span>
                     <span>{uc.title}</span>
                   </label>
                 ))}
@@ -316,6 +327,10 @@ function IndustryUseCaseModal({ industry, onClose, onViewAll, onConfirm }: Indus
         }
         .wwp-modal-usecase-row:hover { background: var(--color-secondary); border-color: var(--color-primary); }
         .wwp-modal-selectall input, .wwp-modal-usecase-row input { accent-color: var(--color-primary); width: 16px; height: 16px; flex-shrink: 0; }
+        .wwp-modal-usecase-thumb {
+          position: relative; width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
+          background: var(--color-secondary);
+        }
         .wwp-modal-footer {
           display: flex; align-items: center; justify-content: flex-end; gap: 10px;
           padding: 14px 20px; border-top: 1px solid var(--color-border); flex-shrink: 0;

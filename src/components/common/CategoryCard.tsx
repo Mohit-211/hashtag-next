@@ -7,7 +7,7 @@ interface CategoryCardProps {
   count: number;
 }
 
-function resolveImageSrc(image?: string) {
+export function resolveImageSrc(image?: string) {
   const FALLBACK = "/placeholder.png";
 
   if (!image) return FALLBACK;
