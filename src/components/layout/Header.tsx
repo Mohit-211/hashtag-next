@@ -195,6 +195,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     type="text"
     autoFocus
     value={searchQuery}
+    maxLength={100}
     onChange={(e) => setSearchQuery(e.target.value)}
     placeholder="Search for products, styles, brands..."
     className="w-full h-9 rounded-md border border-border bg-secondary/60 pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
@@ -364,6 +365,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                 type="text"
                 autoFocus
                 value={searchQuery}
+                maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search for products, styles, brands..."
                 className="w-full h-9 rounded-md border border-border bg-secondary/60 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"

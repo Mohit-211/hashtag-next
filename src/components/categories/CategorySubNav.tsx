@@ -15,7 +15,11 @@ interface CategorySubNavProps {
 
 /** Horizontal sub-category dropdown shown under a hovered header tab. Real
  * filtering for grand categories that have sub-categories happens
- * exclusively through the checkbox pills here. */
+ * exclusively through the checkbox pills here. `dropdownTop` tracks the
+ * sticky header nav's actual bottom edge (see useCategoriesView's
+ * updateDropdownPos), which varies with scroll position until the nav
+ * reaches the viewport top and sticks — a flat hardcoded offset only works
+ * post-scroll and misplaces the panel before that. */
 export default function CategorySubNav({
   hoveredCat,
   hoveredCatParents,

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import PasswordInput from "../PasswordInput";
 import { forgotPasswordApi } from "@/api/auth/auth.api";
+import { PASSWORD_MAX_LENGTH } from "@/lib/validation";
 
 const inputClass =
   "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary";
@@ -35,10 +36,20 @@ export default function ForgotPasswordClient() {
   const [loading, setLoading] = useState(false);
 
   const strength = useMemo(() => getStrength(password), [password]);
-  const mismatch = confirm && password !== confirm;
 
   /* ── Reset Password ───────────────────────── */
+  // Validation feedback is surfaced via toast only (one message at a time).
   const handleReset = async () => {
+    if (!password || !confirm) {
+      toast.error("Please fill in both password fields ⚠️");
+      return;
+    }
+
+    if (password.length > PASSWORD_MAX_LENGTH) {
+      toast.error(`Password must be under ${PASSWORD_MAX_LENGTH} characters ❌`);
+      return;
+    }
+
     if (strength < 3) {
       toast.error("Use strong password ⚠️");
       return;
@@ -72,10 +83,8 @@ export default function ForgotPasswordClient() {
         toast.error(res?.data?.message || "Reset failed ❌");
       }
     } catch (err: any) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-      toast.error(
-        err?.response?.data?.message || "Something went wrong ❌"
-      );
     } finally {
       setLoading(false);
     }
@@ -98,12 +107,14 @@ export default function ForgotPasswordClient() {
           value={password}
           onChange={(e:any) => setPassword(e.target.value)}
           placeholder="New Password"
+          maxLength={PASSWORD_MAX_LENGTH}
         />
 
         <PasswordInput
           value={confirm}
           onChange={(e:any) => setConfirm(e.target.value)}
           placeholder="Confirm Password"
+          maxLength={PASSWORD_MAX_LENGTH}
         />
 
         {/* Strength */}
@@ -122,16 +133,10 @@ export default function ForgotPasswordClient() {
           </p>
         )}
 
-        {mismatch && (
-          <p className="text-xs text-red-500">Passwords do not match</p>
-        )}
-
         <Button
           onClick={handleReset}
           className="w-full"
-          disabled={
-            loading || !password || !confirm || mismatch || strength < 3
-          }
+          disabled={loading}
         >
           {loading ? "Resetting..." : "Reset Password"}
         </Button>

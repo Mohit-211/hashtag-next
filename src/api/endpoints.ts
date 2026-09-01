@@ -24,6 +24,7 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT_VARIANT_DETAIL: (id: string | number) => `product/variant/${id}`,
   PRODUCT_GRAND_CATEGORY: "product/grand-category-products",
   INDUSTRY: "industry",
+  USE_CASE_PRODUCTS: (id: string | number) => `industry/use-case/${id}/products`,
   // PRODUCT_PARENT_CATEGORY: "product/parent-category-products", // if available
 };
 export const CART_ENDPOINTS = {

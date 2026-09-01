@@ -8,6 +8,7 @@ import {
   Sparkles,
   Package,
 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
 import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
@@ -282,6 +283,7 @@ console.log(customizationPayload,"customizationPayload")
 
       await AddToCartApi(formData);
 
+      toast.success("Added to cart!");
       setSuccess(true);
       onSuccess?.();
 

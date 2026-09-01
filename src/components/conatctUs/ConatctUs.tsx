@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, forwardRef, ReactNode, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -323,7 +323,7 @@ function ContactForm() {
     handleSubmit,
     watch,
     reset,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
     defaultValues,
@@ -332,6 +332,13 @@ function ContactForm() {
 
   const selectedReason = watch("reason");
   const description = watch("description") || "";
+
+  // Validation feedback is surfaced via toast only (one message at a time)
+  // rather than inline per-field errors.
+  const onInvalid = (fieldErrors: FieldErrors<ContactFormValues>) => {
+    const firstError = Object.values(fieldErrors)[0] as { message?: string } | undefined;
+    toast.error(firstError?.message ?? "Please check the form and try again.");
+  };
 
   const onSubmit = async (values: ContactFormValues) => {
     try {
@@ -348,7 +355,8 @@ function ContactForm() {
 
       setIsSuccess(true);
     } catch {
-      toast.error("Something went wrong. Please try again in a moment.");
+      // The axios response interceptor (see src/errors/ApiErrorHandler.js)
+      // already toasts the failure — nothing more to show here.
     }
   };
 
@@ -366,38 +374,36 @@ function ContactForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6" aria-describedby="contact-form-required-note">
+    <form onSubmit={handleSubmit(onSubmit, onInvalid)} noValidate className="flex flex-col gap-6" aria-describedby="contact-form-required-note">
       <p id="contact-form-required-note" className="text-[11px] text-muted-foreground">
         Fields marked <span className="text-primary">*</span> are required.
       </p>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <FormField id="fullName" label="Full Name" required error={errors.fullName?.message}>
+        <FormField id="fullName" label="Full Name" required>
           <IconInput
             id="fullName"
             icon={<User className="h-4 w-4" aria-hidden="true" />}
             placeholder="Jordan Lee"
             autoComplete="name"
-            hasError={!!errors.fullName}
             {...register("fullName")}
           />
         </FormField>
 
-        <FormField id="email" label="Email Address" required error={errors.email?.message}>
+        <FormField id="email" label="Email Address" required>
           <IconInput
             id="email"
             type="email"
             icon={<Mail className="h-4 w-4" aria-hidden="true" />}
             placeholder="you@example.com"
             autoComplete="email"
-            hasError={!!errors.email}
             {...register("email")}
           />
         </FormField>
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <FormField id="mobile" label="Mobile Number" required error={errors.mobile?.message}>
+        <FormField id="mobile" label="Mobile Number" required>
           <IconInput
             id="mobile"
             type="tel"
@@ -405,17 +411,15 @@ function ContactForm() {
             icon={<Phone className="h-4 w-4" aria-hidden="true" />}
             placeholder="9876543210"
             autoComplete="tel"
-            hasError={!!errors.mobile}
             {...register("mobile")}
           />
         </FormField>
 
-        <FormField id="reason" label="Reason for Contact" required error={errors.reason?.message}>
+        <FormField id="reason" label="Reason for Contact" required>
           <IconSelect
             id="reason"
             icon={<ClipboardList className="h-4 w-4" aria-hidden="true" />}
             defaultValue=""
-            hasError={!!errors.reason}
             {...register("reason")}
           >
             <option value="" disabled>
@@ -432,12 +436,11 @@ function ContactForm() {
 
       {selectedReason === "Other" && (
         <div className="animate-[fadeIn_0.25s_ease-out]">
-          <FormField id="otherReason" label="Please specify your reason" required error={errors.otherReason?.message}>
+          <FormField id="otherReason" label="Please specify your reason" required>
             <IconInput
               id="otherReason"
               icon={<Pencil className="h-4 w-4" aria-hidden="true" />}
               placeholder="Tell us briefly what this is about"
-              hasError={!!errors.otherReason}
               {...register("otherReason")}
             />
           </FormField>
@@ -448,7 +451,6 @@ function ContactForm() {
         id="description"
         label="Description / Message"
         required
-        error={errors.description?.message}
         hint="Minimum 20 characters — the more detail, the faster we can help."
       >
         <div className="relative">
@@ -456,7 +458,6 @@ function ContactForm() {
             id="description"
             icon={<MessageSquare className="h-4 w-4" aria-hidden="true" />}
             placeholder="Share your order number, issue details, or question..."
-            hasError={!!errors.description}
             {...register("description")}
           />
           <span className="pointer-events-none absolute bottom-2.5 right-3 font-mono text-[10px] text-muted-foreground/70">

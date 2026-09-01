@@ -107,8 +107,8 @@ export default function OrderActions({ order }: OrderActionsProps) {
           : `${addedCount} of ${items.length} items added to cart`
       );
     } catch (err) {
+      // The axios response interceptor already toasts the failure.
       console.error("Failed to reorder:", err);
-      toast.error("Failed to reorder");
     } finally {
       setReordering(false);
     }

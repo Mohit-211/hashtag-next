@@ -88,6 +88,7 @@ console.log(v,'v=============')
         activeParents={v.activeParents}
         hoveredCatId={v.hoveredCatId}
         tabRefs={v.tabRefs}
+        navRef={v.catNavRef}
         onHoverEnter={v.handleTabHoverEnter}
         onHoverLeave={v.handleTabHoverLeave}
         onTabClick={v.handleTabClick}

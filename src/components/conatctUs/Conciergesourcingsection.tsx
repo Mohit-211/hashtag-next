@@ -3,6 +3,9 @@
 import { AddToSourcingRequestApi } from "@/api/operations/contact.api";
 import { useEffect, useRef, useState, FormEvent } from "react";
 import { Upload, X, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+import { emailSchema, nameSchema, textSchema } from "@/lib/validation";
 
 /**
  * ConciergeSourcingSection
@@ -31,6 +34,14 @@ export interface SourcingRequestPayload {
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
+const sourcingRequestSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  company: textSchema({ required: false, max: 120 }),
+  requested_name: textSchema({ min: 2, max: 200 }),
+  details: textSchema({ required: false, max: 2000 }),
+});
+
 export default function ConciergeSourcingSection() {
   const [form, setForm] = useState<SourcingRequestPayload>({
     name: "",
@@ -41,7 +52,6 @@ export default function ConciergeSourcingSection() {
   });
 
   const [status, setStatus] = useState<SubmitStatus>("idle");
-  const [error, setError] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,11 +85,9 @@ export default function ConciergeSourcingSection() {
     }
 
     if (rejectedByLimit > 0) {
-      setError(`You can upload up to ${MAX_IMAGES} images.`);
+      toast.error(`You can upload up to ${MAX_IMAGES} images.`);
     } else if (rejectedByType > 0) {
-      setError("Only JPG, PNG, or SVG files are allowed.");
-    } else {
-      setError(null);
+      toast.error("Only JPG, PNG, or SVG files are allowed.");
     }
 
     e.target.value = "";
@@ -93,10 +101,18 @@ export default function ConciergeSourcingSection() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Validation feedback is surfaced via toast only (one message at a time)
+  // rather than inline per-field errors.
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+
+    const result = sourcingRequestSchema.safeParse(form);
+    if (!result.success) {
+      toast.error(result.error.issues[0]?.message ?? "Please check the form and try again.");
+      return;
+    }
+
     setStatus("submitting");
-    setError(null);
 
     try {
       const formData = new FormData();
@@ -110,12 +126,9 @@ export default function ConciergeSourcingSection() {
       await AddToSourcingRequestApi(formData);
       setStatus("success");
     } catch (err) {
+      // The axios response interceptor already toasts the failure.
+      console.error(err);
       setStatus("error");
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Something went wrong. Please try again."
-      );
     }
   };
 
@@ -131,7 +144,6 @@ export default function ConciergeSourcingSection() {
     setFiles([]);
     setPreviews([]);
     setStatus("idle");
-    setError(null);
   };
 
   return (
@@ -227,10 +239,11 @@ export default function ConciergeSourcingSection() {
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
               <Field
                 label="Name"
                 required
+                maxLength={80}
                 value={form.name}
                 onChange={update("name")}
                 placeholder="John Smith"
@@ -240,6 +253,7 @@ export default function ConciergeSourcingSection() {
                 label="Email"
                 type="email"
                 required
+                maxLength={254}
                 value={form.email}
                 onChange={update("email")}
                 placeholder="john.smith@company.com"
@@ -247,6 +261,7 @@ export default function ConciergeSourcingSection() {
 
               <Field
                 label="Company"
+                maxLength={120}
                 value={form.company}
                 onChange={update("company")}
                 placeholder="Smith & Co."
@@ -256,6 +271,7 @@ export default function ConciergeSourcingSection() {
               <Field
                 label="Brand or product you need"
                 required
+                maxLength={200}
                 value={form.requested_name}
                 onChange={update("requested_name")}
                 placeholder="e.g. Adidas Quarter-Zip"
@@ -269,6 +285,7 @@ export default function ConciergeSourcingSection() {
                   value={form.details}
                   onChange={update("details")}
                   rows={4}
+                  maxLength={2000}
                   placeholder="Logo files, PMS colors, quantities, deadline, or a link to your brand guidelines..."
                   className="w-full resize-none rounded-md border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
@@ -331,12 +348,6 @@ export default function ConciergeSourcingSection() {
                 </p>
               </div>
 
-              {(status === "error" || error) && (
-                <p className="text-[13px] text-red-500">
-                  {error ?? "Couldn't send your request. Please try again or text us directly."}
-                </p>
-              )}
-
               <div className="mt-2 flex flex-col gap-3 border-t border-border pt-5">
                 <button
                   type="submit"
@@ -369,7 +380,6 @@ function Field({
         {required && <span className="text-primary"> *</span>}
       </label>
       <input
-        required={required}
         className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
         {...props}
       />

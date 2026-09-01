@@ -4,6 +4,30 @@ import { useState } from "react";
 import { ChevronDown, Truck, FileText, Palette } from "lucide-react";
 import DOMPurify from "dompurify";
 
+// `description` is rich text authored in the backend/admin product editor
+// and rendered as HTML here — untrusted from the frontend's perspective
+// (a compromised admin session or backend bug could inject a payload), so
+// it's sanitized with an explicit allowlist rather than DOMPurify's broader
+// default. Only the formatting a product description actually needs is
+// allowed; DOMPurify's default URI checks already strip javascript:/data:/
+// vbscript: schemes from href/src, and disallowing "a"/img "on*" handlers
+// via ALLOWED_ATTR removes the rest of the common vectors.
+const DESCRIPTION_SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    "p", "br", "b", "strong", "i", "em", "u", "s", "span",
+    "ul", "ol", "li", "h1", "h2", "h3", "h4", "blockquote", "a",
+  ],
+  ALLOWED_ATTR: ["href", "target", "rel"],
+};
+
+// Any link a product description opens in a new tab gets a safe rel, so the
+// opened page can't reach back into this one via window.opener (tabnabbing).
+DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+  if (node.tagName === "A") {
+    if (node.getAttribute("target")) node.setAttribute("rel", "noopener noreferrer");
+  }
+});
+
 interface AccordionItem {
   id: string;
   label: string;
@@ -28,7 +52,8 @@ export default function ProductAccordion({
           className="text-sm text-[#6B7280] leading-7 prose prose-sm max-w-none"
           dangerouslySetInnerHTML={{
             __html: DOMPurify.sanitize(
-              description || "No description available"
+              description || "No description available",
+              DESCRIPTION_SANITIZE_CONFIG
             ),
           }}
         />

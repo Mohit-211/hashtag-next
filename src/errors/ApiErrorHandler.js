@@ -1,13 +1,19 @@
-import { message } from "antd";
+import { toast } from "sonner";
 import errorMessages from "./errorMessages";
 
 const TOKEN_KEY = "hastagBillionaire";
 
 let sessionExpiredHandled = false;
 
+// Centralized API error notifications: this is the ONE place that toasts an
+// HTTP-level failure (4xx/5xx/network). Callers should NOT show their own
+// toast.error for the same rejection — that duplicates this message. The one
+// deliberate exception is an anonymous 401 (no session token, e.g. a wrong
+// password on login) — this handler stays silent for that case so the
+// caller can show a form-specific message instead.
 export const handleApiError = (error) => {
   if (!error.response) {
-    message.error(errorMessages.NETWORK_ERROR || "Network error. Please check your connection.");
+    toast.error(errorMessages.NETWORK_ERROR || "Network error. Please check your connection.");
     return Promise.reject(error);
   }
 
@@ -24,7 +30,7 @@ export const handleApiError = (error) => {
       sessionExpiredHandled = true;
       localStorage.removeItem(TOKEN_KEY);
       if (!window.location.pathname.startsWith("/login")) {
-        message.error(errorMessages.UNAUTHORIZED || "Session expired. Please log in again.");
+        toast.error(errorMessages.UNAUTHORIZED || "Session expired. Please log in again.");
         window.location.href = "/login";
       }
     }
@@ -33,31 +39,31 @@ export const handleApiError = (error) => {
 
   switch (status) {
     case 400:
-      message.error(serverMessage || "Bad request.");
+      toast.error(serverMessage || "Bad request.");
       break;
     case 401:
       // Reaches here only when hadToken is false (no session to expire) —
       // an anonymous 401, e.g. wrong-password login. Let the caller handle it.
       break;
     case 403:
-      message.error(serverMessage || "You don't have permission to do this.");
+      toast.error(serverMessage || "You don't have permission to do this.");
       break;
     case 404:
-      message.error(serverMessage || "Resource not found.");
+      toast.error(serverMessage || "Resource not found.");
       break;
     case 422:
       if (data?.errors) {
         const first = Object.values(data.errors)[0];
-        message.error(first?.[0] || serverMessage || "Validation error.");
+        toast.error(first?.[0] || serverMessage || "Validation error.");
       } else {
-        message.error(serverMessage || "Validation error.");
+        toast.error(serverMessage || "Validation error.");
       }
       break;
     case 500:
-      message.error(serverMessage || "Server error. Please try again later.");
+      toast.error(serverMessage || "Server error. Please try again later.");
       break;
     default:
-      message.error(serverMessage || errorMessages.UNKNOWN || "Something went wrong.");
+      toast.error(serverMessage || errorMessages.UNKNOWN || "Something went wrong.");
       break;
   }
 

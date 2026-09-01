@@ -9,6 +9,7 @@ import DemoCredentials from "./DemoCredentials";
 // ✅ Sonner toast
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { emailSchema, PASSWORD_MAX_LENGTH } from "@/lib/validation";
 interface LoginFormProps {
   switchToRegister: () => void;
 }
@@ -27,8 +28,19 @@ export default function LoginForm({ switchToRegister }: LoginFormProps) {
 const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
   e.preventDefault();
 
-  if (!email || !password) {
-    toast.error("Email and password are required ⚠️");
+  // Validation feedback is surfaced via toast only (one message at a
+  // time) rather than inline field errors.
+  const emailResult = emailSchema.safeParse(email);
+  if (!emailResult.success) {
+    toast.error(emailResult.error.issues[0]?.message ?? "Enter a valid email address. ⚠️");
+    return;
+  }
+  if (!password) {
+    toast.error("Password is required ⚠️");
+    return;
+  }
+  if (password.length > PASSWORD_MAX_LENGTH) {
+    toast.error(`Password must be under ${PASSWORD_MAX_LENGTH} characters ⚠️`);
     return;
   }
 
@@ -77,11 +89,12 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
           Log in to continue shopping.
         </p>
       </div>
-      <form onSubmit={handleLogin} className="space-y-4">
+      <form onSubmit={handleLogin} className="space-y-4" noValidate>
         <input
           type="email"
           placeholder="Email Address"
           value={email}
+          maxLength={254}
           onChange={(e) => setEmail(e.target.value)}
           className={inputClass}
         />
@@ -89,6 +102,7 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
+          maxLength={PASSWORD_MAX_LENGTH}
         />
         <div className="flex justify-between items-center">
           {/* <label className="flex items-center gap-2">

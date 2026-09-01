@@ -11,13 +11,7 @@ interface UseCasePickerGateProps {
 const SKELETON_COUNT = 8;
 const MAX_VISIBLE_TAGS = 2;
 const FALLBACK_IMAGE = "/placeholder.png"; // adjust to whatever fallback asset you actually have
-/** Resolves a raw `image` field from the API into a usable <Image src>.
- * - Absolute URLs (http/https) pass through untouched.
- * - Relative paths get prefixed with NEXT_PUBLIC_IMAGE_URL.
- * - Missing/empty values fall back to a local placeholder.
- * NOTE: the external host used here must also be whitelisted in
- * next.config.js under images.remotePatterns, or next/image will refuse
- * to render it (this is the #1 reason images silently don't show up). */
+
 function resolveImageSrc(image?: string | null) {
   if (!image) return FALLBACK_IMAGE;
   if (image.startsWith("http")) return image;
@@ -27,17 +21,7 @@ function resolveImageSrc(image?: string | null) {
   const trimmedPath = image.startsWith("/") ? image : `/${image}`;
   return `${trimmedBase}${trimmedPath}`;
 }
-/** Default landing view for plain /categories: a full-page "Select a Use
- * Case" gate, sourced live from IndustryApi (the same `industries` data the
- * sidebar's Industry facet uses — no separate fetch, no hardcoded list).
- *
- * Clubbed by industry: use cases are grouped under their owning industry,
- * each group rendered as its own labeled section, instead of one flat grid
- * mixing use cases from every industry together.
- *
- * Picking a use case opens the filtered product grid directly, checking the
- * exact same real category ids that the sidebar's "select all" use-case
- * checkbox would check — see `onSelectUseCase` in the parent hook. */
+
 export default function UseCasePickerGate({
   industries,
   industriesLoading,
@@ -132,7 +116,7 @@ export default function UseCasePickerGate({
                           >
                             {uc.title}
                           </div>
-                          {visibleCats.length > 0 && (
+                          {/* {visibleCats.length > 0 && (
                             <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
                               {visibleCats.map((c) => (
                                 <span
@@ -168,7 +152,7 @@ export default function UseCasePickerGate({
                                 </span>
                               )}
                             </div>
-                          )}
+                          )} */}
                         </div>
                       </button>
                     );

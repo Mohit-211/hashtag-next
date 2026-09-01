@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/data/constants";
 import { GetCitiesApi, GetStatesApi } from "@/api/operations/location.api";
+import { addressLineSchema, nameSchema, phoneSchema, postalCodeSchema } from "@/lib/validation";
 
 export default function AddressForm({
   formData,
@@ -85,13 +87,52 @@ export default function AddressForm({
     });
   };
 
+  // Validation feedback is surfaced via toast only (one message at a time),
+  // checked in field order, rather than inline per-field errors.
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const nameResult = nameSchema.safeParse(formData.fullName);
+    if (!nameResult.success) {
+      toast.error(nameResult.error.issues[0]?.message ?? "Full name is required ⚠️");
+      return;
+    }
+
+    const phoneResult = phoneSchema.safeParse(formData.phone);
+    if (!phoneResult.success) {
+      toast.error(phoneResult.error.issues[0]?.message ?? "Enter a valid phone number ⚠️");
+      return;
+    }
+
+    const line1Result = addressLineSchema.safeParse(formData.line1);
+    if (!line1Result.success) {
+      toast.error(line1Result.error.issues[0]?.message ?? "Address is required ⚠️");
+      return;
+    }
+
+    if (!formData.state_id) {
+      toast.error("Please select a state ⚠️");
+      return;
+    }
+    if (!formData.city_id) {
+      toast.error("Please select a city ⚠️");
+      return;
+    }
+
+    const postalResult = postalCodeSchema.safeParse(formData.postalCode);
+    if (!postalResult.success) {
+      toast.error(postalResult.error.issues[0]?.message ?? "Enter a valid postal code ⚠️");
+      return;
+    }
+
+    onSave(formData);
+  };
+
   return (
     <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSave(formData);
-      }}
+      onSubmit={handleSubmit}
       className="border rounded-lg p-5 space-y-4"
+      noValidate
     >
       <h3 className="font-semibold">
         {editing ? "Edit Address" : "Add Address"}
@@ -100,34 +141,29 @@ export default function AddressForm({
       {/* Full Name */}
       <input
         value={formData.fullName}
-        onChange={(e) =>
-          setFormData({ ...formData, fullName: e.target.value })
-        }
+        maxLength={80}
+        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
         placeholder="Full Name"
         className={inputClass}
-        required
       />
 
       {/* Phone */}
       <input
+        type="tel"
         value={formData.phone}
-        onChange={(e) =>
-          setFormData({ ...formData, phone: e.target.value })
-        }
+        maxLength={20}
+        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
         placeholder="Phone"
         className={inputClass}
-        required
       />
 
       {/* Address */}
       <input
         value={formData.line1}
-        onChange={(e) =>
-          setFormData({ ...formData, line1: e.target.value })
-        }
+        maxLength={200}
+        onChange={(e) => setFormData({ ...formData, line1: e.target.value })}
         placeholder="Address Line 1"
         className={inputClass}
-        required
       />
 
       {/* State */}
@@ -135,7 +171,6 @@ export default function AddressForm({
         value={formData.state_id ? Number(formData.state_id) : ""}
         onChange={(e) => handleStateChange(e.target.value)}
         className={inputClass}
-        required
       >
         <option value="">Select State</option>
         {states.map((s) => (
@@ -151,7 +186,6 @@ export default function AddressForm({
         onChange={(e) => handleCityChange(e.target.value)}
         className={inputClass}
         disabled={!formData.state_id}
-        required
       >
         <option value="">Select City</option>
         {cities.map((c) => (
@@ -164,12 +198,10 @@ export default function AddressForm({
       {/* Postal Code */}
       <input
         value={formData.postalCode}
-        onChange={(e) =>
-          setFormData({ ...formData, postalCode: e.target.value })
-        }
+        maxLength={12}
+        onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
         placeholder="Postal Code"
         className={inputClass}
-        required
       />
 
       {/* Buttons */}

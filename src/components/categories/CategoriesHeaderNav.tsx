@@ -18,6 +18,7 @@ interface CategoriesHeaderNavProps {
   activeParents: SelectedSubCategory[];
   hoveredCatId: number | null | "none";
   tabRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  navRef: React.MutableRefObject<HTMLDivElement | null>;
   onHoverEnter: (cat: GrandCategory) => void;
   onHoverLeave: () => void;
   onTabClick: (cat: GrandCategory) => void;
@@ -39,12 +40,13 @@ export default function CategoriesHeaderNav({
   activeParents,
   hoveredCatId,
   tabRefs,
+  navRef,
   onHoverEnter,
   onHoverLeave,
   onTabClick,
 }: CategoriesHeaderNavProps) {
   return (
-    <div className="cat-nav">
+    <div className="cat-nav" ref={navRef}>
       <div className="cat-nav-row">
         <div className="cat-tabs-scroll">
           {/* All */}

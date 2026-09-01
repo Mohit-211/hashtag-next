@@ -114,9 +114,10 @@ export default function VerifyOtpClient() {
         setHasError(true);
         toast.error(res?.data?.message || "Invalid OTP ❌");
       }
-    } catch (err: any) {
+    } catch (err) {
+      // The axios response interceptor already toasts the failure.
+      console.error(err);
       setHasError(true);
-      toast.error(err?.response?.data?.message || "Verification failed ❌");
     } finally {
       setLoading(false);
     }
@@ -139,7 +140,8 @@ export default function VerifyOtpClient() {
         toast.error(res?.data?.message || "Failed to resend OTP ❌");
       }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to resend OTP ❌");
+      // The axios response interceptor already toasts the failure.
+      console.error(err);
     } finally {
       setResendLoading(false);
     }

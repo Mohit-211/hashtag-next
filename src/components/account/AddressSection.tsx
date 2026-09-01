@@ -57,7 +57,6 @@ export default function AddressSection({
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<AddressFormData>(emptyAddress);
-  const [formError, setFormError] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -73,14 +72,12 @@ export default function AddressSection({
   const openAdd = () => {
     setEditingAddress(null);
     setFormData(emptyAddress);
-    setFormError(null);
     setShowForm(true);
   };
 
   const openEdit = (addr: Address) => {
     setEditingAddress(addr);
     setFormData({ ...addr });
-    setFormError(null);
     setShowForm(true);
   };
 
@@ -88,7 +85,6 @@ export default function AddressSection({
     setShowForm(false);
     setEditingAddress(null);
     setFormData(emptyAddress);
-    setFormError(null);
   };
 
   const handleSaveAddress = async (data: AddressFormData) => {
@@ -101,10 +97,9 @@ export default function AddressSection({
         if (target) setSelectedAddressId?.(target);
       }
       closeForm();
-    } else {
-      if (mode === "manage") message.error("Something went wrong");
-      else setFormError("Something went wrong while saving the address");
     }
+    // On failure, the axios response interceptor already toasted the
+    // reason — nothing more to show here.
   };
 
   const requestDelete = (id: number) => {
@@ -120,9 +115,8 @@ export default function AddressSection({
     if (ok) {
       if (mode === "manage") message.success("Address deleted successfully");
       if (selectedAddressId === id) setSelectedAddressId?.(null);
-    } else if (mode === "manage") {
-      message.error("Failed to delete address");
     }
+    // On failure, the axios response interceptor already toasted the reason.
     setDeleteTargetId(null);
   };
 
@@ -131,10 +125,8 @@ export default function AddressSection({
     if (addr.isDefault || savingId === addr.id) return;
 
     const ok = await setDefaultAddress(addr);
-    if (mode === "manage") {
-      if (ok) message.success("Default address updated");
-      else message.error("Failed to update default address");
-    }
+    // On failure, the axios response interceptor already toasted the reason.
+    if (mode === "manage" && ok) message.success("Default address updated");
   };
 
   const isSelect = mode === "select";
@@ -368,7 +360,6 @@ export default function AddressSection({
               </button>
             </div>
             <div className="p-5">
-              {formError && <p className="text-sm text-red-600 mb-3">{formError}</p>}
               <AddressForm
                 formData={formData}
                 setFormData={setFormData}

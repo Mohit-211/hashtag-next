@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { sendOtpApi } from "@/api/auth/auth.api";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner"; // ✅ import toast
+import { emailSchema } from "@/lib/validation";
 
 export default function SendOtpClient() {
   const router = useRouter();
@@ -15,8 +16,9 @@ export default function SendOtpClient() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email) {
-      toast.error("Please enter your email"); // ✅ toast
+    const result = emailSchema.safeParse(email);
+    if (!result.success) {
+      toast.error(result.error.issues[0]?.message ?? "Enter a valid email address ⚠️");
       return;
     }
 
@@ -32,9 +34,8 @@ export default function SendOtpClient() {
         `/verify-otp?type=forgot_password&email=${encodeURIComponent(email)}` // ✅ FIXED email encoding
       );
     } catch (error: any) {
-      toast.error(
-        error?.response?.data?.message || "Something went wrong"
-      ); // ✅ error toast
+      // The axios response interceptor already toasts the failure.
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -56,6 +57,7 @@ export default function SendOtpClient() {
               type="email"
               placeholder="you@example.com"
               value={email}
+              maxLength={254}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />

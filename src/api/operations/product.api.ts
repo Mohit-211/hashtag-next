@@ -50,9 +50,17 @@ export interface IndustryQueryParams {
   limit?: number;
   search?: string;
 }
-
 export const IndustryApi = (params?: IndustryQueryParams) => {
   return client.get(PRODUCT_ENDPOINTS.INDUSTRY, {
+    params,
+  });
+};
+
+export const ProductsByUseCaseApi = (
+  useCaseId: string | number,
+  params?: ProductQueryParams
+) => {
+  return client.get(PRODUCT_ENDPOINTS.USE_CASE_PRODUCTS(useCaseId), {
     params,
   });
 };

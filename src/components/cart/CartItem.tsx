@@ -74,8 +74,8 @@ export default function CartItem({ item, onRefresh }: Props) {
       message.success("Quantity decreased");
       onRefresh();
     } catch (err: any) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-      message.error("Failed to decrease quantity");
     } finally {
       setLoading(false);
     }
@@ -90,8 +90,8 @@ export default function CartItem({ item, onRefresh }: Props) {
       message.success("Quantity increased");
       onRefresh();
     } catch (err: any) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-      message.error("Failed to increase quantity");
     } finally {
       setLoading(false);
     }
@@ -134,8 +134,8 @@ export default function CartItem({ item, onRefresh }: Props) {
       message.success("Quantity updated");
       onRefresh();
     } catch (err: any) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-      message.error("Failed to update quantity");
     } finally {
       setLoading(false);
     }
@@ -149,8 +149,8 @@ export default function CartItem({ item, onRefresh }: Props) {
       message.success("Item removed");
       onRefresh();
     } catch (err: any) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-      message.error("Failed to remove item");
     } finally {
       setLoading(false);
     }

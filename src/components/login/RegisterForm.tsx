@@ -9,6 +9,7 @@ import { registerApi } from "./../../api/auth/auth.api";
 
 // ✅ Sonner toast
 import { toast } from "sonner";
+import { emailSchema, nameSchema } from "@/lib/validation";
 
 interface RegisterFormProps {
   switchToLogin: () => void;
@@ -66,20 +67,21 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
 
   // ── Password strength ──────────────────────────────────────────────────────
   const strength = useMemo(() => getPasswordStrength(password), [password]);
-
-  // ── Validation helpers ─────────────────────────────────────────────────────
-  const mobileError =
-    mobile.length > 0 && mobile.length < 10
-      ? "Mobile number must be exactly 10 digits"
-      : "";
-
-  const passwordMismatch =
-    confirm.length > 0 && password !== confirm;
+  const passwordMismatch = confirm.length > 0 && password !== confirm;
 
   // ── Submit ─────────────────────────────────────────────────────────────────
+  // Validation feedback is surfaced via toast only (one message at a time),
+  // checked in field order, rather than inline per-field errors.
   const handleRegister = async () => {
-    if (!name || !email || !mobile || !password || !confirm) {
-      toast.error("All fields are required ⚠️");
+    const nameResult = nameSchema.safeParse(name);
+    if (!nameResult.success) {
+      toast.error(nameResult.error.issues[0]?.message ?? "Enter your full name ⚠️");
+      return;
+    }
+
+    const emailResult = emailSchema.safeParse(email);
+    if (!emailResult.success) {
+      toast.error(emailResult.error.issues[0]?.message ?? "Enter a valid email address ⚠️");
       return;
     }
 
@@ -88,8 +90,18 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
       return;
     }
 
+    if (!password) {
+      toast.error("Password is required ⚠️");
+      return;
+    }
+
     if (strength.score < 3) {
       toast.error("Please choose a stronger password (at least Good) 🔒");
+      return;
+    }
+
+    if (!confirm) {
+      toast.error("Please confirm your password ⚠️");
       return;
     }
 
@@ -125,23 +137,12 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
         toast.error(res?.data?.message || "Registration failed ❌");
       }
     } catch (err: any) {
-      toast.error(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Something went wrong ❌"
-      );
+      // The axios response interceptor already toasts the failure.
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
-
-  const isFormValid =
-    !!name &&
-    !!email &&
-    mobile.length === 10 &&
-    !!password &&
-    strength.score >= 3 &&
-    password === confirm;
 
   return (
     <>
@@ -158,6 +159,7 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
         <input
           placeholder="Full Name"
           value={name}
+          maxLength={80}
           onChange={(e) => setName(e.target.value)}
           className={inputClass}
         />
@@ -166,6 +168,7 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
           type="email"
           placeholder="Email Address"
           value={email}
+          maxLength={254}
           onChange={(e) => setEmail(e.target.value)}
           className={inputClass}
         />
@@ -179,13 +182,8 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
             value={mobile}
             onChange={handleMobileChange}
             maxLength={10}
-            className={`${inputClass} ${
-              mobileError ? "border-red-500 focus:ring-red-500" : ""
-            }`}
+            className={inputClass}
           />
-          {mobileError && (
-            <p className="text-xs text-red-500 px-1">{mobileError}</p>
-          )}
           {mobile.length === 10 && (
             <p className="text-xs text-green-500 px-1">✓ Valid mobile number</p>
           )}
@@ -197,6 +195,7 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
+            maxLength={128}
           />
 
           {/* Strength bar */}
@@ -234,10 +233,8 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder="Confirm Password"
+            maxLength={128}
           />
-          {passwordMismatch && (
-            <p className="text-xs text-red-500 px-1">Passwords do not match</p>
-          )}
           {confirm.length > 0 && !passwordMismatch && (
             <p className="text-xs text-green-500 px-1">✓ Passwords match</p>
           )}
@@ -250,7 +247,7 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
           variant="hero"
           size="lg"
           className="w-full"
-          disabled={loading || !isFormValid}
+          disabled={loading}
         >
           {loading ? "Creating..." : "Create Account"}
         </Button>

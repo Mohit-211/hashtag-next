@@ -1,6 +1,5 @@
-import GalleryMain from '@/components/gallery/Gallery'
-import GalleryMain2 from '@/components/gallery/GalleryMain2'
-import GalleryMain3 from '@/components/gallery/GalleryMain3'
+
+import GalleryMain from '@/components/Gallery/GalleryMain'
 import React from 'react'
 
 const GalleryPage = () => {
@@ -8,7 +7,7 @@ const GalleryPage = () => {
     <div>
       {/* <GalleryMain /> */}
       {/* <GalleryMain2/> */}
-      <GalleryMain3/>
+      <GalleryMain/>
 
     </div>
   )

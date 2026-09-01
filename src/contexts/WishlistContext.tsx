@@ -87,9 +87,8 @@ export const WishlistProvider = ({
 
       setWishlist(res?.data?.data || []);
     } catch (error) {
+      // The axios response interceptor already toasts the failure.
       console.error(error);
-
-      toast.error("Failed to load wishlist");
 
       setWishlist([]);
     } finally {
@@ -113,9 +112,8 @@ export const WishlistProvider = ({
 
       toast.success("Removed from wishlist");
     } catch (err) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-
-      toast.error("Failed to remove item");
     }
   };
 
@@ -175,9 +173,8 @@ export const WishlistProvider = ({
 
       toast.success("Added to wishlist");
     } catch (err) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-
-      toast.error("Failed to add");
 
       throw err;
     }
@@ -203,9 +200,8 @@ export const WishlistProvider = ({
         `${item.name} moved to cart`
       );
     } catch (err) {
+      // The axios response interceptor already toasts the failure.
       console.error(err);
-
-      toast.error("Failed to move item");
     }
   };
 

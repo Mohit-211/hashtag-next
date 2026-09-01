@@ -57,6 +57,7 @@ export function useCategoriesView({
     fetchCategories,
     fetchIndustries,
     fetchProducts,
+    fetchProductsByUseCase,
   } = useCategoriesData();
   const [activeCategory, setActiveCategory] = useState<GrandCategory>({ id: null, name: "All" });
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<number>>(new Set());
@@ -80,14 +81,31 @@ export function useCategoriesView({
   const [sortBy, setSortBy] = useState<SortOption["value"]>("" as SortOption["value"]);
   const hasUrlFilterParam =
     !!initialCategoryId || !!initialBrandId || !!initialIndustryId || !!urlSearch || urlBrowseAll ||
-    !!searchParams.get("category_id") || !!searchParams.get("industry_id");
+    !!searchParams.get("category_id") || !!searchParams.get("industry_id") || !!searchParams.get("use_case_id");
   const [urlRestoreAttempted, setUrlRestoreAttempted] = useState(!hasUrlFilterParam);
   const [viewMode, setViewMode] = useState<"picker" | "products">(hasUrlFilterParam ? "products" : "picker");
   const [pickerIndustryId, setPickerIndustryId] = useState<number | null>(null);
   const [selectedUseCase, setSelectedUseCase] = useState<{ industry: string; useCase: string; categoryNames: string[] } | null>(null);
+  // Set only by the picker gate's use-case click (handleSelectUseCase). While
+  // set, the product grid is sourced from ProductsByUseCaseApi (page/limit
+  // only, no category_id) instead of the merged-facet AllProductsApi path.
+  // Any other filter/facet interaction clears it and falls back to normal
+  // browsing (see syncQueryString, handleCategoryTabSelect, toggleBrand).
+  const [activeUseCaseId, setActiveUseCaseId] = useState<number | string | null>(null);
+  const activeUseCaseIdRef = useRef<number | string | null>(null);
   const [cameFromGate, setCameFromGate] = useState(false);
   const [hoveredCatId, setHoveredCatId] = useState<number | null | "none">("none");
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
+  const [dropdownPos, setDropdownPos] = useState({ top: 0 });
+  // The header nav is sticky, not fixed — before the page scrolls past it,
+  // its actual bottom edge sits below the (also sticky) global site header,
+  // then settles at a constant offset once scrolled. Measuring the nav's
+  // own rect (rather than hardcoding an offset) keeps the sub-nav dropdown
+  // aligned to the tabs row in both states.
+  const catNavRef = useRef<HTMLDivElement | null>(null);
+  const updateDropdownPos = useCallback(() => {
+    const el = catNavRef.current;
+    if (el) setDropdownPos({ top: el.getBoundingClientRect().bottom });
+  }, []);
   const tabRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [brandMenuOpen, setBrandMenuOpen] = useState(false);
@@ -121,6 +139,7 @@ export function useCategoriesView({
   useEffect(() => { inStockOnlyRef.current = inStockOnly; }, [inStockOnly]);
   useEffect(() => { priceRangeRef.current = priceRange; }, [priceRange]);
   useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
+  useEffect(() => { activeUseCaseIdRef.current = activeUseCaseId; }, [activeUseCaseId]);
   const priceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -219,6 +238,22 @@ export function useCategoriesView({
   useEffect(() => {
     if (!industries.length || industryRestoreAttemptedRef.current) return;
     industryRestoreAttemptedRef.current = true;
+    const qUseCaseId = searchParams.get("use_case_id");
+    if (qUseCaseId) {
+      for (const ind of industries) {
+        const uc = (ind.use_cases ?? []).find((u) => String(u.id) === String(qUseCaseId));
+        if (uc && ind.id != null) {
+          setActiveUseCaseId(uc.id);
+          activeUseCaseIdRef.current = uc.id;
+          setExpandedIndustryIds((prev) => new Set([...prev, ind.id as number]));
+          setSelectedUseCase({ industry: ind.title, useCase: uc.title, categoryNames: (uc.parent_categories ?? []).map((c) => c.title) });
+          setCameFromGate(true);
+          setViewMode("products");
+          break;
+        }
+      }
+      return;
+    }
     const qCategoryIds = searchParams.get("category_id");
     if (qCategoryIds) {
       const ids = new Set(qCategoryIds.split(",").map((s) => s.trim()));
@@ -289,7 +324,7 @@ export function useCategoriesView({
     if (urlSearch === lastReactedSearchRef.current) return;
     lastReactedSearchRef.current = urlSearch;
     if (!urlSearch) return; // clearing search shouldn't clear filters
-    if (searchParams.get("category_id") || searchParams.get("industry_id")) return;
+    if (searchParams.get("category_id") || searchParams.get("industry_id") || searchParams.get("use_case_id")) return;
     const hasActiveFilters =
       activeCategoryRef.current.id !== null ||
       activeParentsRef.current.length > 0 ||
@@ -302,7 +337,8 @@ export function useCategoriesView({
       activeFabricsRef.current.length > 0 ||
       inStockOnlyRef.current ||
       priceRangeRef.current[0] > PRICE_MIN ||
-      priceRangeRef.current[1] < PRICE_MAX;
+      priceRangeRef.current[1] < PRICE_MAX ||
+      activeUseCaseIdRef.current !== null;
     if (!hasActiveFilters) return;
     const emptyCategory: GrandCategory = { id: null, name: "All", parent_categories: [] };
     const emptyIndustry: Industry = { id: null, title: "All", use_cases: [] };
@@ -316,6 +352,8 @@ export function useCategoriesView({
     setActiveIndustryCategories([]);
     activeIndustryCategoriesRef.current = [];
     setExpandedIndustryIds(new Set());
+    setActiveUseCaseId(null);
+    activeUseCaseIdRef.current = null;
     setActiveBrands([]);
     activeBrandsRef.current = [];
     setActiveSizes([]);
@@ -365,6 +403,8 @@ export function useCategoriesView({
     setInStockOnly(false);
     setPriceRange([PRICE_MIN, PRICE_MAX]);
     setSortBy("" as SortOption["value"]);
+    setActiveUseCaseId(null);
+    activeUseCaseIdRef.current = null;
     persistSelection(null, null);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setSearchInput("");
@@ -407,7 +447,8 @@ export function useCategoriesView({
       !!searchParams.get("category_id") ||
       !!searchParams.get("industry_id") ||
       !!searchParams.get("search") ||
-      !!searchParams.get("brand_id");
+      !!searchParams.get("brand_id") ||
+      !!searchParams.get("use_case_id");
     if (hasFilterParam) return; // deep-linked/shared URL — keep products view
 
     if (searchParams.get("view") === "all") {
@@ -457,6 +498,12 @@ export function useCategoriesView({
       clearSearch?: boolean;
     }) => {
       if (typeof window === "undefined") return;
+      // Any generic facet/filter change means we're no longer showing the
+      // picker gate's curated use-case product list.
+      if (activeUseCaseIdRef.current !== null) {
+        setActiveUseCaseId(null);
+        activeUseCaseIdRef.current = null;
+      }
       const url = new URL(window.location.href);
       const sp = url.searchParams;
       const categoryIds =
@@ -493,28 +540,35 @@ export function useCategoriesView({
     [router]
   );
 
+  // Picker gate click: does NOT resolve to category ids. Products come
+  // straight from ProductsByUseCaseApi (industry/use-case/{id}/products) via
+  // activeUseCaseId, not the merged category_id facet path.
   const handleSelectUseCase = (industry: Industry, useCase: UseCase, selectedCategories?: ParentCategory[]) => {
     if (industry.id == null) return;
     const cats = selectedCategories ?? useCase.parent_categories ?? [];
-    const mapped: SelectedIndustryCategory[] = cats.map((cat) => ({
-      ...cat,
-      industryId: industry.id as number,
-      industryName: industry.title,
-      useCaseId: useCase.id,
-      useCaseName: useCase.title,
-    }));
-    setActiveIndustryCategories(mapped);
-    activeIndustryCategoriesRef.current = mapped;
+    setActiveIndustryCategories([]);
+    activeIndustryCategoriesRef.current = [];
     setExpandedIndustryIds((prev) => new Set([...prev, industry.id as number]));
     setActiveParents([]);
     activeParentsRef.current = [];
     const emptyCategory: GrandCategory = { id: null, name: "All", parent_categories: [] };
     setActiveCategory(emptyCategory);
     activeCategoryRef.current = emptyCategory;
-    persistSelection(mapped.length ? "industry" : null, mapped.length ? mapped.map((c) => c.id).join(",") : null, {
-      categoryIds: mapped.map((c) => c.id),
-    });
-    syncQueryString({ categoryIds: mapped.map((c) => String(c.id)), clearSearch: true });
+    setActiveUseCaseId(useCase.id);
+    activeUseCaseIdRef.current = useCase.id;
+    persistSelection("use_case", useCase.id, { industryId: industry.id, industryName: industry.title });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const sp = url.searchParams;
+      sp.set("use_case_id", String(useCase.id));
+      sp.delete("category_id");
+      sp.delete("industry_id");
+      sp.delete("view");
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      setSearchInput("");
+      sp.delete("search");
+      router.replace(`${url.pathname}?${sp.toString()}`.replace(/\?$/, ""), { scroll: false });
+    }
     setSelectedUseCase({ industry: industry.title, useCase: useCase.title, categoryNames: cats.map((c) => c.title) });
     setCameFromGate(true);
     setViewMode("products");
@@ -539,6 +593,8 @@ export function useCategoriesView({
     setSelectedUseCase(null);
     setPickerIndustryId(null);
     setCameFromGate(false);
+    setActiveUseCaseId(null);
+    activeUseCaseIdRef.current = null;
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setSearchInput("");
     router.push("/categories", { scroll: false });
@@ -558,6 +614,10 @@ export function useCategoriesView({
     setProductGridLoading(true);
     pageRef.current = 1;
     setPage(1);
+    if (activeUseCaseId != null) {
+      fetchProductsByUseCase(activeUseCaseId, 1, false);
+      return;
+    }
     fetchProducts(1, false, {
       category: activeCategory,
       parents: activeParents,
@@ -576,7 +636,8 @@ export function useCategoriesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     categories.length, activeCategory, activeParents, activeIndustry, activeIndustryCategories, activeBrands, activeSizes, activeColors,
-    activeGenders, activeFabrics, inStockOnly, priceRange, sortBy, fetchProducts, urlRestoreAttempted, urlSearch,
+    activeGenders, activeFabrics, inStockOnly, priceRange, sortBy, fetchProducts, urlRestoreAttempted, urlSearch, activeUseCaseId,
+    fetchProductsByUseCase,
   ]);
 
   useEffect(() => {
@@ -589,27 +650,31 @@ export function useCategoriesView({
         const nextPage = pageRef.current + 1;
         pageRef.current = nextPage;
         setPage(nextPage);
-        await fetchProducts(nextPage, true, {
-          category: activeCategoryRef.current,
-          parents: activeParentsRef.current,
-          industry: activeIndustryRef.current,
-          industryCategories: activeIndustryCategoriesRef.current,
-          brands: activeBrandsRef.current,
-          sizes: activeSizesRef.current,
-          colors: activeColorsRef.current,
-          inStock: inStockOnlyRef.current,
-          priceRange: priceRangeRef.current,
-          genders: activeGendersRef.current,
-          fabrics: activeFabricsRef.current,
-          sort: sortByRef.current,
-          search: urlSearchRef.current,
-        });
+        if (activeUseCaseIdRef.current != null) {
+          await fetchProductsByUseCase(activeUseCaseIdRef.current, nextPage, true);
+        } else {
+          await fetchProducts(nextPage, true, {
+            category: activeCategoryRef.current,
+            parents: activeParentsRef.current,
+            industry: activeIndustryRef.current,
+            industryCategories: activeIndustryCategoriesRef.current,
+            brands: activeBrandsRef.current,
+            sizes: activeSizesRef.current,
+            colors: activeColorsRef.current,
+            inStock: inStockOnlyRef.current,
+            priceRange: priceRangeRef.current,
+            genders: activeGendersRef.current,
+            fabrics: activeFabricsRef.current,
+            sort: sortByRef.current,
+            search: urlSearchRef.current,
+          });
+        }
         fetchingRef.current = false;
       }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [fetchProducts, productLoading, hasMoreRef]);
+  }, [fetchProducts, fetchProductsByUseCase, productLoading, hasMoreRef]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -621,6 +686,8 @@ export function useCategoriesView({
   }, [sidebarOpen]);
 
   const handleCategoryTabSelect = (cat: GrandCategory) => {
+    setActiveUseCaseId(null);
+    activeUseCaseIdRef.current = null;
     setActiveCategory(cat);
     activeCategoryRef.current = cat;
     setActiveParents([]);
@@ -748,6 +815,8 @@ export function useCategoriesView({
   };
 
   const toggleBrand = (brand: Brand) => {
+    setActiveUseCaseId(null);
+    activeUseCaseIdRef.current = null;
     setActiveBrands((prev) => {
       const exists = prev.some((b) => String(b.id) === String(brand.id));
       const next = exists ? prev.filter((b) => String(b.id) !== String(brand.id)) : [...prev, brand];
@@ -804,7 +873,7 @@ export function useCategoriesView({
   const clearColors = () => { setActiveColors([]); syncQueryString({ colors: [], clearSearch: true }); };
   const clearGenders = () => { setActiveGenders([]); syncQueryString({ genders: [], clearSearch: true }); };
   const clearFabrics = () => { setActiveFabrics([]); syncQueryString({ fabrics: [], clearSearch: true }); };
-  const clearBrands = () => { setActiveBrands([]); };
+  const clearBrands = () => { setActiveUseCaseId(null); activeUseCaseIdRef.current = null; setActiveBrands([]); };
 
   const handleSortChange = (value: SortOption["value"]) => {
     setSortBy(value);
@@ -910,11 +979,7 @@ export function useCategoriesView({
     if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
     const hasParents = !!cat.parent_categories && cat.parent_categories.length > 0;
     if (!hasParents) { setHoveredCatId("none"); return; }
-    const el = tabRefs.current[String(cat.id)];
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      setDropdownPos({ top: rect.bottom, left: 0 });
-    }
+    updateDropdownPos();
     setHoveredCatId(cat.id);
   };
 
@@ -925,11 +990,7 @@ export function useCategoriesView({
   const handleTabClick = (cat: GrandCategory) => {
     const hasParents = !!cat.parent_categories && cat.parent_categories.length > 0;
     if (hasParents) {
-      const el = tabRefs.current[String(cat.id)];
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        setDropdownPos({ top: rect.bottom, left: 0 });
-      }
+      updateDropdownPos();
       setHoveredCatId((prev) => (prev === cat.id ? "none" : cat.id));
       return;
     }
@@ -938,6 +999,22 @@ export function useCategoriesView({
 
   const handleSubnavMouseEnter = () => { if (hoverTimeout.current) clearTimeout(hoverTimeout.current); };
   const handleSubnavMouseLeave = () => { hoverTimeout.current = setTimeout(() => setHoveredCatId("none"), 150); };
+
+  // Keeps the dropdown pinned to the nav's bottom edge while it's open and
+  // the page is still scrolling past the sticky global header (see
+  // updateDropdownPos) — without this, a position measured once at hover
+  // time would go stale mid-scroll and the panel would drift away from the
+  // tabs it belongs to.
+  useEffect(() => {
+    if (hoveredCatId === "none") return;
+    updateDropdownPos();
+    window.addEventListener("scroll", updateDropdownPos, { passive: true });
+    window.addEventListener("resize", updateDropdownPos);
+    return () => {
+      window.removeEventListener("scroll", updateDropdownPos);
+      window.removeEventListener("resize", updateDropdownPos);
+    };
+  }, [hoveredCatId, updateDropdownPos]);
 
   const headingLabel = urlSearch
     ? `Results for "${urlSearch}"`
@@ -1018,7 +1095,7 @@ export function useCategoriesView({
     openSections, toggleSection,
     viewMode, pickerIndustryId, setPickerIndustryId, selectedUseCase, cameFromGate,
     handleSelectUseCase, handleSkipGate, handleBackToUseCases,
-    hoveredCatId, dropdownPos, tabRefs, brandMenuOpen, setBrandMenuOpen,
+    hoveredCatId, tabRefs, catNavRef, dropdownPos, brandMenuOpen, setBrandMenuOpen,
     handleTabHoverEnter, handleTabHoverLeave, handleTabClick,
     handleSubnavMouseEnter, handleSubnavMouseLeave,
     hoveredCat, hoveredCatParents, subnavVisible,

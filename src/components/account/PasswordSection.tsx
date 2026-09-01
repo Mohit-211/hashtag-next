@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/data/constants";
@@ -20,17 +21,7 @@ export default function PasswordSection() {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
 
-  const [pwMessage, setPwMessage] = useState("");
   const [loading, setLoading] = useState(false);
-
-  // ✅ Validation rules
-  const passwordRules = {
-    length: newPw.length >= 8,
-    uppercase: /[A-Z]/.test(newPw),
-    number: /[0-9]/.test(newPw),
-    special: /[^A-Za-z0-9]/.test(newPw),
-    match: newPw === confirmPw && confirmPw.length > 0,
-  };
 
 const getStrength = () => {
   let score = 0;
@@ -48,16 +39,35 @@ const getStrength = () => {
 
 const strength = getStrength();
 
-  // ✅ Final validation
-  const pwValid =
-    currentPw.length > 0 &&
-    Object.values(passwordRules).every(Boolean) &&
-    newPw !== currentPw;
-
-  // ✅ API call
+  // Validation feedback is surfaced via toast only (one message at a time)
+  // rather than inline per-field errors.
   const handleChangePassword = async () => {
+    if (!currentPw) {
+      toast.error("Enter your current password ⚠️");
+      return;
+    }
+    if (newPw.length < 8) {
+      toast.error("New password must be at least 8 characters ⚠️");
+      return;
+    }
+    if (!/[A-Z]/.test(newPw)) {
+      toast.error("New password must include an uppercase letter ⚠️");
+      return;
+    }
+    if (!/[0-9]/.test(newPw)) {
+      toast.error("New password must include a number ⚠️");
+      return;
+    }
+    if (!/[^A-Za-z0-9]/.test(newPw)) {
+      toast.error("New password must include a special character ⚠️");
+      return;
+    }
+    if (newPw === currentPw) {
+      toast.error("New password must be different from your current password ⚠️");
+      return;
+    }
     if (newPw !== confirmPw) {
-      setPwMessage("Passwords do not match");
+      toast.error("Passwords do not match ❌");
       return;
     }
 
@@ -75,8 +85,6 @@ const strength = getStrength();
       if (res?.data?.success) {
         message.success("Password updated. Logging out...");
 
-        setPwMessage("Password updated successfully");
-
         setCurrentPw("");
         setNewPw("");
         setConfirmPw("");
@@ -87,15 +95,11 @@ const strength = getStrength();
           router.push("/login");
         }, 1500);
       } else {
-        const msg = res?.data?.message || "Something went wrong";
-        message.error(msg);
-        setPwMessage(msg);
+        message.error(res?.data?.message || "Something went wrong");
       }
     } catch (error: any) {
-      const msg =
-        error?.response?.data?.message || "Failed to update password";
-      message.error(msg);
-      setPwMessage(msg);
+      // The axios response interceptor already toasts the failure.
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -130,10 +134,8 @@ const strength = getStrength();
             <input
               type={showCurrentPw ? "text" : "password"}
               value={currentPw}
-              onChange={(e) => {
-                setCurrentPw(e.target.value);
-                setPwMessage("");
-              }}
+              maxLength={128}
+              onChange={(e) => setCurrentPw(e.target.value)}
               className={`${inputClass} pr-10`}
               placeholder="Enter current password"
             />
@@ -162,10 +164,8 @@ const strength = getStrength();
             <input
               type={showNewPw ? "text" : "password"}
               value={newPw}
-              onChange={(e) => {
-                setNewPw(e.target.value);
-                setPwMessage("");
-              }}
+              maxLength={128}
+              onChange={(e) => setNewPw(e.target.value)}
               className={`${inputClass} pr-10`}
               placeholder="Strong password"
             />
@@ -182,24 +182,6 @@ const strength = getStrength();
               )}
             </button>
           </div>
-
-          {/* ✅ Validation UI — only list requirements that aren't met yet */}
-          {newPw && !Object.values(passwordRules).slice(0, 4).every(Boolean) && (
-            <div className="text-xs space-y-1 mt-2">
-              {!passwordRules.length && (
-                <p className="text-red-500">✖ At least 8 characters</p>
-              )}
-              {!passwordRules.uppercase && (
-                <p className="text-red-500">✖ One uppercase letter</p>
-              )}
-              {!passwordRules.number && (
-                <p className="text-red-500">✖ One number</p>
-              )}
-              {!passwordRules.special && (
-                <p className="text-red-500">✖ One special character</p>
-              )}
-            </div>
-          )}
 
           {/* Strength */}
           {newPw && (
@@ -218,47 +200,19 @@ const strength = getStrength();
           <input
             type="password"
             value={confirmPw}
-            onChange={(e) => {
-              setConfirmPw(e.target.value);
-              setPwMessage("");
-            }}
+            maxLength={128}
+            onChange={(e) => setConfirmPw(e.target.value)}
             className={inputClass}
             placeholder="Re-enter password"
           />
-
-          {/* Match Indicator */}
-          {confirmPw && (
-            <p
-              className={`text-xs mt-1 ${
-                passwordRules.match ? "text-green-600" : "text-red-500"
-              }`}
-            >
-              {passwordRules.match
-                ? "✔ Passwords match"
-                : "✖ Passwords do not match"}
-            </p>
-          )}
         </div>
-
-        {/* Message */}
-        {pwMessage && (
-          <p
-            className={`text-sm ${
-              pwMessage.toLowerCase().includes("success")
-                ? "text-green-600"
-                : "text-red-500"
-            }`}
-          >
-            {pwMessage}
-          </p>
-        )}
 
         {/* Submit */}
         <Button
           type="submit"
           variant="hero"
           className="rounded-lg"
-          disabled={!pwValid || loading}
+          disabled={loading}
         >
           {loading ? "Updating..." : "Update Password"}
         </Button>

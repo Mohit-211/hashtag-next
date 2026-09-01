@@ -6,6 +6,9 @@ import { useState, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { SUBJECTS } from "@/data/supportData";
 import { CheckCircle } from "lucide-react";
+import { toast } from "sonner";
+import { z } from "zod";
+import { emailSchema, nameSchema, textSchema } from "@/lib/validation";
 
 interface SupportFormState {
   name: string;
@@ -13,6 +16,13 @@ interface SupportFormState {
   subject: string;
   message: string;
 }
+
+const supportFormSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  subject: z.string().min(1, "Please select a subject."),
+  message: textSchema({ min: 10, max: 2000 }),
+});
 
 export default function SupportContactForm() {
   const [submitted, setSubmitted] = useState<boolean>(false);
@@ -24,8 +34,19 @@ export default function SupportContactForm() {
     message: "",
   });
 
+  const setField = (field: keyof SupportFormState, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Validation feedback is surfaced via toast only (one message at a time)
+  // rather than inline per-field errors.
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const result = supportFormSchema.safeParse(form);
+    if (!result.success) {
+      toast.error(result.error.issues[0]?.message ?? "Please check the form and try again.");
+      return;
+    }
     setSubmitted(true);
   };
 
@@ -43,25 +64,28 @@ export default function SupportContactForm() {
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <input
               placeholder="Full Name"
               className="input"
+              maxLength={80}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => setField("name", e.target.value)}
             />
 
             <input
               placeholder="Email"
+              type="email"
               className="input"
+              maxLength={254}
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              onChange={(e) => setField("email", e.target.value)}
             />
 
             <select
               className="input"
               value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              onChange={(e) => setField("subject", e.target.value)}
             >
               <option value="">Select Subject</option>
 
@@ -76,8 +100,9 @@ export default function SupportContactForm() {
               rows={5}
               placeholder="Your message"
               className="input"
+              maxLength={2000}
               value={form.message}
-              onChange={(e) => setForm({ ...form, message: e.target.value })}
+              onChange={(e) => setField("message", e.target.value)}
             />
 
             <Button type="submit" variant="hero">

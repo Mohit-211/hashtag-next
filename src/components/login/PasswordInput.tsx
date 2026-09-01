@@ -9,6 +9,7 @@ interface PasswordInputProps {
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
+  maxLength?: number;
 }
 
 const inputClass =
@@ -18,6 +19,7 @@ export default function PasswordInput({
   value,
   onChange,
   placeholder,
+  maxLength,
 }: PasswordInputProps) {
   const [show, setShow] = useState<boolean>(false);
 
@@ -28,6 +30,7 @@ export default function PasswordInput({
         placeholder={placeholder}
         value={value}
         onChange={onChange}
+        maxLength={maxLength}
         className={`${inputClass} pr-10`}
       />
 
