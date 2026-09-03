@@ -81,7 +81,8 @@ export function useCategoriesView({
   const [sortBy, setSortBy] = useState<SortOption["value"]>("" as SortOption["value"]);
   const hasUrlFilterParam =
     !!initialCategoryId || !!initialBrandId || !!initialIndustryId || !!urlSearch || urlBrowseAll ||
-    !!searchParams.get("category_id") || !!searchParams.get("industry_id") || !!searchParams.get("use_case_id");
+    !!searchParams.get("category_id") || !!searchParams.get("industry_id") || !!searchParams.get("use_case_id") ||
+    !!searchParams.get("brand_id");
   const [urlRestoreAttempted, setUrlRestoreAttempted] = useState(!hasUrlFilterParam);
   const [viewMode, setViewMode] = useState<"picker" | "products">(hasUrlFilterParam ? "products" : "picker");
   const [pickerIndustryId, setPickerIndustryId] = useState<number | null>(null);
@@ -144,8 +145,9 @@ export function useCategoriesView({
 
   useEffect(() => {
     if (!categories.length) return;
-    if (initialBrandId && brandList.length) {
-      const ids = initialBrandId.split(",").map((s) => s.trim());
+    const qBrandId = searchParams.get("brand_id") || initialBrandId;
+    if (qBrandId && brandList.length) {
+      const ids = qBrandId.split(",").map((s) => s.trim());
       const matched = brandList.filter((b) => ids.includes(String(b.id)));
       if (matched.length) {
         setActiveBrands(matched);
@@ -495,6 +497,7 @@ export function useCategoriesView({
   const syncQueryString = useCallback(
     (next: {
       categoryIds?: string[];
+      brandIds?: string[];
       sizes?: string[];
       colors?: string[];
       genders?: string[];
@@ -519,6 +522,7 @@ export function useCategoriesView({
           ...activeParentsRef.current.map((p) => String(p.id)),
           ...activeIndustryCategoriesRef.current.map((c) => String(c.id)),
         ];
+      const brandIds = next.brandIds ?? activeBrandsRef.current.map((b) => String(b.id));
       const sizes = next.sizes ?? activeSizesRef.current;
       const colors = next.colors ?? activeColorsRef.current;
       const genders = next.genders ?? activeGendersRef.current;
@@ -527,6 +531,7 @@ export function useCategoriesView({
       const sort = next.sort ?? sortByRef.current;
       const [min, max] = next.priceRange ?? priceRangeRef.current;
       categoryIds.length ? sp.set("category_id", categoryIds.join(",")) : sp.delete("category_id");
+      brandIds.length ? sp.set("brand_id", brandIds.join(",")) : sp.delete("brand_id");
       sp.delete("use_case_id");
       sizes.length ? sp.set("size", sizes.join(",")) : sp.delete("size");
       colors.length ? sp.set("color", colors.join(",")) : sp.delete("color");
@@ -831,9 +836,9 @@ export function useCategoriesView({
       persistSelection(next.length ? "brand" : null, next.length ? next.map((b) => b.id).join(",") : null, {
         names: next.map((b) => b.name),
       });
+      syncQueryString({ brandIds: next.map((b) => String(b.id)), clearSearch: true });
       return next;
     });
-    clearActiveSearch();
   };
 
   const toggleSize = (size: string) => {
@@ -880,7 +885,13 @@ export function useCategoriesView({
   const clearColors = () => { setActiveColors([]); syncQueryString({ colors: [], clearSearch: true }); };
   const clearGenders = () => { setActiveGenders([]); syncQueryString({ genders: [], clearSearch: true }); };
   const clearFabrics = () => { setActiveFabrics([]); syncQueryString({ fabrics: [], clearSearch: true }); };
-  const clearBrands = () => { setActiveUseCaseId(null); activeUseCaseIdRef.current = null; setActiveBrands([]); };
+  const clearBrands = () => {
+    setActiveUseCaseId(null);
+    activeUseCaseIdRef.current = null;
+    setActiveBrands([]);
+    activeBrandsRef.current = [];
+    syncQueryString({ brandIds: [] });
+  };
 
   const handleSortChange = (value: SortOption["value"]) => {
     setSortBy(value);

@@ -547,7 +547,7 @@ export default function AddProductConfigurationModal({
                         {s.digitizing_fee > 0 && (
                           <div className="mt-1 pl-9">
                             <div className="flex items-center justify-between text-[10px] text-[#b89000] font-semibold">
-                              <span>Digitizing Fee (one-time, free on 12+ pcs)</span>
+                              <span>Digitizing Fee (free on 12+ pcs)</span>
                               <span>${formatMoney(s.digitizing_fee)}</span>
                             </div>
                           </div>

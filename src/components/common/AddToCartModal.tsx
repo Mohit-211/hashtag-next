@@ -465,7 +465,7 @@ console.log(customizationPayload,"customizationPayload")
                     </div>
                     {cvDigitizingFeeTotal > 0 && (
                       <div className="flex items-center justify-between text-[10px] text-[#b89000] font-semibold pt-1.5 mt-1.5 border-t border-black/5">
-                        <span>Digitizing Fee (one-time)</span>
+                        <span>Digitizing Fee</span>
                         <span>${formatMoney(cvDigitizingFeeTotal)}</span>
                       </div>
                     )}
@@ -514,7 +514,7 @@ console.log(customizationPayload,"customizationPayload")
               {digitizingFee > 0 && (
                 <div className="flex justify-between mt-1">
                   <span className="text-xs text-[#b89000] font-semibold">
-                    Digitizing Fee (one-time)
+                    Digitizing Fee
                   </span>
                   <span className="text-xs font-bold text-[#b89000]">
                     ${formatMoney(digitizingFee)}

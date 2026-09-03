@@ -1,19 +1,4 @@
 "use client";
-// ─────────────────────────────────────────────────────────────────────────
-// CategoriesView — top-level orchestrator for the category browsing /
-// filtering experience.
-//
-// This component is intentionally thin: ALL state, effects, and business
-// logic live in `useCategoriesView` (see hooks/useCategoriesView.ts). This
-// file's only job is to render the right shell for the current mode
-// (Use-Case Picker gate vs. Products view) and wire hook values into the
-// presentational sub-components.
-//
-// See hooks/useCategoriesView.ts for the detailed behavior contracts (
-// grand-category click rules, search-clearing rules, category_id merging
-// between the Category tree and Industry > Use Case tree, etc.) — those
-// comments were preserved there since that's where the logic now lives.
-// ─────────────────────────────────────────────────────────────────────────
 import { categoriesViewStyles } from "../../components/categories/categoriesView.styles";
 import { useCategoriesView } from "../../components/categories/useCategoriesView";
 // import type { CategoriesViewProps } from "./types";

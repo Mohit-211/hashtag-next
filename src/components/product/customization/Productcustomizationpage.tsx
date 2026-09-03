@@ -2442,7 +2442,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           )}
                           {cv.digitizingFeeTotal > 0 && (
                             <div className="flex items-center justify-between text-[10px] text-[#b89000] font-semibold">
-                              <span>Digitizing Fee (one-time)</span>
+                              <span>Digitizing Fee</span>
                               <span>${formatMoney(cv.digitizingFeeTotal)}</span>
                             </div>
                           )}
