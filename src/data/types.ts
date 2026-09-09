@@ -49,11 +49,10 @@ export interface GrandCategory {
 //   Industry (grand) -> Use Case (mid) -> parent_categories (real, checkable
 //   categories, e.g. Tech & Startups -> Employee Onboarding Kits -> Hats,
 //   Drinkware, Bags). The leaf `parent_categories` here are the SAME shape
-//   (id/title/slug) as the ones under the plain Category tree, and checking
-//   one filters products by `category_id` exactly like the Category tree
-//   does. Clicking the Use Case row itself is a "select all" shortcut for
-//   every category listed under it — it never sends its own id to the API,
-//   only the ids of the categories it expands to.
+//   (id/title/slug) as the ones under the plain Category tree. Clicking the
+//   Use Case row itself checks/unchecks that use case as a whole: its own id
+//   is sent to `ProductsByUseCaseApi` (via `use_case_ids`), not the ids of
+//   the categories listed under it.
 export interface UseCase {
   slug?: string;
   id: number;

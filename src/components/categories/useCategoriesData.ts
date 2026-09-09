@@ -153,7 +153,8 @@ export function useCategoriesData() {
       useCaseId: number | string | Array<number | string>,
       pageNumber: number,
       isLoadMore: boolean,
-      limit: number = LOAD_MORE_LIMIT
+      limit: number = LOAD_MORE_LIMIT,
+      categoryIds?: Array<number | string>
     ) => {
       const thisFetchId = ++fetchIdRef.current;
       try {
@@ -161,6 +162,7 @@ export function useCategoriesData() {
         const res: ProductApiResponse = await ProductsByUseCaseApi(useCaseId, {
           page: pageNumber,
           limit,
+          ...(categoryIds?.length ? { category_id: categoryIds.join(",") } : {}),
         });
         if (thisFetchId !== fetchIdRef.current) return;
         const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];

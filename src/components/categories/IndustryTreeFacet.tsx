@@ -7,6 +7,7 @@ interface IndustryTreeFacetProps {
   industries: Industry[];
   activeIndustry: Industry;
   activeIndustryCategories: SelectedIndustryCategory[];
+  activeUseCaseIds: Array<number | string>;
   expandedIndustryIds: Set<number>;
   collapsedUseCaseIds: Set<number>;
   open: boolean;
@@ -19,14 +20,16 @@ interface IndustryTreeFacetProps {
 }
 
 /** Sidebar "Industry" facet — mirrors the Category tree, but ends one level
- * deeper: Industry (grand) -> Use Case (mid) -> real, checkable categories.
- * Checking a use case checks/unchecks every real category under it in one
- * go; the categories themselves are merged into the same `category_id` API
- * param as the plain Category tree — a Use Case's own id is never sent. */
+ * deeper: Industry (grand) -> Use Case (mid) -> real categories (shown for
+ * context only). Checking a use case checks/unchecks that use case as a
+ * whole: its own id is sent straight to `ProductsByUseCaseApi` (via
+ * `activeUseCaseIds`/`onToggleUseCaseCategories`) — no category_id is sent
+ * alongside it. */
 export default function IndustryTreeFacet({
   industries,
   activeIndustry,
   activeIndustryCategories,
+  activeUseCaseIds,
   expandedIndustryIds,
   collapsedUseCaseIds,
   open,
@@ -37,17 +40,30 @@ export default function IndustryTreeFacet({
   onToggleUseCaseCategories,
   onClear,
 }: IndustryTreeFacetProps) {
-  const uniqueSelectedCategoryCount = new Set(activeIndustryCategories.map((c) => c.id)).size;
+  const selectedUseCaseCategoryIds = new Set<number>();
+  industries.forEach((ind) => {
+    (ind.use_cases ?? []).forEach((uc) => {
+      if (!activeUseCaseIds.some((id) => String(id) === String(uc.id))) return;
+      (uc.parent_categories ?? []).forEach((cat) => selectedUseCaseCategoryIds.add(cat.id));
+    });
+  });
+  const uniqueSelectedCategoryCount = new Set([
+    ...activeIndustryCategories.map((c) => c.id),
+    ...selectedUseCaseCategoryIds,
+  ]).size;
   return (
     <FacetSection
       title="Industry"
-      count={uniqueSelectedCategoryCount || (activeIndustry.id !== null ? 1 : 0)}
+      count={uniqueSelectedCategoryCount || activeUseCaseIds.length || (activeIndustry.id !== null ? 1 : 0)}
       open={open}
       onToggle={onToggleSection}
       onClear={onClear}
     >
       {industries.map((ind) => {
-        const isIndActive = activeIndustry.id === ind.id || activeIndustryCategories.some((c) => c.industryId === ind.id);
+        const isIndActive =
+          activeIndustry.id === ind.id ||
+          activeIndustryCategories.some((c) => c.industryId === ind.id) ||
+          (ind.use_cases ?? []).some((uc) => activeUseCaseIds.some((id) => String(id) === String(uc.id)));
         const hasUseCases = !!ind.use_cases?.length;
         const isExpanded = ind.id != null && expandedIndustryIds.has(ind.id);
         return (
@@ -88,13 +104,9 @@ export default function IndustryTreeFacet({
                 {(ind.use_cases ?? []).map((uc) => {
                   const ucCategories = uc.parent_categories ?? [];
                   if (!ucCategories.length) return null;
-                  // "Select all" state for the use-case row itself —
-                  // checked only once EVERY category under it is checked.
-                  const ucAllChecked = ucCategories.every((cat) =>
-                    activeIndustryCategories.some(
-                      (c) => c.industryId === ind.id && c.useCaseId === uc.id && c.id === cat.id
-                    )
-                  );
+                  // Checked state comes straight from the use case's own id —
+                  // this is the same id sent to ProductsByUseCaseApi.
+                  const ucAllChecked = activeUseCaseIds.some((id) => String(id) === String(uc.id));
                   const ucIsExpanded = !collapsedUseCaseIds.has(uc.id);
                   return (
                     <div key={uc.id}>

@@ -109,6 +109,7 @@ console.log(v,'v=============')
           industries={v.industries}
           activeIndustry={v.activeIndustry}
           activeIndustryCategories={v.activeIndustryCategories}
+          activeUseCaseIds={v.activeUseCaseIds}
           expandedIndustryIds={v.expandedIndustryIds}
           collapsedUseCaseIds={v.collapsedUseCaseIds}
           industryOpen={v.openSections.industry}

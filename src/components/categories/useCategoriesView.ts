@@ -87,13 +87,24 @@ export function useCategoriesView({
   const [viewMode, setViewMode] = useState<"picker" | "products">(hasUrlFilterParam ? "products" : "picker");
   const [pickerIndustryId, setPickerIndustryId] = useState<number | null>(null);
   const [selectedUseCase, setSelectedUseCase] = useState<{ industry: string; useCase: string; categoryNames: string[] } | null>(null);
-  // Set only by the picker gate's use-case click (handleSelectUseCase). While
-  // set, the product grid is sourced from ProductsByUseCaseApi (page/limit
-  // only, no category_id) instead of the merged-facet AllProductsApi path.
-  // Any other filter/facet interaction clears it and falls back to normal
-  // browsing (see syncQueryString, handleCategoryTabSelect, toggleBrand).
+  // Set by the picker gate's use-case click (handleSelectUseCase) OR by
+  // checking a use case row in the sidebar Industry facet
+  // (toggleUseCaseCategories) — both funnel into the same dedicated path.
+  // While set, the product grid is sourced from ProductsByUseCaseApi
+  // instead of the merged-facet AllProductsApi path. Any other filter/facet
+  // interaction clears it and falls back to normal browsing (see
+  // syncQueryString, handleCategoryTabSelect, toggleBrand). Can hold several
+  // ids at once — the sidebar allows checking multiple use cases (even
+  // across different industries).
   const [activeUseCaseId, setActiveUseCaseId] = useState<number | string | Array<number | string> | null>(null);
   const activeUseCaseIdRef = useRef<number | string | Array<number | string> | null>(null);
+  // Real category ids under the active use case(s) — sent alongside
+  // use_case_ids to ProductsByUseCaseApi so the picker-gate flow narrows
+  // results to the same categories shown on the use-case card, instead of
+  // every product tagged with that use case. Left empty for the sidebar
+  // checkbox flow, which intentionally sends only use_case_ids.
+  const [activeUseCaseCategoryIds, setActiveUseCaseCategoryIds] = useState<Array<number | string>>([]);
+  const activeUseCaseCategoryIdsRef = useRef<Array<number | string>>([]);
   const [cameFromGate, setCameFromGate] = useState(false);
   const [hoveredCatId, setHoveredCatId] = useState<number | null | "none">("none");
   const [dropdownPos, setDropdownPos] = useState({ top: 0 });
@@ -141,6 +152,7 @@ export function useCategoriesView({
   useEffect(() => { priceRangeRef.current = priceRange; }, [priceRange]);
   useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
   useEffect(() => { activeUseCaseIdRef.current = activeUseCaseId; }, [activeUseCaseId]);
+  useEffect(() => { activeUseCaseCategoryIdsRef.current = activeUseCaseCategoryIds; }, [activeUseCaseCategoryIds]);
   const priceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -253,6 +265,9 @@ export function useCategoriesView({
         const ids = matches.map((m) => m.uc.id);
         setActiveUseCaseId(ids.length === 1 ? ids[0] : ids);
         activeUseCaseIdRef.current = ids.length === 1 ? ids[0] : ids;
+        const categoryIds = Array.from(new Set(matches.flatMap((m) => (m.uc.parent_categories ?? []).map((c) => c.id))));
+        setActiveUseCaseCategoryIds(categoryIds);
+        activeUseCaseCategoryIdsRef.current = categoryIds;
         setExpandedIndustryIds((prev) => new Set([...prev, ...matches.map((m) => m.ind.id as number)]));
         const industryTitles = Array.from(new Set(matches.map((m) => m.ind.title)));
         const useCaseTitles = matches.map((m) => m.uc.title);
@@ -363,6 +378,8 @@ export function useCategoriesView({
     setExpandedIndustryIds(new Set());
     setActiveUseCaseId(null);
     activeUseCaseIdRef.current = null;
+    setActiveUseCaseCategoryIds([]);
+    activeUseCaseCategoryIdsRef.current = [];
     setActiveBrands([]);
     activeBrandsRef.current = [];
     setActiveSizes([]);
@@ -414,6 +431,8 @@ export function useCategoriesView({
     setSortBy("" as SortOption["value"]);
     setActiveUseCaseId(null);
     activeUseCaseIdRef.current = null;
+    setActiveUseCaseCategoryIds([]);
+    activeUseCaseCategoryIdsRef.current = [];
     persistSelection(null, null);
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setSearchInput("");
@@ -513,6 +532,8 @@ export function useCategoriesView({
       if (activeUseCaseIdRef.current !== null) {
         setActiveUseCaseId(null);
         activeUseCaseIdRef.current = null;
+        setActiveUseCaseCategoryIds([]);
+        activeUseCaseCategoryIdsRef.current = [];
       }
       const url = new URL(window.location.href);
       const sp = url.searchParams;
@@ -568,6 +589,9 @@ export function useCategoriesView({
     activeCategoryRef.current = emptyCategory;
     setActiveUseCaseId(useCase.id);
     activeUseCaseIdRef.current = useCase.id;
+    const categoryIds = cats.map((c) => c.id);
+    setActiveUseCaseCategoryIds(categoryIds);
+    activeUseCaseCategoryIdsRef.current = categoryIds;
     persistSelection("use_case", useCase.id, { industryId: industry.id, industryName: industry.title });
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -607,6 +631,8 @@ export function useCategoriesView({
     setCameFromGate(false);
     setActiveUseCaseId(null);
     activeUseCaseIdRef.current = null;
+    setActiveUseCaseCategoryIds([]);
+    activeUseCaseCategoryIdsRef.current = [];
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setSearchInput("");
     router.push("/categories", { scroll: false });
@@ -627,7 +653,7 @@ export function useCategoriesView({
     pageRef.current = 1;
     setPage(1);
     if (activeUseCaseId != null) {
-      fetchProductsByUseCase(activeUseCaseId, 1, false);
+      fetchProductsByUseCase(activeUseCaseId, 1, false, undefined, activeUseCaseCategoryIds);
       return;
     }
     fetchProducts(1, false, {
@@ -649,7 +675,7 @@ export function useCategoriesView({
   }, [
     categories.length, activeCategory, activeParents, activeIndustry, activeIndustryCategories, activeBrands, activeSizes, activeColors,
     activeGenders, activeFabrics, inStockOnly, priceRange, sortBy, fetchProducts, urlRestoreAttempted, urlSearch, activeUseCaseId,
-    fetchProductsByUseCase,
+    activeUseCaseCategoryIds, fetchProductsByUseCase,
   ]);
 
   useEffect(() => {
@@ -663,7 +689,7 @@ export function useCategoriesView({
         pageRef.current = nextPage;
         setPage(nextPage);
         if (activeUseCaseIdRef.current != null) {
-          await fetchProductsByUseCase(activeUseCaseIdRef.current, nextPage, true);
+          await fetchProductsByUseCase(activeUseCaseIdRef.current, nextPage, true, undefined, activeUseCaseCategoryIdsRef.current);
         } else {
           await fetchProducts(nextPage, true, {
             category: activeCategoryRef.current,
@@ -700,6 +726,8 @@ export function useCategoriesView({
   const handleCategoryTabSelect = (cat: GrandCategory) => {
     setActiveUseCaseId(null);
     activeUseCaseIdRef.current = null;
+    setActiveUseCaseCategoryIds([]);
+    activeUseCaseCategoryIdsRef.current = [];
     setActiveCategory(cat);
     activeCategoryRef.current = cat;
     setActiveParents([]);
@@ -793,42 +821,54 @@ export function useCategoriesView({
     });
   };
 
+  // Checking a use case row in the sidebar now goes straight through
+  // ProductsByUseCaseApi (via activeUseCaseId), same dedicated path the
+  // picker gate uses — the use case's own id is sent as `use_case_ids`,
+  // and NO category_id is sent alongside it. Multiple use cases (even
+  // across different industries) can be checked at once; their ids are
+  // comma-joined by ProductsByUseCaseApi. Any other facet interaction
+  // clears activeUseCaseId back out via syncQueryString, so this must NOT
+  // call syncQueryString itself (it would immediately undo the selection).
   const toggleUseCaseCategories = (ind: Industry, useCase: UseCase) => {
     if (ind.id == null) return;
-    const categoriesUnderUseCase = useCase.parent_categories ?? [];
-    if (!categoriesUnderUseCase.length) return;
-    setActiveIndustryCategories((prev) => {
-      const allSelected = categoriesUnderUseCase.every((cat) =>
-        prev.some((c) => c.industryId === ind.id && c.useCaseId === useCase.id && c.id === cat.id)
-      );
-      const others = prev.filter((c) => !(c.industryId === ind.id && c.useCaseId === useCase.id));
-      const next = allSelected
-        ? others
-        : [
-          ...others,
-          ...categoriesUnderUseCase.map((cat) => ({
-            ...cat,
-            industryId: ind.id as number,
-            industryName: ind.title,
-            useCaseId: useCase.id,
-            useCaseName: useCase.title,
-          })),
-        ];
-      activeIndustryCategoriesRef.current = next;
-      persistSelection(next.length ? "industry" : null, next.length ? next.map((c) => c.id).join(",") : null, {
-        categoryIds: next.map((c) => c.id),
-      });
-      syncQueryString({
-        categoryIds: [...activeParentsRef.current.map((p) => String(p.id)), ...next.map((c) => String(c.id))],
-        clearSearch: true,
-      });
-      return next;
+    const prevIds = activeUseCaseIdRef.current == null
+      ? []
+      : Array.isArray(activeUseCaseIdRef.current)
+        ? activeUseCaseIdRef.current
+        : [activeUseCaseIdRef.current];
+    const exists = prevIds.some((id) => String(id) === String(useCase.id));
+    const nextIds = exists
+      ? prevIds.filter((id) => String(id) !== String(useCase.id))
+      : [...prevIds, useCase.id];
+    const nextValue = nextIds.length === 0 ? null : nextIds.length === 1 ? nextIds[0] : nextIds;
+    setActiveUseCaseId(nextValue);
+    activeUseCaseIdRef.current = nextValue;
+    setActiveUseCaseCategoryIds([]);
+    activeUseCaseCategoryIdsRef.current = [];
+    setExpandedIndustryIds((prev) => new Set([...prev, ind.id as number]));
+    persistSelection(nextIds.length ? "use_case" : null, nextIds.length ? nextIds.join(",") : null, {
+      industryId: ind.id,
+      industryName: ind.title,
     });
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const sp = url.searchParams;
+      nextIds.length ? sp.set("use_case_id", nextIds.join(",")) : sp.delete("use_case_id");
+      sp.delete("category_id");
+      sp.delete("industry_id");
+      sp.delete("view");
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      setSearchInput("");
+      sp.delete("search");
+      router.replace(`${url.pathname}?${sp.toString()}`.replace(/\?$/, ""), { scroll: false });
+    }
   };
 
   const toggleBrand = (brand: Brand) => {
     setActiveUseCaseId(null);
     activeUseCaseIdRef.current = null;
+    setActiveUseCaseCategoryIds([]);
+    activeUseCaseCategoryIdsRef.current = [];
     setActiveBrands((prev) => {
       const exists = prev.some((b) => String(b.id) === String(brand.id));
       const next = exists ? prev.filter((b) => String(b.id) !== String(brand.id)) : [...prev, brand];
@@ -888,6 +928,8 @@ export function useCategoriesView({
   const clearBrands = () => {
     setActiveUseCaseId(null);
     activeUseCaseIdRef.current = null;
+    setActiveUseCaseCategoryIds([]);
+    activeUseCaseCategoryIdsRef.current = [];
     setActiveBrands([]);
     activeBrandsRef.current = [];
     syncQueryString({ brandIds: [] });
@@ -1039,6 +1081,11 @@ export function useCategoriesView({
     : activeParents.length
       ? activeParents.map((p) => p.title).join(", ")
       : activeCategory.name;
+  const activeUseCaseIds: Array<number | string> = activeUseCaseId == null
+    ? []
+    : Array.isArray(activeUseCaseId)
+      ? activeUseCaseId
+      : [activeUseCaseId];
   const pills: Pill[] = [];
   if (urlSearch) pills.push({ key: "search", label: `"${urlSearch}"`, onRemove: clearHeaderSearch });
   if (activeCategory.id !== null && !activeParents.length) {
@@ -1080,6 +1127,18 @@ export function useCategoriesView({
       },
     });
   });
+  if (activeUseCaseIds.length) {
+    industries.forEach((ind) => {
+      (ind.use_cases ?? []).forEach((uc) => {
+        if (!activeUseCaseIds.some((id) => String(id) === String(uc.id))) return;
+        pills.push({
+          key: `usecase-${uc.id}`,
+          label: uc.title,
+          onRemove: () => toggleUseCaseCategories(ind, uc),
+        });
+      });
+    });
+  }
   activeBrands.forEach((b) => pills.push({ key: `brand-${b.id}`, label: b.name, onRemove: () => toggleBrand(b) }));
   activeSizes.forEach((s) => pills.push({ key: `size-${s}`, label: `Size: ${s}`, onRemove: () => toggleSize(s) }));
   activeColors.forEach((c) => pills.push({ key: `color-${c}`, label: c, onRemove: () => toggleColor(c) }));
@@ -1092,6 +1151,7 @@ export function useCategoriesView({
   const totalFacetCount =
     (activeCategory.id !== null && !activeParents.length ? 1 : 0) + seenCategoryPillIds.size +
     (activeIndustry.id !== null && !activeIndustryCategories.some((c) => c.industryId === activeIndustry.id) ? 1 : 0) +
+    activeUseCaseIds.length +
     activeBrands.length + activeSizes.length +
     activeColors.length + activeGenders.length + activeFabrics.length + (inStockOnly ? 1 : 0) +
     (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX ? 1 : 0);
@@ -1106,7 +1166,7 @@ export function useCategoriesView({
     products, total_products, productLoading, productGridLoading, initialLoading, page,
     categories, industries, industriesLoading, brandList, brandLoading,
     activeCategory, activeParents, expandedCategoryIds,
-    activeIndustry, activeIndustryCategories, expandedIndustryIds, collapsedUseCaseIds,
+    activeIndustry, activeIndustryCategories, activeUseCaseIds, expandedIndustryIds, collapsedUseCaseIds,
     activeBrands, activeSizes, activeColors, activeGenders, activeFabrics,
     inStockOnly, priceRange, sortBy,
     sidebarOpen, setSidebarOpen,

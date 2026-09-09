@@ -42,6 +42,7 @@ interface CategoriesSidebarProps {
   industries: Industry[];
   activeIndustry: Industry;
   activeIndustryCategories: SelectedIndustryCategory[];
+  activeUseCaseIds: Array<number | string>;
   expandedIndustryIds: Set<number>;
   collapsedUseCaseIds: Set<number>;
   industryOpen: boolean;
@@ -157,6 +158,7 @@ export default function CategoriesSidebar(props: CategoriesSidebarProps) {
         industries={props.industries}
         activeIndustry={props.activeIndustry}
         activeIndustryCategories={props.activeIndustryCategories}
+        activeUseCaseIds={props.activeUseCaseIds}
         expandedIndustryIds={props.expandedIndustryIds}
         collapsedUseCaseIds={props.collapsedUseCaseIds}
         open={props.industryOpen}
