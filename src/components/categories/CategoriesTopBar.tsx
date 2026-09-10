@@ -47,7 +47,7 @@ export default function CategoriesTopBar({
         <h1 className="cat-heading">{headingLabel}</h1>
         <span className="cat-count">
           {totalProducts.toLocaleString()} items
-          {productGridLoading && <span className="spinner" style={{ width: 12, height: 12, marginLeft: 8, verticalAlign: "middle" }} />}
+          {/* {productGridLoading && <span className="spinner" style={{ width: 12, height: 12, marginLeft: 8, verticalAlign: "middle" }} />} */}
         </span>
         {pills.map((p) => (
           <span key={p.key} className="filter-pill">

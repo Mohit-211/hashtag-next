@@ -65,6 +65,7 @@ export const ORDER = {
 export const PAYMENT_ENDPOINTS = {
   SQUARE_CONFIG: "/payment/square/config",
   CREATE_PAYMENT: "/payment/square/create-payment",
+  PAYMENT_STATUS: "/payment/square/payment-status",
   PAYMENT_HISTORY: "/payment/history",
   PAYPAL_CREATE_ORDER: "/payment/paypal/create-order",
   PAYPAL_CAPTURE_ORDER: "/payment/paypal/capture-order",

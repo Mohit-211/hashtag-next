@@ -79,8 +79,19 @@ export function useCategoriesData() {
   const fetchIndustries = useCallback(async () => {
     try {
       setIndustriesLoading(true);
-      const res = await IndustryApi({ page: 1, limit: INDUSTRY_LIMIT });
-      const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
+      // Industries are paginated server-side — keep requesting subsequent
+      // pages until a short page tells us we've reached the end, so the
+      // Industry facet always reflects every industry, not just the first
+      // INDUSTRY_LIMIT.
+      const raw: any[] = [];
+      let page = 1;
+      while (true) {
+        const res = await IndustryApi({ page, limit: INDUSTRY_LIMIT });
+        const pageData = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
+        raw.push(...pageData);
+        if (pageData.length < INDUSTRY_LIMIT) break;
+        page += 1;
+      }
       const formatted: Industry[] = raw.map((ind: any) => ({
         id: ind.id,
         title: ind.title ?? ind.name ?? "",

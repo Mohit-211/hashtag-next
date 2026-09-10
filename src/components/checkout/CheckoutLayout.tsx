@@ -6,6 +6,7 @@ import {
   CreatePaymentApi,
   GetSquareConfigApi,
   CreatePaypalOrderApi,
+  GetSquarePaymentStatusApi,
 } from "@/api/operations/payment.api";
 import {
   CreateOrderApi,
@@ -208,6 +209,25 @@ export default function CheckoutLayout() {
       setProcessing(false);
     }
   }, [selectedAddressId, selectedRate, refreshCart, estimatedTaxableBase, estimatedTaxAmount, subtotal]);
+  // Square's create-payment call kicks off processing on the gateway side
+  // but doesn't always settle synchronously (Cash App / Google Pay in
+  // particular can stay PENDING briefly), so the order's real status is
+  // confirmed against payment/square/payment-status (POST { order_id })
+  // rather than trusted from the create-payment response alone.
+  const POLL_INTERVAL_MS = 3000;
+  const MAX_POLL_ATTEMPTS = 10; // ~30s before giving up and surfacing "still processing"
+
+  const waitForSquarePaymentStatus = async (orderId: number) => {
+    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+      const statusResponse = await GetSquarePaymentStatusApi({ order_id: orderId });
+      const status = statusResponse?.data?.data?.payment_status;
+      if (status === "SUCCESS") return true;
+      if (status === "FAILED" || status === "REFUNDED") return false;
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    }
+    return false;
+  };
+
   const handlePlaceOrder = async (
     sourceId?: string,
     method?: SquareMethod
@@ -226,11 +246,22 @@ export default function CheckoutLayout() {
       if (!paymentConfig) {
         throw new Error("Unable to load payment configuration");
       }
+      // CARD, GOOGLE_PAY, and CASH_APP all tokenize client-side and post
+      // through this same create-payment endpoint — only the sourceId's
+      // origin and payment_mode differ.
       await CreatePaymentApi({
         order_id: createdOrderId,
         sourceId,
         payment_mode: method,
       });
+
+      const paymentConfirmed = await waitForSquarePaymentStatus(createdOrderId);
+      if (!paymentConfirmed) {
+        throw new Error(
+          "We couldn't confirm your payment. Please check your orders shortly or try again."
+        );
+      }
+
       checkoutCompletedRef.current = true;
       setStep("done");
       clearCart();

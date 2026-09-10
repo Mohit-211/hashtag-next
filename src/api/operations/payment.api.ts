@@ -63,6 +63,29 @@ export const CreatePaymentApi = async (
 };
 
 // ─────────────────────────────────────────────────────────────
+// Square Payment Status
+// ─────────────────────────────────────────────────────────────
+
+export interface SquarePaymentStatusPayload {
+  order_id: number;
+}
+
+export interface SquarePaymentStatusResponseData {
+  payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
+}
+
+export const GetSquarePaymentStatusApi = async (
+  payload: SquarePaymentStatusPayload
+) => {
+  const response = await client.post(
+    PAYMENT_ENDPOINTS.PAYMENT_STATUS,
+    payload
+  );
+
+  return response;
+};
+
+// ─────────────────────────────────────────────────────────────
 // PayPal
 // ─────────────────────────────────────────────────────────────
 

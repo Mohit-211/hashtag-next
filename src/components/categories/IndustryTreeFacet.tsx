@@ -102,8 +102,6 @@ export default function IndustryTreeFacet({
             {hasUseCases && isExpanded && (
               <div className="cat-subrow-list">
                 {(ind.use_cases ?? []).map((uc) => {
-                  const ucCategories = uc.parent_categories ?? [];
-                  if (!ucCategories.length) return null;
                   // Checked state comes straight from the use case's own id —
                   // this is the same id sent to ProductsByUseCaseApi.
                   const ucAllChecked = activeUseCaseIds.some((id) => String(id) === String(uc.id));

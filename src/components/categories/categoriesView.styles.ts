@@ -301,7 +301,7 @@ export const categoriesViewStyles = `
   .usecase-row .usecase-check-row { flex: 1; min-width: 0; }
   .usecase-check-row { margin-top: 4px; }
   .usecase-check-row-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase;
     color: var(--color-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .usecase-children {
