@@ -3,11 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import {
   CreditCard as CardIcon,
-  Smartphone,
   Landmark,
   Loader2,
   ShieldCheck,
-  Wallet,
   Lock,
   ChevronLeft,
   AlertCircle,
@@ -21,47 +19,83 @@ import { useCart } from "@/contexts/CartContext";
 export type SquareMethod =
   | "CARD"
   | "GOOGLE_PAY"
-  | "APPLE_PAY"
+  | "PAYPAL"
+  | "CASH_APP"
   | "BANK_ACCOUNT";
 
 interface Props {
   onPlaceOrder: (sourceId?: string, method?: SquareMethod) => Promise<void>;
+  onPayPalPay: () => Promise<void>;
   onBack: () => void;
   processing: boolean;
   orderError?: string | null;
 }
 
+const GoogleLogo = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24">
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.25 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.85A11 11 0 0 0 12 23z" />
+    <path fill="#FBBC05" d="M5.84 14.09A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.43.34-2.09V7.05H2.18A11 11 0 0 0 1 12c0 1.78.43 3.46 1.18 4.95l3.66-2.86z" />
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1a11 11 0 0 0-9.82 6.05l3.66 2.85c.87-2.6 3.3-4.53 6.16-4.53z" />
+  </svg>
+);
+
+const PayPalLogo = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24">
+    <text x="6.5" y="18.5" fontFamily="Georgia, 'Times New Roman', serif" fontWeight={700} fontSize="18" fill="#009CDE">P</text>
+    <text x="10.5" y="18.5" fontFamily="Georgia, 'Times New Roman', serif" fontWeight={700} fontSize="18" fill="#003087">P</text>
+  </svg>
+);
+
+const CashAppLogo = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24">
+    <text x="12" y="17.5" textAnchor="middle" fontFamily="'DM Sans', sans-serif" fontWeight={800} fontSize="16" fill="#ffffff">$</text>
+  </svg>
+);
+
 const METHODS: {
   key: SquareMethod;
   label: string;
   sub: string;
-  icon: React.ElementType;
+  render: (active: boolean) => React.ReactNode;
+  iconBg: string;
   badge?: string;
 }[] = [
   {
     key: "CARD",
     label: "Credit / Debit",
     sub: "Visa, Mastercard, Amex, Discover",
-    icon: CardIcon,
+    render: (active) => <CardIcon size={16} color={active ? "#F5D800" : "#ffffff"} strokeWidth={2.25} />,
+    iconBg: "#111111",
+  },
+  {
+    key: "PAYPAL",
+    label: "PayPal",
+    sub: "Pay securely with your PayPal account",
+    render: () => <PayPalLogo size={17} />,
+    iconBg: "#ffffff",
+  },
+  {
+    key: "CASH_APP",
+    label: "Cash App",
+    sub: "Cash App Pay is coming soon",
+    render: () => <CashAppLogo size={16} />,
+    iconBg: "#00D632",
+    badge: "Coming soon",
   },
   {
     key: "GOOGLE_PAY",
     label: "Google Pay",
     sub: "Pay with your Google account",
-    icon: Wallet,
-    badge: "Fast",
-  },
-  {
-    key: "APPLE_PAY",
-    label: "Apple Pay",
-    sub: "Touch ID or Face ID",
-    icon: Smartphone,
+    render: () => <GoogleLogo size={16} />,
+    iconBg: "#ffffff",
     badge: "Fast",
   },
 ];
 
 export default function PaymentSection({
   onPlaceOrder,
+  onPayPalPay,
   onBack,
   processing,
   orderError,
@@ -76,7 +110,6 @@ export default function PaymentSection({
   const paymentsRef = useRef<any>(null);
   const cardRef     = useRef<any>(null);
   const googlePayRef = useRef<any>(null);
-  const applePayRef  = useRef<any>(null);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -119,7 +152,7 @@ export default function PaymentSection({
   useEffect(() => {
     if (!paymentsRef.current) return;
     const cleanup = async () => {
-      for (const ref of [cardRef, googlePayRef, applePayRef]) {
+      for (const ref of [cardRef, googlePayRef]) {
         if (ref.current) { try { await ref.current.destroy(); } catch {} ref.current = null; }
       }
     };
@@ -134,10 +167,6 @@ export default function PaymentSection({
           const req = paymentsRef.current.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
           try { const gp = await paymentsRef.current.googlePay(req); await gp.attach("#sq-google-pay-button"); googlePayRef.current = gp; }
           catch { setPaymentError("Google Pay is not available on this device / browser."); }
-        } else if (selectedMethod === "APPLE_PAY") {
-          const req = paymentsRef.current.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
-          try { const ap = await paymentsRef.current.applePay(req); await ap.attach("#sq-apple-pay-button"); applePayRef.current = ap; }
-          catch { setPaymentError("Apple Pay is not available on this device / browser."); }
         }
       } catch (err: any) { setPaymentError(err?.message ?? "Failed to initialise payment form."); }
     };
@@ -161,7 +190,15 @@ export default function PaymentSection({
   const { refreshCart } = useCart();
   const handleCardPay   = async () => { try { await tokenizeAndPay(cardRef, "CARD"); await refreshCart(); } catch (err) { console.error(err); } };
   const handleGooglePay = () => tokenizeAndPay(googlePayRef, "GOOGLE_PAY");
-  const handleApplePay  = () => tokenizeAndPay(applePayRef,  "APPLE_PAY");
+
+  const handlePayPalClick = async () => {
+    try {
+      setPaymentError(null);
+      await onPayPalPay();
+    } catch (err: any) {
+      setPaymentError(err?.message ?? "Unable to start PayPal checkout. Please try again.");
+    }
+  };
 
   const isLoading    = processing || paymentLoading;
   const displayError = paymentError || orderError;
@@ -255,27 +292,30 @@ export default function PaymentSection({
         /* ── METHOD GRID ── */
         .ps-method-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(2, 1fr);
           gap: 8px;
         }
 
         .ps-method-btn {
           position: relative;
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 9px;
-          padding: 11px 13px;
+          justify-content: center;
+          gap: 8px;
+          padding: 14px 8px 12px;
           border-radius: 14px;
           border: 1.5px solid #e8e8e8;
           background: #fafafa;
           cursor: pointer;
           transition: all 0.16s ease;
-          text-align: left;
+          text-align: center;
           outline: none;
         }
         .ps-method-btn:hover:not(.active):not(:disabled) {
           border-color: #cccccc;
           background: #f3f3f3;
+          transform: translateY(-1px);
         }
         .ps-method-btn.active {
           border-color: #111111;
@@ -285,20 +325,18 @@ export default function PaymentSection({
         .ps-method-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
         .ps-method-icon-wrap {
-          width: 30px; height: 30px;
-          border-radius: 9px;
+          width: 36px; height: 36px;
+          border-radius: 10px;
           background: #efefef;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-        }
-        .ps-method-btn.active .ps-method-icon-wrap {
-          background: rgba(245,216,0,0.15);
+          border: 1px solid rgba(0,0,0,0.06);
         }
 
         .ps-method-name {
-          font-size: 12.5px;
+          font-size: 11.5px;
           font-weight: 700;
           color: #555555;
           line-height: 1.2;
@@ -309,7 +347,7 @@ export default function PaymentSection({
         .ps-method-badge {
           position: absolute;
           top: -1px; right: -1px;
-          font-size: 9px;
+          font-size: 8.5px;
           font-weight: 800;
           letter-spacing: 0.05em;
           padding: 2px 7px;
@@ -322,6 +360,7 @@ export default function PaymentSection({
           font-size: 11px;
           color: #aaaaaa;
           margin-top: 4px;
+          text-align: center;
         }
 
         /* ── FORM WRAP ── */
@@ -347,6 +386,15 @@ export default function PaymentSection({
           color: #aaaaaa;
           margin: 0;
         }
+        .ps-form-header-icon {
+          width: 20px; height: 20px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .ps-form-header-icon svg { width: 12px; height: 12px; }
         .ps-form-body { padding: 16px; background: #ffffff; }
 
         #sq-card-container { min-height: 89px; }
@@ -432,6 +480,19 @@ export default function PaymentSection({
         .ps-bank-title { font-size: 14px; font-weight: 800; color: #111111; margin: 0 0 6px; }
         .ps-bank-desc  { font-size: 12px; color: #888888; line-height: 1.6; margin: 0; }
 
+        /* ── PAYPAL INFO ── */
+        .ps-paypal-info { padding: 20px 20px 22px; text-align: center; }
+        .ps-paypal-icon-wrap {
+          width: 52px; height: 52px;
+          border-radius: 16px;
+          background: #eef7fd;
+          border: 1.5px solid #cfe9f9;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 14px;
+        }
+
         /* ── BACK BUTTON ── */
         .ps-back-btn {
           width: 100%;
@@ -493,21 +554,27 @@ export default function PaymentSection({
           <div>
             <p className="ps-section-label">Payment Method</p>
             <div className="ps-method-grid">
-              {METHODS.map(({ key, label, icon: Icon, badge }) => (
-                <button
-                  key={key}
-                  className={`ps-method-btn${selectedMethod === key ? " active" : ""}`}
-                  onClick={() => setSelectedMethod(key)}
-                  disabled={isLoading}
-                  type="button"
-                >
-                  {badge && <span className="ps-method-badge">{badge}</span>}
-                  <div className="ps-method-icon-wrap">
-                    <Icon size={15} color={selectedMethod === key ? "#F5D800" : "#888888"} />
-                  </div>
-                  <span className="ps-method-name">{label}</span>
-                </button>
-              ))}
+              {METHODS.map(({ key, label, render, iconBg, badge }) => {
+                const active = selectedMethod === key;
+                return (
+                  <button
+                    key={key}
+                    className={`ps-method-btn${active ? " active" : ""}`}
+                    onClick={() => setSelectedMethod(key)}
+                    disabled={isLoading}
+                    type="button"
+                  >
+                    {badge && <span className="ps-method-badge">{badge}</span>}
+                    <div
+                      className="ps-method-icon-wrap"
+                      style={{ background: active ? "rgba(245,216,0,0.15)" : iconBg }}
+                    >
+                      {render(active)}
+                    </div>
+                    <span className="ps-method-name">{label}</span>
+                  </button>
+                );
+              })}
             </div>
             <p className="ps-method-sub">{activeMethod.sub}</p>
           </div>
@@ -515,17 +582,47 @@ export default function PaymentSection({
           {/* Square form area */}
           <div className="ps-form-wrap">
             <div className="ps-form-header">
-              <activeMethod.icon size={13} color="#aaaaaa" />
+              <div className="ps-form-header-icon" style={{ background: activeMethod.iconBg }}>
+                {activeMethod.render(false)}
+              </div>
               <p className="ps-form-header-label">
-                {selectedMethod === "CARD"
-                  ? "Card Details"
-                  : selectedMethod === "GOOGLE_PAY"
-                  ? "Google Pay"
-                  : "Apple Pay"}
+                {selectedMethod === "CARD" ? "Card Details" : activeMethod.label}
               </p>
             </div>
 
-            {squareLoading ? (
+            {selectedMethod === "PAYPAL" ? (
+              <div className="ps-form-body">
+                <div className="ps-paypal-info">
+                  <div className="ps-paypal-icon-wrap">
+                    <PayPalLogo size={22} />
+                  </div>
+                  <p className="ps-bank-title">Pay with PayPal</p>
+                  <p className="ps-bank-desc">
+                    You&apos;ll be redirected to PayPal to log in and approve this payment,
+                    then brought back here automatically.
+                  </p>
+                </div>
+
+                <button className="ps-pay-btn" onClick={handlePayPalClick} disabled={isLoading} type="button">
+                  {isLoading
+                    ? <><Loader2 size={16} style={{ animation:"spin 1s linear infinite" }} /> Redirecting…</>
+                    : "Continue with PayPal"}
+                </button>
+              </div>
+            ) : selectedMethod === "CASH_APP" ? (
+              <div className="ps-form-body">
+                <div className="ps-bank-info">
+                  <div className="ps-bank-icon-wrap" style={{ background: "#e6faed", borderColor: "#00D632" }}>
+                    <CashAppLogo size={20} />
+                  </div>
+                  <p className="ps-bank-title">Cash App Pay is coming soon</p>
+                  <p className="ps-bank-desc">
+                    This payment method isn&apos;t available yet. Please choose Card
+                    or PayPal to complete your order.
+                  </p>
+                </div>
+              </div>
+            ) : squareLoading ? (
               <div className="ps-loading">
                 <Loader2 size={22} className="ps-loading-spinner" />
                 <span className="ps-loading-text">Loading payment form…</span>
@@ -539,7 +636,6 @@ export default function PaymentSection({
               <div className="ps-form-body">
                 <div id="sq-card-container"      style={{ display: selectedMethod === "CARD"       ? "block" : "none" }} />
                 <div id="sq-google-pay-button"   style={{ display: selectedMethod === "GOOGLE_PAY" ? "block" : "none" }} onClick={selectedMethod === "GOOGLE_PAY" ? handleGooglePay : undefined} />
-                <div id="sq-apple-pay-button"    style={{ display: selectedMethod === "APPLE_PAY"  ? "block" : "none" }} onClick={selectedMethod === "APPLE_PAY"  ? handleApplePay  : undefined} />
 
                 {selectedMethod === "BANK_ACCOUNT" && (
                   <div className="ps-bank-info">

@@ -2,6 +2,7 @@
 import { ArrowUpDown, ChevronDown, X } from "lucide-react";
 import type { Pill, SortValue } from "@/data/types";
 import type { sortOptions } from "@/data/products";
+import { TIER_OPTIONS } from "@/data/constants";
 
 interface CategoriesTopBarProps {
   headingLabel: string;
@@ -15,6 +16,8 @@ interface CategoriesTopBarProps {
   currentSortLabel: string;
   allSortOptions: typeof sortOptions;
   onSortChange: (value: SortValue) => void;
+  activeTier: string;
+  onTierChange: (tier: string) => void;
 }
 
 /** Top bar above the product grid: mobile filter toggle, heading, item
@@ -31,6 +34,8 @@ export default function CategoriesTopBar({
   currentSortLabel,
   allSortOptions,
   onSortChange,
+  activeTier,
+  onTierChange,
 }: CategoriesTopBarProps) {
   console.log(pills,"pillspills")
   return (
@@ -55,6 +60,20 @@ export default function CategoriesTopBar({
         {totalFacetCount > 0 && <button className="clear-all-link" onClick={onClearAll}>Clear all</button>}
       </div>
       <div className="cat-topbar-right">
+        <div className="tier-tabs" role="tablist" aria-label="Filter by tier">
+          {TIER_OPTIONS.map((tier) => (
+            <button
+              key={tier.value}
+              type="button"
+              role="tab"
+              aria-selected={activeTier === tier.value}
+              className={`tier-tab ${activeTier === tier.value ? "active" : ""}`}
+              onClick={() => onTierChange(tier.value)}
+            >
+              {tier.label}
+            </button>
+          ))}
+        </div>
         <div className="sort-wrap">
           <span className="sort-icon"><ArrowUpDown size={14} /></span>
           <span className="sort-label">Sort by</span>

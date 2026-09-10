@@ -8,6 +8,7 @@ import PriceFacet from "./PriceFacet";
 import ColorFacet from "./ColorFacet";
 import GenderFacet from "./GenderFacet";
 import FabricFacet from "./FabricFacet";
+import TierFacet from "./TierFacet";
 import AvailabilityFacet from "./AvailabilityFacet";
 import type {
   Brand,
@@ -98,6 +99,13 @@ interface CategoriesSidebarProps {
   onToggleFabric: (fabric: string) => void;
   onClearFabrics: () => void;
 
+  // Tier
+  activeTier: string;
+  tierOpen: boolean;
+  onToggleTierSection: () => void;
+  onSelectTier: (tier: string) => void;
+  onClearTier: () => void;
+
   // Availability
   inStockOnly: boolean;
   stockOpen: boolean;
@@ -107,8 +115,8 @@ interface CategoriesSidebarProps {
 
 /** Sidebar shell: reset/close controls, "All Products" row, and every facet
  * section (Category, Industry, Brands, Price, Size, Color, Gender, Fabric,
- * Availability). Purely presentational — all state and handlers are owned
- * by the parent CategoriesView. */
+ * Tier, Availability). Purely presentational — all state and handlers are
+ * owned by the parent CategoriesView. */
 export default function CategoriesSidebar(props: CategoriesSidebarProps) {
   const {
     sidebarOpen,
@@ -219,6 +227,14 @@ export default function CategoriesSidebar(props: CategoriesSidebarProps) {
         onToggleSection={props.onToggleFabricSection}
         onToggleFabric={props.onToggleFabric}
         onClear={props.onClearFabrics}
+      />
+
+      <TierFacet
+        activeTier={props.activeTier}
+        open={props.tierOpen}
+        onToggleSection={props.onToggleTierSection}
+        onSelectTier={props.onSelectTier}
+        onClear={props.onClearTier}
       />
 
       <AvailabilityFacet

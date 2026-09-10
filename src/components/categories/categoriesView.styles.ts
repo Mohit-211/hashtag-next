@@ -261,6 +261,17 @@ export const categoriesViewStyles = `
   .sort-current { font-size: 13.5px; font-weight: 700; color: var(--color-foreground); white-space: nowrap; }
   .sort-select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: none; appearance: none; padding:10px }
   .sort-caret { color: var(--color-muted-foreground); display: flex; flex-shrink: 0; }
+  .tier-tabs {
+    display: flex; align-items: center; gap: 2px; background: var(--color-background);
+    border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 3px; height: 42px; flex-shrink: 0;
+  }
+  .tier-tab {
+    height: 100%; border: none; background: transparent; border-radius: calc(var(--radius-lg) - 3px);
+    padding: 0 14px; font-size: 13px; font-weight: 500; color: var(--color-muted-foreground);
+    cursor: pointer; white-space: nowrap; transition: background .15s, color .15s;
+  }
+  .tier-tab:hover { color: var(--color-foreground); }
+  .tier-tab.active { background: var(--color-primary); color: var(--color-primary-foreground); font-weight: 700; }
   .products-area { padding: 0 28px 40px; }
   .spinner { width: 20px; height: 20px; border: 2px solid var(--color-border); border-top-color: var(--color-foreground); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -321,6 +332,7 @@ export const categoriesViewStyles = `
     .cat-topbar-left { width: 100%; }
     .cat-topbar-right { width: 100%; flex-wrap: wrap; gap: 8px; }
     .sort-wrap { flex: 1; min-width: 120px; }
+    .tier-tabs { flex: 1; overflow-x: auto; }
     .cat-heading { font-size: 20px; }
     .products-area { padding: 0 16px 32px; }
   }

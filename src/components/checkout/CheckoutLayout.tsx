@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { useOrders } from "@/contexts/OrdersContext";
 import {
   CreatePaymentApi,
   GetSquareConfigApi,
+  CreatePaypalOrderApi,
 } from "@/api/operations/payment.api";
 import {
   CreateOrderApi,
@@ -40,12 +40,12 @@ export interface ShippingRate {
 export type SquareMethod =
   | "CARD"
   | "GOOGLE_PAY"
-  | "APPLE_PAY"
+  | "PAYPAL"
+  | "CASH_APP"
   | "BANK_ACCOUNT";
 // Tax is applied to (subtotal + customization), never to shipping.
 const TAX_RATE = 8.25;
 export default function CheckoutLayout() {
-  const router = useRouter();
   const {
     items,
     summary,
@@ -65,6 +65,7 @@ export default function CheckoutLayout() {
   const [orderError, setOrderError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [hasPendingOrder, setHasPendingOrder] = useState(false);
+  const paypalSubmittingRef = useRef(false);
   const [orderTax, setOrderTax] = useState<{
     subtotal: number;
     taxAmount: number;
@@ -250,6 +251,42 @@ export default function CheckoutLayout() {
       setProcessing(false);
     }
   };
+
+  // ─────────────────────────────────────────────
+  // PAYPAL
+  // create-order kicks off a redirect to PayPal's hosted approval page.
+  // The redirect leaves the SPA entirely, so React state (createdOrderId)
+  // won't survive the round trip — we stash it in sessionStorage right
+  // before leaving so /checkout/paypal/success|cancel can read it back
+  // dynamically, without depending on the backend echoing order_id in
+  // the return_url/cancel_url query string.
+  // ─────────────────────────────────────────────
+  const handlePayPalPay = async () => {
+    if (paypalSubmittingRef.current) return;
+    try {
+      paypalSubmittingRef.current = true;
+      setOrderError(null);
+      setProcessing(true);
+      if (!createdOrderId) {
+        throw new Error("No order found");
+      }
+      const response = await CreatePaypalOrderApi({ order_id: createdOrderId });
+      const approvalUrl = response?.data?.data?.approval_url;
+      if (!approvalUrl) {
+        throw new Error("Unable to start PayPal checkout. Please try again.");
+      }
+      sessionStorage.setItem("paypal_pending_order_id", String(createdOrderId));
+      window.location.href = approvalUrl;
+    } catch (err: any) {
+      console.error(err);
+      setOrderError(
+        err?.response?.data?.message || err?.message || "Unable to start PayPal checkout"
+      );
+      paypalSubmittingRef.current = false;
+      setProcessing(false);
+    }
+  };
+
   // ─────────────────────────────────────────────
   // GUARDS
   // NOTE: order matters. "processing" and "done" are
@@ -313,6 +350,7 @@ export default function CheckoutLayout() {
             {step === "payment" && (
               <PaymentSection
                 onPlaceOrder={handlePlaceOrder}
+                onPayPalPay={handlePayPalPay}
                 onBack={() => setStep("shipping")}
                 processing={processing}
                 orderError={orderError}

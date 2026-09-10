@@ -2,7 +2,15 @@
 
 import { Loader2 } from "lucide-react";
 
-export default function ProcessingScreen() {
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+export default function ProcessingScreen({
+  title = "Placing your order…",
+  description = "We're processing your payment and confirming your order. This will only take a moment.",
+}: Props) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="text-center max-w-sm w-full">
@@ -16,11 +24,11 @@ export default function ProcessingScreen() {
         </div>
 
         <h2 className="mt-8 text-2xl font-bold font-heading text-foreground">
-          Placing your order…
+          {title}
         </h2>
 
         <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-          We&apos;re processing your payment and confirming your order. This will only take a moment.
+          {description}
         </p>
 
         {/* Progress dots */}

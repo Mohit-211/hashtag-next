@@ -119,6 +119,7 @@ export interface FilterParams {
   priceRange: [number, number];
   genders: string[];
   fabrics: string[];
+  tier: string;
   industry: Industry;
   industryCategories: SelectedIndustryCategory[];
 }

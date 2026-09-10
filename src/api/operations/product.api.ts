@@ -9,6 +9,7 @@ export interface ProductQueryParams {
   category_id?: number | string;
   brand_id?: number | string;
   grand_category_id?: number | string;
+  tier?: string;
 }
 
 export const AllProductsApi = (params?: ProductQueryParams) => {

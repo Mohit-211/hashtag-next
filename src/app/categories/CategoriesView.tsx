@@ -152,6 +152,11 @@ console.log(v,'v=============')
           onToggleFabricSection={() => v.toggleSection("fabric")}
           onToggleFabric={v.toggleFabric}
           onClearFabrics={v.clearFabrics}
+          activeTier={v.activeTier}
+          tierOpen={v.openSections.tier}
+          onToggleTierSection={() => v.toggleSection("tier")}
+          onSelectTier={v.handleTierChange}
+          onClearTier={v.clearTier}
           inStockOnly={v.inStockOnly}
           stockOpen={v.openSections.stock}
           onToggleStockSection={() => v.toggleSection("stock")}
@@ -173,6 +178,8 @@ console.log(v,'v=============')
             currentSortLabel={v.currentSortLabel}
             allSortOptions={v.allSortOptions}
             onSortChange={v.handleSortChange}
+            activeTier={v.activeTier}
+            onTierChange={v.handleTierChange}
           />
           <ProductsArea
             products={v.products}

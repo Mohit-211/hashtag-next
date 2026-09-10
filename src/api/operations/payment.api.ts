@@ -63,6 +63,52 @@ export const CreatePaymentApi = async (
 };
 
 // ─────────────────────────────────────────────────────────────
+// PayPal
+// ─────────────────────────────────────────────────────────────
+
+export interface CreatePaypalOrderPayload {
+  order_id: number;
+}
+
+// Unlike the Square endpoints above, this one is not double-wrapped —
+// the fields sit directly on response.data (response.data.approve_url).
+export interface CreatePaypalOrderResponseData {
+  paypal_order_id: string;
+  approve_url: string;
+}
+
+export const CreatePaypalOrderApi = async (
+  payload: CreatePaypalOrderPayload
+) => {
+  const response = await client.post(
+    PAYMENT_ENDPOINTS.PAYPAL_CREATE_ORDER,
+    payload
+  );
+
+  return response;
+};
+
+export interface CapturePaypalOrderPayload {
+  order_id: number;
+  paypal_order_id: string;
+}
+
+export interface CapturePaypalOrderResponseData {
+  payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
+}
+
+export const CapturePaypalOrderApi = async (
+  payload: CapturePaypalOrderPayload
+) => {
+  const response = await client.post(
+    PAYMENT_ENDPOINTS.PAYPAL_CAPTURE_ORDER,
+    payload
+  );
+
+  return response;
+};
+
+// ─────────────────────────────────────────────────────────────
 // Payment History
 // API:
 // {{BASE_URL}}payment/history?page=1&limit=10

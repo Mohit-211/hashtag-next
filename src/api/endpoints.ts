@@ -66,6 +66,8 @@ export const PAYMENT_ENDPOINTS = {
   SQUARE_CONFIG: "/payment/square/config",
   CREATE_PAYMENT: "/payment/square/create-payment",
   PAYMENT_HISTORY: "/payment/history",
+  PAYPAL_CREATE_ORDER: "/payment/paypal/create-order",
+  PAYPAL_CAPTURE_ORDER: "/payment/paypal/capture-order",
 };
 export const BRAND_ENDPOINTS = {
   GET_ALL: "/brand/website-brands",

@@ -60,6 +60,13 @@ export const FABRIC_KEYWORDS: Record<string, string[]> = {
 export const GENDER_OPTIONS = Object.keys(GENDER_KEYWORDS);
 export const FABRIC_OPTIONS = Object.keys(FABRIC_KEYWORDS);
 
+export const TIER_OPTIONS: { label: string; value: string }[] = [
+  { label: "All", value: "all" },
+  { label: "Primary", value: "primary" },
+  { label: "Secondary", value: "secondary" },
+  { label: "Budget", value: "budget" },
+];
+
 export const PRICE_MIN = 0;
 export const PRICE_MAX = 500;
 export const PRICE_STEP = 5;
