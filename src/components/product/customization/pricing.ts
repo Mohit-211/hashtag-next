@@ -117,7 +117,7 @@ export const EMB_PRICES: Record<string, number[]> = {
   SLEEVE_LEFT: [12, 11, 10, 9, 8, 7, 6],
   SLEEVE_RIGHT: [12, 11, 10, 9, 8, 7, 6],
   FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
-  FULL_BACK: [18, 16, 14, 13, 12, 11, 10],
+  FULL_BACK_STANDARD: [18, 16, 14, 13, 12, 11, 10],
   HAT_FRONT: [15, 14, 12, 11, 10, 9, 8],
   HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
   HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],

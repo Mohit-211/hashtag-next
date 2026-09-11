@@ -138,7 +138,7 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
     {
       key: "BACK", label: "Back", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452411965.png",
-      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }]
+      hotspots: [{ id: "FULL_BACK_STANDARD", label: "Full Back", top: "44%", left: "50%" }]
     },
     {
       key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452412048.png",
@@ -204,7 +204,7 @@ const ALL_PRINT_LOCATIONS = [
   { id: "LEFT_CHEST", label: "Left Chest" },
   { id: "RIGHT_CHEST", label: "Right Chest" },
   { id: "FULL_FRONT", label: "Full Front" },
-  { id: "FULL_BACK", label: "Full Back" },
+  { id: "FULL_BACK_STANDARD", label: "Full Back" },
   { id: "SLEEVE_LEFT", label: "Left Sleeve" },
   { id: "SLEEVE_RIGHT", label: "Right Sleeve" },
   { id: "HAT_FRONT", label: "Hat Front" },
@@ -239,7 +239,7 @@ const EMB_PRICES: Record<string, number[]> = {
   SLEEVE_LEFT: [12, 11, 10, 9, 8, 7, 6],
   SLEEVE_RIGHT: [12, 11, 10, 9, 8, 7, 6],
   FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
-  FULL_BACK: [18, 16, 14, 13, 12, 11, 10],
+  FULL_BACK_STANDARD: [18, 16, 14, 13, 12, 11, 10],
   HAT_FRONT: [15, 14, 12, 11, 10, 9, 8],
   HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
   HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],
@@ -1400,6 +1400,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return 0;
   }, [currentVariantAlreadyConfigured, isApparel, isPreMade, isPromo, currentQty, totalQty, estimatedTotal, preMadeSelectionPricing, promoUnitPrice, promoTotal]);
   const displayTotal = grandConfiguredPrice + currentSelectionTotal;
+    console.log(selectedLocations,"selectedLocations=========")
+
   const buildPayload = (variantList: ConfiguredVariant[]) => {
     const customizations = variantList.flatMap(cv =>
       cv.sizes.map(s => {
