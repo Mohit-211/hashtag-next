@@ -60,18 +60,20 @@ export default function ProductInfo({
   brandName?: string | null;
   brandLogo?: string | null;
 }) {
-  const colors = useMemo(() => {
-    const map = new Map<string, string>();
-    variants.forEach((v) => {
-      if (!map.has(v.color)) {
-        const code =
-          v.color_code ??
-          v.color.split(/[\/,\s]+/)[0].trim().toLowerCase();
-        map.set(v.color, code);
-      }
-    });
-    return Array.from(map, ([color, color_code]) => ({ color, color_code }));
-  }, [variants]);
+const colors = useMemo(() => {
+  const map = new Map<string, string>();
+  variants.forEach((v) => {
+    if (!v?.color) return; // skip variants without a color entirely
+    if (!map.has(v?.color)) {
+      const code =
+        v?.color_code ||
+        v?.color?.split(/[\/,\s]+/)[0]?.trim().toLowerCase() ||
+        "#ccc";
+      map.set(v?.color, code);
+    }
+  });
+  return Array.from(map, ([color, color_code]) => ({ color, color_code }));
+}, [variants]);
 
   const availableSizeIds = useMemo(() => {
     if (!selectedColor) return new Set<number>();
@@ -81,7 +83,7 @@ export default function ProductInfo({
         .map((v) => v.size_id)
     );
   }, [selectedColor, variants]);
-
+console.log(colors,"colors")
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -124,7 +126,7 @@ export default function ProductInfo({
       <div className="h-px bg-[#E5E5E5]" />
 
       {/* Color Selection */}
-      {colors.length > 0 && (
+      {colors?.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
@@ -171,7 +173,7 @@ export default function ProductInfo({
       )}
 
       {/* Size Selection */}
-      {sizes.length > 0 && (
+      {sizes?.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
