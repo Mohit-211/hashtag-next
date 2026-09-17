@@ -81,7 +81,7 @@ export function sumVariantTotals(lines: VariantLineInput[]): VariantLineResult {
 
 /** Format a number as money with exactly 2 decimal places, comma-separated. */
 export function formatMoney(value: number): string {
-  console.log(value,"value")
+  console.log(value, "value")
   const safeValue = Number.isFinite(value) ? value : 0;
   return safeValue.toLocaleString(undefined, {
     minimumFractionDigits: 2,
@@ -126,9 +126,12 @@ export const EMB_PRICES: Record<string, number[]> = {
 export const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
 export const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
 export const SP_PRICES: Record<string, number[]> = {
-  "1 Color": [6.58, 4.40],
-  "2 Color": [9.43, 7.98],
-  "3 Color": [11.55, 9.54],
+  "1 Color": [11.19, 7.46, 4.85, 3.36, 2.24, 1.87],
+  "2 Color": [22.39, 11.19, 7.09, 5.22, 3.36, 3.21],
+  "3 Color": [37.31, 14.93, 9.33, 7.46, 4.48, 4.25],
+  "4 Color": [52.24, 26.87, 11.19, 10.07, 5.60, 5.37],
+  "5 Color": [67.16, 32.84, 14.93, 11.57, 6.72, 6.49],
+  "6 Color": [82.09, 37.31, 17.16, 13.06, 8.58, 7.61],
 };
 export const DTG_PRICES: Record<string, number[]> = {
   "Front Regular": [15, 12, 11, 9],
