@@ -133,12 +133,15 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
       hotspots: [
         { id: "LEFT_CHEST", label: "L. Chest", top: "35%", left: "60%" },
         { id: "RIGHT_CHEST", label: "R. Chest", top: "35%", left: "32%" },
-        { id: "FULL_FRONT", label: "Full Front", top: "53%", left: "46%" },
+        // { id: "FULL_FRONT", label: "Full Front", top: "53%", left: "46%" },
       ]
     },
     {
       key: "BACK", label: "Back", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452411965.png",
-      hotspots: [{ id: "FULL_BACK_STANDARD", label: "Full Back", top: "44%", left: "50%" }]
+      hotspots: [
+        { id: "FULL_BACK_STANDARD", label: "Std. Back", top: "38%", left: "50%" },
+        { id: "FULL_BACK_LARGE", label: "Lg. Back", top: "55%", left: "50%" },
+      ]
     },
     {
       key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452412048.png",
@@ -187,12 +190,15 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
       hotspots: [
         { id: "LEFT_CHEST", label: "L. Chest", top: "38%", left: "70%" },
         { id: "RIGHT_CHEST", label: "R. Chest", top: "38%", left: "32%" },
-        { id: "FULL_FRONT", label: "Full Front", top: "51%", left: "52%" },
+        // { id: "FULL_FRONT", label: "Full Front", top: "51%", left: "52%" },
       ]
     },
     {
       key: "BACK", label: "Back", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452411692.png",
-      hotspots: [{ id: "FULL_BACK", label: "Full Back", top: "44%", left: "50%" }]
+      hotspots: [
+        { id: "FULL_BACK_STANDARD", label: "Std. Back", top: "38%", left: "50%" },
+        { id: "FULL_BACK_LARGE", label: "Lg. Back", top: "55%", left: "50%" },
+      ]
     },
     {
       key: "SIDE", label: "Side", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1786452411898.png",
@@ -203,8 +209,9 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
 const ALL_PRINT_LOCATIONS = [
   { id: "LEFT_CHEST", label: "Left Chest" },
   { id: "RIGHT_CHEST", label: "Right Chest" },
-  { id: "FULL_FRONT", label: "Full Front" },
-  { id: "FULL_BACK_STANDARD", label: "Full Back" },
+  // { id: "FULL_FRONT", label: "Full Front" },
+  { id: "FULL_BACK_STANDARD", label: "Full Back (Standard)" },
+  { id: "FULL_BACK_LARGE", label: "Full Back (Large)" },
   { id: "SLEEVE_LEFT", label: "Left Sleeve" },
   { id: "SLEEVE_RIGHT", label: "Right Sleeve" },
   { id: "HAT_FRONT", label: "Hat Front" },
@@ -238,8 +245,10 @@ const EMB_PRICES: Record<string, number[]> = {
   RIGHT_CHEST: [12, 11, 10, 9, 8, 7, 6],
   SLEEVE_LEFT: [12, 11, 10, 9, 8, 7, 6],
   SLEEVE_RIGHT: [12, 11, 10, 9, 8, 7, 6],
-  FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
+  // FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
   FULL_BACK_STANDARD: [18, 16, 14, 13, 12, 11, 10],
+  FULL_BACK_LARGE: [22, 20, 18, 16, 15, 14, 12],
+
   HAT_FRONT: [15, 14, 12, 11, 10, 9, 8],
   HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
   HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],
@@ -482,20 +491,20 @@ function SectionCard({ step, title, subtitle, status, children }: {
 }) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-5">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
+      <div className="px-3 py-3 sm:px-5 sm:py-4 border-b border-gray-100 flex items-center gap-2 sm:gap-3">
         <StepBadge n={step} done={status === "done"} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-gray-900">{title}</p>
           <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>
         </div>
         {status === "required" && (
-          <span className="text-[11px] font-bold text-red-500 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full">Required</span>
+          <span className="text-[11px] font-bold text-red-500 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full whitespace-nowrap">Required</span>
         )}
         {status === "optional" && (
-          <span className="text-[11px] font-bold text-gray-400 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full">Optional</span>
+          <span className="text-[11px] font-bold text-gray-400 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full whitespace-nowrap">Optional</span>
         )}
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-3 sm:p-5">{children}</div>
     </div>
   );
 }
@@ -935,10 +944,17 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       : `${BASE_URL}${fileUri.startsWith("/") ? "" : "/"}${fileUri}`;
   }, [product, activeVariant]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  // Full Back Standard vs Large are two sizes of the SAME print area — never
+  // selectable together, so picking one always drops the other.
+  const MUTUALLY_EXCLUSIVE_LOCATIONS = ["FULL_BACK_STANDARD", "FULL_BACK_LARGE"];
   const toggleLocation = (id: string) =>
-    setSelectedLocations(prev =>
-      prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
-    );
+    setSelectedLocations(prev => {
+      if (prev.includes(id)) return prev.filter(l => l !== id);
+      const next = MUTUALLY_EXCLUSIVE_LOCATIONS.includes(id)
+        ? prev.filter(l => !MUTUALLY_EXCLUSIVE_LOCATIONS.includes(l))
+        : prev;
+      return [...next, id];
+    });
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
   const [selectedPrintType, setSelectedPrintType] = useState<DrinkwarePrintType | null>(null);
   const [selectedPrintLocations, setSelectedPrintLocations] = useState<DrinkwarePrintLocation[]>([]);
@@ -1437,7 +1453,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     };
     if (isApparel) {
       base.print_method = selectedMaterial?.toUpperCase() ?? null;
-      base.locations = selectedLocations.map(loc => ({ location: loc }));
+      // Backend only has a single "SLEEVE" location/table — LEFT_SLEEVE and
+      // RIGHT_SLEEVE are separate hotspots/buttons in the UI only.
+      base.locations = selectedLocations.map(loc => ({
+        location: loc === "SLEEVE_LEFT" || loc === "SLEEVE_RIGHT" ? "SLEEVE" : loc,
+      }));
     }
     if (isDrinkware) {
       base.print_method = selectedPrintType ?? null;
@@ -1672,14 +1692,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return (
       <div className="min-h-screen bg-[#fafafa]">
         <div className="sticky top-0 z-20 bg-white border-b border-gray-100 h-14 animate-pulse" />
-        <div className="container max-w-6xl mx-auto px-4 py-8">
+        <div className="container max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
           {restorePending && (
             <div className="mb-4 flex items-center gap-2 text-xs font-semibold text-[#b89000] bg-[#F5D800]/10 border border-[#F5D800]/20 rounded-xl px-3 py-2 w-fit">
               <Loader2 size={13} className="animate-spin" />
               Restoring your saved customization…
             </div>
           )}
-          <div className="grid xl:grid-cols-[1fr_380px] gap-6">
+          <div className="flex flex-col lg:grid lg:grid-cols-[1fr_380px] gap-6">
             <div className="space-y-5">
               <div className="h-64 rounded-2xl bg-gray-200 animate-pulse" />
               <div className="h-40 rounded-2xl bg-gray-200 animate-pulse" />
@@ -1828,7 +1848,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         </div>
       </div>
       <div className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="grid xl:grid-cols-[1fr_380px] gap-6">
+        <div className="flex flex-col lg:grid lg:grid-cols-[1fr_380px] gap-6">
           <div>
             {isApparel && (
               <>
@@ -1909,7 +1929,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       return (
                         <div key={mat.id}>
                           <button onClick={() => handleSelectMaterial(mat.id)}
-                            className={cn("w-full text-left flex items-start gap-3 rounded-2xl border-2 p-3.5 transition-all relative",
+                            className={cn("w-full text-left flex items-start gap-2.5 sm:gap-3 rounded-2xl border-2 p-3 sm:p-3.5 transition-all relative",
                               isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
                             )}>
                             {isSelected && (
@@ -1917,13 +1937,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                 <Check size={11} className="text-black" />
                               </div>
                             )}
-                            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0", isSelected ? "bg-[#F5D800]/20" : "bg-gray-100")}>
+                            <div className={cn("w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-lg sm:text-xl flex-shrink-0", isSelected ? "bg-[#F5D800]/20" : "bg-gray-100")}>
                               {mat.emoji}
                             </div>
-                            <div className="flex-1 min-w-0 pr-5">
-                              <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0 pr-6">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className="text-sm font-black text-gray-900">{mat.label}</p>
-                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-500")}>{mat.badge}</span>
+                                <span className={cn("shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-500")}>{mat.badge}</span>
                               </div>
                               <p className="text-[11px] text-gray-500 mt-0.5">{mat.desc}</p>
                               <p className="text-[10px] text-gray-400 mt-0.5">Best for: {mat.bestFor}</p>
@@ -1977,7 +1997,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                     </div>
                                     <div className="overflow-x-auto">
                                       {mat.id === "embroidery" && (
-                                        <table className="w-full border-collapse min-w-[520px]">
+                                        <table className="w-full border-collapse min-w-105 sm:min-w-130">
                                           <thead>
                                             <tr className="bg-gray-50 border-b border-gray-200">
                                               <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-36">Location</th>
@@ -2029,7 +2049,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                         </table>
                                       )}
                                       {mat.id === "dtf" && (
-                                        <table className="w-full border-collapse min-w-[480px]">
+                                        <table className="w-full border-collapse min-w-95 sm:min-w-120">
                                           <thead>
                                             <tr className="bg-gray-50 border-b border-gray-200">
                                               <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Method</th>
@@ -2065,7 +2085,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                         </table>
                                       )}
                                       {mat.id === "screen_print" && (
-                                        <table className="w-full border-collapse min-w-[640px]">
+                                        <table className="w-full border-collapse min-w-120 sm:min-w-160">
                                           <thead>
                                             <tr className="bg-gray-50 border-b border-gray-200">
                                               <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Colors</th>
@@ -2103,7 +2123,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                         </table>
                                       )}
                                       {mat.id === "dtg" && (
-                                        <table className="w-full border-collapse min-w-[400px]">
+                                        <table className="w-full border-collapse min-w-80 sm:min-w-100">
                                           <thead>
                                             <tr className="bg-gray-50 border-b border-gray-200">
                                               <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-40">Print Area</th>
@@ -2363,7 +2383,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               </>
             )}
           </div>
-          <div className="xl:sticky xl:top-[60px] self-start">
+          <div className="w-full xl:sticky xl:top-[60px] self-start">
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
                 <ShoppingCart size={16} className="text-[#F5D800]" />
@@ -2802,7 +2822,7 @@ function LogoCanvasSection({
   autoRemoveBg, setAutoRemoveBg, bgRemoved, setBgRemoved,
 }: any) {
   return (
-    <div className="flex flex-col xl:flex-row gap-5 items-start">
+    <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
       <div className="w-full xl:w-[380px] flex-shrink-0">
         <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">

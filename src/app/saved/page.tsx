@@ -33,7 +33,7 @@ function FastImage({ src, alt, priority = false }: { src: string; alt: string; p
         unoptimized
         onLoad={() => setLoaded(true)}
         className={cn(
-          "object-cover transition-all duration-500 group-hover:scale-105",
+          "object-contain transition-all duration-500 group-hover:scale-105",
           loaded ? "opacity-100" : "opacity-0"
         )}
       />

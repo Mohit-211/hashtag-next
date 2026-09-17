@@ -173,7 +173,7 @@ export default function CartItem({ item, onRefresh }: Props) {
               alt={item?.name}
               width={96}
               height={96}
-              className="w-full h-full object-cover"
+              className="w-full h-full"
             />
           </div>
 
@@ -195,7 +195,7 @@ export default function CartItem({ item, onRefresh }: Props) {
             <div className="space-y-1">
               <Link
                 href={item.product_id ? `/product/${item.product_id}` : "#"}
-                className="font-semibold leading-tight truncate hover:text-primary transition-colors block"
+                className="font-semibold leading-tight whitespace-normal sm:truncate hover:text-primary transition-colors block"
               >
                 {item.name}
               </Link>

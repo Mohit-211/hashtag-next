@@ -330,7 +330,9 @@ export const categoriesViewStyles = `
     .sidebar-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 290; }
     .cat-topbar { padding: 14px 16px; flex-direction: column; align-items: flex-start; gap: 12px; }
     .cat-topbar-left { width: 100%; }
-    .cat-topbar-right { width: 100%; flex-wrap: wrap; gap: 8px; }
+    .cat-topbar-right { display: block; width: 100%; }
+    .cat-topbar-right > * { margin-top: 8px; }
+    .cat-topbar-right > *:first-child { margin-top: 0; }
     .sort-wrap { flex: 1; min-width: 120px; }
     .tier-tabs { flex: 1; overflow-x: auto; }
     .cat-heading { font-size: 20px; }
@@ -377,7 +379,7 @@ export const categoriesViewStyles = `
   }
   .ucgate-subtitle { font-size: 15.5px; line-height: 1.6; color: var(--color-muted-foreground); max-width: 560px; margin: 0 auto; }
   .ucgate-body { max-width: 1200px; margin: 0 auto; padding: 40px 24px 88px; }
-  .ucgate-back-row { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .ucgate-back-row { display: flex; align-items: center; gap: 12px; margin: 28px 0px; }
   .ucgate-back-btn {
     display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px;
     border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-card);
@@ -475,6 +477,15 @@ export const categoriesViewStyles = `
     letter-spacing: -0.015em; margin: 0 0 16px;
   }
   .ucgate-usecase-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+  .ucgate-usecase-card { aspect-ratio: 4 / 5; }
+  .ucgate-usecase-caption {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 1rem;
+    text-align: left; display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .ucgate-usecase-caption-title {
+    color: #fff; font-family: var(--font-heading, inherit); font-weight: 700;
+    font-size: 1.05rem; line-height: 1.2; text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
   .ucgate-usecase-row {
     position: relative; text-align: left; padding: 16px 20px 24px; border: 1.5px solid var(--color-border);
     border-radius: 18px; background: var(--color-card); cursor: pointer; overflow: hidden;
@@ -589,7 +600,8 @@ export const categoriesViewStyles = `
     .ucgate-header { padding: 44px 18px 8px; }
     .ucgate-body { padding: 28px 18px 64px; }
     .ucgate-industry-grid { grid-template-columns: 1fr; }
-    .ucgate-usecase-list { grid-template-columns: 1fr; }
+    .ucgate-usecase-list { grid-template-columns: 1fr; gap: 12px; }
+    .ucgate-usecase-card { aspect-ratio: 4 / 3; }
   }
   /* ── banner shown above the product grid when a use case is active ── */
   .ucbanner {

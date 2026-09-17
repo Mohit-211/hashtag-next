@@ -419,11 +419,14 @@ export default function AddProductConfigurationModal({
 
                   return (
                     <div key={row.id}>
-                      <div className="grid gap-2 items-center" style={{ gridTemplateColumns: gridCols }}>
+                      <div
+                        className="grid grid-cols-2 gap-2 items-center sm:grid-cols-(--row-grid-cols)"
+                        style={{ ["--row-grid-cols" as any]: gridCols }}
+                      >
                         <select
                           value={row.color}
                           onChange={(e) => updateRow(row.id, { color: e.target.value })}
-                          className="h-11 rounded-xl border-2 border-gray-200 px-3 text-sm font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none"
+                          className="col-span-2 sm:col-span-1 h-11 rounded-xl border-2 border-gray-200 px-3 text-sm font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none"
                         >
                           <option value="">Select color…</option>
                           {uniqueColors.map((c) => (
@@ -444,7 +447,7 @@ export default function AddProductConfigurationModal({
                               updateRow(row.id, { sizeId: newSizeId, qty: effectiveMinFor(v) });
                             }}
                             disabled={!row.color}
-                            className="h-11 rounded-xl border-2 border-gray-200 px-3 text-sm font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none disabled:opacity-40"
+                            className="col-span-2 sm:col-span-1 h-11 rounded-xl border-2 border-gray-200 px-3 text-sm font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none disabled:opacity-40"
                           >
                             <option value="">Select size…</option>
                             {rowSizes.map(({ size, available }) => (

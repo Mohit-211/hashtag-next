@@ -51,7 +51,7 @@ export default function OrderSummary({
                         alt={item.name}
                         width={40}
                         height={40}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full"
                       />
                     ) : (
                       <ShoppingBag className="h-4 w-4 text-[#CDCCC8]" strokeWidth={1.5} />

@@ -32,9 +32,7 @@ export default function UseCasePickerGate({
     .map((ind) => ({ industry: ind, useCases: ind.use_cases ?? [] }))
     .filter((g) => g.useCases.length > 0);
   return (
-    <div className="container p-10">
-      <div className="max-w-2xl mb-10">
-      </div>
+    <div className="container p-4 sm:p-6 lg:p-10">
       <style>{categoriesViewStyles}</style>
       <div className="ucgate-header">
         <div className="ucgate-eyebrow">Use Case Collections</div>
@@ -69,11 +67,10 @@ export default function UseCasePickerGate({
                       <button
                         key={`${industry.id}-${uc.id}`}
                         type="button"
-                        // className="ucgate-usecase-row"
+                        className="ucgate-usecase-card"
                         style={{
                           ["--stagger" as any]: i,
                           position: "relative",
-                          aspectRatio: "4 / 5",
                           borderRadius: "var(--radius-lg, 0.5rem)",
                           overflow: "hidden",
                           padding: 0,
@@ -91,29 +88,8 @@ export default function UseCasePickerGate({
                         />
                         <div className="absolute inset-0 bg-foreground/25 group-hover:bg-foreground/50 transition-colors" />
                         {/* Overlaid title + tags */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            padding: "1rem",
-                            textAlign: "left",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "0.5rem",
-                          }}
-                        >
-                          <div
-                            style={{
-                              color: "#fff",
-                              fontFamily: "var(--font-heading, inherit)",
-                              fontWeight: 700,
-                              fontSize: "1.05rem",
-                              lineHeight: 1.2,
-                              textShadow: "0 1px 3px rgba(0,0,0,0.4)",
-                            }}
-                          >
+                        <div className="ucgate-usecase-caption">
+                          <div className="ucgate-usecase-caption-title">
                             {uc.title}
                           </div>
                           {/* {visibleCats.length > 0 && (

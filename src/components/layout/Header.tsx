@@ -168,12 +168,12 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1 shrink-0">
+        <nav className="hidden md:flex items-center gap-1 min-w-0 flex-1 overflow-x-auto scrollbar-hide">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 pathname === link.href
                   ? "text-primary-foreground bg-primary"
                   : "  hover:text-foreground hover:bg-secondary"
@@ -187,7 +187,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         {/* Search Bar (Desktop) */}
         <form
           onSubmit={handleSearchSubmit}
-          className="hidden lg:flex flex-1 max-w-md"
+          className="hidden lg:flex flex-1 min-w-0 max-w-md"
         >
          <div className="relative w-full">
   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -214,7 +214,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         </form>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           {/* Mobile Search Toggle */}
           <button
             type="button"
@@ -402,6 +402,14 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                   className="px-3 py-2 text-sm hover:bg-secondary rounded-md"
                 >
                   My Account ({user?.name?.split(" ")[0] || "User"})
+                </Link>
+
+                <Link
+                  href="/payment-history"
+                  onClick={() => setMobileOpen(false)}
+                  className="px-3 py-2 text-sm hover:bg-secondary rounded-md"
+                >
+                  Payment History
                 </Link>
 
                 <button

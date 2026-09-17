@@ -85,7 +85,7 @@ export default function Cart() {
 
   return (
     <section className="py-8">
-      <div className="container grid lg:grid-cols-3 gap-8">
+      <div className="container grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         {/* 🛒 Items */}
         <CartItemsList items={items as CartItemType[]} onRefresh={refreshCart} />
 
