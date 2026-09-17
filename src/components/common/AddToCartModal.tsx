@@ -309,14 +309,14 @@ console.log(customizationPayload,"customizationPayload")
       role="dialog"
       aria-modal="true"
       aria-label="Add to cart"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
     >
       <div
         className={cn(
-          "relative w-[calc(100%-24px)] sm:w-[440px] sm:max-w-[92vw] mx-3 sm:mx-0 bg-white overflow-hidden",
-          "rounded-t-[20px] sm:rounded-[20px]",
-          "shadow-[0_-4px_32px_rgba(0,0,0,0.12)] sm:shadow-[0_8px_48px_rgba(0,0,0,0.18)]",
+          "relative w-full sm:w-[440px] max-w-[92vw] bg-white overflow-hidden",
+          "rounded-[20px]",
+          "shadow-[0_8px_48px_rgba(0,0,0,0.18)]",
           "transition-all duration-300 ease-out",
           "max-h-[90vh] sm:max-h-[85vh] flex flex-col",
           visible
