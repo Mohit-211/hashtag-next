@@ -350,7 +350,7 @@ export default function CheckoutLayout() {
           </div>
         )} */}
 
-        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8 items-start">
+        <div className="flex flex-col lg:grid lg:grid-cols-5 gap-6 lg:gap-8 items-stretch lg:items-start">
           <div className="lg:col-span-3">
             {step === "address" && !hasPendingOrder && (
               <AddressSection
