@@ -283,7 +283,7 @@ console.log(customizationPayload,"customizationPayload")
 
       await AddToCartApi(formData);
 
-      toast.success("Added to cart!");
+      toast.success("Added to cart!", { duration: 3000, closeButton: true });
       setSuccess(true);
       onSuccess?.();
 
