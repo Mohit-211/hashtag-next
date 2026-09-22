@@ -229,8 +229,11 @@ export function useCategoriesView({
       const fabrics = qFabric.split(",").map((f) => f.trim().toUpperCase()).filter((f) => FABRIC_OPTIONS.includes(f));
       if (fabrics.length) setActiveFabrics(fabrics);
     }
+    // Tier only ever applies alongside a selected use case — a deep link
+    // carrying ?tier= without ?use_case_id= is ignored rather than silently
+    // applying a tier filter with no use case behind it.
     const qTier = searchParams.get("tier");
-    if (qTier && TIER_OPTIONS.some((o) => o.value === qTier)) {
+    if (qTier && searchParams.get("use_case_id") && TIER_OPTIONS.some((o) => o.value === qTier)) {
       setActiveTier(qTier);
       activeTierRef.current = qTier;
     }
@@ -557,6 +560,10 @@ export function useCategoriesView({
         activeUseCaseIdRef.current = null;
         setActiveUseCaseCategoryIds([]);
         activeUseCaseCategoryIdsRef.current = [];
+        // Tier is only meaningful alongside a use case — dropping the use
+        // case here means tier must be dropped too.
+        setActiveTier("all");
+        activeTierRef.current = "all";
       }
       const url = new URL(window.location.href);
       const sp = url.searchParams;
@@ -625,6 +632,10 @@ export function useCategoriesView({
     const categoryIds = cats.map((c) => c.id);
     setActiveUseCaseCategoryIds(categoryIds);
     activeUseCaseCategoryIdsRef.current = categoryIds;
+    // A newly picked use case starts with no tier selected — a tier chosen
+    // for a previous use case doesn't carry over.
+    setActiveTier("all");
+    activeTierRef.current = "all";
     persistSelection("use_case", useCase.id, { industryId: industry.id, industryName: industry.title });
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
@@ -633,6 +644,7 @@ export function useCategoriesView({
       sp.delete("category_id");
       sp.delete("industry_id");
       sp.delete("view");
+      sp.delete("tier");
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
       setSearchInput("");
       sp.delete("search");
@@ -666,6 +678,8 @@ export function useCategoriesView({
     activeUseCaseIdRef.current = null;
     setActiveUseCaseCategoryIds([]);
     activeUseCaseCategoryIdsRef.current = [];
+    setActiveTier("all");
+    activeTierRef.current = "all";
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     setSearchInput("");
     router.push("/categories", { scroll: false });
@@ -686,7 +700,7 @@ export function useCategoriesView({
     pageRef.current = 1;
     setPage(1);
     if (activeUseCaseId != null) {
-      fetchProductsByUseCase(activeUseCaseId, 1, false, undefined, activeUseCaseCategoryIds);
+      fetchProductsByUseCase(activeUseCaseId, 1, false, undefined, activeUseCaseCategoryIds, activeTier);
       return;
     }
     fetchProducts(1, false, {
@@ -723,7 +737,7 @@ export function useCategoriesView({
         pageRef.current = nextPage;
         setPage(nextPage);
         if (activeUseCaseIdRef.current != null) {
-          await fetchProductsByUseCase(activeUseCaseIdRef.current, nextPage, true, undefined, activeUseCaseCategoryIdsRef.current);
+          await fetchProductsByUseCase(activeUseCaseIdRef.current, nextPage, true, undefined, activeUseCaseCategoryIdsRef.current, activeTierRef.current);
         } else {
           await fetchProducts(nextPage, true, {
             category: activeCategoryRef.current,
@@ -763,6 +777,8 @@ export function useCategoriesView({
     activeUseCaseIdRef.current = null;
     setActiveUseCaseCategoryIds([]);
     activeUseCaseCategoryIdsRef.current = [];
+    setActiveTier("all");
+    activeTierRef.current = "all";
     setActiveCategory(cat);
     activeCategoryRef.current = cat;
     setActiveParents([]);
@@ -880,6 +896,10 @@ export function useCategoriesView({
     activeUseCaseIdRef.current = nextValue;
     setActiveUseCaseCategoryIds([]);
     activeUseCaseCategoryIdsRef.current = [];
+    // The use-case selection just changed (added/removed one) — any
+    // previously chosen tier may not apply to the new set, so reset it.
+    setActiveTier("all");
+    activeTierRef.current = "all";
     setExpandedIndustryIds((prev) => new Set([...prev, ind.id as number]));
     persistSelection(nextIds.length ? "use_case" : null, nextIds.length ? nextIds.join(",") : null, {
       industryId: ind.id,
@@ -891,6 +911,7 @@ export function useCategoriesView({
       nextIds.length ? sp.set("use_case_id", nextIds.join(",")) : sp.delete("use_case_id");
       sp.delete("category_id");
       sp.delete("industry_id");
+      sp.delete("tier");
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
       setSearchInput("");
       sp.delete("search");
@@ -908,6 +929,8 @@ export function useCategoriesView({
     activeUseCaseIdRef.current = null;
     setActiveUseCaseCategoryIds([]);
     activeUseCaseCategoryIdsRef.current = [];
+    setActiveTier("all");
+    activeTierRef.current = "all";
     setActiveBrands((prev) => {
       const exists = prev.some((b) => String(b.id) === String(brand.id));
       const next = exists ? prev.filter((b) => String(b.id) !== String(brand.id)) : [...prev, brand];
@@ -955,6 +978,20 @@ export function useCategoriesView({
   const handleTierChange = (tier: string) => {
     setActiveTier(tier);
     activeTierRef.current = tier;
+    // Tier only ever applies together with an active use case. When one is
+    // active, update the tier in place — going through syncQueryString
+    // would clear activeUseCaseId (it treats any facet change as leaving
+    // the use-case flow), which would drop the use_case_id this tier
+    // selection needs to be sent with.
+    if (activeUseCaseIdRef.current != null) {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        const sp = url.searchParams;
+        tier && tier !== "all" ? sp.set("tier", tier) : sp.delete("tier");
+        router.replace(`${url.pathname}?${sp.toString()}`.replace(/\?$/, ""), { scroll: false });
+      }
+      return;
+    }
     syncQueryString({ tier, clearSearch: true });
   };
 
@@ -1192,7 +1229,9 @@ export function useCategoriesView({
   activeColors.forEach((c) => pills.push({ key: `color-${c}`, label: c, onRemove: () => toggleColor(c) }));
   activeGenders.forEach((g) => pills.push({ key: `gender-${g}`, label: g, onRemove: () => toggleGender(g) }));
   activeFabrics.forEach((f) => pills.push({ key: `fabric-${f}`, label: f, onRemove: () => toggleFabric(f) }));
-  if (activeTier !== "all") {
+  // Tier is only ever a real filter alongside an active use case.
+  const tierActive = activeTier !== "all" && activeUseCaseIds.length > 0;
+  if (tierActive) {
     const tierLabel = TIER_OPTIONS.find((o) => o.value === activeTier)?.label ?? activeTier;
     pills.push({ key: "tier", label: tierLabel, onRemove: clearTier });
   }
@@ -1205,7 +1244,7 @@ export function useCategoriesView({
     (activeIndustry.id !== null && !activeIndustryCategories.some((c) => c.industryId === activeIndustry.id) ? 1 : 0) +
     activeUseCaseIds.length +
     activeBrands.length + activeSizes.length +
-    activeColors.length + activeGenders.length + activeFabrics.length + (activeTier !== "all" ? 1 : 0) + (inStockOnly ? 1 : 0) +
+    activeColors.length + activeGenders.length + activeFabrics.length + (tierActive ? 1 : 0) + (inStockOnly ? 1 : 0) +
     (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX ? 1 : 0);
   const otherCategoryTabs = categories.filter((c) => c.id !== null);
   const isAllActive = activeCategory.id === null && !activeParents.length;

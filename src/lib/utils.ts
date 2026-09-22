@@ -135,6 +135,9 @@ export function buildFilterParams(opts: {
   if (opts.priceRange[1] < PRICE_MAX) params.max_price = opts.priceRange[1];
   if (opts.genders.length) params.gender = opts.genders.join(",");
   if (opts.fabrics.length) params.fabric = opts.fabrics.join(",");
-  if (opts.tier && opts.tier !== "all") params.tier = opts.tier;
+  // Tier (Primary/Secondary/Budget) is scoped to the use-case product flow
+  // (ProductsByUseCaseApi, sent alongside use_case_ids) and is never valid
+  // without a selected use case — this category-based path has no
+  // use_case_id, so tier is intentionally never forwarded here.
   return params;
 }

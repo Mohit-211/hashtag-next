@@ -18,6 +18,7 @@ interface CategoriesTopBarProps {
   onSortChange: (value: SortValue) => void;
   activeTier: string;
   onTierChange: (tier: string) => void;
+  activeUseCaseIds: Array<number | string>;
 }
 
 /** Top bar above the product grid: mobile filter toggle, heading, item
@@ -36,6 +37,7 @@ export default function CategoriesTopBar({
   onSortChange,
   activeTier,
   onTierChange,
+  activeUseCaseIds,
 }: CategoriesTopBarProps) {
   console.log(pills,"pillspills")
   return (
@@ -60,20 +62,22 @@ export default function CategoriesTopBar({
         {totalFacetCount > 0 && <button className="clear-all-link" onClick={onClearAll}>Clear all</button>}
       </div>
       <div className="cat-topbar-right">
-        <div className="tier-tabs" role="tablist" aria-label="Filter by tier">
-          {TIER_OPTIONS.map((tier) => (
-            <button
-              key={tier.value}
-              type="button"
-              role="tab"
-              aria-selected={activeTier === tier.value}
-              className={`tier-tab ${activeTier === tier.value ? "active" : ""}`}
-              onClick={() => onTierChange(tier.value)}
-            >
-              {tier.label}
-            </button>
-          ))}
-        </div>
+        {activeUseCaseIds.length > 0 && (
+          <div className="tier-tabs" role="tablist" aria-label="Filter by tier">
+            {TIER_OPTIONS.map((tier) => (
+              <button
+                key={tier.value}
+                type="button"
+                role="tab"
+                aria-selected={activeTier === tier.value}
+                className={`tier-tab ${activeTier === tier.value ? "active" : ""}`}
+                onClick={() => onTierChange(tier.value)}
+              >
+                {tier.label}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="sort-wrap">
           <span className="sort-icon"><ArrowUpDown size={14} /></span>
           <span className="sort-label">Sort by</span>

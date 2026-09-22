@@ -40,21 +40,18 @@ export default function IndustryTreeFacet({
   onToggleUseCaseCategories,
   onClear,
 }: IndustryTreeFacetProps) {
-  const selectedUseCaseCategoryIds = new Set<number>();
-  industries.forEach((ind) => {
-    (ind.use_cases ?? []).forEach((uc) => {
-      if (!activeUseCaseIds.some((id) => String(id) === String(uc.id))) return;
-      (uc.parent_categories ?? []).forEach((cat) => selectedUseCaseCategoryIds.add(cat.id));
-    });
-  });
-  const uniqueSelectedCategoryCount = new Set([
-    ...activeIndustryCategories.map((c) => c.id),
-    ...selectedUseCaseCategoryIds,
-  ]).size;
+  // The badge mirrors what's actually checkable in this tree: one count per
+  // checked use-case row (activeUseCaseIds) plus any directly-checked real
+  // categories (activeIndustryCategories, reachable via deep link/URL
+  // restore even though this simplified tree has no category-level
+  // checkbox of its own). It must NOT expand to the number of real
+  // categories a use case happens to be linked to — checking a single use
+  // case is one selection, so the badge should read 1, not that use case's
+  // underlying category count.
   return (
     <FacetSection
       title="Industry"
-      count={uniqueSelectedCategoryCount || activeUseCaseIds.length || (activeIndustry.id !== null ? 1 : 0)}
+      count={activeUseCaseIds.length + activeIndustryCategories.length || (activeIndustry.id !== null ? 1 : 0)}
       open={open}
       onToggle={onToggleSection}
       onClear={onClear}

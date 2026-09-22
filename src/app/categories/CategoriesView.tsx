@@ -180,6 +180,7 @@ console.log(v,'v=============')
             onSortChange={v.handleSortChange}
             activeTier={v.activeTier}
             onTierChange={v.handleTierChange}
+            activeUseCaseIds={v.activeUseCaseIds}
           />
           <ProductsArea
             products={v.products}

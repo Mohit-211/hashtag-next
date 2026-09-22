@@ -158,14 +158,18 @@ export function useCategoriesData() {
   /** Dedicated fetch for the "picker gate" use-case click flow — hits
    * industry/use-case/{id}/products directly instead of the merged
    * category_id path AllProductsApi uses for the sidebar's use-case
-   * checkboxes. Only supports page/limit, no other facets. */
+   * checkboxes. Supports page/limit/categoryIds plus tier — tier (Primary/
+   * Secondary/Budget) only ever makes sense paired with a use case, so it's
+   * only accepted (and only sent) here, never on the general AllProductsApi
+   * path. */
   const fetchProductsByUseCase = useCallback(
     async (
       useCaseId: number | string | Array<number | string>,
       pageNumber: number,
       isLoadMore: boolean,
       limit: number = LOAD_MORE_LIMIT,
-      categoryIds?: Array<number | string>
+      categoryIds?: Array<number | string>,
+      tier?: string
     ) => {
       const thisFetchId = ++fetchIdRef.current;
       try {
@@ -174,6 +178,7 @@ export function useCategoriesData() {
           page: pageNumber,
           limit,
           ...(categoryIds?.length ? { category_id: categoryIds.join(",") } : {}),
+          ...(tier && tier !== "all" ? { tier } : {}),
         });
         if (thisFetchId !== fetchIdRef.current) return;
         const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];

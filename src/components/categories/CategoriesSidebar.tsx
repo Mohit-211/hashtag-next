@@ -229,13 +229,15 @@ export default function CategoriesSidebar(props: CategoriesSidebarProps) {
         onClear={props.onClearFabrics}
       />
 
-      <TierFacet
-        activeTier={props.activeTier}
-        open={props.tierOpen}
-        onToggleSection={props.onToggleTierSection}
-        onSelectTier={props.onSelectTier}
-        onClear={props.onClearTier}
-      />
+      {props.activeUseCaseIds.length > 0 && (
+        <TierFacet
+          activeTier={props.activeTier}
+          open={props.tierOpen}
+          onToggleSection={props.onToggleTierSection}
+          onSelectTier={props.onSelectTier}
+          onClear={props.onClearTier}
+        />
+      )}
 
       <AvailabilityFacet
         inStockOnly={props.inStockOnly}
