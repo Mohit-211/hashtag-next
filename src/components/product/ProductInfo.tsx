@@ -83,7 +83,6 @@ const colors = useMemo(() => {
         .map((v) => v.size_id)
     );
   }, [selectedColor, variants]);
-console.log(colors,"colors")
   return (
     <div className="space-y-6">
       {/* Header */}

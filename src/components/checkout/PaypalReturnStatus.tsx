@@ -36,7 +36,6 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
   const { clearCart } = useCart();
   const { addOrder } = useOrders();
   const [state, setState] = useState<ReturnState>("processing");
-  console.log(state, "state")
   const [message, setMessage] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
 
@@ -174,9 +173,7 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
           order_id: parsedOrderId,
           paypal_order_id: paypalToken,
         });
-        console.log(response, "response")
         const status = response?.data?.data?.status;
-        console.log(status, "status=========")
         if (status === "COMPLETED") {
           finishSuccess(parsedOrderId);
         } else if (status === "PENDING") {

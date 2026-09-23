@@ -46,7 +46,6 @@ export default function OrderItemRow({ item }: OrderItemRowProps) {
   const basePrice = Number(item?.basePrice || 0);
   const quantity = Number(item?.quantity || 1);
   const itemTotal = (basePrice + placementCost + uploadCost) * quantity;
-console.log(item,"item")
   const inner = (
     <div className="group flex gap-3 items-start rounded-xl p-3 transition-all duration-200 hover:bg-muted/60 hover:shadow-sm border border-transparent hover:border-border">
       {/* Product image */}

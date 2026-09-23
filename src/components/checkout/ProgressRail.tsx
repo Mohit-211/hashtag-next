@@ -9,7 +9,6 @@ const STEPS = [
 
 export default function ProgressRail({ current }: { current: string }) {
   const ci = STEPS.findIndex((s) => s.key === current);
-console.log(current,"current")
   return (
     <div className="flex items-center justify-center mb-6 px-6 py-3.5 bg-white border border-[#E0DFDB] border-b-[3px] border-b-[#F5D800]">
       {STEPS.map((step, i) => {

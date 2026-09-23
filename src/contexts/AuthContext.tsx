@@ -45,16 +45,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchUser = async () => {
     try {
       const res = await UserProfileApi();
-      console.log(res, "res")
       const data = res?.data?.data;
-      console.log(data, "data")
       const formattedUser: User = {
         id: data?.id ?? data?._id,
         name: data?.user_profile?.name,
         email: data?.email,
         mobile: data?.user_profile.mobile,
       };
-console.log(formattedUser,"formattedUser")
       setUser(formattedUser);
     } catch (error) {
       console.error("Profile fetch failed", error);

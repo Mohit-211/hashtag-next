@@ -1036,7 +1036,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [sageRemountKey, setSageRemountKey] = useState(0);
   const [configSubmitting, setConfigSubmitting] = useState(false);
   const [apparelQtyInput, setApparelQtyInput] = useState<string>(String(currentQty || "1"));
-  console.log(apparelQtyInput, "apparelQtyInput")
   useEffect(() => {
     setApparelQtyInput(currentQty > 0 ? String(currentQty) : "1");
   }, [currentQty, activeVariant?.id]);
@@ -1416,7 +1415,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return 0;
   }, [currentVariantAlreadyConfigured, isApparel, isPreMade, isPromo, currentQty, totalQty, estimatedTotal, preMadeSelectionPricing, promoUnitPrice, promoTotal]);
   const displayTotal = grandConfiguredPrice + currentSelectionTotal;
-    console.log(selectedLocations,"selectedLocations=========")
 
   const buildPayload = (variantList: ConfiguredVariant[]) => {
     const customizations = variantList.flatMap(cv =>
@@ -1688,7 +1686,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     } catch { setPreviewError(true); }
   };
   if (loading || restorePending) {
-    console.log(restorePending,"restorePending")
     return (
       <div className="min-h-screen bg-[#fafafa]">
         <div className="sticky top-0 z-20 bg-white border-b border-gray-100 h-14 animate-pulse" />
@@ -1726,7 +1723,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       </section>
     );
   }
-  console.log(activeView,"activeView===>")
   return (
     <div className="min-h-screen bg-[#fafafa]">
       {showLoginModal && (

@@ -57,7 +57,6 @@ export default function CheckoutLayout() {
   const subtotal = summary?.items_total ?? 0;
   const { addOrder } = useOrders();
   const [step, setStep] = useState<CheckoutStep>("address");
-  console.log(step, "step===>")
   const [selectedAddressId, setSelectedAddressId] =
     useState<number | null>(null);
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
@@ -89,11 +88,9 @@ export default function CheckoutLayout() {
     labelUrl: string | null;
     carrier: string | null;
   } | null>(null);
-  console.log(selectedRate,"selectedRate")
   // ★ FIXED — was always `selectedRate?.price` (the pre-label estimate),
   // even after the label was created with a different actual price.
   const shippingAmount = shipmentPricing?.actualShipping ?? selectedRate?.price ?? 0;
-  console.log(subtotal,"subtotal")
   const estimatedTaxableBase = subtotal || 0;
   const estimatedTaxAmount = +(estimatedTaxableBase * (TAX_RATE / 100)).toFixed(2);
   const taxAmount = orderTax ? orderTax.taxAmount : estimatedTaxAmount;

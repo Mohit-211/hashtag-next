@@ -27,7 +27,6 @@ export default function CategoryCard({
   count,
 }: CategoryCardProps) {
   const src = resolveImageSrc(image);
-  console.log(src, "src")
   return (
     <div className="group relative overflow-hidden rounded-xl aspect-[4/3] block cursor-pointer">
       <Image

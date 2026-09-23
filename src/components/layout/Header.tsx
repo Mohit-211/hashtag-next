@@ -53,7 +53,6 @@ export default function Header() {
 
   const { totalItems } = useCart();
   useEffect(() => {
-    console.log("Header Cart Count:", totalItems);
   }, [totalItems]);
   const { wishlistCount } = useWishlist();
 

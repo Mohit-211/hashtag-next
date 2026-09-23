@@ -18,7 +18,6 @@ export default function AddressCard({
   onDelete,
   deleting = false,
 }: Props) {
-  console.log(address,"address")
   return (
     <div
       onClick={onSelect}

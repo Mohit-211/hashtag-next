@@ -164,7 +164,6 @@ export function getSageUnitPrice(
   qty: number
 ): number | null {
   const meta = parseSageMeta(raw);
-  console.log(meta,"meta==1")
   if (!meta) return null;
   return findActiveTier(meta.netTiers, qty)?.price ?? null;
 }
@@ -230,7 +229,6 @@ const TierTable = React.memo(function TierTable({
   baseTierPrice,
   onJumpToTier,
 }: TierTableProps) {
-  console.log("TierTable render", { netTiers, activeTier, baseTierPrice },onJumpToTier);
   const cheapestPrice = useMemo(
     () => applySageMarkup(netTiers.reduce((min, t) => Math.min(min, t.price), Infinity)),
     [netTiers]
@@ -624,7 +622,6 @@ export default function SageQuantityPricing({
 
   /* ── Compact layout (inside SectionCard) ── */
   if (variant === "compact") {
-    console.log(meta,"meta")
     return (
       <div className="space-y-4">
         {/* Collapsible tier table */}

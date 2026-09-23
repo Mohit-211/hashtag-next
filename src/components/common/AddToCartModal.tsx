@@ -272,7 +272,6 @@ export default function AddToCartModal({
           ],
         };
       }
-console.log(customizationPayload,"customizationPayload")
       const formData = new FormData();
       formData.append("product_id", String(productId));
       formData.append("customization", JSON.stringify(customizationPayload));

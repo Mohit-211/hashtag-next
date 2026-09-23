@@ -208,9 +208,7 @@ export default function OrderCard({
   onCancel,
   cancelling,
 }: OrderCardProps) {
-  console.log(order, "order3")
   const cardKey = String(order?.orderId || order?.id);
-  console.log(detail, "====hh bn===")
   const rawDate = order?.created_at || order?.date;
   const orderDate = rawDate
     ? new Date(rawDate).toLocaleDateString("en-IN", {
@@ -248,7 +246,6 @@ export default function OrderCard({
         item.quantity,
       0
     ) ?? 0;
-  console.log(detail, "detail")
   return (
     <div
       className={`

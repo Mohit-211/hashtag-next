@@ -17,8 +17,6 @@ export default function OrderSummary({
   total,
   selectedRate,
 }: any) {
-  console.log(items,"items")
-  console.log(shippingAmount,"shippingAmount")
   return (
     <div className="bg-white border border-[#E0DFDB] border-t-[3px] border-t-[#F5D800] sticky top-6">
 

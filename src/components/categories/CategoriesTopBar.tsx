@@ -39,7 +39,6 @@ export default function CategoriesTopBar({
   onTierChange,
   activeUseCaseIds,
 }: CategoriesTopBarProps) {
-  console.log(pills,"pillspills")
   return (
     <div className="cat-topbar">
       <div className="cat-topbar-left">
