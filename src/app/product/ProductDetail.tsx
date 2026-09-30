@@ -1,7 +1,7 @@
 // components/product/ProductDetail.tsx
 
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ShoppingCart,
@@ -22,10 +22,15 @@ import { cn } from "@/lib/utils";
 import { Spin } from "antd";
 import AddProductConfigurationModal from "@/components/product/Addproductconfigurationmodal/Addproductconfigurationmodal";
 import AddToCartModal from "@/components/common/AddToCartModal";
+import AddOnModal from "@/components/product/AddOnModal";
+import ManualCustomizationPage from "@/components/product/ManualCustomizationPage";
+import { useCart } from "@/contexts/CartContext";
+import { parseManualMeta, parseManualOptionValues } from "@/components/product/customization/Productcustomizationpage";
 /* ───────────────────────────────────────────────── types */
 interface Size {
   id: number;
   name: string;
+  type?: string;
   measurements?: string;
 }
 interface VariantImage {
@@ -67,7 +72,52 @@ interface Product {
   attachments: any[];
   categories: any[];
   variants: Variant[];
+  meta?: string | null;
 }
+
+/* MANUAL-supplier products describe their options (Pages / Size / Color …)
+ * in product.meta, and each variant's meta lists the value it has for each. */
+interface ManualOptionGroup {
+  name: string;
+  values: string[];
+}
+const parseJson = (raw?: string | null): any => {
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw);
+    return typeof obj === "string" ? JSON.parse(obj) : obj;
+  } catch {
+    return null;
+  }
+};
+const getManualOptionGroups = (product: Product): ManualOptionGroup[] => {
+  const options = parseJson(product.meta)?.options;
+  if (Array.isArray(options) && options.length > 0) {
+    return options
+      .map((o: any) => ({
+        name: String(o?.name ?? "").trim(),
+        values: (Array.isArray(o?.values) ? o.values : []).map((v: any) => String(v?.name ?? "").trim()).filter(Boolean),
+      }))
+      .filter((g: ManualOptionGroup) => g.name && g.values.length > 0);
+  }
+  // No meta options — fall back to product.sizes grouped by their type.
+  const groups = new Map<string, string[]>();
+  product.sizes.forEach((s) => {
+    const key = s.type?.trim() || "Size";
+    const list = groups.get(key) ?? [];
+    const val = s.name.trim();
+    if (val && !list.includes(val)) list.push(val);
+    groups.set(key, list);
+  });
+  return Array.from(groups, ([name, values]) => ({ name, values }));
+};
+const getVariantOptionValues = (v: Variant): Record<string, string> => {
+  const out: Record<string, string> = {};
+  parseManualOptionValues(parseJson(v.meta)?.option_values).forEach((ov) => {
+    out[ov.name] = ov.value;
+  });
+  return out;
+};
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -98,6 +148,16 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const [showCartModal, setShowCartModal] = useState(false);
   const [customizationJson, setCustomizationJson] = useState<string>("");
   const [configuredVariants, setConfiguredVariants] = useState<any[]>([]);
+  // MANUAL-supplier products open the add-on picker after adding to cart.
+  const [showAddOnModal, setShowAddOnModal] = useState(false);
+  const { refreshCart } = useCart();
+  // Navigating to another product reuses this component — don't carry an
+  // open modal over to the new product.
+  useEffect(() => {
+    setShowCartModal(false);
+    setShowAddOnModal(false);
+    setConfiguredVariants([]);
+  }, [id]);
 
   /* customize */
   const [customizeLoading, setCustomizeLoading] = useState(false);
@@ -108,6 +168,21 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
 
   /* quantity */
   const [quantity, setQuantity] = useState(1);
+
+  /* MANUAL options */
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const isManualProduct = useMemo(
+    () => !!product?.variants?.some((v) => (v.supplier ?? "").toUpperCase() === "MANUAL"),
+    [product]
+  );
+  const manualOptionGroups = useMemo(
+    () => (product && isManualProduct ? getManualOptionGroups(product) : []),
+    [product, isManualProduct]
+  );
+  const manualVariantOptions = useMemo(
+    () => new Map((isManualProduct ? product?.variants ?? [] : []).map((v) => [v.id, getVariantOptionValues(v)])),
+    [product, isManualProduct]
+  );
 
   /* wishlist item */
   const wishlistItem = wishlist.find(
@@ -141,9 +216,10 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     setSelectedColor(initial.color);
     setSelectedSize(initial.size_details);
     setVariantData(initial);
+    setSelectedOptions(manualVariantOptions.get(initial.id) ?? {});
     setInCart(Boolean(initial.is_in_cart));
     setQuantity(initial.min_order_quantity || 1);
-  }, [product, variantId]);
+  }, [product, variantId, manualVariantOptions]);
 
   /* update variant */
   useEffect(() => {
@@ -181,6 +257,25 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   };
   const handleSizeChange = (size: Size) => setSelectedSize(size);
 
+  // Prefer the variant matching every selected option; if that combination
+  // doesn't exist, jump to the first variant carrying the clicked value.
+  const handleOptionChange = (name: string, value: string) => {
+    if (!product) return;
+    const next = { ...selectedOptions, [name]: value };
+    const matches = (v: Variant, want: Record<string, string>) => {
+      const opts = manualVariantOptions.get(v.id) ?? {};
+      return Object.entries(want).every(([k, val]) => opts[k] === val);
+    };
+    const match =
+      product.variants.find((v) => matches(v, next)) ||
+      product.variants.find((v) => matches(v, { [name]: value }));
+    if (!match) return;
+    setSelectedOptions(manualVariantOptions.get(match.id) ?? next);
+    setVariantData(match);
+    setInCart(Boolean(match.is_in_cart));
+    setQuantity(match.min_order_quantity || 1);
+  };
+
   const handleWishlist = async () => {
     if (!product || !variantData) return;
     if (requireLogin()) return;
@@ -211,7 +306,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     // Pre-Made products never go through the full customization page —
     // they use the lightweight configuration modal + AddToCartModal flow
     // straight from this page instead.
-    if (isPreMade) return;
+    if (isDirectAdd) return;
     router.push(`/customization/${product.id}/${variantData.id}`);
   };
 
@@ -414,6 +509,10 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   // Grand category tells us the product family (e.g. "Pre-Made products" vs customizable apparel)
   const grandCategory = category?.grand_categories?.[0];
   const isPreMade = grandCategory?.title === "Pre-Made products";
+  // MANUAL-supplier products skip the customizer — they customize and add to
+  // cart inline via ManualCustomizationPage.
+  const isManualSupplier = isManualProduct;
+  const isDirectAdd = isPreMade || isManualSupplier;
   // NOTE: adjust these two titles to match whatever your backend actually
   // sends for the other grand categories — "Pre-Made products" was the only
   // confirmed value, these two are best-guess placeholders.
@@ -432,6 +531,18 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
 
     }
     : undefined;
+
+  // Values that no variant carries can't be picked.
+  const manualOptions = manualOptionGroups.map((g) => ({
+    name: g.name,
+    values: g.values.map((value) => ({
+      value,
+      available: Array.from(manualVariantOptions.values()).some((opts) => opts[g.name] === value),
+    })),
+  }));
+  const manualPricing = isManualSupplier ? parseManualMeta(variantData?.meta) : null;
+  const manualVariantLabel =
+    manualOptionGroups.map((g) => selectedOptions[g.name]).filter(Boolean).join(" / ") || variantData?.sku || "";
 
   /* ───────────────────────────────────────────────── render */
   return (
@@ -510,6 +621,11 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
                 variantLoading={false}
                 brandName={product?.brand?.name}
                 brandLogo={product?.brand?.logo_url}
+                tagline={isManualSupplier ? null : undefined}
+                manualOptions={isManualSupplier ? manualOptions : undefined}
+                selectedOptions={selectedOptions}
+                onOptionChange={handleOptionChange}
+                manualPricing={manualPricing}
               />
 
               {/* low stock badge */}
@@ -529,6 +645,20 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
                     Only {variantData?.stock} left in stock — order soon
                   </p>
                 </div>
+              )}
+
+              {/* ── MANUAL CUSTOMIZATION + ADD TO CART ── */}
+              {isManualSupplier && variantData && (
+                <ManualCustomizationPage
+                  productId={product.id}
+                  variant={variantData}
+                  variantLabel={manualVariantLabel}
+                  onBeforeAdd={requireLogin}
+                  onAdded={() => {
+                    refreshCart();
+                    setShowAddOnModal(true);
+                  }}
+                />
               )}
 
               {/* ── ACTION BUTTONS ── */}
@@ -560,8 +690,9 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
                   {inWishlist ? "Saved to Wishlist" : "Add to Wishlist"}
                 </button>
 
-                {/* Customize (apparel) OR Add to Cart (Pre-Made products) */}
-                {isPreMade ? (
+                {/* Customize (apparel) OR Add to Cart (Pre-Made products).
+                    MANUAL products add to cart from ManualCustomizationPage above. */}
+                {isManualSupplier ? null : isPreMade ? (
                   <button
                     onClick={handleAddToCart}
                     className="w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]"
@@ -673,11 +804,23 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
           isPreMade={isPreMade}
           isPromo={isPromo}
           onSuccess={() => {
+            refreshCart();
             setInCart(true);
             setShowCartModal(false);
             setConfiguredVariants([]);
             fetchProduct();
           }}
+        />
+      )}
+
+      {/* ── ADD-ON MODAL — MANUAL suppliers only ── */}
+      {product && (
+        <AddOnModal
+          open={showAddOnModal}
+          onClose={() => setShowAddOnModal(false)}
+          productId={product.id}
+          name={product.name}
+          product={product}
         />
       )}
     </div>

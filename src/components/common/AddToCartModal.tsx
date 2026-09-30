@@ -44,6 +44,47 @@ export interface ConfiguredVariant {
   digitizingFeeTotal?: number;
 }
 
+/** Cart `customization` payload for configured variants — one line per
+ * variant/size, priced through calculateVariantTotal. `extras` carries
+ * flow-specific fields (print_method, locations, customization_options). */
+export const buildConfiguredCustomizationPayload = (
+  productId: number,
+  configuredVariants: ConfiguredVariant[],
+  extras: Record<string, unknown> = {}
+) => [
+  {
+    product_id: productId,
+    ...extras,
+    customizations: configuredVariants.flatMap((cv) =>
+      cv.sizes.map((s) => {
+        const linePricing = calculateVariantTotal({
+          productPrice: s.unit_price,
+          decorationPrice: s.decoration_unit_price ?? 0,
+          quantity: s.quantity,
+        });
+        const fee = s.digitizing_fee ?? 0;
+        return {
+          variant_id: s.variant_id,
+          color: cv.color,
+          size: s.size,
+          quantity: s.quantity,
+          product_price: s.unit_price,
+          decoration_price: s.decoration_unit_price ?? 0,
+          digitizing_fee: fee,
+          total_price: linePricing.total + fee,
+        };
+      })
+    ),
+    sizes: configuredVariants.flatMap((cv) =>
+      cv.sizes.map((s) => ({
+        variant_id: s.variant_id,
+        size_id: s.size_id,
+        quantity: s.quantity,
+      }))
+    ),
+  },
+];
+
 interface AddToCartModalProps {
   open: boolean;
   onClose: () => void;
@@ -211,48 +252,15 @@ export default function AddToCartModal({
       if (hasConfigured) {
         // Every selected variant/size line becomes one customization
         // object carrying its own product_price / decoration_price /
-        // digitizing_fee / total_price, computed via the SAME
-        // calculateVariantTotal helper used everywhere else, with the
-        // flat fee added once — never folded into total via multiplication.
-        const customizations = configuredVariants!.flatMap((cv) =>
-          cv.sizes.map((s) => {
-            const linePricing = calculateVariantTotal({
-              productPrice: s.unit_price,
-              decorationPrice: s.decoration_unit_price ?? 0,
-              quantity: s.quantity,
-            });
-            const fee = s.digitizing_fee ?? 0;
-            return {
-              variant_id: s.variant_id,
-              color: cv.color,
-              size: s.size,
-              quantity: s.quantity,
-              product_price: s.unit_price,
-              decoration_price: s.decoration_unit_price ?? 0,
-              digitizing_fee: fee,
-              total_price: linePricing.total + fee,
-            };
-          })
-        );
-        customizationPayload = [
-          {
-            product_id: productId,
-            ...(customizationObj?.print_method !== undefined
-              ? { print_method: customizationObj.print_method }
-              : {}),
-            ...(customizationObj?.locations !== undefined
-              ? { locations: customizationObj.locations }
-              : {}),
-            customizations,
-            sizes: configuredVariants!.flatMap((cv) =>
-              cv.sizes.map((s) => ({
-                variant_id: s.variant_id,
-                size_id: s.size_id,
-                quantity: s.quantity,
-              }))
-            ),
-          },
-        ];
+        // digitizing_fee / total_price, with the flat fee added once.
+        customizationPayload = buildConfiguredCustomizationPayload(productId, configuredVariants!, {
+          ...(customizationObj?.print_method !== undefined
+            ? { print_method: customizationObj.print_method }
+            : {}),
+          ...(customizationObj?.locations !== undefined
+            ? { locations: customizationObj.locations }
+            : {}),
+        });
       } else if (customizationObj?.customizations || customizationObj?.variants) {
         customizationPayload = customizationObj;
       } else {

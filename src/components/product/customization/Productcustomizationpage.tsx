@@ -412,10 +412,82 @@ const getVariantPrice = (v?: { price?: number | string } | null): number => {
   }
   return Number(v.price ?? 0);
 };
+/* ── MANUAL supplier meta ──
+ *  tiered         → range-wise bulk_pricing (per-unit price) + manual qty input
+ *  fixed          → variant price × manually entered qty
+ *  quantity_fixed → fixed packages only (price = package total), no manual qty */
+export type ManualPricingMode = "tiered" | "fixed" | "quantity_fixed";
+export interface ManualBulkTier { min_qty: number; max_qty: number | null; price: number }
+export interface ManualQtyPackage { quantity: number; price: number }
+export interface ManualOptionValue { name: string; value: string }
+export interface ManualMeta {
+  pricing_mode: ManualPricingMode;
+  bulk_pricing: ManualBulkTier[];
+  quantity_pricing: ManualQtyPackage[];
+  option_values: ManualOptionValue[];
+}
+/** Admin-entered option names/values can carry stray spaces (e.g. " Size") — trim them. */
+export const parseManualOptionValues = (list: unknown): ManualOptionValue[] =>
+  (Array.isArray(list) ? list : [])
+    .map((ov: any) => ({ name: String(ov?.name ?? "").trim(), value: String(ov?.value ?? "").trim() }))
+    .filter((ov: ManualOptionValue) => ov.name !== "");
+export const parseManualMeta = (raw?: string | null): ManualMeta | null => {
+  if (!raw) return null;
+  let obj: any;
+  try {
+    obj = JSON.parse(raw);
+    if (typeof obj === "string") obj = JSON.parse(obj);
+  } catch {
+    return null;
+  }
+  if (!obj || typeof obj !== "object") return null;
+  const mode = obj.pricing_mode;
+  if (mode !== "tiered" && mode !== "fixed" && mode !== "quantity_fixed") return null;
+  const bulk_pricing: ManualBulkTier[] = (Array.isArray(obj.bulk_pricing) ? obj.bulk_pricing : [])
+    .map((t: any) => ({
+      min_qty: Number(t?.min_qty),
+      max_qty: t?.max_qty === null || t?.max_qty === undefined || t?.max_qty === "" ? null : Number(t.max_qty),
+      price: Number(t?.price),
+    }))
+    .filter((t: ManualBulkTier) => t.min_qty > 0 && Number.isFinite(t.price))
+    .sort((a: ManualBulkTier, b: ManualBulkTier) => a.min_qty - b.min_qty);
+  const quantity_pricing: ManualQtyPackage[] = (Array.isArray(obj.quantity_pricing) ? obj.quantity_pricing : [])
+    .map((p: any) => ({ quantity: Number(p?.quantity), price: Number(p?.price) }))
+    .filter((p: ManualQtyPackage) => p.quantity > 0 && Number.isFinite(p.price))
+    .sort((a: ManualQtyPackage, b: ManualQtyPackage) => a.quantity - b.quantity);
+  const option_values = parseManualOptionValues(obj.option_values);
+  // A mode without its data falls back to plain fixed pricing.
+  if (mode === "tiered" && bulk_pricing.length === 0) return { pricing_mode: "fixed", bulk_pricing, quantity_pricing, option_values };
+  if (mode === "quantity_fixed" && quantity_pricing.length === 0) return { pricing_mode: "fixed", bulk_pricing, quantity_pricing, option_values };
+  return { pricing_mode: mode, bulk_pricing, quantity_pricing, option_values };
+};
+/** Tier whose range contains qty; above the last range uses the last tier. */
+export const findManualTier = (tiers: ManualBulkTier[], qty: number): ManualBulkTier | null => {
+  if (tiers.length === 0 || qty <= 0) return null;
+  const hit = tiers.find(t => qty >= t.min_qty && (t.max_qty === null || qty <= t.max_qty));
+  if (hit) return hit;
+  return qty > tiers[tiers.length - 1].min_qty ? tiers[tiers.length - 1] : tiers[0];
+};
+/** Per-unit price for a MANUAL product, or null when meta is not MANUAL. */
+export const getManualUnitPrice = (meta: ManualMeta | null, qty: number, basePrice: number): number | null => {
+  if (!meta) return null;
+  if (meta.pricing_mode === "tiered") return findManualTier(meta.bulk_pricing, qty)?.price ?? basePrice;
+  if (meta.pricing_mode === "quantity_fixed") {
+    const pkg = meta.quantity_pricing.find(p => p.quantity === qty);
+    return pkg ? pkg.price / pkg.quantity : null;
+  }
+  return basePrice;
+};
 export const getPromoMinQty = (
   metaStr?: string | null,
   minOrderQuantity?: number | null
 ): number => {
+  const manual = parseManualMeta(metaStr);
+  if (manual) {
+    if (manual.pricing_mode === "tiered") return manual.bulk_pricing[0].min_qty;
+    if (manual.pricing_mode === "quantity_fixed") return manual.quantity_pricing[0].quantity;
+    return minOrderQuantity && minOrderQuantity > 0 ? minOrderQuantity : 1;
+  }
   const meta = parseSageMeta(metaStr ?? null);
   const qtyTiers = ((meta as any)?.qtyTiers ?? [])
     .filter(
@@ -593,6 +665,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     try {
       const res = await ProductDetailApi(String(productDataId));
       const variants = res?.data?.data?.variants || [];
+      console.log(variants,"variants===========>>>")
       setAllProductVariants(variants);
       const sizes = variants
         .filter((v: any) => v.size_details)
@@ -902,7 +975,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   );
   const promoMetaStr = activeVariant?.meta ?? variantData?.meta ?? null;
   const parsedPromoMeta = useMemo(() => parseSageMeta(promoMetaStr), [promoMetaStr]);
-  const hasTierPricing = !!(
+  const manualMeta = useMemo(() => {
+    const supplier = (activeVariant?.supplier ?? variantData?.supplier ?? "").toUpperCase();
+    return supplier === "MANUAL" ? parseManualMeta(promoMetaStr) : null;
+  }, [activeVariant?.supplier, variantData?.supplier, promoMetaStr]);
+  const hasTierPricing = !manualMeta && !!(
     parsedPromoMeta &&
     Array.isArray(parsedPromoMeta.netTiers) &&
     parsedPromoMeta.netTiers.length > 0
@@ -914,6 +991,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const setPromoQty = (variantId: number, qty: number) => {
     if (!isPromo) { setQty(variantId, Math.max(0, qty)); return; }
     const safe = Number.isFinite(qty) ? Math.floor(qty) : promoMinQty;
+    if (manualMeta?.pricing_mode === "quantity_fixed") {
+      // Only the listed packages are allowed — no free-form quantity.
+      const pkg = manualMeta.quantity_pricing.find(p => p.quantity === safe);
+      setQty(variantId, pkg ? pkg.quantity : manualMeta.quantity_pricing[0].quantity);
+      return;
+    }
     setQty(variantId, Math.max(promoMinQty, safe));
   };
   useEffect(() => {
@@ -1202,11 +1285,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const estimatedTotal = currentSelectionPricing.total + digitizingFee;
   const promoUnitPrice: number | null = useMemo(() => {
     if (!isPromo) return null;
-    const base = hasTierPricing
-      ? (getSageUnitPriceWithMarkup(promoMetaStr, currentQty) ?? basePrice)
-      : basePrice;
+    const base = manualMeta
+      ? (getManualUnitPrice(manualMeta, currentQty, basePrice) ?? basePrice)
+      : hasTierPricing
+        ? (getSageUnitPriceWithMarkup(promoMetaStr, currentQty) ?? basePrice)
+        : basePrice;
     return base + drinkwareLocationFee;
-  }, [isPromo, hasTierPricing, promoMetaStr, currentQty, basePrice, drinkwareLocationFee]);
+  }, [isPromo, manualMeta, hasTierPricing, promoMetaStr, currentQty, basePrice, drinkwareLocationFee]);
   const promoTotal = (promoUnitPrice ?? 0) * currentQty;
   const REQUIREMENTS = [
     ...((isApparel || isPreMade) ? [{ key: "color", label: "Color", done: !!selectedColor }] : []),
@@ -2255,10 +2340,37 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               <>
                 <SectionCard
                   step={1} title="Select Quantity"
-                  subtitle={`Minimum order quantity is ${promoMinQty} piece${promoMinQty === 1 ? "" : "s"}. Price drops automatically as you order more.`}
+                  subtitle={
+                    manualMeta?.pricing_mode === "quantity_fixed"
+                      ? "Choose one of the available quantity packages."
+                      : manualMeta?.pricing_mode === "fixed"
+                        ? `Minimum order quantity is ${promoMinQty} piece${promoMinQty === 1 ? "" : "s"}.`
+                        : `Minimum order quantity is ${promoMinQty} piece${promoMinQty === 1 ? "" : "s"}. Price drops automatically as you order more.`
+                  }
                   status={totalQty >= promoMinQty ? "done" : "required"}
                 >
-                  {hasTierPricing ? (
+                  {manualMeta?.pricing_mode === "quantity_fixed" ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {manualMeta.quantity_pricing.map(pkg => {
+                        const isSelected = !!activeVariant && variantQty[activeVariant.id] === pkg.quantity;
+                        return (
+                          <button
+                            key={pkg.quantity}
+                            type="button"
+                            onClick={() => { if (activeVariant) setPromoQty(activeVariant.id, pkg.quantity); }}
+                            className={cn(
+                              "rounded-xl border-2 px-3 py-3 text-left transition-all",
+                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                            )}
+                          >
+                            <p className="text-sm font-black text-gray-900">{pkg.quantity} pcs</p>
+                            <p className="text-xs font-bold text-gray-700">${pkg.price.toFixed(2)}</p>
+                            <p className="text-[10px] text-gray-400">${(pkg.price / pkg.quantity).toFixed(2)}/pc</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : hasTierPricing ? (
                     <SageQuantityPricing
                       key={`${activeVariant?.id ?? "none"}-${sageRemountKey}`}
                       metaStr={promoMetaStr}
@@ -2271,6 +2383,31 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       }}
                     />
                   ) : (
+                    <>
+                    {manualMeta?.pricing_mode === "tiered" && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                        {manualMeta.bulk_pricing.map(tier => {
+                          const activeTier = findManualTier(manualMeta.bulk_pricing, currentQty);
+                          const isSelected = activeTier?.min_qty === tier.min_qty;
+                          return (
+                            <button
+                              key={tier.min_qty}
+                              type="button"
+                              onClick={() => { if (activeVariant) setPromoQty(activeVariant.id, tier.min_qty); }}
+                              className={cn(
+                                "rounded-xl border-2 px-3 py-3 text-left transition-all",
+                                isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                              )}
+                            >
+                              <p className="text-sm font-black text-gray-900">
+                                {tier.max_qty !== null ? `${tier.min_qty} – ${tier.max_qty}` : `${tier.min_qty}+`} pcs
+                              </p>
+                              <p className="text-xs font-bold text-gray-700">${tier.price.toFixed(2)}/pc</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className="flex items-center justify-center gap-4 py-6">
                       <button
                         onClick={() => {
@@ -2306,9 +2443,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       ><Plus size={20} /></button>
                       <div className="pl-2 border-l border-gray-200">
                         <p className="text-[10px] text-gray-400">Unit price</p>
-                        <p className="text-xl font-black text-gray-900">${(basePrice + drinkwareLocationFee).toFixed(2)}</p>
+                        <p className="text-xl font-black text-gray-900">${(promoUnitPrice ?? (basePrice + drinkwareLocationFee)).toFixed(2)}</p>
                       </div>
                     </div>
+                    </>
                   )}
                   {totalQty > 0 && totalQty < promoMinQty && (
                     <p className="text-xs text-red-500 font-semibold mt-3 text-center">

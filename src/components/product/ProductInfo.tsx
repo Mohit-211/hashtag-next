@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import DOMPurify from "dompurify";
+import type { ManualMeta } from "@/components/product/customization/Productcustomizationpage";
 
 interface VariantImage {
   id: number;
@@ -24,10 +25,21 @@ interface Variant {
 }
 
 interface Size {
+  type?: string;
   id: number;
   name: string;
   measurements?: string;
 }
+
+export interface ManualOptionGroup {
+  name: string;
+  values: { value: string; available: boolean }[];
+}
+
+const isColorOption = (name: string) => /^colou?r$/i.test(name.trim());
+const cssColor = (value: string) =>
+  typeof CSS !== "undefined" && CSS.supports("color", value.toLowerCase()) ? value.toLowerCase() : null;
+const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 export default function ProductInfo({
   name,
@@ -44,6 +56,11 @@ export default function ProductInfo({
   variantLoading,
   brandName,
   brandLogo,
+  tagline = "Premium Apparel",
+  manualOptions,
+  selectedOptions = {},
+  onOptionChange,
+  manualPricing,
 }: {
   name: string;
   price: number;
@@ -59,6 +76,13 @@ export default function ProductInfo({
   variantLoading?: boolean;
   brandName?: string | null;
   brandLogo?: string | null;
+  /** Eyebrow above the title; null hides it. */
+  tagline?: string | null;
+  /** MANUAL-supplier option groups — replace the color/size pickers when set. */
+  manualOptions?: ManualOptionGroup[];
+  selectedOptions?: Record<string, string>;
+  onOptionChange?: (name: string, value: string) => void;
+  manualPricing?: ManualMeta | null;
 }) {
 const colors = useMemo(() => {
   const map = new Map<string, string>();
@@ -107,10 +131,12 @@ const colors = useMemo(() => {
           </div>
         )}
 
-        <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#CFAF2E]">
-          <span className="w-4 h-px bg-[#CFAF2E]" />
-          Premium Apparel
-        </span>
+        {tagline && (
+          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#CFAF2E]">
+            <span className="w-4 h-px bg-[#CFAF2E]" />
+            {tagline}
+          </span>
+        )}
 
         <h1 className="mt-2 text-[2rem] leading-[1.15] font-bold text-[#111111]">
           {name}
@@ -118,14 +144,75 @@ const colors = useMemo(() => {
       </div>
 
       {/* Price */}
-      <div className="flex items-baseline gap-3">
-        <p className="text-[2rem] font-bold text-[#111111]">${price}</p>
-      </div>
+      {manualPricing?.pricing_mode === "quantity_fixed" ? (
+        <div className="flex items-baseline gap-2">
+          <p className="text-[2rem] font-bold text-[#111111]">
+            {money(manualPricing.quantity_pricing[0].price)}
+          </p>
+          <p className="text-sm font-medium text-[#6B7280]">
+            for {manualPricing.quantity_pricing[0].quantity} pcs
+          </p>
+        </div>
+      ) : manualPricing?.pricing_mode === "tiered" ? (
+        <div className="flex items-baseline gap-2">
+          <p className="text-sm font-medium text-[#6B7280]">From</p>
+          <p className="text-[2rem] font-bold text-[#111111]">
+            {money(Math.min(...manualPricing.bulk_pricing.map((t) => t.price)))}
+          </p>
+          <p className="text-sm font-medium text-[#6B7280]">/ pc</p>
+        </div>
+      ) : (
+        <div className="flex items-baseline gap-3">
+          <p className="text-[2rem] font-bold text-[#111111]">${price}</p>
+        </div>
+      )}
+
 
       <div className="h-px bg-[#E5E5E5]" />
 
+      {/* MANUAL option groups (Pages / Size / Color …) */}
+      {manualOptions?.map((group) => (
+        <div key={group.name}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+              {group.name}
+            </p>
+            <p className="text-sm font-semibold text-[#111111]">
+              {selectedOptions[group.name] || `Select ${group.name.toLowerCase()}`}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {group.values.map(({ value, available }) => {
+              const isActive = selectedOptions[group.name] === value;
+              const swatch = isColorOption(group.name) ? cssColor(value) : null;
+              return (
+                <button
+                  key={value}
+                  onClick={() => available && onOptionChange?.(group.name, value)}
+                  disabled={!available}
+                  className={`min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 inline-flex items-center justify-center gap-2 ${isActive
+                    ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
+                    : available
+                      ? "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
+                      : "bg-[#F5F5F5] text-[#BDBDBD] border-[#E5E5E5] cursor-not-allowed line-through"
+                    }`}
+                >
+                  {swatch && (
+                    <span
+                      className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: swatch, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.15)" }}
+                    />
+                  )}
+                  {value}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
       {/* Color Selection */}
-      {colors?.length > 0 && (
+      {!manualOptions && colors?.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
@@ -172,7 +259,7 @@ const colors = useMemo(() => {
       )}
 
       {/* Size Selection */}
-      {sizes?.length > 0 && (
+      {!manualOptions && sizes?.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">

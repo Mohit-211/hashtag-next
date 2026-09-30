@@ -25,6 +25,8 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT_GRAND_CATEGORY: "product/grand-category-products",
   INDUSTRY: "industry",
   USE_CASE_PRODUCTS: "industry/use-case/products",
+  PRODUCT_ADDONS: (id: string | number) => `add-on/product/${id}/addons`,
+  PRODUCT_CUSTOMIZATIONS: (id: string | number) => `customization-option/product/${id}/customizations`,
   // PRODUCT_PARENT_CATEGORY: "product/parent-category-products", // if available
 };
 export const CART_ENDPOINTS = {

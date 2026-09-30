@@ -31,6 +31,8 @@ export const ProductsByParentCategoryApi = (params?: ProductQueryParams) => {
 };
 export const ProductDetailApi = (id: string) => client.get(PRODUCT_ENDPOINTS.PRODUCT_DETAIL(id))
 export const ProductDetailGuestApi = (id: string) => client.get(PRODUCT_ENDPOINTS.PRODUCT_DETAIL_GUEST(id))
+export const ProductAddonsApi = (id: string | number) => client.get(PRODUCT_ENDPOINTS.PRODUCT_ADDONS(id))
+export const ProductCustomizationsApi = (id: string | number) => client.get(PRODUCT_ENDPOINTS.PRODUCT_CUSTOMIZATIONS(id))
 
 export const ProductCategoryApi = ({
   page = 1,
