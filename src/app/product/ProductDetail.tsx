@@ -32,6 +32,8 @@ interface Size {
   name: string;
   type?: string;
   measurements?: string;
+  display_style?: string | null;
+  is_active?: boolean;
 }
 interface VariantImage {
   id: number;
@@ -80,6 +82,8 @@ interface Product {
 interface ManualOptionGroup {
   name: string;
   values: string[];
+  /** Backend-controlled UI for the group (dropdown / radio / checkbox / button / color). */
+  displayStyle?: string;
 }
 const parseJson = (raw?: string | null): any => {
   if (!raw) return null;
@@ -91,25 +95,41 @@ const parseJson = (raw?: string | null): any => {
   }
 };
 const getManualOptionGroups = (product: Product): ManualOptionGroup[] => {
+  // display_style lives on product.sizes (one row per option value), keyed by
+  // its type — use it even when the option list itself comes from meta.
+  const sizeStyles = new Map<string, string>();
+  (product.sizes ?? []).forEach((s) => {
+    const key = (s.type?.trim() || "Size").toLowerCase();
+    if (s.display_style && !sizeStyles.has(key)) sizeStyles.set(key, s.display_style);
+  });
   const options = parseJson(product.meta)?.options;
   if (Array.isArray(options) && options.length > 0) {
     return options
-      .map((o: any) => ({
-        name: String(o?.name ?? "").trim(),
-        values: (Array.isArray(o?.values) ? o.values : []).map((v: any) => String(v?.name ?? "").trim()).filter(Boolean),
-      }))
+      .map((o: any) => {
+        const name = String(o?.name ?? "").trim();
+        return {
+          name,
+          values: (Array.isArray(o?.values) ? o.values : []).map((v: any) => String(v?.name ?? "").trim()).filter(Boolean),
+          displayStyle:
+            o?.display_style ??
+            (Array.isArray(o?.values) ? o.values.find((v: { display_style?: string } | null) => v?.display_style)?.display_style : undefined) ??
+            sizeStyles.get(name.toLowerCase()),
+        };
+      })
       .filter((g: ManualOptionGroup) => g.name && g.values.length > 0);
   }
   // No meta options — fall back to product.sizes grouped by their type.
-  const groups = new Map<string, string[]>();
+  const groups = new Map<string, ManualOptionGroup>();
   product.sizes.forEach((s) => {
+    if (s.is_active === false) return;
     const key = s.type?.trim() || "Size";
-    const list = groups.get(key) ?? [];
+    const group = groups.get(key) ?? { name: key, values: [] };
     const val = s.name.trim();
-    if (val && !list.includes(val)) list.push(val);
-    groups.set(key, list);
+    if (val && !group.values.includes(val)) group.values.push(val);
+    if (!group.displayStyle && s.display_style) group.displayStyle = s.display_style;
+    groups.set(key, group);
   });
-  return Array.from(groups, ([name, values]) => ({ name, values }));
+  return Array.from(groups.values()).filter((g) => g.values.length > 0);
 };
 const getVariantOptionValues = (v: Variant): Record<string, string> => {
   const out: Record<string, string> = {};
@@ -535,6 +555,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   // Values that no variant carries can't be picked.
   const manualOptions = manualOptionGroups.map((g) => ({
     name: g.name,
+    displayStyle: g.displayStyle,
     values: g.values.map((value) => ({
       value,
       available: Array.from(manualVariantOptions.values()).some((opts) => opts[g.name] === value),

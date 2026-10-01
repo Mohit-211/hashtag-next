@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import DOMPurify from "dompurify";
 import type { ManualMeta } from "@/components/product/customization/Productcustomizationpage";
+import ProductOptionGroup, { resolveDisplayStyle, type OptionGroupValue } from "@/components/product/ProductOptionGroup";
 
 interface VariantImage {
   id: number;
@@ -33,12 +34,11 @@ interface Size {
 
 export interface ManualOptionGroup {
   name: string;
-  values: { value: string; available: boolean }[];
+  values: OptionGroupValue[];
+  /** Backend `display_style` — picks the control; unknown/missing → dropdown. */
+  displayStyle?: string | null;
 }
 
-const isColorOption = (name: string) => /^colou?r$/i.test(name.trim());
-const cssColor = (value: string) =>
-  typeof CSS !== "undefined" && CSS.supports("color", value.toLowerCase()) ? value.toLowerCase() : null;
 const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 export default function ProductInfo({
@@ -171,45 +171,25 @@ const colors = useMemo(() => {
       <div className="h-px bg-[#E5E5E5]" />
 
       {/* MANUAL option groups (Pages / Size / Color …) */}
-      {manualOptions?.map((group) => (
-        <div key={group.name}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
-              {group.name}
-            </p>
-            <p className="text-sm font-semibold text-[#111111]">
-              {selectedOptions[group.name] || `Select ${group.name.toLowerCase()}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {group.values.map(({ value, available }) => {
-              const isActive = selectedOptions[group.name] === value;
-              const swatch = isColorOption(group.name) ? cssColor(value) : null;
-              return (
-                <button
-                  key={value}
-                  onClick={() => available && onOptionChange?.(group.name, value)}
-                  disabled={!available}
-                  className={`min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 inline-flex items-center justify-center gap-2 ${isActive
-                    ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
-                    : available
-                      ? "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
-                      : "bg-[#F5F5F5] text-[#BDBDBD] border-[#E5E5E5] cursor-not-allowed line-through"
-                    }`}
-                >
-                  {swatch && (
-                    <span
-                      className="w-3.5 h-3.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: swatch, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.15)" }}
-                    />
-                  )}
-                  {value}
-                </button>
-              );
-            })}
-          </div>
+      {!!manualOptions?.length && (
+        <div
+          className={`grid grid-cols-2 gap-x-3 gap-y-5 ${manualOptions.filter((g) => resolveDisplayStyle(g.displayStyle) === "dropdown").length >= 3
+            ? "sm:grid-cols-3"
+            : ""
+            }`}
+        >
+          {manualOptions.map((group) => (
+            <ProductOptionGroup
+              key={group.name}
+              name={group.name}
+              values={group.values}
+              displayStyle={group.displayStyle}
+              selected={selectedOptions[group.name]}
+              onChange={(value) => onOptionChange?.(group.name, value)}
+            />
+          ))}
         </div>
-      ))}
+      )}
 
       {/* Color Selection */}
       {!manualOptions && colors?.length > 0 && (
