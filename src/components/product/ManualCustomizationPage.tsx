@@ -23,13 +23,23 @@ import {
   getPromoMinQty,
   parseManualMeta,
 } from "@/components/product/customization/Productcustomizationpage";
-import { calculateVariantTotal, formatMoney } from "@/components/product/customization/pricing";
+import {
+  calculateVariantTotal,
+  formatMoney,
+  getCustomizationPrice,
+  getCustomizationPriceRows,
+  type CustomizationPrice,
+  type CustomizationPricingType,
+} from "@/components/product/customization/pricing";
 
 /* ── GET customization-option/product/:id/customizations ── */
 interface CustomizationTier {
   id: number;
-  min_quantity: number;
+  /** TIERED only. */
+  min_quantity: number | null;
   max_quantity: number | null;
+  /** QUANTITY_BASED only. */
+  quantity?: number | null;
   price: string;
   is_active: boolean;
 }
@@ -37,7 +47,7 @@ interface CustomizationOptionValue {
   id: number;
   customization_option_id: number;
   name: string;
-  pricing_type: "FIXED" | "TIERED";
+  pricing_type: CustomizationPricingType;
   fixed_price: string | null;
   is_active: boolean;
   pricing?: CustomizationTier[];
@@ -129,16 +139,11 @@ const isRaster = (f: File) => RASTER_EXTENSIONS.includes(fileExt(f)) || RASTER_M
 /** Browsers can draw bitmaps and SVG, not AI. */
 const canPreview = (f: File) => isRaster(f) || isSvg(f);
 
-/** Per-unit price of a value at the given quantity. */
-const getValueUnitPrice = (value: CustomizationOptionValue, qty: number): number => {
-  if (value.pricing_type === "TIERED") {
-    const tiers = (value.pricing ?? [])
-      .filter((t) => t.is_active !== false)
-      .map((t) => ({ min_qty: Number(t.min_quantity), max_qty: t.max_quantity, price: Number(t.price) }))
-      .sort((a, b) => a.min_qty - b.min_qty);
-    return findManualTier(tiers, qty)?.price ?? 0;
-  }
-  return Number(value.fixed_price ?? 0) || 0;
+/** Short price label for a value at the current quantity. */
+const priceLabel = (p: CustomizationPrice, qty: number): string => {
+  if (!p.available) return `N/A for ${qty} pcs`;
+  if (p.price <= 0) return "Free";
+  return p.perPiece ? `+$${formatMoney(p.price)}/pc` : `+$${formatMoney(p.price)}`;
 };
 
 /** Customization for MANUAL-supplier products, rendered inline on the product
@@ -272,13 +277,15 @@ export default function ManualCustomizationPage({
     .map((g) => {
       const sel = selections[g.customization.id];
       const value = g.values.find((v) => v.id === sel?.valueId);
-      return value ? { group: g, value, sel: sel!, unitPrice: getValueUnitPrice(value, qty) } : null;
+      return value ? { group: g, value, sel: sel!, price: getCustomizationPrice(value, qty) } : null;
     })
     .filter((l): l is NonNullable<typeof l> => !!l);
-  const decorationUnitPrice = selectedLines.reduce((sum, l) => sum + l.unitPrice, 0);
+  // Flat (TIERED / QUANTITY_BASED) charges are spread per piece so the shared
+  // formula still gives decorationTotal = sum of each value's charge.
+  const customizationTotal = selectedLines.reduce((sum, l) => sum + l.price.total, 0);
   const totals = calculateVariantTotal({
     productPrice: productUnitPrice,
-    decorationPrice: decorationUnitPrice,
+    decorationPrice: qty > 0 ? customizationTotal / qty : 0,
     quantity: qty,
   });
   // Add-on cards show one price per add-on, so it counts once per order.
@@ -348,6 +355,11 @@ export default function ManualCustomizationPage({
     }
     if (maxQty != null && qty > maxQty) {
       toast.error(stockMax != null && qty > stockMax ? `Only ${stockMax} in stock.` : `Maximum order quantity is ${maxQty}.`);
+      return false;
+    }
+    const unpriced = selectedLines.find((l) => !l.price.available);
+    if (unpriced) {
+      toast.error(`${unpriced.value.name} has no price for ${qty} pcs. Choose another quantity or option.`);
       return false;
     }
     return true;
@@ -550,7 +562,7 @@ export default function ManualCustomizationPage({
                   <div className={cn("flex flex-wrap gap-2", !g.option.description && "mt-2")}>
                     {g.values.map((v) => {
                       const isActive = sel?.valueId === v.id;
-                      const unit = getValueUnitPrice(v, qty);
+                      const price = getCustomizationPrice(v, qty);
                       return (
                         <button
                           key={v.id}
@@ -565,13 +577,21 @@ export default function ManualCustomizationPage({
                           )}
                         >
                           {v.name}
-                          <span className={cn("ml-1.5 text-xs font-medium", isActive ? "text-[#E8D03A]/80" : "text-[#6B7280]")}>
-                            {unit > 0 ? `+$${formatMoney(unit)}/pc` : "Free"}
+                          <span
+                            className={cn(
+                              "ml-1.5 text-xs font-medium",
+                              !price.available ? "text-[#C0392B]" : isActive ? "text-[#E8D03A]/80" : "text-[#6B7280]"
+                            )}
+                          >
+                            {priceLabel(price, qty)}
                           </span>
                         </button>
                       );
                     })}
                   </div>
+
+                  {/* Quantity / price table for TIERED and QUANTITY_BASED values */}
+                  {selectedValue && <CustomizationPriceTable value={selectedValue} qty={qty} />}
 
                   {/* Optional text / images for options that allow them */}
                   {selectedValue && (g.option.allow_text_input || g.option.allow_image_upload) && (
@@ -767,18 +787,26 @@ export default function ManualCustomizationPage({
       {/* ── Summary ── */}
       <div className="rounded-lg border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3 text-sm">
         <div className="flex justify-between py-1 text-[#444]">
-          <span>
-            {packPrice != null ? `Product · ${qty} pcs pack` : `Product · ${qty} × $${formatMoney(productUnitPrice)}`}
+          <span>{packPrice != null ? `Product · ${qty} pcs pack` : "Product"}</span>
+          <span className="font-medium text-[#111111]">
+            {packPrice != null
+              ? `$${formatMoney(totals.productTotal)}`
+              : `${qty} × $${formatMoney(productUnitPrice)} = $${formatMoney(totals.productTotal)}`}
           </span>
-          <span className="font-medium text-[#111111]">${formatMoney(totals.productTotal)}</span>
         </div>
         {selectedLines.map((l) => (
           <div key={l.group.customization.id} className="flex justify-between gap-3 py-1 text-[#444]">
             <span className="min-w-0 truncate">
               {l.group.option.name}: {l.value.name}
             </span>
-            <span className="font-medium text-[#111111] flex-shrink-0">
-              {l.unitPrice > 0 ? `$${formatMoney(l.unitPrice * qty)}` : "Free"}
+            <span className={cn("font-medium flex-shrink-0", l.price.available ? "text-[#111111]" : "text-[#C0392B]")}>
+              {!l.price.available
+                ? "N/A"
+                : l.price.total > 0
+                  ? l.price.perPiece
+                    ? `${qty} × $${formatMoney(l.price.price)} = $${formatMoney(l.price.total)}`
+                    : `$${formatMoney(l.price.total)}`
+                  : "Free"}
             </span>
           </div>
         ))}
@@ -844,6 +872,35 @@ export default function ManualCustomizationPage({
         onConfirm={submitAddToCart}
         submitting={submitting}
       />
+    </div>
+  );
+}
+
+/** Quantity → price rows of a TIERED / QUANTITY_BASED value; the row for the current qty is highlighted. */
+function CustomizationPriceTable({ value, qty }: { value: CustomizationOptionValue; qty: number }) {
+  const rows = getCustomizationPriceRows(value);
+  if (rows.length === 0) return null;
+  return (
+    <div className="mt-3 overflow-hidden rounded-lg border border-[#E5E5E5] text-sm">
+      <div className="grid grid-cols-2 bg-[#FAFAFA] px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+        <span>Quantity</span>
+        <span className="text-right">Price</span>
+      </div>
+      {rows.map((r) => {
+        const isActive = r.matches(qty);
+        return (
+          <div
+            key={r.label}
+            className={cn(
+              "grid grid-cols-2 border-t border-[#E5E5E5] px-3 py-2",
+              isActive ? "bg-[#111111] text-[#E8D03A] font-semibold" : "text-[#111111]"
+            )}
+          >
+            <span>{r.label}</span>
+            <span className="text-right">${formatMoney(r.price)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

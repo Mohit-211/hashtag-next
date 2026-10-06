@@ -216,3 +216,104 @@ export function getDecorationUnitPrice(params: PrintPriceParams): number {
   const total = getPrintPriceTotal(params);
   return total == null ? 0 : total / params.quantity;
 }
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * MANUAL-PRODUCT CUSTOMIZATION PRICING — SINGLE SOURCE OF TRUTH
+ *
+ * Prices one customization option value (GET .../customizations) for the
+ * selected product quantity, driven entirely by its `pricing_type`:
+ *
+ *   FIXED          → fixed_price, charged PER PIECE (total = price × qty)
+ *   TIERED         → pricing[] row whose min_quantity..max_quantity contains
+ *                    qty; that price is the charge for the whole quantity
+ *   QUANTITY_BASED → pricing[] row whose `quantity` equals qty; that price is
+ *                    the charge for the whole quantity (like a qty pack)
+ *
+ * When no rule covers qty the value is `available: false` with a 0 charge —
+ * we never fall back to a neighbouring tier's price.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+
+export type CustomizationPricingType = "FIXED" | "TIERED" | "QUANTITY_BASED";
+
+export interface CustomizationPriceRule {
+  min_quantity?: number | null;
+  max_quantity?: number | null;
+  quantity?: number | null;
+  price: string | number;
+  is_active?: boolean;
+}
+
+export interface CustomizationPricedValue {
+  pricing_type: CustomizationPricingType | string;
+  fixed_price?: string | number | null;
+  pricing?: CustomizationPriceRule[] | null;
+}
+
+export interface CustomizationPriceRow {
+  /** "1 - 50", "51+" or "25". */
+  label: string;
+  price: number;
+  matches: (qty: number) => boolean;
+}
+
+export interface CustomizationPrice {
+  /** false when no pricing rule covers the quantity (or the type is unknown). */
+  available: boolean;
+  /** FIXED is charged per piece; TIERED / QUANTITY_BASED once for the quantity. */
+  perPiece: boolean;
+  /** The price as the API defines it (per piece for FIXED). */
+  price: number;
+  /** What this value adds for `qty` pieces. */
+  total: number;
+}
+
+const toNumber = (v: unknown): number | null => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+/** The value's pricing rules as display rows (empty for FIXED), active only. */
+export function getCustomizationPriceRows(value: CustomizationPricedValue): CustomizationPriceRow[] {
+  const active = (value.pricing ?? []).filter((r) => r.is_active !== false);
+  if (value.pricing_type === "TIERED") {
+    return active
+      .map((r) => ({ min: toNumber(r.min_quantity), max: toNumber(r.max_quantity), price: toNumber(r.price) }))
+      .filter((r): r is { min: number; max: number | null; price: number } => r.min != null && r.price != null)
+      .sort((a, b) => a.min - b.min)
+      .map(({ min, max, price }) => ({
+        label: max == null ? `${min}+` : `${min} - ${max}`,
+        price,
+        matches: (qty: number) => qty >= min && (max == null || qty <= max),
+      }));
+  }
+  if (value.pricing_type === "QUANTITY_BASED") {
+    return active
+      .map((r) => ({ quantity: toNumber(r.quantity), price: toNumber(r.price) }))
+      .filter((r): r is { quantity: number; price: number } => r.quantity != null && r.price != null)
+      .sort((a, b) => a.quantity - b.quantity)
+      .map(({ quantity, price }) => ({
+        label: String(quantity),
+        price,
+        matches: (qty: number) => qty === quantity,
+      }));
+  }
+  return [];
+}
+
+/** Price of one customization value at `qty` pieces. */
+export function getCustomizationPrice(value: CustomizationPricedValue, qty: number): CustomizationPrice {
+  const none: CustomizationPrice = { available: false, perPiece: false, price: 0, total: 0 };
+  const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 0;
+  if (value.pricing_type === "FIXED") {
+    const price = toNumber(value.fixed_price) ?? 0;
+    return { available: true, perPiece: true, price, total: price * safeQty };
+  }
+  if (value.pricing_type === "TIERED" || value.pricing_type === "QUANTITY_BASED") {
+    const row = safeQty > 0 ? getCustomizationPriceRows(value).find((r) => r.matches(safeQty)) : undefined;
+    if (!row) return none;
+    return { available: true, perPiece: false, price: row.price, total: row.price };
+  }
+  return none;
+}
