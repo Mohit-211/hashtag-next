@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, ImagePlus, Loader2, Minus, Plus, ShoppingCart, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Crop, FileImage, ImagePlus, Loader2, Minus, Plus, ShoppingCart, Sparkles, Trash2, Type, Undo2, UploadCloud } from "lucide-react";
+import ImageCropDialog from "@/components/product/ImageCropDialog";
+import {
+  hasAuthToken,
+  peekPendingAuthAction,
+  takePendingAuthAction,
+  type LoginResumeRequest,
+} from "@/lib/authRedirect";
+import { clearPendingFiles, loadPendingFiles, type PendingFileEntry } from "@/lib/pendingAuthFiles";
 import { cn } from "@/lib/utils";
-import { ProductCustomizationsApi } from "@/api/operations/product.api";
-import { AddToCartApi } from "@/api/operations/cart.api";
-import { buildConfiguredCustomizationPayload, type ConfiguredVariant } from "@/components/common/AddToCartModal";
+import { ProductAddonsApi, ProductCustomizationsApi } from "@/api/operations/product.api";
+import { ManualAddToCartApi } from "@/api/operations/cart.api";
+import { buildManualCartRequest, MANUAL_CART_TYPE } from "@/components/product/manualCartPayload";
+import { type ProductAddon } from "@/components/product/AddOnSuggestions";
+import AddOnModal from "@/components/product/AddOnModal";
 import {
   findManualTier,
   getManualUnitPrice,
@@ -61,7 +71,15 @@ interface ProductCustomization {
 interface Selection {
   valueId: number | null;
   text: string;
-  file: File | null;
+  images: UploadedImage[];
+}
+
+interface UploadedImage {
+  id: string;
+  /** What gets uploaded — the cropped version once the image has been cropped. */
+  file: File;
+  /** The file as picked; crops always start from this. */
+  original: File;
 }
 
 export interface ManualCustomizationVariant {
@@ -75,8 +93,41 @@ export interface ManualCustomizationVariant {
   images?: unknown[];
 }
 
+export const MANUAL_ADD_TO_CART_ACTION = "product:manual-add-to-cart";
+interface ManualResumePayload {
+  productId: string;
+  variantId: number;
+  qty: number;
+  selections: {
+    customizationId: number;
+    valueId: number | null;
+    text: string;
+    /** Files are in IndexedDB under "<customizationId>:<id>:original|file". */
+    images: { id: string; cropped: boolean }[];
+  }[];
+  addons?: ProductAddon[];
+}
+
 const TEXT_MAX = 100;
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_MAX_COUNT = 5;
+
+/* ── accepted uploads: SVG, AI only ──
+   A file is accepted when either its extension or its MIME type matches:
+   browsers often report SVG/AI with an empty or generic type
+   (AI is usually "application/postscript", "application/pdf" or ""). */
+const RASTER_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
+const RASTER_MIME = ["image/jpeg", "image/png", "image/webp"];
+const UPLOAD_EXTENSIONS = ["svg", "ai"];
+const UPLOAD_MIME = ["image/svg+xml", "application/postscript", "application/illustrator"];
+const UPLOAD_ACCEPT = [...UPLOAD_EXTENSIONS.map((e) => `.${e}`), ...UPLOAD_MIME].join(",");
+const fileExt = (f: File) => (f.name.includes(".") ? f.name.split(".").pop()!.toLowerCase() : "");
+const isAcceptedUpload = (f: File) => UPLOAD_EXTENSIONS.includes(fileExt(f)) || UPLOAD_MIME.includes(f.type);
+const isSvg = (f: File) => fileExt(f) === "svg" || f.type === "image/svg+xml";
+/** Croppable: re-encoding is fine for bitmaps; vectors (SVG/AI) are kept as uploaded. */
+const isRaster = (f: File) => RASTER_EXTENSIONS.includes(fileExt(f)) || RASTER_MIME.includes(f.type);
+/** Browsers can draw bitmaps and SVG, not AI. */
+const canPreview = (f: File) => isRaster(f) || isSvg(f);
 
 /** Per-unit price of a value at the given quantity. */
 const getValueUnitPrice = (value: CustomizationOptionValue, qty: number): number => {
@@ -106,8 +157,8 @@ export default function ManualCustomizationPage({
   /** Human label for the selected variant, e.g. "10 / A4 / Pink". */
   variantLabel: string;
   inCart?: boolean;
-  /** Return true to block the add (e.g. login required). */
-  onBeforeAdd?: () => boolean;
+  /** Return true to block the add (e.g. login required); `resume` lets it continue after login. */
+  onBeforeAdd?: (resume: LoginResumeRequest) => boolean;
   onAdded?: () => void;
 }) {
   const [customizations, setCustomizations] = useState<ProductCustomization[]>([]);
@@ -116,7 +167,29 @@ export default function ManualCustomizationPage({
   const [reloadKey, setReloadKey] = useState(0);
   const [selections, setSelections] = useState<Record<number, Selection>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
+  // Picked in the add-on modal that Add to Cart opens, and sent in the same request.
+  const [selectedAddons, setSelectedAddons] = useState<ProductAddon[]>([]);
+  // null until loaded; products without add-ons skip the modal.
+  const [availableAddons, setAvailableAddons] = useState<ProductAddon[] | null>(null);
+  const [addonModalOpen, setAddonModalOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setAvailableAddons(null);
+    setAddonModalOpen(false);
+    (async () => {
+      try {
+        const res = await ProductAddonsApi(productId);
+        const data: ProductAddon[] = Array.isArray(res?.data?.data) ? res.data.data : [];
+        if (!cancelled) setAvailableAddons([...data].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
+      } catch {
+        if (!cancelled) setAvailableAddons([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [productId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,7 +202,6 @@ export default function ManualCustomizationPage({
         if (!cancelled) {
           setCustomizations(data);
           setSelections({});
-          setShowErrors(false);
         }
       } catch {
         // The API client already toasts the failure.
@@ -209,34 +281,59 @@ export default function ManualCustomizationPage({
     decorationPrice: decorationUnitPrice,
     quantity: qty,
   });
+  // Add-on cards show one price per add-on, so it counts once per order.
+  const addonPrice = (a: ProductAddon) => Number(a.addon_price ?? a.price ?? 0) || 0;
+  const addonsTotal = selectedAddons.reduce((sum, a) => sum + addonPrice(a), 0);
+  const grandTotal = totals.total + addonsTotal;
 
   const updateSelection = (id: number, patch: Partial<Selection>) =>
     setSelections((prev) => ({
       ...prev,
-      [id]: { ...(prev[id] ?? { valueId: null, text: "", file: null }), ...patch },
+      [id]: { ...(prev[id] ?? { valueId: null, text: "", images: [] }), ...patch },
     }));
 
-  const handleFile = (id: number, file: File | undefined) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file (PNG, JPG, SVG…).");
-      return;
-    }
-    if (file.size > IMAGE_MAX_BYTES) {
-      toast.error("Image must be 5 MB or smaller.");
-      return;
-    }
-    updateSelection(id, { file });
+  const handleFiles = (id: number, picked: File[]) => {
+    if (picked.length === 0) return;
+    const current = selections[id]?.images ?? [];
+    const valid = picked.filter((file) => {
+      if (!isAcceptedUpload(file)) {
+        toast.error(`${file.name} isn't supported. Upload an SVG or AI file.`);
+        return false;
+      }
+      if (file.size > IMAGE_MAX_BYTES) {
+        toast.error(`${file.name} is larger than 5 MB.`);
+        return false;
+      }
+      return true;
+    });
+    const room = IMAGE_MAX_COUNT - current.length;
+    if (valid.length > room) toast.error(`You can upload up to ${IMAGE_MAX_COUNT} images.`);
+    if (room <= 0 || valid.length === 0) return;
+    const added = valid
+      .slice(0, room)
+      .map((file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file, original: file }));
+    updateSelection(id, { images: [...current, ...added] });
   };
 
-  const missingGroups = groups.filter((g) => !selections[g.customization.id]?.valueId);
+  const removeImage = (id: number, imageId: string) =>
+    updateSelection(id, { images: (selections[id]?.images ?? []).filter((img) => img.id !== imageId) });
+
+  /* ── crop ── */
+  const [cropTarget, setCropTarget] = useState<{ groupId: number; image: UploadedImage } | null>(null);
+  const applyCrop = (cropped: File) => {
+    if (!cropTarget) return;
+    const { groupId, image } = cropTarget;
+    updateSelection(groupId, {
+      images: (selections[groupId]?.images ?? []).map((img) => (img.id === image.id ? { ...img, file: cropped } : img)),
+    });
+    setCropTarget(null);
+  };
+  const resetImage = (id: number, imageId: string) =>
+    updateSelection(id, {
+      images: (selections[id]?.images ?? []).map((img) => (img.id === imageId ? { ...img, file: img.original } : img)),
+    });
 
   const validate = (): boolean => {
-    if (missingGroups.length > 0) {
-      setShowErrors(true);
-      toast.error(`Please select ${missingGroups.map((g) => g.option.name).join(", ")}.`);
-      return false;
-    }
     if (manualMeta?.pricing_mode === "quantity_fixed" && !manualMeta.quantity_pricing.some((p) => p.quantity === qty)) {
       toast.error("Please choose one of the available quantity packs.");
       return false;
@@ -256,60 +353,131 @@ export default function ManualCustomizationPage({
     return true;
   };
 
-  const handleAddToCart = async () => {
-    if (onBeforeAdd?.()) return;
-    if (!validate()) return;
-
-    const configured: ConfiguredVariant = {
+  /* ── login round trip: save everything, restore it, finish the add ── */
+  const buildResumeRequest = (addons: ProductAddon[]): LoginResumeRequest => {
+    const files: PendingFileEntry[] = [];
+    const saved = Object.entries(selections).map(([cid, sel]) => ({
+      customizationId: Number(cid),
+      valueId: sel.valueId,
+      text: sel.text,
+      images: sel.images.map((img) => {
+        files.push({ key: `${cid}:${img.id}:original`, file: img.original });
+        const cropped = img.file !== img.original;
+        if (cropped) files.push({ key: `${cid}:${img.id}:file`, file: img.file });
+        return { id: img.id, cropped };
+      }),
+    }));
+    const payload: ManualResumePayload = {
+      productId: String(productId),
       variantId: variant.id,
-      variantName: variantLabel,
-      color: variantLabel,
-      colorCode: "",
-      images: variant.images ?? [],
-      sizes: [
+      qty,
+      selections: saved,
+      addons,
+    };
+    return { type: MANUAL_ADD_TO_CART_ACTION, payload, files };
+  };
+
+  // Set right before restored state is committed; the effect below then
+  // submits once with that state.
+  const autoSubmitRef = useRef(false);
+  const restoreCheckedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const key = `${productId}:${variant.id}`;
+    if (restoreCheckedRef.current === key) return;
+    restoreCheckedRef.current = key;
+
+    const forThis = (p: ManualResumePayload) =>
+      String(p?.productId) === String(productId) && Number(p?.variantId) === variant.id;
+    const pending = peekPendingAuthAction<ManualResumePayload>(MANUAL_ADD_TO_CART_ACTION, forThis);
+    if (!pending) return;
+    const loggedIn = hasAuthToken();
+    // Logged in: take it (removes it, so it can only run once). Cancelled
+    // login: just restore and leave it for when they do log in.
+    if (loggedIn && !takePendingAuthAction(MANUAL_ADD_TO_CART_ACTION, forThis)) return;
+
+    (async () => {
+      const files = new Map((await loadPendingFiles(pending.id)).map((f) => [f.key, f.file]));
+      if (loggedIn) clearPendingFiles();
+      let lostImages = false;
+      const restored: Record<number, Selection> = {};
+      pending.payload.selections.forEach((s) => {
+        const group = groups.find((g) => g.customization.id === s.customizationId);
+        if (!group) return;
+        const images = s.images.flatMap((img) => {
+          const original = files.get(`${s.customizationId}:${img.id}:original`);
+          if (!original) {
+            lostImages = true;
+            return [];
+          }
+          const file = (img.cropped && files.get(`${s.customizationId}:${img.id}:file`)) || original;
+          return [{ id: img.id, original, file }];
+        });
+        restored[s.customizationId] = {
+          valueId: group.values.some((v) => v.id === s.valueId) ? s.valueId : null,
+          text: s.text ?? "",
+          images,
+        };
+      });
+      if (lostImages) toast.warning("Some uploaded images couldn't be restored. Please add them again.");
+      autoSubmitRef.current = loggedIn && !lostImages;
+      setSelections(restored);
+      if (Array.isArray(pending.payload.addons)) setSelectedAddons(pending.payload.addons);
+      if (pending.payload.qty > 0) setQty(pending.payload.qty);
+    })();
+  }, [loading, productId, variant.id, groups]);
+
+  // Add to Cart button: validate, then let the customer pick add-ons first
+  // (straight to the cart when the product has none).
+  const handleAddToCart = () => {
+    if (!validate()) return;
+    if (availableAddons?.length === 0) {
+      submitAddToCart([]);
+      return;
+    }
+    setAddonModalOpen(true);
+  };
+
+  const closeAddonModal = () => {
+    setAddonModalOpen(false);
+    setSelectedAddons([]);
+  };
+
+  const submitAddToCart = async (addons: ProductAddon[]) => {
+    // Validate first so a login round trip only ever saves a complete order.
+    if (!validate()) return;
+    setSelectedAddons(addons);
+    if (onBeforeAdd?.(buildResumeRequest(addons))) {
+      setAddonModalOpen(false);
+      return;
+    }
+
+    const body = buildManualCartRequest({
+      productId: Number(productId),
+      type: MANUAL_CART_TYPE,
+      variants: [
         {
-          variant_id: variant.id,
-          size_id: variant.size_id ?? null,
-          size: variant.size || "—",
+          variantId: variant.id,
           quantity: qty,
-          unit_price: productUnitPrice,
-          decoration_unit_price: decorationUnitPrice,
+          // Images only for options that allow them.
+          lines: selectedLines.map((l) => ({
+            optionId: l.group.option.id,
+            valueId: l.value.id,
+            images: l.group.option.allow_image_upload ? l.sel.images.map((img) => img.file) : [],
+          })),
+          // Each picked add-on goes with the product quantity.
+          addons: addons.map((a) => ({ productAddonId: a.id, quantity: qty })),
         },
       ],
-      totalQty: qty,
-      totalPrice: totals.total,
-      productTotal: totals.productTotal,
-      decorationTotal: totals.decorationTotal,
-    };
-
-    const customization_options = selectedLines.map((l) => ({
-      product_customization_id: l.group.customization.id,
-      customization_option_id: l.group.option.id,
-      option_name: l.group.option.name,
-      option_value_id: l.value.id,
-      value_name: l.value.name,
-      pricing_type: l.value.pricing_type,
-      unit_price: l.unitPrice,
-      text: l.group.option.allow_text_input && l.sel.text.trim() ? l.sel.text.trim() : null,
-      image: l.group.option.allow_image_upload && l.sel.file ? l.sel.file.name : null,
-    }));
-
-    const formData = new FormData();
-    formData.append("product_id", String(productId));
-    formData.append(
-      "customization",
-      JSON.stringify(buildConfiguredCustomizationPayload(Number(productId), [configured], { customization_options }))
-    );
-    selectedLines.forEach((l) => {
-      if (l.group.option.allow_image_upload && l.sel.file) formData.append("images", l.sel.file, l.sel.file.name);
     });
 
     try {
       setSubmitting(true);
-      await AddToCartApi(formData);
+      await ManualAddToCartApi(body);
       toast.success("Added to cart!", { duration: 3000, closeButton: true });
+      setAddonModalOpen(false);
       setSelections({});
-      setShowErrors(false);
+      setSelectedAddons([]);
       onAdded?.();
     } catch {
       // The API client already toasts the failure.
@@ -317,6 +485,16 @@ export default function ManualCustomizationPage({
       setSubmitting(false);
     }
   };
+
+  // Finish the add that was interrupted by login, with the restored state.
+  useEffect(() => {
+    if (!autoSubmitRef.current) return;
+    autoSubmitRef.current = false;
+    toast.info("Welcome back! Adding your item to the cart…");
+    // Add-ons were already picked before the login, and restored with the rest.
+    submitAddToCart(selectedAddons);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selections]);
 
   const sectionLabel = "text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]";
 
@@ -356,15 +534,14 @@ export default function ManualCustomizationPage({
             {groups.map((g) => {
               const sel = selections[g.customization.id];
               const selectedValue = g.values.find((v) => v.id === sel?.valueId);
-              const missing = showErrors && !selectedValue;
               return (
                 <div key={g.customization.id}>
                   <div className="flex items-center justify-between gap-3 mb-1">
                     <p className={sectionLabel}>
-                      {g.option.name} <span className="text-[#C0392B]">*</span>
+                      {g.option.name} <span className="text-xs font-medium normal-case tracking-normal text-[#9CA3AF]">(optional)</span>
                     </p>
                     <p className="text-sm font-semibold text-[#111111] text-right">
-                      {selectedValue?.name || `Select ${g.option.name.toLowerCase()}`}
+                      {selectedValue?.name || "None"}
                     </p>
                   </div>
                   {g.option.description && (
@@ -378,14 +555,13 @@ export default function ManualCustomizationPage({
                         <button
                           key={v.id}
                           type="button"
-                          onClick={() => updateSelection(g.customization.id, { valueId: v.id })}
+                          onClick={() => updateSelection(g.customization.id, { valueId: isActive ? null : v.id })}
+                          aria-pressed={isActive}
                           className={cn(
                             "min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 text-left",
                             isActive
                               ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
-                              : missing
-                                ? "bg-white text-[#111111] border-[#E3A1A1] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
-                                : "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
+                              : "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
                           )}
                         >
                           {v.name}
@@ -396,35 +572,57 @@ export default function ManualCustomizationPage({
                       );
                     })}
                   </div>
-                  {missing && (
-                    <p className="text-xs text-[#C0392B] font-medium mt-2">Please select {g.option.name.toLowerCase()}.</p>
-                  )}
 
-                  {/* Optional text / logo for options that allow them */}
+                  {/* Optional text / images for options that allow them */}
                   {selectedValue && (g.option.allow_text_input || g.option.allow_image_upload) && (
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      {g.option.allow_text_input && (
-                        <label className="block">
-                          <span className="block text-xs font-medium text-[#6B7280] mb-1.5">
-                            Text <span className="font-normal">(optional)</span>
-                          </span>
-                          <input
-                            type="text"
-                            value={sel?.text ?? ""}
-                            maxLength={TEXT_MAX}
-                            onChange={(e) => updateSelection(g.customization.id, { text: e.target.value })}
-                            placeholder={`Text for ${g.option.name.toLowerCase()}`}
-                            className="w-full h-11 rounded-lg border border-[#E5E5E5] px-3 text-sm text-[#111111] outline-none focus:border-[#111111]"
+                    <div className="mt-4 rounded-xl border border-[#EDEDED] bg-[#FAFAF7] p-4 sm:p-5">
+                      <div className="mb-4 flex items-start gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#111111] text-[#E8D03A]">
+                          <Sparkles size={15} />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-[#111111]">Personalize your {g.option.name.toLowerCase()}</p>
+                          <p className="text-xs text-[#6B7280]">
+                            {g.option.allow_text_input && g.option.allow_image_upload
+                              ? "Add your text and upload artwork. Both are optional."
+                              : g.option.allow_text_input
+                                ? "Add the text you want printed. Optional."
+                                : "Upload your logo or artwork. Optional."}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-4">
+                        {g.option.allow_text_input && (
+                          <label className="block">
+                            <span className="mb-1.5 flex items-center justify-between text-xs font-medium text-[#444]">
+                              <span className="flex items-center gap-1.5">
+                                <Type size={13} className="text-[#6B7280]" />
+                                Custom text
+                              </span>
+                              <span className={cn("tabular-nums", (sel?.text.length ?? 0) >= TEXT_MAX ? "text-[#C0392B]" : "text-[#9CA3AF]")}>
+                                {sel?.text.length ?? 0}/{TEXT_MAX}
+                              </span>
+                            </span>
+                            <input
+                              type="text"
+                              value={sel?.text ?? ""}
+                              maxLength={TEXT_MAX}
+                              onChange={(e) => updateSelection(g.customization.id, { text: e.target.value })}
+                              placeholder="e.g. your name, company or tagline"
+                              className="w-full h-11 rounded-lg border border-[#E5E5E5] bg-white px-3 text-sm text-[#111111] outline-none transition-shadow placeholder:text-[#B0B0B0] focus:border-[#111111] focus:ring-2 focus:ring-[#E8D03A]/40"
+                            />
+                          </label>
+                        )}
+                        {g.option.allow_image_upload && (
+                          <FilePicker
+                            images={sel?.images ?? []}
+                            onPick={(f) => handleFiles(g.customization.id, f)}
+                            onRemove={(imageId) => removeImage(g.customization.id, imageId)}
+                            onCrop={(image) => setCropTarget({ groupId: g.customization.id, image })}
+                            onReset={(imageId) => resetImage(g.customization.id, imageId)}
                           />
-                        </label>
-                      )}
-                      {g.option.allow_image_upload && (
-                        <FilePicker
-                          file={sel?.file ?? null}
-                          onPick={(f) => handleFile(g.customization.id, f)}
-                          onClear={() => updateSelection(g.customization.id, { file: null })}
-                        />
-                      )}
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -584,10 +782,16 @@ export default function ManualCustomizationPage({
             </span>
           </div>
         ))}
+        {selectedAddons.map((a) => (
+          <div key={`addon-${a.id}`} className="flex justify-between gap-3 py-1 text-[#444]">
+            <span className="min-w-0 truncate">Add-on: {a.name}</span>
+            <span className="font-medium text-[#111111] flex-shrink-0">${formatMoney(addonPrice(a))}</span>
+          </div>
+        ))}
         <div className="h-px bg-[#E5E5E5] my-2" />
         <div className="flex justify-between items-baseline">
           <span className="font-semibold text-[#111111]">Total</span>
-          <span className="text-lg font-bold text-[#111111]">${formatMoney(totals.total)}</span>
+          <span className="text-lg font-bold text-[#111111]">${formatMoney(grandTotal)}</span>
         </div>
       </div>
 
@@ -622,53 +826,263 @@ export default function ManualCustomizationPage({
           </>
         )}
       </button>
+
+      <ImageCropDialog
+        file={cropTarget?.image.original ?? null}
+        onCancel={() => setCropTarget(null)}
+        onDone={applyCrop}
+      />
+
+      <AddOnModal
+        open={addonModalOpen}
+        onClose={closeAddonModal}
+        productId={productId}
+        name={variantLabel}
+        addons={availableAddons ?? undefined}
+        selected={selectedAddons}
+        onSelectionChange={setSelectedAddons}
+        onConfirm={submitAddToCart}
+        submitting={submitting}
+      />
     </div>
   );
 }
 
+const formatBytes = (n: number) =>
+  n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+
+// Checkerboard so transparent PNG/SVG logos stay visible.
+const CHECKER_BG = {
+  backgroundColor: "#FFFFFF",
+  backgroundImage:
+    "linear-gradient(45deg,#F1F1F1 25%,transparent 25%),linear-gradient(-45deg,#F1F1F1 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#F1F1F1 75%),linear-gradient(-45deg,transparent 75%,#F1F1F1 75%)",
+  backgroundSize: "14px 14px",
+  backgroundPosition: "0 0,0 7px,7px -7px,-7px 0",
+};
+
 function FilePicker({
-  file,
+  images,
   onPick,
-  onClear,
+  onRemove,
+  onCrop,
+  onReset,
 }: {
-  file: File | null;
-  onPick: (file: File | undefined) => void;
-  onClear: () => void;
+  images: UploadedImage[];
+  onPick: (files: File[]) => void;
+  onRemove: (imageId: string) => void;
+  onCrop: (image: UploadedImage) => void;
+  onReset: (imageId: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const full = images.length >= IMAGE_MAX_COUNT;
+  const browse = () => inputRef.current?.click();
+
+  const dropProps = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!full) setDragging(true);
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      if (!full) onPick(Array.from(e.dataTransfer.files));
+    },
+  };
+
   return (
     <div>
-      <span className="block text-xs font-medium text-[#6B7280] mb-1.5">
-        Logo <span className="font-normal">(optional)</span>
-      </span>
+      <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-[#444]">
+        <span className="flex items-center gap-1.5">
+          <ImagePlus size={13} className="text-[#6B7280]" />
+          Artwork / logo
+        </span>
+        <span className="text-[#9CA3AF] tabular-nums">
+          {images.length}/{IMAGE_MAX_COUNT}
+        </span>
+      </div>
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept={UPLOAD_ACCEPT}
+        multiple
         className="hidden"
         onChange={(e) => {
-          onPick(e.target.files?.[0]);
+          onPick(Array.from(e.target.files ?? []));
           e.target.value = "";
         }}
       />
-      {file ? (
-        <div className="h-11 flex items-center gap-2 rounded-lg border border-[#E5E5E5] px-3">
-          <ImagePlus size={16} className="text-[#6B7280] flex-shrink-0" />
-          <span className="min-w-0 flex-1 truncate text-sm text-[#111111]">{file.name}</span>
-          <button type="button" onClick={onClear} aria-label="Remove image" className="text-[#6B7280] hover:text-[#111111]">
-            <X size={14} />
-          </button>
-        </div>
-      ) : (
+
+      {images.length === 0 ? (
         <button
           type="button"
-          onClick={() => inputRef.current?.click()}
-          className="w-full h-11 flex items-center justify-center gap-2 rounded-lg border border-dashed border-[#C9C9C9] text-sm font-medium text-[#444] hover:border-[#111111] hover:text-[#111111]"
+          onClick={browse}
+          {...dropProps}
+          className={cn(
+            "group w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-7 text-center transition-all duration-200",
+            dragging
+              ? "border-[#E8D03A] bg-[#FFFBE6] scale-[1.01]"
+              : "border-[#D6D6D6] bg-white hover:border-[#111111] hover:bg-[#FCFCFA]"
+          )}
         >
-          <ImagePlus size={16} />
-          Upload image
+          <span
+            className={cn(
+              "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
+              dragging
+                ? "bg-[#E8D03A] text-[#111111]"
+                : "bg-[#F3F3F0] text-[#444] group-hover:bg-[#111111] group-hover:text-[#E8D03A]"
+            )}
+          >
+            <UploadCloud size={20} />
+          </span>
+          <span className="text-sm font-semibold text-[#111111]">
+            {dragging ? (
+              "Drop images here"
+            ) : (
+              <>
+                Drag &amp; drop or{" "}
+                <span className="underline underline-offset-2 decoration-[#E8D03A] decoration-2">browse</span>
+              </>
+            )}
+          </span>
+          <span className="text-xs text-[#6B7280]">
+            SVG or AI · up to 5 MB each · max {IMAGE_MAX_COUNT} files
+          </span>
         </button>
+      ) : (
+        <div
+          {...dropProps}
+          className={cn(
+            "grid grid-cols-3 sm:grid-cols-4 gap-2.5 rounded-xl transition-colors",
+            dragging && "bg-[#FFFBE6] ring-2 ring-[#E8D03A] ring-offset-4 ring-offset-[#FFFBE6]"
+          )}
+        >
+          {images.map((img, i) => (
+            <ImageThumb
+              key={img.id}
+              index={i + 1}
+              image={img}
+              onCrop={() => onCrop(img)}
+              onRemove={() => onRemove(img.id)}
+              onReset={() => onReset(img.id)}
+            />
+          ))}
+          {!full && (
+            <button
+              type="button"
+              onClick={browse}
+              className="aspect-square flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#D6D6D6] bg-white text-xs font-semibold text-[#444] transition-colors hover:border-[#111111] hover:text-[#111111]"
+            >
+              <Plus size={18} />
+              Add more
+            </button>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+function ImageThumb({
+  index,
+  image,
+  onCrop,
+  onRemove,
+  onReset,
+}: {
+  index: number;
+  image: UploadedImage;
+  onCrop: () => void;
+  onRemove: () => void;
+  onReset: () => void;
+}) {
+  // Blob URL lives exactly as long as the <img> shows this file.
+  const previewRef = useCallback(
+    (el: HTMLImageElement | null) => {
+      if (!el) return;
+      // <img> only renders an SVG blob when it is typed as SVG; the File itself is untouched.
+      const blob = isSvg(image.file) && image.file.type !== "image/svg+xml"
+        ? new Blob([image.file], { type: "image/svg+xml" })
+        : image.file;
+      const url = URL.createObjectURL(blob);
+      el.src = url;
+      return () => URL.revokeObjectURL(url);
+    },
+    [image.file]
+  );
+  const cropped = image.file !== image.original;
+  const previewable = canPreview(image.file);
+  const croppable = isRaster(image.original);
+  const actionBtn =
+    "flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#111111] shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8D03A]";
+
+  return (
+    <figure className="min-w-0">
+      <div
+        className="group relative aspect-square overflow-hidden rounded-xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-md"
+        style={CHECKER_BG}
+      >
+        {previewable ? (
+          // eslint-disable-next-line @next/next/no-img-element -- local blob preview
+          <img ref={previewRef} alt={image.original.name} className="h-full w-full object-contain p-1.5" />
+        ) : (
+          // e.g. Adobe Illustrator — browsers can't draw it, so show a file badge.
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#FAFAF7]">
+            <FileImage size={26} className="text-[#6B7280]" />
+            <span className="rounded bg-[#111111] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#E8D03A]">
+              {fileExt(image.file) || "file"}
+            </span>
+          </div>
+        )}
+
+        <span className="absolute left-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#111111] px-1.5 text-[10px] font-bold text-[#E8D03A]">
+          {index}
+        </span>
+        {cropped && (
+          <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-[#E8D03A] px-1.5 py-0.5 text-[10px] font-bold text-[#111111]">
+            <Crop size={10} />
+            Cropped
+          </span>
+        )}
+
+        {/* Actions: always shown on touch screens, on hover / keyboard focus with a mouse */}
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-linear-to-t from-black/60 to-transparent pb-2 pt-6 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
+          {croppable && (
+            <button type="button" onClick={onCrop} aria-label={`Crop ${image.original.name}`} title="Crop" className={actionBtn}>
+              <Crop size={14} />
+            </button>
+          )}
+          {cropped && (
+            <button
+              type="button"
+              onClick={onReset}
+              aria-label={`Undo crop on ${image.original.name}`}
+              title="Undo crop"
+              className={actionBtn}
+            >
+              <Undo2 size={14} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${image.original.name}`}
+            title="Remove"
+            className={cn(actionBtn, "hover:bg-[#C0392B] hover:text-white")}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+      <figcaption className="mt-1 px-0.5">
+        <p className="truncate text-[11px] font-medium text-[#444]" title={image.original.name}>
+          {image.original.name}
+        </p>
+        <p className="text-[10px] text-[#9CA3AF]">{formatBytes(image.file.size)}</p>
+      </figcaption>
+    </figure>
   );
 }

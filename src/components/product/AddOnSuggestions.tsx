@@ -34,17 +34,23 @@ const parseFeatures = (raw?: string | null): string[] => {
  * selection. */
 export default function AddOnSuggestions({
   productId,
+  addons: providedAddons,
   selected = [],
   onSelectionChange,
 }: {
   productId: string | number;
+  /** Already-fetched add-ons; skips the request when given. */
+  addons?: ProductAddon[];
   selected?: ProductAddon[];
   onSelectionChange?: (next: ProductAddon[]) => void;
 }) {
-  const [addons, setAddons] = useState<ProductAddon[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fetchedAddons, setAddons] = useState<ProductAddon[]>([]);
+  const [fetching, setLoading] = useState(!providedAddons);
+  const addons = providedAddons ?? fetchedAddons;
+  const loading = !providedAddons && fetching;
 
   useEffect(() => {
+    if (providedAddons) return;
     let cancelled = false;
 
     (async () => {

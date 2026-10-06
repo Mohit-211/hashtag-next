@@ -1,6 +1,5 @@
 import client from "../client";
 import { CART_ENDPOINTS } from "../endpoints";
-
 // ➕ Add to cart
 // cart.api.ts
 
@@ -11,7 +10,15 @@ export const AddToCartApi = (formData: FormData) => {
     },
   });
 };
- 
+
+// ➕ Add to cart — MANUAL suppliers (FormData from buildManualCartRequest).
+// Content-Type is cleared (overriding the client's JSON default) so the
+// browser sets multipart/form-data with the correct boundary itself.
+export const ManualAddToCartApi = (formData: FormData) =>
+  client.post("/product/cart", formData, {
+    headers: { "Content-Type": undefined },
+  });
+
 // 📦 Get all cart items
 export const GetAllCartItemsApi = () =>
   client.get(CART_ENDPOINTS.GET_ALL);

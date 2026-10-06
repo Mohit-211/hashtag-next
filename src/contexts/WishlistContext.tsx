@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { useCart } from "./CartContext";
+import { AUTH_CHANGED_EVENT, hasAuthToken } from "@/lib/authRedirect";
 
 interface WishlistItem {
   id: number;
@@ -67,14 +68,14 @@ export const WishlistProvider = ({
 
   const [loading, setLoading] = useState(true);
 
-  const isLoggedIn =
-    typeof window !== "undefined" &&
-    !!localStorage.getItem("hastagBillionaire");
+  // Read at call time: a client-side login does not re-render this provider,
+  // so a value captured at render would stay "logged out".
+  const isLoggedIn = () => hasAuthToken();
 
   const wishlistCount = wishlist.length;
 
   const fetchWishlist = async () => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn()) {
       setWishlist([]);
       setLoading(false);
       return;
@@ -98,10 +99,14 @@ export const WishlistProvider = ({
 
   useEffect(() => {
     fetchWishlist();
+    // Refetch after login/logout.
+    const onAuthChanged = () => fetchWishlist();
+    window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
   }, []);
 
   const removeItem = async (id: number) => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn()) return;
 
     try {
       await RemoveFromWishlistApi(id);
@@ -130,7 +135,7 @@ export const WishlistProvider = ({
     price: number;
     image?: string;
   }) => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn()) {
       toast.error("Please login first");
       return;
     }
@@ -183,7 +188,7 @@ export const WishlistProvider = ({
   const moveToCart = async (
     item: WishlistItem
   ) => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn()) return;
 
     try {
       await MoveWishlistToCartApi({

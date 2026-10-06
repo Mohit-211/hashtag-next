@@ -10,9 +10,12 @@ import { registerApi } from "./../../api/auth/auth.api";
 // ✅ Sonner toast
 import { toast } from "sonner";
 import { emailSchema, nameSchema } from "@/lib/validation";
+import { withReturnTo } from "@/lib/authRedirect";
 
 interface RegisterFormProps {
   switchToLogin: () => void;
+  /** Sanitized page to return to once the new account has logged in. */
+  returnTo?: string | null;
 }
 
 const inputClass =
@@ -48,7 +51,7 @@ function getPasswordStrength(password: string): StrengthResult {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
+export default function RegisterForm({ switchToLogin, returnTo }: RegisterFormProps) {
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -130,7 +133,7 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
 
         setTimeout(() => {
           router.push(
-            `/verify-otp?type=email_varification&email=${encodeURIComponent(email)}`
+            withReturnTo(`/verify-otp?type=email_varification&email=${encodeURIComponent(email)}`, returnTo)
           );
         }, 1500);
       } else {

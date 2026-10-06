@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { loginUrl } from "@/lib/authRedirect";
 import { ShoppingBag, ArrowRight, Package } from "lucide-react";
 
 import OrdersEmpty from "@/components/orders/OrdersEmpty";
@@ -73,7 +74,7 @@ export default function Orders() {
                 Log in to view your order history and track your purchases.
               </p>
             </div>
-            <Link href="/login">
+            <Link href={loginUrl("/orders")}>
               <Button className="cursor-pointer gap-2 mt-1">
                 Continue to Login
                 <ArrowRight className="h-4 w-4" />

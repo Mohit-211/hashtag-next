@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { loginUrl } from "@/lib/authRedirect";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -123,6 +124,12 @@ export default function Header() {
       setDropdownRect({ top: rect.bottom + 8, left: rect.right - 224 });
     }
     setUserDropdownOpen((prev) => !prev);
+  };
+
+  // Login from the header returns to the page (and query) it was opened from.
+  const goToLogin = (e: React.MouseEvent) => {
+    e.preventDefault();
+    router.push(loginUrl());
   };
 
   // ✅ Logout
@@ -331,7 +338,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
             </>
           ) : (
             /* ================= NOT LOGGED IN ================= */
-            <Link href="/login">
+            <Link href="/login" onClick={goToLogin}>
               <Button
                 variant="default"
                 size="sm"
@@ -421,7 +428,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
             ) : (
               <Link
                 href="/login"
-                onClick={() => setMobileOpen(false)}
+                onClick={(e) => { setMobileOpen(false); goToLogin(e); }}
                 className="px-3 py-2 text-sm hover:bg-secondary rounded-md"
               >
                 Login / Register

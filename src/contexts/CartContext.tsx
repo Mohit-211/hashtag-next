@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { GetAllCartItemsApi } from "@/api/operations/cart.api";
+import { AUTH_CHANGED_EVENT } from "@/lib/authRedirect";
 
 export interface CartItem {
   cart_id: number;
@@ -119,6 +120,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   // a full page reload triggered by window.location.href.
   useEffect(() => {
     fetchCart();
+    // Refetch after login/logout (client-side, so the provider stays mounted).
+    window.addEventListener(AUTH_CHANGED_EVENT, fetchCart);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, fetchCart);
   }, [fetchCart]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);

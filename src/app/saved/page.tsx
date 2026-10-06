@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { loginUrl } from "@/lib/authRedirect";
 import { Heart, ShoppingCart, Loader2, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWishlist } from "@/contexts/WishlistContext";
@@ -83,7 +84,7 @@ export default function Saved() {
                 Save items you love and come back to them any time.
               </p>
             </div>
-            <Link href="/login" className="mt-2">
+            <Link href={loginUrl("/saved")} className="mt-2">
               <Button size="lg" className="rounded-full px-8">Login to Continue</Button>
             </Link>
           </div>

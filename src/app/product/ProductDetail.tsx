@@ -1,8 +1,21 @@
 // components/product/ProductDetail.tsx
 
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import LoginPromptModal from "@/components/auth/LoginPromptModal";
+import {
+  currentPath,
+  hasAuthToken,
+  loginUrl,
+  peekPendingAuthAction,
+  savePendingAuthAction,
+  takePendingAuthAction,
+  type LoginResumeRequest,
+} from "@/lib/authRedirect";
+import { clearPendingFiles, savePendingFiles } from "@/lib/pendingAuthFiles";
+import { GetWishlistApi } from "@/api/operations/wishlist.api";
 import {
   ShoppingCart,
   Heart,
@@ -22,7 +35,6 @@ import { cn } from "@/lib/utils";
 import { Spin } from "antd";
 import AddProductConfigurationModal from "@/components/product/Addproductconfigurationmodal/Addproductconfigurationmodal";
 import AddToCartModal from "@/components/common/AddToCartModal";
-import AddOnModal from "@/components/product/AddOnModal";
 import ManualCustomizationPage from "@/components/product/ManualCustomizationPage";
 import { useCart } from "@/contexts/CartContext";
 import { parseManualMeta, parseManualOptionValues } from "@/components/product/customization/Productcustomizationpage";
@@ -141,6 +153,15 @@ const getVariantOptionValues = (v: Variant): Record<string, string> => {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
+/* ── actions resumed after a login round trip (see lib/authRedirect) ── */
+export const PRODUCT_ADD_TO_CART_ACTION = "product:add-to-cart";
+export const PRODUCT_WISHLIST_ACTION = "product:wishlist";
+interface ProductResumePayload {
+  productId: string;
+  variantId: number;
+  quantity: number;
+}
+
 /* ───────────────────────────────────────────────── component */
 export default function ProductDetail({ id, variantId }: { id: string; variantId?: string | null }) {
   const router = useRouter();
@@ -156,9 +177,31 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const isLoggedIn =
     mounted && typeof window !== "undefined" && !!localStorage.getItem("hastagBillionaire");
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const requireLogin = () => {
-    if (!isLoggedIn) { setShowLoginModal(true); return true; }
-    return false;
+  // The action to resume after login; saved only once the user picks "Sign in".
+  const loginResumeRef = useRef<LoginResumeRequest | null>(null);
+  const requireLogin = (resume?: LoginResumeRequest) => {
+    if (isLoggedIn) return false;
+    loginResumeRef.current = resume ?? null;
+    setShowLoginModal(true);
+    return true;
+  };
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false);
+  const goToLogin = async () => {
+    if (redirectingToLogin) return;
+    setRedirectingToLogin(true);
+    // Come back to this exact variant.
+    const returnTo = currentPath({ variant_id: variantData?.id });
+    const resume = loginResumeRef.current;
+    if (resume) {
+      const action = savePendingAuthAction(resume.type, resume.payload, returnTo);
+      if (action && resume.files?.length) await savePendingFiles(action.id, resume.files);
+    }
+    router.push(loginUrl(returnTo));
+  };
+  const cancelLogin = () => {
+    if (loginResumeRef.current?.files?.length) clearPendingFiles();
+    loginResumeRef.current = null;
+    setShowLoginModal(false);
   };
 
   /* cart */
@@ -168,14 +211,11 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const [showCartModal, setShowCartModal] = useState(false);
   const [customizationJson, setCustomizationJson] = useState<string>("");
   const [configuredVariants, setConfiguredVariants] = useState<any[]>([]);
-  // MANUAL-supplier products open the add-on picker after adding to cart.
-  const [showAddOnModal, setShowAddOnModal] = useState(false);
   const { refreshCart } = useCart();
   // Navigating to another product reuses this component — don't carry an
   // open modal over to the new product.
   useEffect(() => {
     setShowCartModal(false);
-    setShowAddOnModal(false);
     setConfiguredVariants([]);
   }, [id]);
 
@@ -296,9 +336,12 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     setQuantity(match.min_order_quantity || 1);
   };
 
+  const resumePayload = (): ProductResumePayload | null =>
+    product && variantData ? { productId: String(product.id), variantId: variantData.id, quantity } : null;
+
   const handleWishlist = async () => {
     if (!product || !variantData) return;
-    if (requireLogin()) return;
+    if (requireLogin({ type: PRODUCT_WISHLIST_ACTION, payload: resumePayload() })) return;
     try {
       setWishlistLoading(true);
       if (inWishlist && wishlistItem) {
@@ -332,9 +375,86 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
 
   const handleAddToCart = () => {
     if (!product || !variantData) return;
-    if (requireLogin()) return;
+    if (requireLogin({ type: PRODUCT_ADD_TO_CART_ACTION, payload: resumePayload() })) return;
     setShowConfigurationModal(true);
   };
+
+  const selectVariant = (v: Variant) => {
+    setSelectedColor(v.color);
+    setSelectedSize(v.size_details);
+    setVariantData(v);
+    setSelectedOptions(manualVariantOptions.get(v.id) ?? {});
+    setInCart(Boolean(v.is_in_cart));
+  };
+
+  // Add only — never toggle off something already saved.
+  const resumeAddToWishlist = async (v: Variant) => {
+    if (!product) return;
+    try {
+      setWishlistLoading(true);
+      const res = await GetWishlistApi();
+      const items: { product_id: number; variant_id?: number }[] = res?.data?.data ?? [];
+      const exists = items.some((i) => i.product_id === Number(product.id) && i.variant_id === v.id);
+      if (!exists) {
+        const image =
+          v.images?.[0]?.file_uri || product.attachments?.[0]?.file_uri || "";
+        await addToWishlist({
+          product_id: Number(product.id),
+          variant_id: v.id,
+          name: product.name,
+          price: Number(v.price) || 0,
+          image,
+        });
+      }
+      await fetchWishlist();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
+  /* ── resume after login ──
+     Back from /login (or from a cancelled login) with a pending action for
+     this product: re-select the saved variant + quantity, then — only when
+     actually logged in — take the action (which removes it, so it runs once)
+     and continue it. */
+  const resumeCheckedRef = useRef(false);
+  useEffect(() => {
+    resumeCheckedRef.current = false;
+  }, [id]);
+  useEffect(() => {
+    if (!product || !variantData || resumeCheckedRef.current) return;
+    const forThisProduct = (p: ProductResumePayload) => String(p?.productId) === String(product.id);
+    const pending =
+      peekPendingAuthAction<ProductResumePayload>(PRODUCT_ADD_TO_CART_ACTION, forThisProduct) ??
+      peekPendingAuthAction<ProductResumePayload>(PRODUCT_WISHLIST_ACTION, forThisProduct);
+    if (!pending) {
+      resumeCheckedRef.current = true;
+      return;
+    }
+    const target = product.variants.find((v) => v.id === Number(pending.payload.variantId));
+    if (target && target.id !== variantData.id) {
+      // Select the saved variant first; this effect runs again once it is active.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time restore from sessionStorage
+      selectVariant(target);
+      return;
+    }
+    resumeCheckedRef.current = true;
+    if (pending.payload.quantity > 0) setQuantity(pending.payload.quantity);
+
+    // Login was cancelled: selections are back, the action waits for a login.
+    if (!hasAuthToken()) return;
+    if (!takePendingAuthAction(pending.type, forThisProduct)) return;
+
+    if (pending.type === PRODUCT_ADD_TO_CART_ACTION) {
+      setShowConfigurationModal(true);
+      toast.success("Welcome back! Pick up where you left off.");
+    } else {
+      resumeAddToWishlist(target ?? variantData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, variantData]);
 
   const handleConfigurationComplete = async (config: {
     selectedColor: string;
@@ -570,30 +690,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     <div className="min-h-screen">
 
       {/* ── LOGIN MODAL ── */}
-      {showLoginModal && (
-        <div
-          className="fixed inset-0 z-[999] flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.4)" }}
-        >
-          <div className="text-center bg-white p-6 rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Sign in to continue</h3>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => router.push("/login")}
-                className="px-5 py-2 bg-black text-white rounded"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => setShowLoginModal(false)}
-                className="px-5 py-2 border border-black rounded"
-              >
-                Continue Browsing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <LoginPromptModal open={showLoginModal} onSignIn={goToLogin} onCancel={cancelLogin} />
 
       {/* ── MAIN CONTENT ── */}
       <section className="py-8 lg:py-14">
@@ -675,10 +772,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
                   variant={variantData}
                   variantLabel={manualVariantLabel}
                   onBeforeAdd={requireLogin}
-                  onAdded={() => {
-                    refreshCart();
-                    setShowAddOnModal(true);
-                  }}
+                  onAdded={refreshCart}
                 />
               )}
 
@@ -834,16 +928,6 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
         />
       )}
 
-      {/* ── ADD-ON MODAL — MANUAL suppliers only ── */}
-      {product && (
-        <AddOnModal
-          open={showAddOnModal}
-          onClose={() => setShowAddOnModal(false)}
-          productId={product.id}
-          name={product.name}
-          product={product}
-        />
-      )}
     </div>
   );
 }

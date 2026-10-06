@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { loginUrl } from "@/lib/authRedirect";
 import {
   ArrowLeft, Check, Circle, X, ChevronDown, ChevronUp, Table2,
   Upload, RotateCw, RotateCcw, Download, Sparkles, Eye, ImageDown,
@@ -602,6 +603,8 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
 /* ─────────────────────────────────────────── Main Component ── */
 interface Props { productDataId: number; variantDataId: number }
 const CUSTOMIZATION_SESSION_KEY = "pendingCustomization";
+const RESUME_ACTIONS = ["addToCart", "wishlist", "preview"] as const;
+type ResumeAction = (typeof RESUME_ACTIONS)[number];
 export default function ProductCustomizationPage({ productDataId, variantDataId }: Props) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -619,7 +622,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const hasAttemptedRestoreRef = useRef(false);
   const [restorePending, setRestorePending] = useState(false);
   useEffect(() => {
-    if (typeof window === "undefined" || !mounted || !isLoggedIn) return;
+    // Also after a cancelled login, so the design survives it.
+    if (typeof window === "undefined" || !mounted) return;
     try {
       if (sessionStorage.getItem(CUSTOMIZATION_SESSION_KEY)) {
         setRestorePending(true);
@@ -694,6 +698,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const isPreMade = grandCategoryTitle === "Pre-Made";
   const isPromo = !isApparel && !isPreMade;
   const [showLoginModal, setShowLoginModal] = useState(false);
+  // Which button sent the user to log in, so it can continue afterwards.
+  const loginResumeActionRef = useRef<ResumeAction | null>(null);
+  // Set by the restore below; consumed once the restored design is ready.
+  const resumeAfterRestoreRef = useRef<ResumeAction | null>(null);
   const saveCustomizationToSession = () => {
     if (typeof window === "undefined") return;
     try {
@@ -726,6 +734,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         configuredVariants,
         orderRows: orderRowsRef.current,
         returnTo: window.location.pathname + window.location.search,
+        resumeAction: loginResumeActionRef.current,
         savedAt: Date.now(),
       };
       sessionStorage.setItem(CUSTOMIZATION_SESSION_KEY, JSON.stringify(snapshot));
@@ -733,8 +742,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       console?.error("Failed to save customization to session:", e);
     }
   };
-  const requireLogin = () => {
+  // "Cancel" means the user chose not to log in: drop the snapshot so a
+  // later login doesn't replay this action.
+  const cancelLoginPrompt = () => {
+    loginResumeActionRef.current = null;
+    try { sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY); } catch { }
+    setShowLoginModal(false);
+  };
+  const requireLogin = (action: ResumeAction | null = null) => {
     if (!isLoggedIn) {
+      loginResumeActionRef.current = action;
       saveCustomizationToSession();
       setShowLoginModal(true);
       return true;
@@ -742,7 +759,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return false;
   };
   useEffect(() => {
-    if (!mounted || !isLoggedIn || !product || loading) return;
+    if (!mounted || !product || loading) return;
     if (hasAttemptedRestoreRef.current) return;
     if (allProductVariants.length === 0) return;
     if (typeof window === "undefined") return;
@@ -824,7 +841,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         setOrderRows(revalidated.length > 0 ? revalidated : [{ id: Date.now(), color: "", qty: 1, variantId: "" }]);
       }
       setSageRemountKey(k => k + 1);
-      sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
+      // Logged in: consume the snapshot (so it can't replay) and continue the
+      // interrupted action. Cancelled login: keep it for when they log in.
+      if (isLoggedIn) {
+        sessionStorage.removeItem(CUSTOMIZATION_SESSION_KEY);
+        if (RESUME_ACTIONS.includes(saved.resumeAction)) resumeAfterRestoreRef.current = saved.resumeAction;
+      }
       setRestorePending(false);
     } catch (e) {
       console?.error("Failed to restore saved customization:", e);
@@ -1102,7 +1124,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState(false);
   const { refreshCart } = useCart();
-  const { wishlist, addToWishlist, removeItem, fetchWishlist } = useWishlist();
+  const { wishlist, loading: wishlistSyncing, addToWishlist, removeItem, fetchWishlist } = useWishlist();
   const wishlistItem = wishlist.find(i => i.product_id === variantDataId);
   const inWishlist = !!wishlistItem;
   const [wishlistLoading, setWishlistLoading] = useState(false);
@@ -1563,7 +1585,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       canvas.toBlob(blob => res(blob), "image/png", 1);
     });
   const handleAddToCart = async () => {
-    if (requireLogin()) return;
+    if (requireLogin("addToCart")) return;
     if (!allMet) {
       const missing = REQUIREMENTS.filter(r => !r.done).map(r => r.label);
       setValidationError(`Please complete: ${missing.join(", ")}.`);
@@ -1699,7 +1721,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
   };
   const handleWishlist = async () => {
-    if (requireLogin()) return;
+    if (requireLogin("wishlist")) return;
     try {
       setWishlistLoading(true);
       if (inWishlist && wishlistItem) {
@@ -1752,7 +1774,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     setValidationError(null);
   };
   const handleOpenPreview = () => {
-    if (requireLogin()) return;
+    if (requireLogin("preview")) return;
     setPreviewError(false);
     setShowPreviewModal(true);
     try {
@@ -1770,6 +1792,24 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setPreviewDataUrl(off.toDataURL("image/png", 1));
     } catch { setPreviewError(true); }
   };
+  // Continue the action that was interrupted by login, once the restored
+  // design is drawable (base image + logo loaded) and the wishlist is known.
+  useEffect(() => {
+    const action = resumeAfterRestoreRef.current;
+    if (!action || loading || restorePending || !product) return;
+    if (canvasBaseImageSrc && !productImg) return;
+    if (logoSrc && !logoImg) return;
+    if (action === "wishlist" && wishlistSyncing) return;
+    resumeAfterRestoreRef.current = null;
+    // Replays the user's click once after login, so these handlers' own state updates are intended.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (action === "addToCart") handleAddToCart();
+    else if (action === "preview") handleOpenPreview();
+    else if (!inWishlist) handleWishlist(); // add only, never toggle off
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, restorePending, product, productImg, logoImg, logoSrc, canvasBaseImageSrc, wishlistSyncing]);
+
   if (loading || restorePending) {
     return (
       <div className="min-h-screen bg-[#fafafa]">
@@ -1817,18 +1857,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               <div className="w-11 h-11 rounded-2xl bg-gray-900 flex items-center justify-center">
                 <span className="text-xl">🔒</span>
               </div>
-              <button onClick={() => setShowLoginModal(false)} className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-900">
+              <button onClick={cancelLoginPrompt} className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-900">
                 <X size={15} />
               </button>
             </div>
             <h2 className="text-xl font-black text-gray-900 mb-2">Sign in to continue</h2>
             <p className="text-sm text-gray-500 leading-relaxed mb-6">Login to customize products, save to wishlist, and add to cart. Your current customization will be saved.</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowLoginModal(false)} className="flex-1 h-11 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600">Cancel</button>
+              <button onClick={cancelLoginPrompt} className="flex-1 h-11 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600">Cancel</button>
               <button
                 onClick={() => {
                   saveCustomizationToSession();
-                  router.push("/login");
+                  router.push(loginUrl());
                 }}
                 className="flex-1 h-11 rounded-xl bg-[#F5D800] text-black text-sm font-black"
               >

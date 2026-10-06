@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { sendOtpApi, verifyOtpApi } from "@/api/auth/auth.api";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { withReturnTo } from "@/lib/authRedirect";
 import { Mail, ShieldCheck, Loader2 } from "lucide-react";
 
 const OTP_LENGTH = 4;
@@ -107,7 +108,7 @@ export default function VerifyOtpClient() {
               `/forgot-password?email=${encodeURIComponent(email)}&type=${type}&token=${btoa(res?.data?.data?.token || "")}`
             );
           } else {
-            router.push("/login");
+            router.push(withReturnTo("/login", params.get("returnTo")));
           }
         }, 1000);
       } else {

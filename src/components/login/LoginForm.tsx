@@ -10,14 +10,17 @@ import DemoCredentials from "./DemoCredentials";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { emailSchema, PASSWORD_MAX_LENGTH } from "@/lib/validation";
+import { notifyAuthChanged, resolvePostLoginRedirect, withReturnTo } from "@/lib/authRedirect";
 interface LoginFormProps {
   switchToRegister: () => void;
+  /** Sanitized page to return to after login. */
+  returnTo?: string | null;
 }
 const inputClass =
   "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
 // Message returned by API when user hasn't verified OTP
 const UNVERIFIED_MESSAGE = "User is not verified yet.Please verify Your Otp First";
-export default function LoginForm({ switchToRegister }: LoginFormProps) {
+export default function LoginForm({ switchToRegister, returnTo }: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,28 +53,21 @@ const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
 
   if (res.success) {
     toast.success("Login successful 🎉");
+    notifyAuthChanged();
 
-    // If a product customization was saved before being sent here to log in
-    // (see Productcustomizationpage.tsx's "pendingCustomization" snapshot),
-    // return to that same page so it can restore the selection.
-    let returnTo = "/categories";
-    try {
-      const raw = sessionStorage.getItem("pendingCustomization");
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved?.returnTo) returnTo = saved.returnTo;
-      }
-    } catch (e) {
-      console?.error("Failed to read pending customization:", e);
-    }
-
-    router.push(returnTo);
+    // Back to the page that asked for login (it restores its state and
+    // resumes any pending action). `replace` keeps /login out of history so
+    // Back doesn't land on the login form again.
+    router.replace(resolvePostLoginRedirect(returnTo));
   } else {
     if (res.error?.toLowerCase().includes("not verified")) {
       toast.warning("Please verify your email first 📧");
 
       router.push(
-        `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`
+        withReturnTo(
+          `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`,
+          returnTo
+        )
       );
       return;
     }

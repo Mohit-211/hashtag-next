@@ -11,6 +11,7 @@ import {
 
 import { UserProfileApi } from "@/api/users/users.api";
 import { loginApi } from "@/api/auth/auth.api";
+import { clearPendingAuthAction, notifyAuthChanged } from "@/lib/authRedirect";
 
 export interface User {
   id: string | number;
@@ -116,7 +117,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ✅ LOGOUT
   const logout = useCallback(() => {
     localStorage.removeItem("hastagBillionaire");
+    // A new login must not resume something started in the previous session.
+    clearPendingAuthAction();
     setUser(null);
+    notifyAuthChanged();
   }, []);
 
   if (loading) return null;
