@@ -280,7 +280,7 @@ export default function ManualCustomizationPage({
       return value ? { group: g, value, sel: sel!, price: getCustomizationPrice(value, qty) } : null;
     })
     .filter((l): l is NonNullable<typeof l> => !!l);
-  // Flat (TIERED / QUANTITY_BASED) charges are spread per piece so the shared
+  // Flat (QUANTITY_BASED) charges are spread per piece so the shared
   // formula still gives decorationTotal = sum of each value's charge.
   const customizationTotal = selectedLines.reduce((sum, l) => sum + l.price.total, 0);
   const totals = calculateVariantTotal({
@@ -897,7 +897,10 @@ function CustomizationPriceTable({ value, qty }: { value: CustomizationOptionVal
             )}
           >
             <span>{r.label}</span>
-            <span className="text-right">${formatMoney(r.price)}</span>
+            <span className="text-right">
+              ${formatMoney(r.price)}
+              {value.pricing_type === "TIERED" && "/pc"}
+            </span>
           </div>
         );
       })}

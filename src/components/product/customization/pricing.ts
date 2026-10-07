@@ -225,7 +225,7 @@ export function getDecorationUnitPrice(params: PrintPriceParams): number {
  *
  *   FIXED          → fixed_price, charged PER PIECE (total = price × qty)
  *   TIERED         → pricing[] row whose min_quantity..max_quantity contains
- *                    qty; that price is the charge for the whole quantity
+ *                    qty; that price is charged PER PIECE (total = price × qty)
  *   QUANTITY_BASED → pricing[] row whose `quantity` equals qty; that price is
  *                    the charge for the whole quantity (like a qty pack)
  *
@@ -260,9 +260,9 @@ export interface CustomizationPriceRow {
 export interface CustomizationPrice {
   /** false when no pricing rule covers the quantity (or the type is unknown). */
   available: boolean;
-  /** FIXED is charged per piece; TIERED / QUANTITY_BASED once for the quantity. */
+  /** FIXED / TIERED are charged per piece; QUANTITY_BASED once for the quantity. */
   perPiece: boolean;
-  /** The price as the API defines it (per piece for FIXED). */
+  /** The price as the API defines it (per piece for FIXED / TIERED). */
   price: number;
   /** What this value adds for `qty` pieces. */
   total: number;
@@ -313,7 +313,8 @@ export function getCustomizationPrice(value: CustomizationPricedValue, qty: numb
   if (value.pricing_type === "TIERED" || value.pricing_type === "QUANTITY_BASED") {
     const row = safeQty > 0 ? getCustomizationPriceRows(value).find((r) => r.matches(safeQty)) : undefined;
     if (!row) return none;
-    return { available: true, perPiece: false, price: row.price, total: row.price };
+    const perPiece = value.pricing_type === "TIERED";
+    return { available: true, perPiece, price: row.price, total: perPiece ? row.price * safeQty : row.price };
   }
   return none;
 }
