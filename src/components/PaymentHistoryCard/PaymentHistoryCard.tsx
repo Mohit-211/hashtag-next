@@ -1,14 +1,62 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { isSafeHttpUrl } from "@/lib/validation";
 
+// Summary of the order's first item. Kept on the type because the API
+// sends it, but the card doesn't render it — one order can hold several
+// products, so order.items is the source of truth.
 export interface PaymentPreview {
   product_name: string;
-  original_image: string;
-  customized_image: string;
+  original_image: string | null;
+  customized_image: string | null;
   total_items: number;
-  print_method: string;
+  print_method: string | null;
+  type: string | null;
+  custom_text: string | null;
+}
+
+export interface PaymentPricingBreakdown {
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  total: number;
+}
+
+// Supplier products (SanMar / S&S) carry print_method + locations;
+// manual products send type: "MANUAL" and keep their options in
+// pricing_snapshot instead.
+export interface PaymentItemCustomizationConfig {
+  print_method?: string;
+  locations?: { location: string }[];
+  customizations?: { color?: string; size?: string; quantity?: number }[];
+  type?: string;
+}
+
+export interface PaymentItemPricingSnapshot {
+  supplier?: string;
+  customization_price?: { total_customization_price: number; setup_fee: number };
+  customization?: {
+    items: { option_name: string; value_name: string; total: number }[];
+    total: number;
+  };
+  addons?: { name: string; quantity: number; total: number }[];
+  final_price_per_item?: number;
+  total_price?: number;
+}
+
+export interface PaymentOrderItem {
+  product_id: number;
+  product_name: string;
+  variant_id: number;
+  sku: string;
+  original_image: string | null;
+  customized_image: string | null;
+  price: number;
+  quantity: number;
+  total: number;
+  customization_config?: PaymentItemCustomizationConfig | null;
+  pricing_snapshot?: PaymentItemPricingSnapshot | null;
 }
 
 // ★ FIXED — subtotal_amount, tax_amount, and tax_rate were missing here
@@ -23,11 +71,13 @@ export interface PaymentOrder {
   tax_rate: number;
   shipping_amount: number;
   total_amount: number;
+  pricing_breakdown?: PaymentPricingBreakdown | null;
   payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
   shipment_status: "SUCCESS" | "FAILED" | "PENDING" | "IN_TRANSIT";
-  tracking_number: string;
-  tracking_url: string;
-  preview: PaymentPreview;
+  tracking_number: string | null;
+  tracking_url: string | null;
+  preview?: PaymentPreview | null;
+  items?: PaymentOrderItem[];
 }
 
 export interface Payment {
@@ -73,8 +123,125 @@ function formatTime(iso: string) {
   return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
+// toLocaleString() alone drops trailing zeros (307.2 → "307.2"), so pin
+// money to two decimals.
+function formatMoney(value: number | null | undefined) {
+  return `$${(value ?? 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+// Order-level badge: the distinct print methods across all items
+// (e.g. "EMBROIDERY"), or "CUSTOM" for orders made only of manual products.
+function getOrderMethodLabel(items: PaymentOrderItem[]) {
+  const methods = Array.from(
+    new Set(items.map((i) => i.customization_config?.print_method).filter(Boolean))
+  ) as string[];
+  if (methods.length) return methods.join(" · ");
+  if (items.length && items.every((i) => i.customization_config?.type === "MANUAL")) {
+    return "CUSTOM";
+  }
+  return null;
+}
+
+// Labeled customization rows for one item, covering both shapes: supplier
+// items (print method, color, size, locations) and manual items (chosen
+// options + add-ons from pricing_snapshot).
+function getItemDetails(item: PaymentOrderItem) {
+  const config = item.customization_config;
+  const snapshot = item.pricing_snapshot;
+  const variant = config?.customizations?.[0];
+  const locations = (config?.locations ?? []).map((l) => l.location);
+  const details: { label: string; value: string }[] = [];
+
+  if (config?.print_method) details.push({ label: "Print Method", value: config.print_method });
+  if (variant?.color) details.push({ label: "Color", value: variant.color });
+  if (variant?.size) details.push({ label: "Size", value: variant.size });
+  if (locations.length) {
+    details.push({ label: locations.length > 1 ? "Locations" : "Location", value: locations.join(", ") });
+  }
+  for (const c of snapshot?.customization?.items ?? []) {
+    details.push({ label: c.option_name, value: c.value_name });
+  }
+  for (const a of snapshot?.addons ?? []) {
+    details.push({ label: "Add-on", value: `${a.name} (${formatMoney(a.total)})` });
+  }
+
+  return details;
+}
+
+// Prefers the customized mockup; drops back to the plain product image if
+// there's none or it fails to load.
+function ItemImage({ item }: { item: PaymentOrderItem }) {
+  const [src, setSrc] = useState(item.customized_image || item.original_image);
+
+  if (!src) {
+    return <div className="w-16 h-16 shrink-0 rounded-md border border-border bg-muted" />;
+  }
+  return (
+    <img
+      src={src}
+      alt={item.product_name}
+      className="w-16 h-16 shrink-0 rounded-md object-contain border border-border bg-background"
+      onError={() => setSrc(src !== item.original_image ? item.original_image : null)}
+    />
+  );
+}
+
+function OrderItemDetail({ item, index }: { item: PaymentOrderItem; index: number }) {
+  const details = getItemDetails(item);
+
+  return (
+    <li className="py-3 first:pt-0 last:pb-0">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-widest mb-2">
+        Item {index + 1}
+      </p>
+      <div className="flex gap-3">
+        <ItemImage item={item} />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground leading-snug">{item.product_name}</p>
+          <p className="text-[11px] text-muted-foreground font-mono truncate mt-0.5" title={item.sku}>
+            SKU: {item.sku}
+          </p>
+        </div>
+      </div>
+
+      <dl className="mt-2.5 space-y-1 text-xs">
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted-foreground">Quantity</dt>
+          <dd className="font-medium text-foreground">{item.quantity}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted-foreground">Price</dt>
+          <dd className="font-medium text-foreground">{formatMoney(item.price)}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted-foreground">Total</dt>
+          <dd className="font-bold text-foreground">{formatMoney(item.total)}</dd>
+        </div>
+      </dl>
+
+      {details.length > 0 && (
+        <div className="mt-2.5 bg-background border border-border rounded-md px-3 py-2">
+          <p className="text-[11px] font-semibold text-foreground mb-1">Customization</p>
+          <dl className="space-y-0.5 text-[11px]">
+            {details.map((d, i) => (
+              <div key={`${d.label}-${i}`} className="flex gap-1.5">
+                <dt className="text-muted-foreground shrink-0">{d.label}:</dt>
+                <dd className="text-foreground font-medium min-w-0 break-words">{d.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </li>
+  );
+}
+
 export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps) {
   const { order } = payment;
+  const [itemsOpen, setItemsOpen] = useState(false);
 
   if (!order) {
     return (
@@ -84,7 +251,19 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
       </div>
     );
   }
-  const preview = order.preview;
+
+  // Product info comes from order.items only, and only inside the
+  // accordion — order.preview is never rendered.
+  const items = order.items ?? [];
+  const methodLabel = getOrderMethodLabel(items);
+  const itemsPanelId = `order-items-${order.order_id}`;
+
+  // pricing_breakdown mirrors the flat *_amount fields; prefer it when sent.
+  const breakdown = order.pricing_breakdown;
+  const subtotal = breakdown?.subtotal ?? order.subtotal_amount;
+  const tax = breakdown?.tax ?? order.tax_amount;
+  const shipping = breakdown?.shipping ?? order.shipping_amount;
+  const total = breakdown?.total ?? order.total_amount;
 
   return (
     <div className="group bg-card border border-border rounded-lg overflow-hidden hover:border-foreground/30 hover:shadow-lg transition-all duration-300">
@@ -94,16 +273,16 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
       <div className="p-5 sm:p-6">
         {/* Header row */}
         <div className="flex items-start justify-between gap-4 mb-5">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">
               Order Number
             </p>
-            <p className="text-sm font-bold text-foreground font-mono">{order.order_number}</p>
+            <p className="text-sm font-bold text-foreground font-mono break-all">{order.order_number}</p>
           </div>
 
-          <div className="text-right flex-shrink-0">
+          <div className="text-right shrink-0">
             <p className="font-heading text-2xl font-extrabold text-foreground leading-tight">
-              ${payment.amount.toLocaleString()}
+              {formatMoney(payment.amount)}
               <span className="text-sm font-semibold text-muted-foreground ml-1">
                 {payment.currency}
               </span>
@@ -114,41 +293,53 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
           </div>
         </div>
 
-        {/* Product preview */}
-        <div className="flex items-center gap-4 bg-secondary rounded-md p-3 mb-5">
-          <div className="relative flex-shrink-0">
-            <img
-              src={preview.original_image}
-              alt={preview.product_name}
-              className="w-14 h-14 rounded-md object-cover border border-border"
-            />
-            {preview?.customized_image && (
-              <img
-                src={preview.customized_image}
-                alt="Customized"
-                className="absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-md object-cover border-2 border-background shadow"
-                crossOrigin="anonymous"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
+        {/* Items accordion — collapsed it shows only the count (from
+            order.items.length) and the order-level print method; product
+            details appear only once it's opened. */}
+        <div className="bg-secondary rounded-md mb-5">
+          <button
+            type="button"
+            onClick={() => setItemsOpen((o) => !o)}
+            aria-expanded={itemsOpen}
+            aria-controls={itemsPanelId}
+            disabled={items.length === 0}
+            className="flex w-full items-center gap-3 p-3 text-left disabled:cursor-default"
+          >
+            <span className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">{items.length}</span>{" "}
+              {items.length === 1 ? "Item" : "Items"}
+            </span>
+            {methodLabel && (
+              <>
+                <span className="w-1 h-1 rounded-full bg-border" />
+                <span className="text-xs bg-primary/20 text-foreground font-semibold px-2 py-0.5 rounded-full">
+                  {methodLabel}
+                </span>
+              </>
             )}
-          </div>
+            {items.length > 0 && (
+              <svg
+                className={`ml-auto w-4 h-4 text-muted-foreground transition-transform duration-200 ${
+                  itemsOpen ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            )}
+          </button>
 
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground leading-snug line-clamp-2">
-              {preview.product_name}
-            </p>
-            <div className="flex items-center gap-3 mt-1.5">
-              <span className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">{preview.total_items}</span> items
-              </span>
-              <span className="w-1 h-1 rounded-full bg-border" />
-              <span className="text-xs bg-primary/20 text-foreground font-semibold px-2 py-0.5 rounded-full">
-                {preview.print_method}
-              </span>
-            </div>
-          </div>
+          {itemsOpen && items.length > 0 && (
+            <ul id={itemsPanelId} className="border-t border-border px-3 py-3 divide-y divide-border">
+              {items.map((item, idx) => (
+                // The same product/variant can appear more than once with
+                // different customizations, so the index is part of the key.
+                <OrderItemDetail key={`${item.variant_id}-${idx}`} item={item} index={idx} />
+              ))}
+            </ul>
+          )}
         </div>
 
         {/* Status row */}
@@ -164,38 +355,32 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
           </div>
         </div>
 
-        {/* Cost breakdown — ★ FIXED: was deriving "subtotal" as
-            total_amount - shipping_amount, which still had tax baked in
-            since total_amount = subtotal + tax + shipping. Using the
-            real subtotal_amount / tax_amount fields from the API
-            directly instead. */}
+        {/* Cost breakdown — uses the real subtotal / tax fields from the
+            API rather than deriving subtotal as total - shipping (which
+            would still include tax). */}
         <div className="bg-secondary rounded-md px-4 py-3 mb-5 space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Subtotal</span>
-            <span className="font-medium text-foreground">
-              ${(order.subtotal_amount ?? 0).toFixed(2)}
-            </span>
+            <span className="font-medium text-foreground">{formatMoney(subtotal)}</span>
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Tax{order.tax_rate ? ` (${order.tax_rate}%)` : ""}</span>
-            <span className="font-medium text-foreground">
-              ${(order.tax_amount ?? 0).toFixed(2)}
-            </span>
+            <span className="font-medium text-foreground">{formatMoney(tax)}</span>
           </div>
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Shipping</span>
-            <span className="font-medium text-foreground">${order.shipping_amount.toFixed(2)}</span>
+            <span className="font-medium text-foreground">{formatMoney(shipping)}</span>
           </div>
           <div className="border-t border-border pt-1.5 flex justify-between text-sm font-bold text-foreground">
             <span>Total</span>
-            <span>${order.total_amount.toFixed(2)}</span>
+            <span>{formatMoney(total)}</span>
           </div>
         </div>
 
         {/* Transaction ID + Tracking */}
         <div className="space-y-2 mb-5">
           <div className="flex items-center gap-2">
-            <svg className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-xs text-muted-foreground">Transaction ID:</span>
@@ -204,11 +389,13 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <svg className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
             <span className="text-xs text-muted-foreground">Tracking:</span>
-            <span className="text-xs font-mono text-foreground">{order.tracking_number}</span>
+            <span className="text-xs font-mono text-foreground truncate">
+              {order.tracking_number ?? "Not available yet"}
+            </span>
           </div>
         </div>
 
