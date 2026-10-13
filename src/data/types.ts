@@ -57,6 +57,7 @@ export interface UseCase {
   slug?: string;
   id: number;
   title: string;
+  image?: string;
   sort_order?: number;
   is_active?: boolean;
   count?: number;
@@ -96,13 +97,66 @@ export interface CategoriesViewProps {
 }
 
 // ── Filter pill shown in the topbar ────────────────────────────────────────
+/** Which filter a pill stands for — what removing it clears. */
+export type PillTarget =
+  | { kind: "search" }
+  | { kind: "category" }
+  | { kind: "parent"; grandId: number; id: number }
+  | { kind: "industry" }
+  | { kind: "industryCategory"; id: number }
+  | { kind: "useCase"; industryId: number | null; useCaseId: number }
+  | { kind: "brand"; id: number | string }
+  | { kind: "size" | "color" | "gender" | "fabric"; value: string }
+  | { kind: "tier" }
+  | { kind: "inStock" }
+  | { kind: "price" };
+
 export interface Pill {
   key: string;
   label: string;
-  onRemove: () => void;
+  target: PillTarget;
 }
 
 export type SortValue = SortOption["value"];
+
+// ── Raw API rows (before normalisation). Field names differ between
+// endpoints — title vs name, product_count vs count — hence the optionals.
+export interface RawCategoryNode {
+  id: number;
+  title?: string;
+  name?: string;
+  category_name?: string;
+  slug?: string;
+  description?: string;
+  image?: string;
+  product_count?: number;
+  productsCount?: number;
+  count?: number;
+}
+
+export interface RawGrandCategory extends RawCategoryNode {
+  parent_categories?: RawCategoryNode[];
+}
+
+export interface RawUseCase extends RawCategoryNode {
+  sort_order?: number;
+  is_active?: boolean;
+  parent_categories?: RawCategoryNode[];
+}
+
+export interface RawIndustry extends RawCategoryNode {
+  use_cases?: RawUseCase[];
+}
+
+export interface RawBrand {
+  id: number;
+  name?: string;
+  brand_name?: string;
+  slug?: string;
+  logo_url?: string | null;
+  product_count?: number;
+  count?: number;
+}
 
 // Params sent to AllProductsApi
 export interface FilterParams {

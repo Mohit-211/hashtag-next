@@ -17,11 +17,11 @@ export default function BrandStory() {
 
         <p className="text-lg text-muted-foreground leading-relaxed text-center">
           At HashtagBillionaire, we believe every brand deserves to be seen.
-          Whether you're printing apparel for your team or business cards
+          Whether you&apos;re printing apparel for your team or business cards
           for your next event, we help you create products that represent
           your identity with clarity and confidence. Quality materials,
           modern production, and a seamless ordering experience —
-          that's the HB standard.
+          that&apos;s the HB standard.
         </p>
 
       </div>

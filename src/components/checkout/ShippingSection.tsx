@@ -12,11 +12,12 @@ import {
 
 import ShippingRateCard from "./ShippingRateCard";
 import { Button } from "../ui/button";
+import type { ShippingRate } from "./CheckoutLayout";
 
 interface Props {
-  shippingRates: any[];
-  selectedRate: any;
-  setSelectedRate: (rate: any) => void;
+  shippingRates: ShippingRate[];
+  selectedRate: ShippingRate | null;
+  setSelectedRate: (rate: ShippingRate) => void;
 
   selectedAddressId: number | null;
   shippingAmount: number;
@@ -46,7 +47,7 @@ export default function ShippingSection({
       <div className="flex items-center gap-3 mb-6">
         <div className="h-10 w-10 rounded-2xl bg-primary/10 flex items-center justify-center">
           <Truck
-            className="h-5 w-5 text-primary"
+            className="h-5 w-5 text-primary-ink"
             strokeWidth={1.75}
           />
         </div>
@@ -65,7 +66,7 @@ export default function ShippingSection({
       {/* Loading */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <Loader2 className="h-10 w-10 animate-spin text-primary-ink" />
 
           <p className="mt-4 text-sm font-medium text-muted-foreground">
             Loading shipping rates...
@@ -74,7 +75,7 @@ export default function ShippingSection({
       ) : shippingRates.length > 0 ? (
         /* Rates */
         <div className="space-y-3">
-          {shippingRates.map((rate: any) => (
+          {shippingRates.map((rate) => (
             <ShippingRateCard
               key={`${rate.carrier_code}-${rate.service_code}`}
               rate={rate}
@@ -107,7 +108,7 @@ export default function ShippingSection({
       <div className="mt-5 space-y-3">
 
         {/* Estimated Delivery */}
-        <div className="flex gap-3 rounded-2xl bg-secondary border border-border px-4 py-3.5">
+        <div className="flex gap-3 rounded-2xl bg-muted border border-border px-4 py-3.5">
           <Clock className="h-4 w-4 text-foreground/70 shrink-0 mt-0.5" strokeWidth={1.75} />
           <div>
             <p className="text-xs font-semibold text-foreground mb-1">
@@ -121,7 +122,7 @@ export default function ShippingSection({
 
         {/* Production Variability */}
         <div className="flex gap-3 rounded-2xl bg-primary/10 border border-primary/30 px-4 py-3.5">
-          <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" strokeWidth={1.75} />
+          <Info className="h-4 w-4 text-primary-ink shrink-0 mt-0.5" strokeWidth={1.75} />
           <div>
             <p className="text-xs font-semibold text-foreground mb-1">
               Production Variability &amp; Unexpected Delays
@@ -136,18 +137,18 @@ export default function ShippingSection({
         </div>
 
         {/* Embroidery Stitch Count Policy */}
-        <div className="flex gap-3 rounded-2xl bg-secondary border border-border px-4 py-3.5">
+        <div className="flex gap-3 rounded-2xl bg-muted border border-border px-4 py-3.5">
           <Scissors className="h-4 w-4 text-foreground/70 shrink-0 mt-0.5" strokeWidth={1.75} />
           <div>
             <p className="text-xs font-semibold text-foreground mb-1">
               🧵 Embroidery Stitch Count Policy
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              All pricing is based on standard stitch estimates per location (e.g., left chest ≈ 7,000 stitches). If your design's actual stitch count differs significantly from the estimated range, we'll review it after receiving your file.
+              All pricing is based on standard stitch estimates per location (e.g., left chest ≈ 7,000 stitches). If your design&apos;s actual stitch count differs significantly from the estimated range, we&apos;ll review it after receiving your file.
             </p>
             <ul className="text-xs text-muted-foreground leading-relaxed mt-2 space-y-1 list-disc pl-4">
               <li>Minor variations (within ~15%) are covered by the listed price.</li>
-              <li>Major differences (typically 20% or more above the range) may require a price adjustment before production. We'll contact you first if any change is needed — no surprises.</li>
+              <li>Major differences (typically 20% or more above the range) may require a price adjustment before production. We&apos;ll contact you first if any change is needed — no surprises.</li>
             </ul>
           </div>
         </div>
@@ -187,7 +188,7 @@ export default function ShippingSection({
         <button
           onClick={onBack}
           disabled={processing || loading}
-          className="w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full flex items-center justify-center gap-1.5 py-3 rounded-2xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="h-4 w-4" />
           Back to address

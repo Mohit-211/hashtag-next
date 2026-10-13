@@ -65,17 +65,17 @@ export default function ImageCropDialog({
   return (
     <Dialog open={!!file} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent
-        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl bg-white p-0 shadow-2xl ring-0 sm:max-w-xl"
+        className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-xl flex-col gap-0 overflow-hidden rounded-2xl bg-card p-0 shadow-2xl ring-0 sm:max-w-xl"
         showCloseButton={false}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-[#EFEFEF] px-5 py-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#111111] text-[#E8D03A]">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-5 py-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground text-primary">
             <CropIcon size={16} />
           </span>
           <div className="min-w-0 flex-1">
-            <DialogTitle className="text-base font-semibold text-[#111111]">Crop image</DialogTitle>
-            <DialogDescription className="truncate text-xs text-[#6B7280]">
+            <DialogTitle className="text-base font-semibold text-foreground">Crop image</DialogTitle>
+            <DialogDescription className="truncate text-xs text-muted-foreground">
               {file ? file.name : "Drag to reposition, scroll or use the slider to zoom."}
             </DialogDescription>
           </div>
@@ -83,7 +83,7 @@ export default function ImageCropDialog({
             type="button"
             onClick={onCancel}
             aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[#6B7280] transition-colors hover:bg-[#F3F3F0] hover:text-[#111111]"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X size={16} />
           </button>
@@ -152,8 +152,8 @@ function CropEditor({
   };
 
   const iconBtn =
-    "flex h-9 w-9 items-center justify-center rounded-lg border border-[#E5E5E5] bg-white text-[#111111] transition-colors hover:border-[#111111] disabled:opacity-40 disabled:hover:border-[#E5E5E5]";
-  const label = "text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B7280]";
+    "flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:border-foreground disabled:opacity-40 disabled:hover:border-border";
+  const label = "text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground";
 
   return (
     <>
@@ -173,15 +173,15 @@ function CropEditor({
             onRotationChange={setRotation}
             onCropComplete={(_, px) => setArea(px)}
             onMediaLoaded={(m) => setNaturalAspect(m.naturalWidth / m.naturalHeight || 1)}
-            style={{ cropAreaStyle: { border: "2px solid #E8D03A", color: "rgba(0,0,0,0.6)" } }}
+            style={{ cropAreaStyle: { border: "2px solid var(--color-primary)", color: "color-mix(in srgb, var(--color-foreground) 60%, transparent)" } }}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-white/70">
+          <div className="flex h-full items-center justify-center text-background/70">
             <Loader2 size={22} className="animate-spin" />
           </div>
         )}
         {area && (
-          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white/90 tabular-nums backdrop-blur-sm">
+          <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-foreground/60 px-2.5 py-1 text-[11px] font-medium text-background/90 tabular-nums backdrop-blur-sm">
             {Math.round(area.width)} × {Math.round(area.height)} px
           </span>
         )}
@@ -191,7 +191,7 @@ function CropEditor({
       <div className="flex shrink-0 flex-col gap-4 px-5 py-4">
         <div className="flex flex-col gap-2">
           <span className={label}>Shape</span>
-          <div className="grid grid-cols-4 gap-1 rounded-xl bg-[#F3F3F0] p-1">
+          <div className="grid grid-cols-4 gap-1 rounded-xl bg-muted p-1">
             {ASPECTS.map((a) => {
               const active = aspect === a.value;
               const ratio = a.value ?? naturalAspect;
@@ -206,12 +206,12 @@ function CropEditor({
                   aria-pressed={active}
                   className={cn(
                     "flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all",
-                    active ? "bg-[#111111] text-[#E8D03A] shadow-sm" : "text-[#444] hover:bg-white hover:text-[#111111]"
+                    active ? "bg-foreground text-primary shadow-sm" : "text-foreground hover:bg-card hover:text-foreground"
                   )}
                 >
                   <span
                     aria-hidden
-                    className={cn("rounded-[3px] border-[1.5px]", active ? "border-[#E8D03A]" : "border-current")}
+                    className={cn("rounded-[3px] border-[1.5px]", active ? "border-primary" : "border-current")}
                     style={{ width: w, height: h }}
                   />
                   {a.label}
@@ -225,7 +225,7 @@ function CropEditor({
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className={label}>Zoom</span>
-              <span className="text-xs font-semibold text-[#111111] tabular-nums">{Math.round(zoom * 100)}%</span>
+              <span className="text-xs font-semibold text-foreground tabular-nums">{Math.round(zoom * 100)}%</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -245,7 +245,7 @@ function CropEditor({
                 value={zoom}
                 onChange={(e) => setZoom(clampZoom(Number(e.target.value)))}
                 aria-label="Zoom"
-                className="h-1.5 flex-1 cursor-pointer accent-[#111111]"
+                className="h-1.5 flex-1 cursor-pointer accent-foreground"
               />
               <button
                 type="button"
@@ -284,7 +284,7 @@ function CropEditor({
                 type="button"
                 onClick={reset}
                 disabled={isPristine}
-                className="h-9 rounded-lg px-3 text-xs font-semibold text-[#444] transition-colors hover:bg-[#F3F3F0] hover:text-[#111111] disabled:opacity-40 disabled:hover:bg-transparent"
+                className="h-9 rounded-lg px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 Reset
               </button>
@@ -294,8 +294,8 @@ function CropEditor({
       </div>
 
       {/* Footer */}
-      <div className="flex shrink-0 items-center gap-3 border-t border-[#EFEFEF] bg-[#FAFAF7] px-5 py-3.5">
-        <p className="hidden min-w-0 flex-1 truncate text-xs text-[#6B7280] sm:block">
+      <div className="flex shrink-0 items-center gap-3 border-t border-border bg-muted px-5 py-3.5">
+        <p className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground sm:block">
           Only the highlighted area will be printed.
         </p>
         <div className="flex flex-1 gap-2 sm:flex-none">
@@ -303,7 +303,7 @@ function CropEditor({
             type="button"
             onClick={onCancel}
             disabled={saving}
-            className="h-11 flex-1 rounded-lg border border-[#E5E5E5] bg-white px-5 text-sm font-semibold text-[#111111] transition-colors hover:border-[#111111] disabled:opacity-50 sm:flex-none"
+            className="h-11 flex-1 rounded-lg border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:border-foreground disabled:opacity-50 sm:flex-none"
           >
             Cancel
           </button>
@@ -311,7 +311,7 @@ function CropEditor({
             type="button"
             onClick={handleSave}
             disabled={saving || !area}
-            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-[#111111] px-6 text-sm font-bold text-[#E8D03A] transition-transform hover:bg-black active:scale-[0.98] disabled:opacity-50 sm:flex-none"
+            className="flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-foreground px-6 text-sm font-bold text-primary transition-transform hover:bg-foreground/85 active:scale-[0.98] disabled:opacity-50 sm:flex-none"
           >
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
             {saving ? "Saving…" : "Save"}

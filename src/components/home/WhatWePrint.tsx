@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { X } from "lucide-react";
-import CategoryCard, { resolveImageSrc } from "@/components/common/CategoryCard";
+import CategoryCard from "@/components/common/CategoryCard";
+import { resolveImageSrc } from "@/lib/images";
 import { IndustryApi } from "@/api/operations/product.api";
-import type { ParentCategory } from "@/data/types";
+import type { ParentCategory, RawIndustry } from "@/data/types";
 
 interface UseCase {
   id: number;
@@ -20,7 +21,7 @@ interface Industry {
   id: number | string;
   slug: string;
   title: string;
-  image: string;
+  image?: string;
   productsCount?: number;
   use_cases?: UseCase[];
 }
@@ -40,8 +41,8 @@ export default function WhatWePrint() {
         setLoading(true);
         const res = await IndustryApi({ page: 1, limit: 20 });
 
-        const raw: any[] = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
-        const items: Industry[] = raw.map((ind: any) => ({
+        const raw: RawIndustry[] = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
+        const items: Industry[] = raw.map((ind) => ({
           id: ind.id,
           slug: ind.slug ?? "",
           title: ind.title ?? ind.name ?? "",
@@ -49,14 +50,14 @@ export default function WhatWePrint() {
           productsCount: ind.product_count ?? ind.productsCount ?? ind.count ?? undefined,
           use_cases: Array.isArray(ind.use_cases)
             ? ind.use_cases
-                .filter((uc: any) => uc?.is_active !== false)
-                .map((uc: any) => ({
+                .filter((uc) => uc?.is_active !== false)
+                .map((uc) => ({
                   id: uc.id,
                   title: uc.title ?? uc.name ?? "",
                   slug: uc.slug ?? "",
                   image: uc.image,
                   parent_categories: Array.isArray(uc.parent_categories)
-                    ? uc.parent_categories.map((p: any) => ({
+                    ? uc.parent_categories.map((p) => ({
                         id: p.id,
                         title: p.title ?? p.name ?? "",
                         slug: p.slug ?? "",
@@ -159,7 +160,6 @@ export default function WhatWePrint() {
                 <CategoryCard
                   image={cat.image}
                   title={cat.title}
-                  count={cat.productsCount ?? 0}
                 />
               </button>
             ))}
@@ -283,12 +283,12 @@ function IndustryUseCaseModal({ industry, onClose, onViewAll, onConfirm }: Indus
       <style>{`
         .wwp-modal-backdrop {
           position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
-          padding: 20px; background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+          padding: 20px; background: color-mix(in srgb, var(--color-foreground) 45%, transparent); backdrop-filter: blur(4px);
         }
         .wwp-modal-panel {
           width: 100%; max-width: 440px; max-height: 82vh; display: flex; flex-direction: column;
-          background: var(--color-background, #fff); border-radius: 18px; overflow: hidden;
-          box-shadow: 0 12px 48px rgba(0,0,0,0.22);
+          background: var(--color-card); border-radius: 18px; overflow: hidden;
+          box-shadow: 0 12px 48px color-mix(in srgb, var(--color-foreground) 22%, transparent);
         }
         .wwp-modal-header {
           display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
@@ -296,7 +296,7 @@ function IndustryUseCaseModal({ industry, onClose, onViewAll, onConfirm }: Indus
         }
         .wwp-modal-eyebrow {
           font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-          color: var(--color-primary); margin-bottom: 4px;
+          color: var(--color-primary-ink); margin-bottom: 4px;
         }
         .wwp-modal-title { font-size: 19px; font-weight: 700; color: var(--color-foreground); line-height: 1.25; }
         .wwp-modal-close {
@@ -304,14 +304,14 @@ function IndustryUseCaseModal({ industry, onClose, onViewAll, onConfirm }: Indus
           border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-muted-foreground);
           transition: background .15s ease, color .15s ease;
         }
-        .wwp-modal-close:hover { background: var(--color-secondary); color: var(--color-foreground); }
+        .wwp-modal-close:hover { background: var(--color-muted); color: var(--color-foreground); }
         .wwp-modal-body { padding: 14px 20px 20px; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
         .wwp-modal-viewall {
-          width: 100%; text-align: left; font-size: 13.5px; font-weight: 600; color: var(--color-primary-foreground, #fff);
+          width: 100%; text-align: left; font-size: 13.5px; font-weight: 600; color: var(--color-primary-foreground);
           background: var(--color-primary); padding: 12px 14px; border-radius: 10px; margin-bottom: 14px;
           transition: opacity .15s ease;
         }
-        .wwp-modal-viewall:hover { opacity: 0.9; }
+        .wwp-modal-viewall:hover { background: var(--color-primary-hover); }
         .wwp-modal-selectall {
           display: flex; align-items: center; gap: 9px; width: 100%; cursor: pointer;
           font-size: 12.5px; font-weight: 600; color: var(--color-foreground);
@@ -323,11 +323,11 @@ function IndustryUseCaseModal({ industry, onClose, onViewAll, onConfirm }: Indus
           font-size: 13.5px; font-weight: 500; color: var(--color-foreground); padding: 11px 14px; border-radius: 10px;
           border: 1px solid var(--color-border); transition: background .15s ease, border-color .15s ease;
         }
-        .wwp-modal-usecase-row:hover { background: var(--color-secondary); border-color: var(--color-primary); }
-        .wwp-modal-selectall input, .wwp-modal-usecase-row input { accent-color: var(--color-primary); width: 16px; height: 16px; flex-shrink: 0; }
+        .wwp-modal-usecase-row:hover { background: var(--color-muted); border-color: var(--color-primary-ink); }
+        .wwp-modal-selectall input, .wwp-modal-usecase-row input { accent-color: var(--color-foreground); width: 16px; height: 16px; flex-shrink: 0; }
         .wwp-modal-usecase-thumb {
           position: relative; width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px; overflow: hidden;
-          background: var(--color-secondary);
+          background: var(--color-muted);
         }
         .wwp-modal-footer {
           display: flex; align-items: center; justify-content: flex-end; gap: 10px;
@@ -337,12 +337,12 @@ function IndustryUseCaseModal({ industry, onClose, onViewAll, onConfirm }: Indus
           font-size: 13.5px; font-weight: 500; color: var(--color-muted-foreground); padding: 9px 14px; border-radius: 10px;
           transition: color .15s ease, background .15s ease;
         }
-        .wwp-modal-cancel:hover { color: var(--color-foreground); background: var(--color-secondary); }
+        .wwp-modal-cancel:hover { color: var(--color-foreground); background: var(--color-muted); }
         .wwp-modal-confirm {
-          font-size: 13.5px; font-weight: 600; color: var(--color-primary-foreground, #fff); background: var(--color-primary);
+          font-size: 13.5px; font-weight: 600; color: var(--color-primary-foreground); background: var(--color-primary);
           padding: 10px 18px; border-radius: 10px; transition: opacity .15s ease;
         }
-        .wwp-modal-confirm:hover { opacity: 0.9; }
+        .wwp-modal-confirm:hover { background: var(--color-primary-hover); }
         .wwp-modal-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
       `}</style>
     </div>

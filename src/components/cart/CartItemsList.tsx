@@ -80,15 +80,6 @@ export default function CartItemsList({ items, onRefresh }: Props) {
 
   const totalItems = items.reduce((acc, i) => acc + i.quantity, 0);
 
-  // ★ NEW — handling charges are now shown per-item in CartItem.tsx.
-  // This cart-level line is the SUM of every item's own handling charge
-  // (each item can carry a different amount), only counting items whose
-  // charge is > 1 — consistent with the per-item display threshold.
-  const totalHandlingCharge = items.reduce((sum, i) => {
-    const amt = i.pricing_snapshot?.handling_charge?.amount ?? 0;
-    return amt > 1 ? sum + amt : sum;
-  }, 0);
-
   return (
     <div className="lg:col-span-2 space-y-4">
       <div className="flex items-baseline justify-between">
@@ -101,7 +92,7 @@ export default function CartItemsList({ items, onRefresh }: Props) {
       </div>
 
       {/* {totalHandlingCharge > 1 && (
-        <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-700">
+        <div className="flex items-center justify-between rounded-lg border border-primary bg-primary-soft px-4 py-2.5 text-xs font-semibold text-primary-ink">
           <span>Total Handling Charges</span>
           <span>${totalHandlingCharge.toFixed(2)}</span>
         </div>

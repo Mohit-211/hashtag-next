@@ -1,8 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo } from "react";
-import DOMPurify from "dompurify";
 import type { ManualMeta } from "@/components/product/customization/Productcustomizationpage";
+import { formatMoney } from "@/components/product/customization/pricing";
 import ProductOptionGroup, { resolveDisplayStyle, type OptionGroupValue } from "@/components/product/ProductOptionGroup";
 
 interface VariantImage {
@@ -39,24 +40,20 @@ export interface ManualOptionGroup {
   displayStyle?: string | null;
 }
 
-const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
+const money = (n: number) => `$${formatMoney(Number(n))}`;
 
 export default function ProductInfo({
   name,
   price,
-  description,
   variants = [],
   sizes = [],
   selectedColor,
   selectedSize,
   onColorChange,
   onSizeChange,
-  variantStock,
-  variantSku,
-  variantLoading,
   brandName,
   brandLogo,
-  tagline = "Premium Apparel",
+  tagline = null,
   manualOptions,
   selectedOptions = {},
   onOptionChange,
@@ -64,16 +61,12 @@ export default function ProductInfo({
 }: {
   name: string;
   price: number;
-  description?: string;
   variants: Variant[];
   sizes: Size[];
   selectedColor: string | null;
   selectedSize: Size | null;
   onColorChange: (color: string) => void;
   onSizeChange: (size: Size) => void;
-  variantStock?: number | null;
-  variantSku?: string | null;
-  variantLoading?: boolean;
   brandName?: string | null;
   brandLogo?: string | null;
   /** Eyebrow above the title; null hides it. */
@@ -92,7 +85,7 @@ const colors = useMemo(() => {
       const code =
         v?.color_code ||
         v?.color?.split(/[\/,\s]+/)[0]?.trim().toLowerCase() ||
-        "#ccc";
+        "var(--color-muted)";
       map.set(v?.color, code);
     }
   });
@@ -115,30 +108,33 @@ const colors = useMemo(() => {
         {brandName && (
           <div className="flex items-center gap-2 mb-3">
             {brandLogo ? (
-              <img
+              <Image
                 src={brandLogo}
                 alt={brandName}
-                className="w-7 h-7 rounded-md object-contain border border-[#E5E5E5] bg-white p-0.5"
+                width={28}
+                height={28}
+                unoptimized
+                className="w-7 h-7 rounded-md object-contain border border-border bg-card p-0.5"
               />
             ) : (
-              <span className="w-7 h-7 rounded-md border border-[#E5E5E5] bg-[#F5F5F5] flex items-center justify-center text-[10px] font-bold text-[#888] uppercase tracking-wide select-none">
+              <span className="w-7 h-7 rounded-md border border-border bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground uppercase tracking-wide select-none">
                 {brandName.slice(0, 2)}
               </span>
             )}
-            <span className="text-[13px] font-semibold text-[#444] tracking-tight">
+            <span className="text-[13px] font-semibold text-foreground tracking-tight">
               {brandName}
             </span>
           </div>
         )}
 
         {tagline && (
-          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#CFAF2E]">
-            <span className="w-4 h-px bg-[#CFAF2E]" />
+          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-primary-ink">
+            <span className="w-4 h-px bg-primary" />
             {tagline}
           </span>
         )}
 
-        <h1 className="mt-2 text-[2rem] leading-[1.15] font-bold text-[#111111]">
+        <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl">
           {name}
         </h1>
       </div>
@@ -146,29 +142,29 @@ const colors = useMemo(() => {
       {/* Price */}
       {manualPricing?.pricing_mode === "quantity_fixed" ? (
         <div className="flex items-baseline gap-2">
-          <p className="text-[2rem] font-bold text-[#111111]">
+          <p className="text-3xl font-bold tabular-nums text-foreground">
             {money(manualPricing.quantity_pricing[0].price)}
           </p>
-          <p className="text-sm font-medium text-[#6B7280]">
+          <p className="text-sm font-medium text-muted-foreground">
             for {manualPricing.quantity_pricing[0].quantity} pcs
           </p>
         </div>
       ) : manualPricing?.pricing_mode === "tiered" ? (
         <div className="flex items-baseline gap-2">
-          <p className="text-sm font-medium text-[#6B7280]">From</p>
-          <p className="text-[2rem] font-bold text-[#111111]">
+          <p className="text-sm font-medium text-muted-foreground">From</p>
+          <p className="text-3xl font-bold tabular-nums text-foreground">
             {money(Math.min(...manualPricing.bulk_pricing.map((t) => t.price)))}
           </p>
-          <p className="text-sm font-medium text-[#6B7280]">/ pc</p>
+          <p className="text-sm font-medium text-muted-foreground">/ pc</p>
         </div>
       ) : (
         <div className="flex items-baseline gap-3">
-          <p className="text-[2rem] font-bold text-[#111111]">${price}</p>
+          <p className="text-3xl font-bold tabular-nums text-foreground">{money(price)}</p>
         </div>
       )}
 
 
-      <div className="h-px bg-[#E5E5E5]" />
+      <div className="h-px bg-muted" />
 
       {/* MANUAL option groups (Pages / Size / Color …) */}
       {!!manualOptions?.length && (
@@ -195,10 +191,10 @@ const colors = useMemo(() => {
       {!manualOptions && colors?.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Color
             </p>
-            <p className="text-sm font-semibold text-[#111111]">
+            <p className="text-sm font-semibold text-foreground">
               {selectedColor || "Select a color"}
             </p>
           </div>
@@ -213,23 +209,33 @@ const colors = useMemo(() => {
               const background =
                 colorCodes?.length > 1
                   ? `linear-gradient(135deg, ${colorCodes.join(",")})`
-                  : colorCodes?.[0] || "#ccc";
+                  : colorCodes?.[0] || "var(--color-muted)";
 
               return (
                 <button
                   key={item.color}
                   title={item.color}
                   onClick={() => onColorChange(item.color)}
-                  className={`relative w-10 h-10 rounded-full  transition-all duration-200 hover:scale-110 ${selectedColor === item.color
-                      ? " scale-105"
-                      : "border-[#E5E5E5]"
-                    }`}
+                  type="button"
+                  aria-label={item.color}
+                  aria-pressed={selectedColor === item.color}
+                  className={`relative h-10 w-10 rounded-full transition-all duration-200 hover:scale-110 ${
+                    selectedColor === item.color ? "scale-105" : ""
+                  }`}
                   style={{
                     background:
                       colorCodes?.length > 1 ? background : undefined,
                     backgroundColor:
                       colorCodes?.length === 1 ? colorCodes[0] : undefined,
-                    boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
+                    // Hairline keeps white swatches visible; the selected one also gets an offset ring
+                    // (done here because an inline box-shadow would override Tailwind's ring utilities).
+                    boxShadow: [
+                      "inset 0 0 0 1px color-mix(in srgb, var(--color-foreground) 12%, transparent)",
+                      selectedColor === item.color &&
+                        "0 0 0 2px var(--color-background), 0 0 0 4px var(--color-foreground)",
+                    ]
+                      .filter(Boolean)
+                      .join(", "),
                   }}
                 />
               );
@@ -242,7 +248,7 @@ const colors = useMemo(() => {
       {!manualOptions && sizes?.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Size
             </p>
           </div>
@@ -258,10 +264,10 @@ const colors = useMemo(() => {
                   onClick={() => available && onSizeChange(size)}
                   disabled={!available}
                   className={`min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 ${isActive
-                    ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
+                    ? "bg-foreground text-primary border-foreground"
                     : available
-                      ? "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
-                      : "bg-[#F5F5F5] text-[#BDBDBD] border-[#E5E5E5] cursor-not-allowed line-through"
+                      ? "bg-card text-foreground border-border hover:border-primary hover:bg-primary-soft"
+                      : "bg-muted text-muted-foreground border-border cursor-not-allowed line-through"
                     }`}
                 >
                   {size.name}
@@ -271,7 +277,7 @@ const colors = useMemo(() => {
           </div>
 
           {selectedColor && availableSizeIds.size === 0 && (
-            <p className="text-xs text-[#C0392B] font-medium mt-3">
+            <p className="text-xs text-destructive font-medium mt-3">
               No sizes available for this color.
             </p>
           )}

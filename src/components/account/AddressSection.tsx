@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, MapPin, Pencil, Trash2, Loader2, X, CircleDot } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { message } from "antd";
+import { toast } from "sonner";
 import AddressForm from "./AddressForm";
 import { useAddresses, Address, AddressFormData } from "@/hooks/useAddresses";
 
@@ -62,7 +62,7 @@ export default function AddressSection({
   useEffect(() => {
     fetchAddresses().then((list) => {
       if (mode === "select" && list.length > 0 && !selectedAddressId) {
-        const def = list.find((a: { isDefault: any; }) => a.isDefault) ?? list[0];
+        const def = list.find((a) => a.isDefault) ?? list[0];
         setSelectedAddressId?.(def.id);
       }
     });
@@ -91,7 +91,7 @@ export default function AddressSection({
     const { success, list } = await saveAddress(data, editingAddress?.id);
     if (success) {
       if (mode === "manage") {
-        message.success(editingAddress ? "Address updated" : "Address added");
+        toast.success(editingAddress ? "Address updated" : "Address added");
       } else {
         const target = editingAddress?.id ?? list[list.length - 1]?.id;
         if (target) setSelectedAddressId?.(target);
@@ -113,7 +113,7 @@ export default function AddressSection({
   const handleDelete = async (id: number) => {
     const ok = await deleteAddress(id);
     if (ok) {
-      if (mode === "manage") message.success("Address deleted successfully");
+      if (mode === "manage") toast.success("Address deleted successfully");
       if (selectedAddressId === id) setSelectedAddressId?.(null);
     }
     // On failure, the axios response interceptor already toasted the reason.
@@ -126,7 +126,7 @@ export default function AddressSection({
 
     const ok = await setDefaultAddress(addr);
     // On failure, the axios response interceptor already toasted the reason.
-    if (mode === "manage" && ok) message.success("Default address updated");
+    if (mode === "manage" && ok) toast.success("Default address updated");
   };
 
   const isSelect = mode === "select";
@@ -135,25 +135,25 @@ export default function AddressSection({
     <div
       className={
         isSelect
-          ? "bg-white border border-[#E0DFDB] border-t-[3px] border-t-[#F5D800]"
+          ? "bg-card border border-border border-t-[3px] border-t-primary"
           : "p-6 border rounded-xl space-y-5"
       }
     >
       {/* ---------- Header ---------- */}
       {isSelect ? (
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#E0DFDB]">
-          <div className="h-10 w-10 bg-[#F5D800] flex items-center justify-center shrink-0 rounded-sm">
-            <MapPin className="h-5 w-5 text-[#1A1A1A]" />
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+          <div className="h-10 w-10 bg-primary flex items-center justify-center shrink-0 rounded-sm">
+            <MapPin className="h-5 w-5 text-foreground" />
           </div>
           <div className="flex-1">
-            <h2 className="font-condensed font-bold text-lg uppercase tracking-wide text-[#1A1A1A]">
+            <h2 className="font-bold text-lg uppercase tracking-wide text-foreground">
               Delivery Address
             </h2>
-            <p className="text-xs text-[#6B6B6B] mt-0.5">Select where to ship your order</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Select where to ship your order</p>
           </div>
           <button
             onClick={openAdd}
-            className="flex items-center gap-1.5 bg-[#F5D800] hover:bg-[#E8CE00] text-[#1A1A1A] font-condensed font-bold text-xs uppercase tracking-widest px-3 py-2 rounded-sm transition-colors"
+            className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-foreground font-bold text-xs uppercase tracking-widest px-3 py-2 rounded-sm transition-colors"
           >
             <Plus className="h-3.5 w-3.5" /> New Address
           </button>
@@ -196,8 +196,8 @@ export default function AddressSection({
         {/* ---------- Loading ---------- */}
         {loading && isSelect && (
           <div className="flex flex-col items-center py-14">
-            <Loader2 className="h-8 w-8 animate-spin text-[#1A1A1A]" />
-            <p className="mt-3 font-condensed font-bold text-xs uppercase tracking-widest text-[#6B6B6B]">
+            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+            <p className="mt-3 font-bold text-xs uppercase tracking-widest text-muted-foreground">
               Loading addresses...
             </p>
           </div>
@@ -207,11 +207,11 @@ export default function AddressSection({
         {!loading && addresses.length === 0 && !showForm && (
           isSelect ? (
             <div className="text-center py-10">
-              <MapPin className="h-8 w-8 mx-auto mb-2 text-[#CDCCC8]" />
-              <p className="font-condensed font-bold uppercase tracking-wide text-[#9A9A9A]">
+              <MapPin className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="font-bold uppercase tracking-wide text-muted-foreground">
                 No saved addresses
               </p>
-              <p className="text-sm text-[#9A9A9A] mt-1">Add an address to continue</p>
+              <p className="text-sm text-muted-foreground mt-1">Add an address to continue</p>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 rounded-lg border border-dashed gap-3">
@@ -238,12 +238,12 @@ export default function AddressSection({
                 isSelect ? "cursor-pointer" : ""
               } ${
                 (isSelect ? selectedAddressId === addr.id : addr.isDefault)
-                  ? "border-blue-400/70 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]"
+                  ? "border-foreground ring-1 ring-foreground"
                   : "border-border hover:border-border/80 hover:shadow-sm"
               } ${deletingId === addr.id ? "opacity-50 scale-[0.99]" : ""}`}
             >
               <div className="flex items-start gap-3">
-                <div className="h-9 w-9 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center text-xs font-semibold font-mono shrink-0 select-none">
+                <div className="h-9 w-9 rounded-full bg-muted text-foreground flex items-center justify-center text-xs font-semibold font-mono shrink-0 select-none">
                   {getInitials(addr.fullName)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -252,7 +252,7 @@ export default function AddressSection({
                       {addr.fullName}
                     </span>
                     {addr.isDefault && (
-                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200 leading-tight">
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-foreground border border-input leading-tight">
                         Default
                       </span>
                     )}
@@ -302,7 +302,7 @@ export default function AddressSection({
                   <button
                     onClick={(e) => handleSetDefault(e, addr)}
                     disabled={savingId === addr.id}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border text-muted-foreground hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border text-muted-foreground hover:text-foreground hover:bg-muted hover:border-input transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <CircleDot className="h-3 w-3" />
                     {savingId === addr.id ? "Updating..." : "Set default"}
@@ -315,7 +315,7 @@ export default function AddressSection({
                     requestDelete(addr.id);
                   }}
                   disabled={deletingId === addr.id}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border text-muted-foreground hover:text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border text-muted-foreground hover:text-destructive hover:bg-destructive-soft hover:border-destructive/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="h-3 w-3" />
                   {deletingId === addr.id ? "Deleting..." : "Delete"}
@@ -331,7 +331,7 @@ export default function AddressSection({
     <button
       type="button"
       onClick={() => window.history.back()} // or router.push("/cart")
-      className="flex-1 py-3.5 border border-[#1A1A1A] bg-white hover:bg-gray-100 text-[#1A1A1A] font-condensed font-bold text-base uppercase tracking-widest rounded-sm transition-colors"
+      className="flex-1 py-3.5 border border-foreground bg-card hover:bg-muted text-foreground font-bold text-base uppercase tracking-widest rounded-sm transition-colors"
     >
       ← Back to Cart
     </button>
@@ -339,7 +339,7 @@ export default function AddressSection({
     <button
       onClick={onContinue}
       disabled={!selectedAddressId || continueLoading}
-      className="flex-1 py-3.5 bg-[#F5D800] hover:bg-[#E8CE00] text-[#1A1A1A] font-condensed font-bold text-base uppercase tracking-widest rounded-sm disabled:bg-[#F5F4F0] disabled:text-[#CDCCC8] disabled:cursor-not-allowed transition-colors"
+      className="flex-1 py-3.5 bg-primary hover:bg-primary-hover text-foreground font-bold text-base uppercase tracking-widest rounded-sm disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
     >
       {continueLoading ? "Please wait..." : "Continue to Shipping →"}
     </button>
@@ -349,18 +349,28 @@ export default function AddressSection({
 
       {/* ---------- Modal form (select mode only) ---------- */}
       {isSelect && showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white w-full max-w-md rounded-sm border border-[#E0DFDB]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#E0DFDB]">
-              <h3 className="font-condensed font-bold text-lg uppercase tracking-wide text-[#1A1A1A]">
-                {editingAddress ? "Edit Address" : "New Address"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="address-dialog-title"
+            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-card shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h3 id="address-dialog-title" className="text-lg font-bold text-foreground">
+                {editingAddress ? "Edit address" : "New delivery address"}
               </h3>
-              <button onClick={closeForm}>
-                <X className="h-5 w-5 text-[#6B6B6B]" />
+              <button
+                onClick={closeForm}
+                aria-label="Close"
+                className="-mr-1 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-5">
+            <div className="overflow-y-auto px-6 py-5">
               <AddressForm
+                bare
                 formData={formData}
                 setFormData={setFormData}
                 onSave={handleSaveAddress}
@@ -375,23 +385,21 @@ export default function AddressSection({
 
       {/* ---------- Delete confirm (select mode only) ---------- */}
       {isSelect && deleteTargetId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white w-full max-w-sm rounded-sm border border-[#E0DFDB] p-5">
-            <h3 className="font-condensed font-bold text-lg uppercase tracking-wide text-[#1A1A1A]">
-              Delete this address?
-            </h3>
-            <p className="text-sm text-[#6B6B6B] mt-2">This can't be undone.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 px-4">
+          <div role="alertdialog" aria-modal="true" className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-foreground">Delete this address?</h3>
+            <p className="text-sm text-muted-foreground mt-2">This can&apos;t be undone.</p>
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => setDeleteTargetId(null)}
-                className="flex-1 py-3 border border-[#E0DFDB] font-condensed font-bold text-xs uppercase tracking-widest rounded-sm"
+                className="h-11 flex-1 rounded-lg border border-input text-sm font-semibold transition hover:bg-muted"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteTargetId)}
                 disabled={deletingId === deleteTargetId}
-                className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-condensed font-bold text-xs uppercase tracking-widest rounded-sm disabled:opacity-60"
+                className="h-11 flex-1 rounded-lg bg-destructive text-sm font-semibold text-background transition hover:bg-destructive/90 disabled:opacity-60"
               >
                 {deletingId === deleteTargetId ? "Deleting..." : "Delete"}
               </button>

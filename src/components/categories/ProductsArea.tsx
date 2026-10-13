@@ -1,9 +1,10 @@
 "use client";
 import ProductGrid from "@/components/categories/ProductGrid";
 import EmptyProducts from "@/components/categories/EmptyProducts";
+import type { Product } from "@/data/typesproduct";
 
 interface ProductsAreaProps {
-  products: any[];
+  products: Product[];
   productGridLoading: boolean;
   productLoading: boolean;
   page: number;

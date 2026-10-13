@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import ConfirmationHeader from "@/components/confirmation/ConfirmationHeader";
 import OrderInfoCard from "@/components/confirmation/OrderInfoCard";
-import OrderedItems from "@/components/confirmation/OrderedItems";
 import PriceSummary from "@/components/confirmation/PriceSummary";
 import NextSteps from "@/components/confirmation/NextSteps";
 import ConfirmationActions from "@/components/confirmation/ConfirmationActions";
@@ -48,8 +47,6 @@ const orderId="HB00000001"
           orderDate={orderDate}
           paymentMethod={order?.paymentMethod ?? "card"}
         />
-
-        {/* <OrderedItems items={order?.items ?? []} /> */}
 
         {order && <PriceSummary order={order} />}
 

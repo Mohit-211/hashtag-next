@@ -1,49 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import ProxyImage from "../ProxyImage";
-
-interface Attachment {
-  file_uri: string;
-}
-
-export interface Product {
-  id: number | string;
-  name: string;
-  price: number | string;
-  original_price?: number | string;
-  rating?: number;
-  review_count?: number;
-  is_assured?: boolean;
-  is_sponsored?: boolean;
-  is_hot_deal?: boolean;
-  variant_label?: string;
-  attachments?: Attachment[];
-}
+import type { Product } from "@/data/typesproduct";
 
 interface ProductGridProps {
   products: Product[];
 }
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap');
 
-  :root {
-    --pg-ink:        #1a1612;
-    --pg-ink-soft:   #6b6560;
-    --pg-ink-faint:  #a09b96;
-    --pg-border:     #e8e3de;
-    --pg-bg:         #faf8f5;
-    --pg-white:      #ffffff;
-    --pg-accent:     #c8502a;
-    --pg-accent-lt:  #f5ede8;
-    --pg-green:      #2e7d32;
-    --pg-green-lt:   #f1f8f1;
-    --pg-gold:       #b45309;
-    --pg-gold-lt:    #fffbeb;
+  /* Card palette — aliases onto the design tokens in globals.css */
+  .pg-grid, .pg-empty {
+    --pg-ink:        var(--color-foreground);
+    --pg-ink-soft:   var(--color-muted-foreground);
+    --pg-ink-faint:  var(--color-muted-foreground);
+    --pg-border:     var(--color-border);
+    --pg-bg:         var(--color-background);
+    --pg-white:      var(--color-card);
+    --pg-accent:     var(--color-primary);
+    --pg-accent-ink: var(--color-primary-ink);
+    --pg-accent-lt:  var(--color-primary-soft);
+    --pg-green:      var(--color-success);
+    --pg-green-lt:   var(--color-success-soft);
+    --pg-gold:       var(--color-primary-ink);
+    --pg-gold-lt:    var(--color-primary-soft);
     --pg-radius:     12px;
-    --pg-font:       'DM Sans', system-ui, sans-serif;
   }
 
   /* ── Grid layout ── */
@@ -58,7 +40,6 @@ const styles = `
 
   /* ── Card ── */
   .pg-card {
-    font-family: var(--pg-font);
     background: var(--pg-white);
     border: 1px solid var(--pg-border);
     border-radius: var(--pg-radius);
@@ -73,9 +54,9 @@ const styles = `
     animation: pgReveal 0.35s ease both;
   }
   .pg-card:hover {
-    box-shadow: 0 8px 32px rgba(26,22,18,0.10), 0 2px 8px rgba(26,22,18,0.06);
+    box-shadow: 0 8px 32px color-mix(in srgb, var(--color-foreground) 10%, transparent), 0 2px 8px color-mix(in srgb, var(--color-foreground) 6%, transparent);
     transform: translateY(-2px);
-    border-color: #d8d3ce;
+    border-color: var(--color-input);
     z-index: 1;
   }
 
@@ -122,17 +103,16 @@ const styles = `
     border-radius: 6px;
     font-size: 10px;
     font-weight: 600;
-    font-family: var(--pg-font);
     letter-spacing: 0.02em;
     line-height: 1.4;
   }
   .pg-badge-hot {
     background: var(--pg-accent);
-    color: #fff;
+    color: var(--color-primary-foreground);
   }
   .pg-badge-sponsored {
-    background: rgba(26,22,18,0.55);
-    color: rgba(255,255,255,0.92);
+    background: color-mix(in srgb, var(--color-foreground) 55%, transparent);
+    color: var(--color-background);
     backdrop-filter: blur(4px);
     font-weight: 400;
     font-size: 10px;
@@ -146,19 +126,19 @@ const styles = `
     width: 30px;
     height: 30px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.88);
+    background: color-mix(in srgb, var(--color-card) 88%, transparent);
     backdrop-filter: blur(4px);
     border: 1px solid var(--pg-border);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    color: #ccc;
+    color: var(--color-muted-foreground);
     transition: color 0.18s, transform 0.18s, background 0.18s;
     z-index: 2;
   }
-  .pg-wish:hover { color: #e74c3c; transform: scale(1.12); background: #fff; }
-  .pg-wish.saved { color: #e74c3c; background: #fff0ef; border-color: #fcc; }
+  .pg-wish:hover { color: var(--color-foreground); transform: scale(1.12); background: var(--color-card); }
+  .pg-wish.saved { color: var(--color-foreground); background: var(--color-primary-soft); border-color: var(--color-primary); }
 
   /* ── Discount ribbon (bottom of image) ── */
   .pg-discount-ribbon {
@@ -166,11 +146,10 @@ const styles = `
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(135deg, var(--pg-green) 0%, #43a047 100%);
-    color: #fff;
+    background: var(--pg-green);
+    color: var(--color-success-foreground);
     font-size: 11px;
     font-weight: 600;
-    font-family: var(--pg-font);
     text-align: center;
     padding: 4px 0;
     letter-spacing: 0.03em;
@@ -228,8 +207,8 @@ const styles = `
     align-items: center;
     gap: 1px;
   }
-  .pg-star { color: #f59e0b; }
-  .pg-star-empty { color: #e5e7eb; }
+  .pg-star { color: var(--color-primary-ink); }
+  .pg-star-empty { color: var(--color-border); }
   .pg-review-count {
     font-size: 11px;
     color: var(--pg-ink-faint);
@@ -241,13 +220,12 @@ const styles = `
     align-items: center;
     gap: 3px;
     background: var(--pg-gold-lt);
-    border: 1px solid #fde68a;
+    border: 1px solid var(--color-primary);
     border-radius: 5px;
     padding: 2px 7px;
     font-size: 10px;
     font-weight: 600;
     color: var(--pg-gold);
-    font-family: var(--pg-font);
   }
 
   /* ── Divider ── */
@@ -291,7 +269,7 @@ const styles = `
     padding: 8px 0 0;
     font-size: 12px;
     font-weight: 500;
-    color: var(--pg-accent);
+    color: var(--pg-accent-ink);
     border-top: 1px solid var(--pg-border);
     margin: 2px -13px -14px;
     padding: 8px 13px;
@@ -309,7 +287,6 @@ const styles = `
     justify-content: center;
     padding: 80px 20px;
     gap: 10px;
-    font-family: var(--pg-font);
     color: var(--pg-ink-faint);
     background: var(--pg-white);
     border: 1px solid var(--pg-border);
@@ -350,7 +327,6 @@ function getDiscount(price: number | string, original: number | string) {
 }
 
 function ProductCard({ product, index }: { product: Product; index: number }) {
-  const [saved, setSaved] = useState(false);
   const imageUrl =
     Array.isArray(product.attachments) &&
     product.attachments.length > 0 &&
@@ -358,7 +334,6 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
       ? product.attachments[0].file_uri
       : null;
 
-  const price = formatINR(product.price);
   const original = product.price ? formatINR(product.price) : null;
   const discount = product.price
     ? getDiscount(product.price, product.price)
@@ -482,13 +457,13 @@ export default function ProductGrid({ products }: ProductGridProps) {
       <style>{styles}</style>
       {!Array.isArray(products) || products.length === 0 ? (
         <div className="pg-empty">
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#f5f0eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#c8502a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
           </div>
-          <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#1a1612", fontFamily: "var(--pg-font)" }}>No products found</p>
-          <p style={{ margin: 0, fontSize: 13, fontFamily: "var(--pg-font)" }}>Try adjusting your filters or search</p>
+          <p className="m-0 text-[15px] font-semibold text-foreground">No products found</p>
+          <p className="m-0 text-[13px]">Try adjusting your filters or search</p>
         </div>
       ) : (
         <div className="pg-grid">

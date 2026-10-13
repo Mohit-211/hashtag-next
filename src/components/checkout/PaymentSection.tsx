@@ -16,6 +16,29 @@ import {
 } from "@/api/operations/payment.api";
 import { useCart } from "@/contexts/CartContext";
 
+import { errorMessage } from "@/lib/errors";
+import type { SquareCashAppPay, SquarePaymentMethod, SquarePayments } from "./square.types";
+
+const SQUARE_SDK_SANDBOX = "https://sandbox.web.squarecdn.com/v1/square.js";
+const SQUARE_SDK_PRODUCTION = "https://web.squarecdn.com/v1/square.js";
+
+/** Injects square.js once; resolves when it has loaded (immediately if it already has). */
+const loadSquareSdk = (src: string) =>
+  new Promise<void>((resolve, reject) => {
+    const existing = document.getElementById("square-sdk") as HTMLScriptElement | null;
+    if (existing) {
+      if (window.Square) return resolve();
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener("error", () => reject(new Error("Square SDK failed to load")), { once: true });
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "square-sdk";
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Square SDK failed to load"));
+    document.body.appendChild(script);
+  });
 export type SquareMethod =
   | "CARD"
   | "GOOGLE_PAY"
@@ -42,14 +65,14 @@ const GoogleLogo = ({ size = 16 }: { size?: number }) => (
 
 const PayPalLogo = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24">
-    <text x="6.5" y="18.5" fontFamily="Georgia, 'Times New Roman', serif" fontWeight={700} fontSize="18" fill="#009CDE">P</text>
-    <text x="10.5" y="18.5" fontFamily="Georgia, 'Times New Roman', serif" fontWeight={700} fontSize="18" fill="#003087">P</text>
+    <text x="6.5" y="18.5" fontFamily="inherit" fontWeight={700} fontSize="18" fill="#009CDE">P</text>
+    <text x="10.5" y="18.5" fontFamily="inherit" fontWeight={700} fontSize="18" fill="#003087">P</text>
   </svg>
 );
 
 const CashAppLogo = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24">
-    <text x="12" y="17.5" textAnchor="middle" fontFamily="'DM Sans', sans-serif" fontWeight={800} fontSize="16" fill="#ffffff">$</text>
+    <text x="12" y="17.5" textAnchor="middle" fontFamily="inherit" fontWeight={800} fontSize="16" fill="#ffffff">$</text>
   </svg>
 );
 
@@ -65,15 +88,15 @@ const METHODS: {
     key: "CARD",
     label: "Credit / Debit",
     sub: "Visa, Mastercard, Amex, Discover",
-    render: (active) => <CardIcon size={16} color={active ? "#F5D800" : "#ffffff"} strokeWidth={2.25} />,
-    iconBg: "#111111",
+    render: (active) => <CardIcon size={16} className={active ? "text-primary" : "text-background"} strokeWidth={2.25} />,
+    iconBg: "var(--color-foreground)",
   },
   {
     key: "PAYPAL",
     label: "PayPal",
     sub: "Pay securely with your PayPal account",
     render: () => <PayPalLogo size={17} />,
-    iconBg: "#ffffff",
+    iconBg: "var(--color-card)",
   },
   {
     key: "CASH_APP",
@@ -87,7 +110,7 @@ const METHODS: {
     label: "Google Pay",
     sub: "Pay with your Google account",
     render: () => <GoogleLogo size={16} />,
-    iconBg: "#ffffff",
+    iconBg: "var(--color-card)",
     badge: "Fast",
   },
 ];
@@ -106,10 +129,10 @@ export default function PaymentSection({
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [selectedMethod, setSelectedMethod] = useState<SquareMethod>("CARD");
 
-  const paymentsRef = useRef<any>(null);
-  const cardRef     = useRef<any>(null);
-  const googlePayRef = useRef<any>(null);
-  const cashAppRef   = useRef<any>(null);
+  const paymentsRef  = useRef<SquarePayments | null>(null);
+  const cardRef      = useRef<SquarePaymentMethod | null>(null);
+  const googlePayRef = useRef<SquarePaymentMethod | null>(null);
+  const cashAppRef   = useRef<SquareCashAppPay | null>(null);
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -124,33 +147,40 @@ export default function PaymentSection({
     loadConfig();
   }, []);
 
+  // Load Square's SDK, then create the payments instance the widgets mount from.
   useEffect(() => {
     if (!squareConfig) return;
-    if (document.getElementById("square-sdk")) {
-      setSdkReady(true); setSquareLoading(false); return;
-    }
+    let cancelled = false;
     const isSandbox = squareConfig.applicationId.startsWith("sandbox");
-    const script = document.createElement("script");
-    script.id = "square-sdk";
-    script.src = isSandbox
-      ? "https://sandbox.web.squarecdn.com/v1/square.js"
-      : "https://web.squarecdn.com/v1/square.js";
-    script.onload  = () => { setSdkReady(true); setSquareLoading(false); };
-    script.onerror = () => { setPaymentError("Failed to load payment SDK. Please refresh."); setSquareLoading(false); };
-    document.body.appendChild(script);
+    (async () => {
+      try {
+        await loadSquareSdk(isSandbox ? SQUARE_SDK_SANDBOX : SQUARE_SDK_PRODUCTION);
+      } catch {
+        if (!cancelled) {
+          setPaymentError("Failed to load payment SDK. Please refresh.");
+          setSquareLoading(false);
+        }
+        return;
+      }
+      if (cancelled) return;
+      try {
+        if (!window.Square) throw new Error("Square SDK missing");
+        paymentsRef.current = window.Square.payments(squareConfig.applicationId, squareConfig.locationId);
+        setSdkReady(true);
+      } catch {
+        setPaymentError("Payment system initialisation failed. Please try again.");
+      } finally {
+        setSquareLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [squareConfig]);
 
   useEffect(() => {
-    if (!sdkReady || !squareConfig) return;
-    try {
-      paymentsRef.current = (window as any).Square.payments(squareConfig.applicationId, squareConfig.locationId);
-    } catch {
-      setPaymentError("Payment system initialisation failed. Please try again.");
-    }
-  }, [sdkReady, squareConfig]);
-
-  useEffect(() => {
-    if (!paymentsRef.current) return;
+    const payments = paymentsRef.current;
+    if (!payments) return;
     const cleanup = async () => {
       for (const ref of [cardRef, googlePayRef, cashAppRef]) {
         if (ref.current) { try { await ref.current.destroy(); } catch {} ref.current = null; }
@@ -160,21 +190,21 @@ export default function PaymentSection({
       await cleanup(); setPaymentError(null);
       try {
         if (selectedMethod === "CARD") {
-          const card = await paymentsRef.current.card();
-          await card?.attach("#sq-card-container");
+          const card = await payments.card();
+          await card.attach("#sq-card-container");
           cardRef.current = card;
         } else if (selectedMethod === "GOOGLE_PAY") {
-          const req = paymentsRef.current.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
-          try { const gp = await paymentsRef.current.googlePay(req); await gp.attach("#sq-google-pay-button"); googlePayRef.current = gp; }
+          const req = payments.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
+          try { const gp = await payments.googlePay(req); await gp.attach("#sq-google-pay-button"); googlePayRef.current = gp; }
           catch { setPaymentError("Google Pay is not available on this device / browser."); }
         } else if (selectedMethod === "CASH_APP") {
-          const req = paymentsRef.current.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
+          const req = payments.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
           try {
-            const cashApp = await paymentsRef.current.cashAppPay(req, {
+            const cashApp = await payments.cashAppPay(req, {
               redirectURL: window.location.href,
               referenceId: `order-${Date.now()}`,
             });
-            cashApp.addEventListener("ontokenization", async (event: any) => {
+            cashApp.addEventListener("ontokenization", async (event) => {
               const { tokenResult } = event?.detail || {};
               if (tokenResult?.status === "OK" && tokenResult?.token) {
                 // Destroy the widget (it manages its own overlay/modal DOM)
@@ -188,7 +218,7 @@ export default function PaymentSection({
                 onPlaceOrder(tokenResult.token, "CASH_APP");
               } else {
                 setPaymentError(
-                  tokenResult?.errors?.map((e: any) => e.message).join(", ") ||
+                  tokenResult?.errors?.map((e) => e.message).join(", ") ||
                     "Cash App payment failed."
                 );
               }
@@ -197,26 +227,26 @@ export default function PaymentSection({
             cashAppRef.current = cashApp;
           } catch { setPaymentError("Cash App Pay is not available on this device / browser."); }
         }
-      } catch (err: any) { setPaymentError(err?.message ?? "Failed to initialise payment form."); }
+      } catch (err) { setPaymentError(errorMessage(err, "Failed to initialise payment form.")); }
     };
     mount();
     return () => { cleanup(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMethod, sdkReady]);
 
-  const tokenizeAndPay = async (widgetRef: React.MutableRefObject<any>, method: SquareMethod) => {
+  const tokenizeAndPay = async (widgetRef: React.RefObject<SquarePaymentMethod | null>, method: SquareMethod) => {
     if (!widgetRef.current) { setPaymentError("Payment form is not ready. Please wait a moment."); return; }
     try {
       setPaymentLoading(true); setPaymentError(null);
       const result = await widgetRef.current.tokenize();
-      if (result.status !== "OK") throw new Error(result.errors?.map((e: any) => e.message).join(", ") || "Tokenisation failed.");
+      if (result.status !== "OK" || !result.token) throw new Error(result.errors?.map((e) => e.message).join(", ") || "Tokenisation failed.");
       // Let the widget clean up its own DOM (e.g. Google Pay's button/sheet)
       // while the container is still mounted, before onPlaceOrder advances
       // the checkout step and unmounts this component.
       if (method !== "CARD") { try { await widgetRef.current.destroy(); } catch {} widgetRef.current = null; }
       await onPlaceOrder(result.token, method);
-    } catch (err: any) {
-      setPaymentError(err?.message ?? "Payment failed. Please try again.");
+    } catch (err) {
+      setPaymentError(errorMessage(err, "Payment failed. Please try again."));
     } finally { setPaymentLoading(false); }
   };
 
@@ -228,8 +258,8 @@ export default function PaymentSection({
     try {
       setPaymentError(null);
       await onPayPalPay();
-    } catch (err: any) {
-      setPaymentError(err?.message ?? "Unable to start PayPal checkout. Please try again.");
+    } catch (err) {
+      setPaymentError(errorMessage(err, "Unable to start PayPal checkout. Please try again."));
     }
   };
 
@@ -241,26 +271,26 @@ export default function PaymentSection({
     <div className="ps-root">
       <style>{`
         .ps-root {
-          font-family: 'DM Sans', sans-serif;
+          font-family: inherit;
           max-width: 480px;
           margin: 0 auto;
         }
 
         /* ── SHELL ── */
         .ps-shell {
-          background: #ffffff;
+          background: var(--color-card);
           border-radius: 24px;
-          border: 1.5px solid #e8e8e8;
+          border: 1.5px solid var(--color-border);
           overflow: hidden;
-          box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+          box-shadow: 0 2px 16px color-mix(in srgb, var(--color-foreground) 6%, transparent), 0 1px 4px color-mix(in srgb, var(--color-foreground) 4%, transparent);
         }
 
         /* ── HEADER ── */
         .ps-header {
           position: relative;
           padding: 20px 24px 18px;
-          background: #111111;
-          border-bottom: 1px solid #e8e8e8;
+          background: var(--color-foreground);
+          border-bottom: 1px solid var(--color-border);
           display: flex;
           align-items: center;
           gap: 14px;
@@ -270,7 +300,7 @@ export default function PaymentSection({
           position: absolute;
           top: -24px; right: -24px;
           width: 110px; height: 110px;
-          background: #F5D800;
+          background: var(--color-primary);
           opacity: 0.12;
           border-radius: 50%;
           pointer-events: none;
@@ -278,7 +308,7 @@ export default function PaymentSection({
         .ps-header-icon {
           width: 42px; height: 42px;
           border-radius: 13px;
-          background: #F5D800;
+          background: var(--color-primary);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -287,20 +317,20 @@ export default function PaymentSection({
         .ps-header-title {
           font-size: 15px;
           font-weight: 800;
-          color: #ffffff;
+          color: var(--color-background);
           margin: 0 0 2px;
           letter-spacing: -0.02em;
         }
         .ps-header-sub {
           font-size: 11.5px;
-          color: rgba(255,255,255,0.4);
+          color: color-mix(in srgb, var(--color-background) 70%, transparent);
           margin: 0;
         }
 
         /* yellow accent bar */
         .ps-accent-bar {
           height: 3px;
-          background: linear-gradient(90deg, #F5D800 0%, #F5D800 40%, #f0f0f0 100%);
+          background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-primary) 40%, var(--color-border) 100%);
         }
 
         /* ── BODY ── */
@@ -309,7 +339,7 @@ export default function PaymentSection({
           display: flex;
           flex-direction: column;
           gap: 18px;
-          background: #ffffff;
+          background: var(--color-card);
         }
 
         /* ── LABELS ── */
@@ -318,7 +348,7 @@ export default function PaymentSection({
           font-weight: 800;
           letter-spacing: 0.13em;
           text-transform: uppercase;
-          color: #aaaaaa;
+          color: var(--color-muted-foreground);
           margin-bottom: 10px;
         }
 
@@ -338,44 +368,44 @@ export default function PaymentSection({
           gap: 8px;
           padding: 14px 8px 12px;
           border-radius: 14px;
-          border: 1.5px solid #e8e8e8;
-          background: #fafafa;
+          border: 1.5px solid var(--color-border);
+          background: var(--color-muted);
           cursor: pointer;
           transition: all 0.16s ease;
           text-align: center;
           outline: none;
         }
         .ps-method-btn:hover:not(.active):not(:disabled) {
-          border-color: #cccccc;
-          background: #f3f3f3;
+          border-color: var(--color-input);
+          background: var(--color-muted);
           transform: translateY(-1px);
         }
         .ps-method-btn.active {
-          border-color: #111111;
-          background: #111111;
-          box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+          border-color: var(--color-foreground);
+          background: var(--color-foreground);
+          box-shadow: 0 4px 14px color-mix(in srgb, var(--color-foreground) 15%, transparent);
         }
         .ps-method-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
         .ps-method-icon-wrap {
           width: 36px; height: 36px;
           border-radius: 10px;
-          background: #efefef;
+          background: var(--color-muted);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
-          border: 1px solid rgba(0,0,0,0.06);
+          border: 1px solid color-mix(in srgb, var(--color-foreground) 6%, transparent);
         }
 
         .ps-method-name {
           font-size: 11.5px;
           font-weight: 700;
-          color: #555555;
+          color: var(--color-muted-foreground);
           line-height: 1.2;
           letter-spacing: -0.01em;
         }
-        .ps-method-btn.active .ps-method-name { color: #F5D800; }
+        .ps-method-btn.active .ps-method-name { color: var(--color-primary); }
 
         .ps-method-badge {
           position: absolute;
@@ -385,13 +415,13 @@ export default function PaymentSection({
           letter-spacing: 0.05em;
           padding: 2px 7px;
           border-radius: 0 12px 0 8px;
-          background: #F5D800;
-          color: #111111;
+          background: var(--color-primary);
+          color: var(--color-foreground);
         }
 
         .ps-method-sub {
           font-size: 11px;
-          color: #aaaaaa;
+          color: var(--color-muted-foreground);
           margin-top: 4px;
           text-align: center;
         }
@@ -399,24 +429,24 @@ export default function PaymentSection({
         /* ── FORM WRAP ── */
         .ps-form-wrap {
           border-radius: 16px;
-          border: 1.5px solid #e8e8e8;
-          background: #fafafa;
+          border: 1.5px solid var(--color-border);
+          background: var(--color-muted);
           overflow: hidden;
         }
         .ps-form-header {
           padding: 11px 16px;
-          border-bottom: 1px solid #eeeeee;
+          border-bottom: 1px solid var(--color-border);
           display: flex;
           align-items: center;
           gap: 8px;
-          background: #f5f5f5;
+          background: var(--color-muted);
         }
         .ps-form-header-label {
           font-size: 10px;
           font-weight: 800;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #aaaaaa;
+          color: var(--color-muted-foreground);
           margin: 0;
         }
         .ps-form-header-icon {
@@ -428,7 +458,7 @@ export default function PaymentSection({
           flex-shrink: 0;
         }
         .ps-form-header-icon svg { width: 12px; height: 12px; }
-        .ps-form-body { padding: 16px; background: #ffffff; }
+        .ps-form-body { padding: 16px; background: var(--color-card); }
 
         #sq-card-container { min-height: 89px; }
         #sq-google-pay-button, #sq-apple-pay-button, #sq-cash-app-button { min-height: 48px; cursor: pointer; }
@@ -440,9 +470,9 @@ export default function PaymentSection({
           padding: 15px;
           border-radius: 13px;
           border: none;
-          background: #111111;
-          color: #F5D800;
-          font-family: 'DM Sans', sans-serif;
+          background: var(--color-foreground);
+          color: var(--color-primary);
+          font-family: inherit;
           font-size: 14px;
           font-weight: 900;
           letter-spacing: -0.01em;
@@ -458,11 +488,11 @@ export default function PaymentSection({
         .ps-pay-btn::after {
           content: '';
           position: absolute; inset: 0;
-          background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.08) 50%, transparent 65%);
+          background: linear-gradient(110deg, transparent 35%, color-mix(in srgb, var(--color-background) 8%, transparent) 50%, transparent 65%);
           opacity: 0;
           transition: opacity 0.4s;
         }
-        .ps-pay-btn:hover:not(:disabled) { background: #1e1e1e; }
+        .ps-pay-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--color-foreground) 88%, var(--color-card)); }
         .ps-pay-btn:hover:not(:disabled)::after { opacity: 1; }
         .ps-pay-btn:active:not(:disabled) { transform: scale(0.98); }
         .ps-pay-btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -474,11 +504,11 @@ export default function PaymentSection({
           align-items: center;
           gap: 10px;
           padding: 36px 20px;
-          background: #fff;
+          background: var(--color-card);
         }
-        .ps-loading-spinner { animation: spin 1s linear infinite; color: #111111; }
+        .ps-loading-spinner { animation: spin 1s linear infinite; color: var(--color-foreground); }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .ps-loading-text { font-size: 12.5px; color: #aaaaaa; }
+        .ps-loading-text { font-size: 12.5px; color: var(--color-muted-foreground); }
 
         /* ── ERROR ── */
         .ps-error {
@@ -487,39 +517,39 @@ export default function PaymentSection({
           align-items: flex-start;
           padding: 13px 15px;
           border-radius: 13px;
-          background: #fff5f5;
-          border: 1px solid #fecdcd;
+          background: var(--color-destructive-soft);
+          border: 1px solid color-mix(in srgb, var(--color-destructive) 30%, transparent);
           animation: slideIn 0.2s ease;
         }
         @keyframes slideIn {
           from { opacity: 0; transform: translateY(-4px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .ps-error-icon { color: #e53e3e; flex-shrink: 0; margin-top: 1px; }
-        .ps-error-text { font-size: 12.5px; color: #c53030; line-height: 1.5; }
+        .ps-error-icon { color: var(--color-destructive); flex-shrink: 0; margin-top: 1px; }
+        .ps-error-text { font-size: 12.5px; color: var(--color-destructive); line-height: 1.5; }
 
         /* ── BANK INFO ── */
         .ps-bank-info { padding: 20px; text-align: center; }
         .ps-bank-icon-wrap {
           width: 52px; height: 52px;
           border-radius: 16px;
-          background: #f5f3d0;
-          border: 1.5px solid #e8d800;
+          background: var(--color-primary-soft);
+          border: 1.5px solid var(--color-primary);
           display: flex;
           align-items: center;
           justify-content: center;
           margin: 0 auto 14px;
         }
-        .ps-bank-title { font-size: 14px; font-weight: 800; color: #111111; margin: 0 0 6px; }
-        .ps-bank-desc  { font-size: 12px; color: #888888; line-height: 1.6; margin: 0; }
+        .ps-bank-title { font-size: 14px; font-weight: 800; color: var(--color-foreground); margin: 0 0 6px; }
+        .ps-bank-desc  { font-size: 12px; color: var(--color-muted-foreground); line-height: 1.6; margin: 0; }
 
         /* ── PAYPAL INFO ── */
         .ps-paypal-info { padding: 20px 20px 22px; text-align: center; }
         .ps-paypal-icon-wrap {
           width: 52px; height: 52px;
           border-radius: 16px;
-          background: #eef7fd;
-          border: 1.5px solid #cfe9f9;
+          background: var(--color-muted);
+          border: 1.5px solid var(--color-border);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -535,19 +565,19 @@ export default function PaymentSection({
           gap: 6px;
           padding: 12px;
           border-radius: 13px;
-          border: 1.5px solid #e8e8e8;
+          border: 1.5px solid var(--color-border);
           background: transparent;
           cursor: pointer;
-          font-family: 'DM Sans', sans-serif;
+          font-family: inherit;
           font-size: 13px;
           font-weight: 600;
-          color: #888888;
+          color: var(--color-muted-foreground);
           transition: all 0.16s ease;
         }
         .ps-back-btn:hover:not(:disabled) {
-          background: #f5f5f5;
-          border-color: #cccccc;
-          color: #111111;
+          background: var(--color-muted);
+          border-color: var(--color-input);
+          color: var(--color-foreground);
         }
         .ps-back-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -559,8 +589,8 @@ export default function PaymentSection({
           gap: 6px;
           padding-top: 2px;
         }
-        .ps-footer-text { font-size: 10.5px; color: #bbbbbb; }
-        .ps-footer-dot  { color: #dddddd; font-size: 11px; }
+        .ps-footer-text { font-size: 10.5px; color: var(--color-muted-foreground); }
+        .ps-footer-dot  { color: var(--color-border); font-size: 11px; }
       `}</style>
 
       <div className="ps-shell">
@@ -569,7 +599,7 @@ export default function PaymentSection({
         <div className="ps-header">
           <div className="ps-header-glow" />
           <div className="ps-header-icon">
-            <Lock size={18} color="#111111" strokeWidth={2.5} />
+            <Lock size={18} className="text-foreground" strokeWidth={2.5} />
           </div>
           <div>
             <p className="ps-header-title">Secure Payment</p>
@@ -600,7 +630,7 @@ export default function PaymentSection({
                     {badge && <span className="ps-method-badge">{badge}</span>}
                     <div
                       className="ps-method-icon-wrap"
-                      style={{ background: active ? "rgba(245,216,0,0.15)" : iconBg }}
+                      style={{ background: active ? "color-mix(in srgb, var(--color-primary) 15%, transparent)" : iconBg }}
                     >
                       {render(active)}
                     </div>
@@ -649,7 +679,7 @@ export default function PaymentSection({
               </div>
             ) : !squareConfig ? (
               <div className="ps-loading">
-                <AlertCircle size={20} color="#e53e3e" />
+                <AlertCircle size={20} className="text-destructive" />
                 <span className="ps-loading-text">Payment form unavailable</span>
               </div>
             ) : (
@@ -661,11 +691,11 @@ export default function PaymentSection({
                 {selectedMethod === "BANK_ACCOUNT" && (
                   <div className="ps-bank-info">
                     <div className="ps-bank-icon-wrap">
-                      <Landmark size={22} color="#111111" />
+                      <Landmark size={22} className="text-foreground" />
                     </div>
                     <p className="ps-bank-title">ACH Bank Transfer</p>
                     <p className="ps-bank-desc">
-                      You'll be prompted to securely link your bank account.<br />
+                      You&apos;ll be prompted to securely link your bank account.<br />
                       Funds typically arrive in 1–3 business days.
                     </p>
                   </div>
@@ -706,7 +736,7 @@ export default function PaymentSection({
 
           {/* Footer */}
           <div className="ps-footer">
-            <ShieldCheck size={12} color="#F5D800" strokeWidth={2.5} />
+            <ShieldCheck size={12} className="text-primary-ink" strokeWidth={2.5} />
             <span className="ps-footer-text">Square PCI-DSS</span>
             <span className="ps-footer-dot">·</span>
             <span className="ps-footer-text">256-bit SSL</span>

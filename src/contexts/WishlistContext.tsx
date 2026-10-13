@@ -17,7 +17,8 @@ import {
 import { toast } from "sonner";
 
 import { useCart } from "./CartContext";
-import { AUTH_CHANGED_EVENT, hasAuthToken } from "@/lib/authRedirect";
+import { hasAuthToken } from "@/lib/authRedirect";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 
 interface WishlistItem {
   id: number;
@@ -62,48 +63,49 @@ export const WishlistProvider = ({
 }) => {
   const { refreshCart } = useCart();
 
-  const [wishlist, setWishlist] = useState<
-    WishlistItem[]
-  >([]);
+  const loggedIn = useIsLoggedIn();
+  // null until loaded for the current session.
+  const [items, setItems] = useState<WishlistItem[] | null>(null);
+  const setWishlist = (update: (prev: WishlistItem[]) => WishlistItem[]) =>
+    setItems((prev) => update(prev ?? []));
 
-  const [loading, setLoading] = useState(true);
-
-  // Read at call time: a client-side login does not re-render this provider,
-  // so a value captured at render would stay "logged out".
+  // Handlers read the token at call time (it may have changed since render).
   const isLoggedIn = () => hasAuthToken();
 
+  // Load on login (and on page load with a stored token); clear on logout.
+  useEffect(() => {
+    if (!loggedIn) return;
+    let cancelled = false;
+    GetWishlistApi()
+      .then((res) => {
+        if (!cancelled) setItems(res?.data?.data || []);
+      })
+      .catch((error) => {
+        // The axios response interceptor already toasts the failure.
+        console.error(error);
+        if (!cancelled) setItems([]);
+      });
+    return () => {
+      cancelled = true;
+      setItems(null);
+    };
+  }, [loggedIn]);
+
+  const wishlist = loggedIn ? items ?? [] : [];
+  const loading = loggedIn && items === null;
   const wishlistCount = wishlist.length;
 
+  /** Re-sync with the server (keeps showing the current list meanwhile). */
   const fetchWishlist = async () => {
-    if (!isLoggedIn()) {
-      setWishlist([]);
-      setLoading(false);
-      return;
-    }
-
+    if (!isLoggedIn()) return;
     try {
-      setLoading(true);
-
       const res = await GetWishlistApi();
-
-      setWishlist(res?.data?.data || []);
+      setItems(res?.data?.data || []);
     } catch (error) {
       // The axios response interceptor already toasts the failure.
       console.error(error);
-
-      setWishlist([]);
-    } finally {
-      setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchWishlist();
-    // Refetch after login/logout.
-    const onAuthChanged = () => fetchWishlist();
-    window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged);
-  }, []);
 
   const removeItem = async (id: number) => {
     if (!isLoggedIn()) return;

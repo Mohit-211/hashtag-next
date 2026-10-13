@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { CapturePaypalOrderApi } from "@/api/operations/payment.api";
 import { GetOrderDetailApi } from "@/api/operations/order.api";
 import { useCart } from "@/contexts/CartContext";
-import { useOrders } from "@/contexts/OrdersContext";
 import ProcessingScreen from "./ProcessingScreen";
 import SuccessScreen from "./SuccessScreen";
 
+import { errorMessage } from "@/lib/errors";
 // "processing" covers both the initial capture call and the follow-up
 // polling while the backend is still confirming — the UI doesn't need to
 // tell those two apart, it just needs to never show success early.
@@ -34,7 +34,6 @@ interface Props {
 export default function PaypalReturnStatus({ landedFrom }: Props) {
   const searchParams = useSearchParams();
   const { clearCart } = useCart();
-  const { addOrder } = useOrders();
   const [state, setState] = useState<ReturnState>("processing");
   const [message, setMessage] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<number | null>(null);
@@ -61,18 +60,16 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
   }, [clearPollTimer]);
 
   const finishSuccess = useCallback(
-    (id: number) => {
-
+    () => {
       clearPollTimer();
       clearCart();
-      addOrder?.({ id } as any);
       toast.success("Payment successful — your order is confirmed!");
       setState("success");
       setTimeout(() => {
         window.location.href = "/categories";
       }, 3000);
     },
-    [clearCart, addOrder, clearPollTimer]
+    [clearCart, clearPollTimer]
   );
 
   const finishFailed = useCallback((failMessage: string) => {
@@ -98,7 +95,7 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
           if (unmountedRef.current) return;
 
           if (status === "SUCCESS") {
-            finishSuccess(id);
+            finishSuccess();
             return;
           }
           if (status === "FAILED" || status === "REFUNDED") {
@@ -141,6 +138,8 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
     const paypalToken = searchParams.get("token");
 
     if (!paypalToken) {
+      // One-shot check of the return URL on arrival from PayPal.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState("failed");
       setMessage(
         landedFrom === "cancel"
@@ -175,7 +174,7 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
         });
         const status = response?.data?.data?.status;
         if (status === "COMPLETED") {
-          finishSuccess(parsedOrderId);
+          finishSuccess();
         } else if (status === "PENDING") {
           toast("Your PayPal payment is still processing.");
           pollAttemptsRef.current = 0;
@@ -187,9 +186,9 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
               : "PayPal payment failed. Please try again."
           );
         }
-      } catch (err: any) {
+      } catch (err) {
         finishFailed(
-          err?.response?.data?.message || err?.message || "Unable to confirm your PayPal payment."
+          errorMessage(err, "Unable to confirm your PayPal payment.")
         );
       } finally {
         // The stashed id is single-use — clear it so a future PayPal
@@ -215,15 +214,16 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="max-w-sm w-full">
         <div className="bg-card rounded-[1.5rem] border border-border shadow-xl overflow-hidden">
-          <div className={`h-2 ${isPending ? "bg-amber-400" : "bg-destructive"}`} />
+          <div className={`h-2 ${isPending ? "bg-primary" : "bg-destructive"}`} />
 
           <div className="px-8 py-10 text-center">
             <div
-              className="relative h-20 w-20 mx-auto rounded-full flex items-center justify-center"
-              style={{ background: isPending ? "rgba(245,158,11,0.12)" : "rgba(239,68,68,0.12)" }}
+              className={`relative h-20 w-20 mx-auto rounded-full flex items-center justify-center ${
+                isPending ? "bg-primary-soft" : "bg-destructive-soft"
+              }`}
             >
               {isPending ? (
-                <Clock className="h-10 w-10 text-amber-500" strokeWidth={2.25} />
+                <Clock className="h-10 w-10 text-primary-ink" strokeWidth={2.25} />
               ) : (
                 <XCircle className="h-10 w-10 text-destructive" strokeWidth={2.25} />
               )}

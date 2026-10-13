@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { isSafeHttpUrl } from "@/lib/validation";
 
 // Summary of the order's first item. Kept on the type because the API
@@ -96,17 +97,17 @@ interface PaymentHistoryCardProps {
 // Status dot colors stay semantic (green/red/amber/blue) for at-a-glance
 // scanning, while the badge chrome itself follows the neutral theme.
 const statusConfig: Record<string, { label: string; dot: string }> = {
-  SUCCESS: { label: "Success", dot: "bg-emerald-500" },
+  SUCCESS: { label: "Success", dot: "bg-success" },
   FAILED: { label: "Failed", dot: "bg-destructive" },
-  PENDING: { label: "Pending", dot: "bg-amber-500" },
+  PENDING: { label: "Pending", dot: "bg-primary" },
   REFUNDED: { label: "Refunded", dot: "bg-muted-foreground" },
-  IN_TRANSIT: { label: "In Transit", dot: "bg-blue-500" },
+  IN_TRANSIT: { label: "In Transit", dot: "bg-foreground" },
 };
 
 function StatusBadge({ status }: { status: string }) {
   const cfg = statusConfig[status] ?? { label: status, dot: "bg-muted-foreground" };
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-secondary text-secondary-foreground border border-border">
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-muted text-foreground border border-border">
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
       {cfg.label}
     </span>
@@ -180,9 +181,12 @@ function ItemImage({ item }: { item: PaymentOrderItem }) {
     return <div className="w-16 h-16 shrink-0 rounded-md border border-border bg-muted" />;
   }
   return (
-    <img
+    <Image
       src={src}
       alt={item.product_name}
+      width={64}
+      height={64}
+      unoptimized
       className="w-16 h-16 shrink-0 rounded-md object-contain border border-border bg-background"
       onError={() => setSrc(src !== item.original_image ? item.original_image : null)}
     />
@@ -296,7 +300,7 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
         {/* Items accordion — collapsed it shows only the count (from
             order.items.length) and the order-level print method; product
             details appear only once it's opened. */}
-        <div className="bg-secondary rounded-md mb-5">
+        <div className="bg-muted rounded-md mb-5">
           <button
             type="button"
             onClick={() => setItemsOpen((o) => !o)}
@@ -358,7 +362,7 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
         {/* Cost breakdown — uses the real subtotal / tax fields from the
             API rather than deriving subtotal as total - shipping (which
             would still include tax). */}
-        <div className="bg-secondary rounded-md px-4 py-3 mb-5 space-y-1.5">
+        <div className="bg-muted rounded-md px-4 py-3 mb-5 space-y-1.5">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Subtotal</span>
             <span className="font-medium text-foreground">{formatMoney(subtotal)}</span>

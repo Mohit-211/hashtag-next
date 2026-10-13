@@ -1,6 +1,6 @@
 "use client";
 import { ArrowUpDown, ChevronDown, X } from "lucide-react";
-import type { Pill, SortValue } from "@/data/types";
+import type { Pill, PillTarget, SortValue } from "@/data/types";
 import type { sortOptions } from "@/data/products";
 import { TIER_OPTIONS } from "@/data/constants";
 
@@ -9,6 +9,7 @@ interface CategoriesTopBarProps {
   totalProducts: number;
   productGridLoading: boolean;
   pills: Pill[];
+  onRemovePill: (target: PillTarget) => void;
   totalFacetCount: number;
   onClearAll: () => void;
   onOpenSidebar: () => void;
@@ -28,6 +29,7 @@ export default function CategoriesTopBar({
   totalProducts,
   productGridLoading,
   pills,
+  onRemovePill,
   totalFacetCount,
   onClearAll,
   onOpenSidebar,
@@ -47,13 +49,13 @@ export default function CategoriesTopBar({
         </button>
         <h1 className="cat-heading">{headingLabel}</h1>
         <span className="cat-count">
-          {totalProducts.toLocaleString()} items
-          {/* {productGridLoading && <span className="spinner" style={{ width: 12, height: 12, marginLeft: 8, verticalAlign: "middle" }} />} */}
+          {totalProducts.toLocaleString()} {totalProducts === 1 ? "item" : "items"}
+          {productGridLoading && <span className="spinner" aria-label="Updating results" style={{ width: 12, height: 12, marginLeft: 8, verticalAlign: "middle" }} />}
         </span>
         {pills.map((p) => (
           <span key={p.key} className="filter-pill">
             {p.label}
-            <button className="filter-pill-remove" onClick={p.onRemove} aria-label={`Remove ${p.label}`}>
+            <button className="filter-pill-remove" onClick={() => onRemovePill(p.target)} aria-label={`Remove ${p.label}`}>
               <X size={11} />
             </button>
           </span>

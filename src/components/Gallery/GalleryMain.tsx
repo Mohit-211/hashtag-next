@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { useIsClient } from "@/hooks/useIsClient";
 // ─── DATA ────────────────────────────────────────────────────────────────────
 interface Photo { id: number; name: string; src: string; }
 
@@ -188,7 +189,7 @@ function HeroSection({ loaded }: { loaded: boolean }) {
             </p>
             <a
               href="#archive"
-              className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium pb-1 border-b border-foreground text-foreground hover:text-primary hover:border-primary transition-colors duration-200"
+              className="mt-8 inline-flex items-center gap-1.5 text-sm font-medium pb-1 border-b border-foreground text-foreground hover:text-primary-ink hover:border-primary transition-colors duration-200"
             >
               View the archive
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="translate-y-px">
@@ -199,8 +200,7 @@ function HeroSection({ loaded }: { loaded: boolean }) {
 
           {/* the tag */}
           <div
-            className="relative w-full max-w-[210px] justify-self-start lg:justify-self-end"
-            style={{ filter: "drop-shadow(0 14px 22px rgba(0,0,0,0.14))" }}
+            className="relative w-full max-w-[210px] justify-self-start lg:justify-self-end drop-shadow-xl"
           >
             <svg className="absolute -top-9 left-1/2 -translate-x-1/2 text-border" width="30" height="40" viewBox="0 0 30 40" fill="none">
               <path d="M15 0C15 0 4 10 4 20C4 26 9 30 15 30C21 30 26 26 26 20C26 10 15 0 15 0Z" stroke="currentColor" strokeWidth="1.5" />
@@ -254,7 +254,11 @@ function MarqueeSection() {
 
 // ─── GALLERY CARD (swing tag) ─────────────────────────────────────────────────
 function GalleryCard({ photo, onClick }: { photo: Photo; onClick: (p: Photo) => void }) {
-  const [imgLoaded, setImgLoaded] = useState(() => getLoadedCache().has(photo.src));
+  // Images already seen this session show instantly — but only after hydration,
+  // since the server can't see the sessionStorage cache.
+  const isClient = useIsClient();
+  const [loadedNow, setImgLoaded] = useState(false);
+  const imgLoaded = loadedNow || (isClient && getLoadedCache().has(photo.src));
   const [imgError, setImgError] = useState(false);
 
   return (
@@ -292,7 +296,7 @@ function GalleryCard({ photo, onClick }: { photo: Photo; onClick: (p: Photo) => 
           />
         )}
         <div
-          className="absolute top-2.5 right-2.5 px-1.5 py-0.5 border border-primary/60 text-primary text-[10px] font-mono leading-none -rotate-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className="absolute top-2.5 right-2.5 px-1.5 py-0.5 border border-primary/60 bg-foreground/80 text-primary text-[10px] font-mono leading-none -rotate-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           aria-hidden="true"
         >
           SAMPLE
@@ -348,7 +352,7 @@ function Toolbar({
           onClick={onToggleCompact}
           aria-pressed={compact}
           title={compact ? "Loose grid" : "Tight grid"}
-          className="shrink-0 w-9 h-9 flex items-center justify-center border border-border text-foreground hover:border-primary hover:text-primary transition-colors duration-150"
+          className="shrink-0 w-9 h-9 flex items-center justify-center border border-border text-foreground hover:border-primary hover:text-primary-ink transition-colors duration-150"
         >
           {compact ? (
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" stroke="currentColor" strokeWidth="1.8" /><rect x="13" y="13" width="8" height="8" stroke="currentColor" strokeWidth="1.8" /></svg>
@@ -398,7 +402,19 @@ function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => 
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
-  useEffect(() => { setCurrent(photo); setZoomed(false); }, [photo]);
+  // Opening a (different) photo resets the modal to it.
+  const [openedPhoto, setOpenedPhoto] = useState<Photo | null>(null);
+  if (photo !== openedPhoto) {
+    setOpenedPhoto(photo);
+    setCurrent(photo);
+    setZoomed(false);
+  }
+  const navigate = (dir: number) => {
+    if (!current) return;
+    const idx = PHOTOS.findIndex((p) => p.id === current.id);
+    setZoomed(false);
+    setCurrent(PHOTOS[(idx + dir + PHOTOS.length) % PHOTOS.length]);
+  };
   useEffect(() => {
     document.body.style.overflow = photo ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
@@ -415,12 +431,6 @@ function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current]);
 
-  const navigate = (dir: number) => {
-    if (!current) return;
-    const idx = PHOTOS.findIndex((p) => p.id === current.id);
-    setZoomed(false);
-    setCurrent(PHOTOS[(idx + dir + PHOTOS.length) % PHOTOS.length]);
-  };
   const currentIndex = current ? PHOTOS.findIndex((p) => p.id === current.id) : -1;
 
   return (
@@ -460,13 +470,13 @@ function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => 
                 />
               </AnimatePresence>
 
-              <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 bg-background border border-border flex items-center justify-center text-foreground hover:border-primary hover:text-primary transition-colors duration-150">
+              <button onClick={onClose} aria-label="Close" className="absolute top-3 right-3 w-8 h-8 bg-background border border-border flex items-center justify-center text-foreground hover:border-primary hover:text-primary-ink transition-colors duration-150">
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M1 1L13 13M13 1L1 13" stroke="currentColor" strokeWidth="2" /></svg>
               </button>
-              <button onClick={() => navigate(-1)} aria-label="Previous" className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-background border border-border flex items-center justify-center text-foreground hover:border-primary hover:text-primary transition-colors duration-150">
+              <button onClick={() => navigate(-1)} aria-label="Previous" className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-background border border-border flex items-center justify-center text-foreground hover:border-primary hover:text-primary-ink transition-colors duration-150">
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9 1L3 7L9 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
-              <button onClick={() => navigate(1)} aria-label="Next" className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-background border border-border flex items-center justify-center text-foreground hover:border-primary hover:text-primary transition-colors duration-150">
+              <button onClick={() => navigate(1)} aria-label="Next" className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-background border border-border flex items-center justify-center text-foreground hover:border-primary hover:text-primary-ink transition-colors duration-150">
                 <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M5 1L11 7L5 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
@@ -479,7 +489,7 @@ function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => 
                     {String(currentIndex + 1).padStart(2, "0")}/{String(PHOTOS.length).padStart(2, "0")}
                   </span>
                 </div>
-                <p className="mt-1 text-xs font-mono text-primary">{sku(current.id)}</p>
+                <p className="mt-1 text-xs font-mono text-primary-ink">{sku(current.id)}</p>
                 <p className="mt-2 text-xs text-muted-foreground">Use ← → to browse, click the image to zoom, or press Esc to close.</p>
               </div>
               <div className="flex-1 overflow-y-auto p-3 grid grid-cols-4 md:grid-cols-3 gap-2 content-start">

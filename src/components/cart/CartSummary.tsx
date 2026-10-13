@@ -4,10 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-// ★ FIXED — the cart API's `summary` object is
-// { items_total, shipping_cost, grand_total }. There's no
-// `customization_total` in the response, so that line item is gone;
-// `shippingCost` is now rendered instead (as "Free" when it's 0).
+// The cart API's `summary` is { items_total, shipping_cost, grand_total }.
+// Shipping is only known once an address is chosen, so 0 reads as
+// "Calculated at checkout" rather than "Free".
 interface Props {
   itemsTotal: number;
   shippingCost: number;
@@ -35,8 +34,10 @@ export default function CartSummary({
             <span>Subtotal</span>
             <span>${itemsTotal.toFixed(2)}</span>
           </div>
-
-        
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Shipping</span>
+            <span>{shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : "Calculated at checkout"}</span>
+          </div>
         </div>
 
         {/* Divider */}

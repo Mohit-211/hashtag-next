@@ -1,21 +1,13 @@
-"use client";
-
-import React, { Suspense } from "react";
-import AuthCard from "@/components/login/AuthCard";
+import { Suspense } from "react";
+import AuthLayout from "@/components/login/AuthLayout";
 import ForgotPasswordClient from "@/components/login/Forgotpasswordclient/Forgotpasswordclient";
 
-const ForgotPage = () => {
+export default function ForgotPasswordPage() {
   return (
-    <section className="py-12 lg:py-20">
-      <div className="container max-w-md">
-        <AuthCard>
-          <Suspense fallback={<div>Loading...</div>}>
-            <ForgotPasswordClient />
-          </Suspense>
-        </AuthCard>
-      </div>
-    </section>
+    <AuthLayout>
+      <Suspense fallback={<p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>}>
+        <ForgotPasswordClient />
+      </Suspense>
+    </AuthLayout>
   );
-};
-
-export default ForgotPage;
+}

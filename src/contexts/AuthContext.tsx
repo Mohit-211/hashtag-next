@@ -8,11 +8,13 @@ import {
   useCallback,
   useEffect,
 } from "react";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 
 import { UserProfileApi } from "@/api/users/users.api";
 import { loginApi } from "@/api/auth/auth.api";
 import { clearPendingAuthAction, notifyAuthChanged } from "@/lib/authRedirect";
 
+import { apiMessage } from "@/lib/errors";
 export interface User {
   id: string | number;
   name: string;
@@ -39,38 +41,42 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const isLoggedIn = useIsLoggedIn();
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // ✅ Load user from API if token exists
-  const fetchUser = async () => {
-    try {
-      const res = await UserProfileApi();
-      const data = res?.data?.data;
-      const formattedUser: User = {
-        id: data?.id ?? data?._id,
-        name: data?.user_profile?.name,
-        email: data?.email,
-        mobile: data?.user_profile.mobile,
-      };
-      setUser(formattedUser);
-    } catch (error) {
-      console.error("Profile fetch failed", error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ✅ On app load
-  useEffect(() => {
-    const token = localStorage.getItem("hastagBillionaire");
-    if (token) {
-      fetchUser();
-    } else {
-      setLoading(false);
-    }
+  const logout = useCallback(() => {
+    localStorage.removeItem("hastagBillionaire");
+    // A new login must not resume something started in the previous session.
+    clearPendingAuthAction();
+    setUser(null);
+    notifyAuthChanged();
   }, []);
+
+  // Load the profile whenever a session starts — on page load with a stored
+  // token, and right after logging in (LoginForm fires the auth-changed event).
+  // The app renders immediately; only `user` fills in when this resolves.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    UserProfileApi()
+      .then((res) => {
+        if (cancelled) return;
+        const data = res?.data?.data;
+        setUser({
+          id: data?.id ?? data?._id,
+          name: data?.user_profile?.name,
+          email: data?.email,
+          mobile: data?.user_profile?.mobile,
+        });
+      })
+      .catch((error) => {
+        console.error("Profile fetch failed", error);
+        if (!cancelled) logout();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, logout]);
 
   // ✅ LOGIN
   // Retries on a "not verified" response: right after OTP verification the
@@ -100,8 +106,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // await fetchUser();
 
         return { success: true };
-      } catch (err: any) {
-        const message = err?.response?.data?.message || "Login failed";
+      } catch (err) {
+        const message = apiMessage(err) || "Login failed";
         const isNotVerified = message.toLowerCase().includes("not verified");
 
         if (isNotVerified && attempt < MAX_NOT_VERIFIED_RETRIES) {
@@ -114,22 +120,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // ✅ LOGOUT
-  const logout = useCallback(() => {
-    localStorage.removeItem("hastagBillionaire");
-    // A new login must not resume something started in the previous session.
-    clearPendingAuthAction();
-    setUser(null);
-    notifyAuthChanged();
-  }, []);
-
-  if (loading) return null;
 
   return (
     <AuthContext.Provider
       value={{
-        user,
-        isAuthenticated: !!user,
+        // A token removed elsewhere (e.g. the expired-session handler) clears the user too.
+        user: isLoggedIn ? user : null,
+        isAuthenticated: isLoggedIn && !!user,
         login,
         logout,
       }}

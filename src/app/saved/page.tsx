@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { cn } from "@/lib/utils";
 
+import { useIsClient } from "@/hooks/useIsClient";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 interface WishlistItem {
   id: number;
   product_id: number;
@@ -24,7 +26,7 @@ function FastImage({ src, alt, priority = false }: { src: string; alt: string; p
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {!loaded && <div className="absolute inset-0 animate-pulse bg-[#f3f5f4]" />}
+      {!loaded && <div className="absolute inset-0 animate-pulse bg-muted" />}
       <Image
         src={src?.trim() }
         alt={alt}
@@ -48,8 +50,8 @@ export default function Saved() {
   const [removeLoadingId, setRemoveLoadingId] = useState<number | null>(null);
   const [cartLoadingId, setCartLoadingId] = useState<number | null>(null);
 
-  const isLoggedIn =
-    typeof window !== "undefined" && !!localStorage.getItem("hastagBillionaire");
+  const isClient = useIsClient();
+  const isLoggedIn = useIsLoggedIn();
 
   const handleRemove = async (id: number) => {
     try {
@@ -68,6 +70,16 @@ export default function Saved() {
       setCartLoadingId(null);
     }
   };
+
+  /* ── Login state is only known in the browser ── */
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center py-28 gap-2 text-muted-foreground text-sm">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading wishlist…
+      </div>
+    );
+  }
 
   /* ── Login required ── */
   if (!isLoggedIn) {
@@ -155,7 +167,7 @@ export default function Saved() {
                 )}
               >
                 {/* IMAGE — clickable → product page */}
-                <Link href={`/product/${item.product_id}`} className="block relative aspect-square overflow-hidden bg-[#f8f8f8]">
+                <Link href={`/product/${item.product_id}`} className="block relative aspect-square overflow-hidden bg-muted">
                   <FastImage src={item.image} alt={item.name} priority={index < 4} />
                 </Link>
 
@@ -167,14 +179,14 @@ export default function Saved() {
                   className={cn(
                     "absolute top-2 right-2 h-8 w-8 rounded-full z-10",
                     "flex items-center justify-center",
-                    "bg-white/90 backdrop-blur-md border border-border/50 shadow-sm",
+                    "bg-card/90 backdrop-blur-md border border-border/50 shadow-sm",
                     "transition-all hover:scale-110 disabled:opacity-60"
                   )}
                 >
                   {isRemoving ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                   ) : (
-                    <Heart className="h-3.5 w-3.5 text-rose-500" fill="currentColor" />
+                    <Heart className="h-3.5 w-3.5 text-destructive" fill="currentColor" />
                   )}
                 </button>
 
@@ -183,7 +195,7 @@ export default function Saved() {
                   {/* Name — clickable → product page */}
                   <Link
                     href={`/product/${item.product_id}`}
-                    className="text-sm leading-snug line-clamp-2 text-foreground min-h-[2.5rem] hover:text-primary transition-colors block"
+                    className="text-sm leading-snug line-clamp-2 text-foreground min-h-[2.5rem] hover:text-primary-ink transition-colors block"
                   >
                     {item.name}
                   </Link>
@@ -200,7 +212,7 @@ export default function Saved() {
                       aria-label={`Move ${item.name} to cart`}
                       className={cn(
                         "flex items-center justify-center h-9 w-9 rounded-xl",
-                        "bg-black text-white",
+                        "bg-foreground text-background",
                         "transition-all hover:opacity-80 active:scale-95 disabled:opacity-50"
                       )}
                     >

@@ -1,30 +1,14 @@
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import { resolveImageSrc } from "@/lib/images";
 
 interface CategoryCardProps {
-  image: string;
+  image?: string | null;
   title: string;
-  count: number;
 }
 
-export function resolveImageSrc(image?: string) {
-  const FALLBACK = "/placeholder.png";
-
-  if (!image) return FALLBACK;
-  if (image.startsWith("http")) return image;
-
-  const base = process.env.NEXT_PUBLIC_IMAGE_URL ?? "";
-  if (!base) return FALLBACK;
-
-  const trimmedBase = base.replace(/\/$/, "");
-  const trimmedPath = image.replace(/^\//, "");
-
-  return `${trimmedBase}/${trimmedPath}`;
-}
 export default function CategoryCard({
   image,
   title,
-  count,
 }: CategoryCardProps) {
   const src = resolveImageSrc(image);
   return (
@@ -42,10 +26,6 @@ export default function CategoryCard({
         <h3 className="text-lg font-heading font-bold text-background">
           {title}
         </h3>
-        {/* <div className="flex items-center gap-1 text-sm text-background/80">
-          <span>{count} products</span>
-          <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-        </div> */}
       </div>
     </div>
   );

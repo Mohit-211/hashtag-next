@@ -4,10 +4,10 @@ import { Mail, Clock } from "lucide-react";
 
 export default function SupportInfo() {
   return (
-    <div className="bg-secondary/50 border rounded-xl p-6">
+    <div className="bg-surface border rounded-xl p-6">
       <div className="grid sm:grid-cols-2 gap-6">
         <div className="flex gap-3">
-          <Mail className="h-5 w-5 text-primary" />
+          <Mail className="h-5 w-5 text-primary-ink" />
 
           <div>
             <p className="font-semibold">Email Support</p>
@@ -19,7 +19,7 @@ export default function SupportInfo() {
         </div>
 
         <div className="flex gap-3">
-          <Clock className="h-5 w-5 text-primary" />
+          <Clock className="h-5 w-5 text-primary-ink" />
 
           <div>
             <p className="font-semibold">Response Time</p>

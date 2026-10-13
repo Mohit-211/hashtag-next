@@ -8,45 +8,40 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Maximize2,
 } from "lucide-react";
 
 import ProxyImage from "../ProxyImage";
+import { PLACEHOLDER_IMAGE } from "@/lib/images";
 
 interface Props {
-  attachments?: any[];
+  /** Image URLs, or API attachment rows carrying a `file_uri`. */
+  attachments?: Array<string | { file_uri?: string }>;
   badge?: string;
   onActiveChange?: (index: number) => void;
 }
-
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function ProductGallery({
   attachments = [],
 
   onActiveChange,
 }: Props) {
-  const [active, setActive] = useState(0);
+  const [activeIndex, setActive] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const [lightbox, setLightbox] = useState(false);
 
   const images =
     attachments.length > 0
-      ? attachments.map((item: any) =>
+      ? attachments.map((item) =>
           typeof item === "string" ? item : `${item?.file_uri}`
         )
-      : ["/assets/placeholder.jpg"];
+      : [PLACEHOLDER_IMAGE];
+  // A shorter image list (e.g. after a variant change) falls back to the first image.
+  const active = activeIndex < images.length ? activeIndex : 0;
 
   useEffect(() => {
     onActiveChange?.(active);
   }, [active, onActiveChange]);
 
-  // Prevent invalid active index only
-  useEffect(() => {
-    if (active >= images.length) {
-      setActive(0);
-    }
-  }, [images.length, active]);
 
   const setActiveIndex = useCallback((index: number) => {
     setActive(index);
@@ -98,8 +93,8 @@ export default function ProductGallery({
                     border-2 transition-all duration-200 cursor-pointer
                     ${
                       active === i
-                        ? "border-[#2d4a35] ring-2 ring-[#2d4a35]/30 shadow-lg opacity-100 scale-105"
-                        : "border-[#e8e4df] opacity-70 hover:opacity-100 hover:border-[#8fa989]"
+                        ? "border-foreground ring-2 ring-foreground/30 shadow-lg opacity-100 scale-105"
+                        : "border-border opacity-70 hover:opacity-100 hover:border-input"
                     }
                   `}
                 >
@@ -111,7 +106,7 @@ export default function ProductGallery({
                   />
 
                   {active === i && (
-                    <span className="absolute left-0 inset-y-0 w-[3px] bg-[#2d4a35] rounded-r-full" />
+                    <span className="absolute left-0 inset-y-0 w-[3px] bg-foreground rounded-r-full" />
                   )}
                 </button>
               ))}
@@ -122,11 +117,11 @@ export default function ProductGallery({
           <div className="relative flex-1 min-w-0 flex flex-col gap-3">
             <div
             className={`
-  relative aspect-square rounded-2xl overflow-hidden bg-white group
-  border border-[#ece8e2]
+  relative aspect-square rounded-2xl overflow-hidden bg-card group
+  border border-border
   transition-all duration-300
 
-  hover:shadow-[0_12px_48px_rgba(45,74,53,0.12)]
+  hover:shadow-xl hover:shadow-foreground/10
   ${zoomed ? "cursor-zoom-out" : "cursor-zoom-in"}
 `}
               onClick={() => setZoomed((z) => !z)}
@@ -144,7 +139,7 @@ export default function ProductGallery({
               />
 
               {/* Subtle vignette */}
-              <div className="absolute inset-0 shadow-[inset_0_0_60px_rgba(0,0,0,0.04)] pointer-events-none rounded-2xl" />
+              <div className="absolute inset-0 shadow-[inset_0_0_60px_color-mix(in_srgb,var(--color-foreground)_4%,transparent)] pointer-events-none rounded-2xl" />
 
           
 
@@ -155,10 +150,10 @@ export default function ProductGallery({
                   e.stopPropagation();
                   setLightbox(true);
                 }}
-                className="absolute top-3.5 right-3.5 bg-white/90 backdrop-blur-sm rounded-xl p-2 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-white hover:shadow-md z-10"
+                className="absolute top-3.5 right-3.5 bg-card/90 backdrop-blur-sm rounded-xl p-2 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-card hover:shadow-md z-10"
                 title="View fullscreen"
               >
-                <Maximize2 className="w-3.5 h-3.5 text-[#2d4a35]" />
+                <Maximize2 className="w-3.5 h-3.5 text-foreground" />
               </button> */}
 
               {/* Prev / Next arrows */}
@@ -170,9 +165,9 @@ export default function ProductGallery({
                       e.stopPropagation();
                       prev();
                     }}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-xl p-2 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-white hover:shadow-md z-10"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-sm rounded-xl p-2 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-card hover:shadow-md z-10"
                   >
-                    <ChevronLeft className="w-4 h-4 text-[#2d4a35]" />
+                    <ChevronLeft className="w-4 h-4 text-foreground" />
                   </button>
 
                   <button
@@ -181,30 +176,30 @@ export default function ProductGallery({
                       e.stopPropagation();
                       next();
                     }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-sm rounded-xl p-2 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-white hover:shadow-md z-10"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-card/90 backdrop-blur-sm rounded-xl p-2 shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-card hover:shadow-md z-10"
                   >
-                    <ChevronRight className="w-4 h-4 text-[#2d4a35]" />
+                    <ChevronRight className="w-4 h-4 text-foreground" />
                   </button>
                 </>
               )}
 
               {/* Counter */}
               {images.length > 1 && (
-                <div className="absolute bottom-3.5 right-3.5 bg-white/80 backdrop-blur-sm text-[#2d4a35] text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider border border-[#dde8df] shadow-sm">
+                <div className="absolute bottom-3.5 right-3.5 bg-card/80 backdrop-blur-sm text-foreground text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider border border-border shadow-sm">
                   {active + 1} / {images.length}
                 </div>
               )}
 
               {/* Zoom hint */}
               <div className="absolute bottom-3.5 left-3.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <div className="bg-white/80 backdrop-blur-sm rounded-lg px-2.5 py-1 flex items-center gap-1.5 border border-[#dde8df] shadow-sm">
+                <div className="bg-card/80 backdrop-blur-sm rounded-lg px-2.5 py-1 flex items-center gap-1.5 border border-border shadow-sm">
                   {zoomed ? (
-                    <ZoomOut className="w-3 h-3 text-[#4a7a58]" />
+                    <ZoomOut className="w-3 h-3 text-foreground" />
                   ) : (
-                    <ZoomIn className="w-3 h-3 text-[#4a7a58]" />
+                    <ZoomIn className="w-3 h-3 text-foreground" />
                   )}
 
-                  <span className="text-[9px] font-bold text-[#4a7a58] uppercase tracking-widest">
+                  <span className="text-[9px] font-bold text-foreground uppercase tracking-widest">
                     {zoomed ? "Zoom out" : "Zoom in"}
                   </span>
                 </div>
@@ -221,8 +216,8 @@ export default function ProductGallery({
                     onClick={() => setActiveIndex(i)}
                     className={`rounded-full transition-all duration-250 ${
                       active === i
-                        ? "w-6 h-1.5 bg-[#2d4a35]"
-                        : "w-1.5 h-1.5 bg-[#c5c2bb] hover:bg-[#8fa989]"
+                        ? "w-6 h-1.5 bg-foreground"
+                        : "w-1.5 h-1.5 bg-border hover:bg-border"
                     }`}
                   />
                 ))}
@@ -235,20 +230,20 @@ export default function ProductGallery({
       {/* ── Lightbox ── */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center"
+          className="fixed inset-0 z-50 bg-foreground/95 backdrop-blur-md flex items-center justify-center"
           onClick={() => setLightbox(false)}
         >
           {/* Close */}
           <button
             type="button"
             onClick={() => setLightbox(false)}
-            className="absolute top-5 right-5 bg-white/10 hover:bg-white/20 text-white rounded-xl p-2.5 transition-all duration-200 hover:scale-110 z-10 border border-white/10"
+            className="absolute top-5 right-5 bg-card/10 hover:bg-card/20 text-background rounded-xl p-2.5 transition-all duration-200 hover:scale-110 z-10 border border-card/10"
           >
             <X className="w-5 h-5" />
           </button>
 
           {/* Counter */}
-          <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-white/10 text-white text-xs px-4 py-2 rounded-full backdrop-blur-sm font-medium border border-white/10">
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 bg-card/10 text-background text-xs px-4 py-2 rounded-full backdrop-blur-sm font-medium border border-card/10">
             {active + 1} / {images.length}
           </div>
 
@@ -260,7 +255,7 @@ export default function ProductGallery({
                 e.stopPropagation();
                 prev();
               }}
-              className="absolute left-5 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-xl p-3 transition-all duration-200 hover:scale-110 z-10 border border-white/10"
+              className="absolute left-5 top-1/2 -translate-y-1/2 bg-card/10 hover:bg-card/20 text-background rounded-xl p-3 transition-all duration-200 hover:scale-110 z-10 border border-card/10"
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -288,7 +283,7 @@ export default function ProductGallery({
                 e.stopPropagation();
                 next();
               }}
-              className="absolute right-5 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white rounded-xl p-3 transition-all duration-200 hover:scale-110 z-10 border border-white/10"
+              className="absolute right-5 top-1/2 -translate-y-1/2 bg-card/10 hover:bg-card/20 text-background rounded-xl p-3 transition-all duration-200 hover:scale-110 z-10 border border-card/10"
             >
               <ChevronRight className="w-6 h-6" />
             </button>
@@ -296,7 +291,7 @@ export default function ProductGallery({
 
           {/* Thumbnail strip */}
           {images.length > 1 && (
-            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-2.5 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/10">
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-2.5 bg-card/10 backdrop-blur-sm rounded-2xl border border-card/10">
               {images.map((img, i) => (
                 <button
                   type="button"
@@ -307,7 +302,7 @@ export default function ProductGallery({
                   }}
                   className={`relative w-11 h-11 rounded-xl overflow-hidden border-2 transition-all duration-200 flex-shrink-0 ${
                     active === i
-                      ? "border-white opacity-100 scale-110"
+                      ? "border-card opacity-100 scale-110"
                       : "border-transparent opacity-40 hover:opacity-75"
                   }`}
                 >

@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { resolveImageSrc } from "@/lib/images";
 import type { Industry, ParentCategory, UseCase } from "@/data/types";
 import { categoriesViewStyles } from "./categoriesView.styles";
 interface UseCasePickerGateProps {
@@ -9,18 +10,6 @@ interface UseCasePickerGateProps {
   onSkipGate: () => void;
 }
 const SKELETON_COUNT = 8;
-const MAX_VISIBLE_TAGS = 2;
-const FALLBACK_IMAGE = "/placeholder.png"; // adjust to whatever fallback asset you actually have
-
-function resolveImageSrc(image?: string | null) {
-  if (!image) return FALLBACK_IMAGE;
-  if (image.startsWith("http")) return image;
-  const base = process.env.NEXT_PUBLIC_IMAGE_URL ?? "";
-  if (!base) return FALLBACK_IMAGE;
-  const trimmedBase = base.endsWith("/") ? base.slice(0, -1) : base;
-  const trimmedPath = image.startsWith("/") ? image : `/${image}`;
-  return `${trimmedBase}${trimmedPath}`;
-}
 
 export default function UseCasePickerGate({
   industries,
@@ -59,27 +48,26 @@ export default function UseCasePickerGate({
                 <h2 className="ucgate-industry-group-title">{industry.title}</h2>
                 <div className="ucgate-usecase-list">
                   {useCases.map((uc) => {
-                    const cats = uc.parent_categories ?? [];
-                    const visibleCats = cats.slice(0, MAX_VISIBLE_TAGS);
-                    const remaining = cats.length - visibleCats.length;
                     const i = stagger++;
                     return (
                       <button
                         key={`${industry.id}-${uc.id}`}
                         type="button"
                         className="ucgate-usecase-card"
-                        style={{
-                          ["--stagger" as any]: i,
-                          position: "relative",
-                          borderRadius: "var(--radius-lg, 0.5rem)",
-                          overflow: "hidden",
-                          padding: 0,
-                          background: "transparent",
-                        }}
+                        style={
+                          {
+                            "--stagger": i,
+                            position: "relative",
+                            borderRadius: "var(--radius-lg, 0.5rem)",
+                            overflow: "hidden",
+                            padding: 0,
+                            background: "transparent",
+                          } as React.CSSProperties
+                        }
                         onClick={() => onSelectUseCase(industry, uc)}
                       >
                         <Image
-                          src={resolveImageSrc((uc as any).image)}
+                          src={resolveImageSrc(uc.image)}
                           alt={uc.title}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 268px"
@@ -92,43 +80,6 @@ export default function UseCasePickerGate({
                           <div className="ucgate-usecase-caption-title">
                             {uc.title}
                           </div>
-                          {/* {visibleCats.length > 0 && (
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                              {visibleCats.map((c) => (
-                                <span
-                                  key={c.id}
-                                  style={{
-                                    fontSize: "0.7rem",
-                                    fontWeight: 500,
-                                    color: "#fff",
-                                    background: "rgba(255,255,255,0.18)",
-                                    backdropFilter: "blur(2px)",
-                                    border: "1px solid rgba(255,255,255,0.35)",
-                                    borderRadius: "999px",
-                                    padding: "0.2rem 0.6rem",
-                                  }}
-                                >
-                                  {c.title}
-                                </span>
-                              ))}
-                              {remaining > 0 && (
-                                <span
-                                  style={{
-                                    fontSize: "0.7rem",
-                                    fontWeight: 500,
-                                    color: "#fff",
-                                    background: "rgba(255,255,255,0.18)",
-                                    backdropFilter: "blur(2px)",
-                                    border: "1px solid rgba(255,255,255,0.35)",
-                                    borderRadius: "999px",
-                                    padding: "0.2rem 0.6rem",
-                                  }}
-                                >
-                                  +{remaining}
-                                </span>
-                              )}
-                            </div>
-                          )} */}
                         </div>
                       </button>
                     );

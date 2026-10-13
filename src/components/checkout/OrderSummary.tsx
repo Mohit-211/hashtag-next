@@ -1,9 +1,11 @@
 "use client";
 import { ShoppingBag, Truck, Receipt, Percent } from "lucide-react";
 import ProxyImage from "../ProxyImage";
+import type { CartItem } from "@/contexts/CartContext";
+import type { ShippingRate } from "./CheckoutLayout";
 
-function fmt(n: any): string {
-  const num = parseFloat(n);
+function fmt(n: number | string | null | undefined): string {
+  const num = parseFloat(String(n));
   if (isNaN(num)) return "—";
   return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -16,16 +18,24 @@ export default function OrderSummary({
   shippingAmount,
   total,
   selectedRate,
-}: any) {
+}: {
+  items: CartItem[];
+  subtotal: number;
+  taxAmount: number;
+  taxRate: number;
+  shippingAmount: number;
+  total: number;
+  selectedRate: ShippingRate | null;
+}) {
   return (
-    <div className="bg-white border border-[#E0DFDB] border-t-[3px] border-t-[#F5D800] sticky top-6">
+    <div className="bg-card border border-border border-t-[3px] border-t-primary sticky top-24">
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3.5 bg-[#1A1A1A] border-b border-[#2C2C2C]">
-        <div className="w-8 h-8 bg-[#F5D800] flex items-center justify-center shrink-0">
-          <ShoppingBag className="h-4 w-4 text-[#1A1A1A]" strokeWidth={2} />
+      <div className="flex items-center gap-3 px-4 py-3.5 bg-foreground border-b border-foreground">
+        <div className="w-8 h-8 bg-primary flex items-center justify-center shrink-0">
+          <ShoppingBag className="h-4 w-4 text-foreground" strokeWidth={2} />
         </div>
-        <h2 className="font-condensed font-bold text-lg uppercase tracking-wide text-white">
+        <h2 className="font-bold text-lg uppercase tracking-wide text-background">
           Order Summary
         </h2>
       </div>
@@ -34,15 +44,13 @@ export default function OrderSummary({
 
         {/* Items */}
         <div className="flex flex-col gap-2.5 max-h-52 overflow-y-auto">
-          {items.map((item: any) => {
-            const unit = parseFloat(item.price);
-            const qty  = parseInt(item.quantity ?? 1, 10);
-            // const line = isNaN(unit) || isNaN(qty) ? null : unit * qty;
+          {items.map((item) => {
+            const qty  = Math.trunc(Number(item.quantity ?? 1));
 
             return (
               <div key={item.cart_id} className="flex items-start gap-3">
                 <div className="relative h-10 w-10 shrink-0">
-                  <div className="h-full w-full overflow-hidden bg-[#F5F4F0] border border-[#E0DFDB] flex items-center justify-center">
+                  <div className="h-full w-full overflow-hidden bg-muted border border-border flex items-center justify-center">
                     {item.image ? (
                       <ProxyImage
                         src={item.image}
@@ -52,12 +60,12 @@ export default function OrderSummary({
                         className="h-full w-full"
                       />
                     ) : (
-                      <ShoppingBag className="h-4 w-4 text-[#CDCCC8]" strokeWidth={1.5} />
+                      <ShoppingBag className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
                     )}
                   </div>
 
                   {item.logo_image && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 overflow-hidden border border-white shadow-sm bg-white">
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 overflow-hidden border border-card shadow-sm bg-card">
                       <ProxyImage
                         src={item.logo_image}
                         alt="Logo"
@@ -70,18 +78,18 @@ export default function OrderSummary({
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#1A1A1A] truncate">{item.name}</p>
-                  <p className="text-xs text-[#9A9A9A] mt-0.5">Qty {qty}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Qty {qty}</p>
                 </div>
-                <p className="font-condensed font-bold text-sm text-[#1A1A1A] shrink-0">
-                  {item.total_price}
+                <p className="font-bold text-sm text-foreground shrink-0">
+                  ${fmt(item.total_price)}
                 </p>
               </div>
             );
           })}
         </div>
 
-        <div className="border-t border-[#E0DFDB]" />
+        <div className="border-t border-border" />
 
         {/* Breakdown */}
         <div className="flex flex-col gap-2">
@@ -96,30 +104,30 @@ export default function OrderSummary({
                   },
                 ]
               : []),
-            ...(parseFloat(shippingAmount) !== 0
+            ...(Number(shippingAmount) !== 0
               ? [{ icon: Truck, label: selectedRate?.label || "Shipping", value: `$${fmt(shippingAmount)}` }]
               : []),
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center justify-between text-sm">
-              <span className="flex items-center gap-2 text-[#6B6B6B]">
+              <span className="flex items-center gap-2 text-muted-foreground">
                 <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
                 {label}
               </span>
-              <span className="font-medium text-[#2C2C2C] tabular-nums">{value}</span>
+              <span className="font-medium text-foreground tabular-nums">{value}</span>
             </div>
           ))}
         </div>
 
         {/* Total */}
-        <div className="flex items-baseline justify-between border-t-2 border-[#1A1A1A] pt-3">
-          <span className="font-condensed font-bold text-sm uppercase tracking-widest text-[#1A1A1A]">
+        <div className="flex items-baseline justify-between border-t-2 border-foreground pt-3">
+          <span className="font-bold text-sm uppercase tracking-widest text-foreground">
             Total
           </span>
           <div className="text-right">
-            <p className="font-condensed font-bold text-3xl text-[#1A1A1A] tabular-nums">
+            <p className="font-bold text-3xl text-foreground tabular-nums">
               ${fmt(total)}
             </p>
-            <p className="text-[10px] text-[#9A9A9A] uppercase tracking-wider mt-0.5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
               USD incl. tax
             </p>
           </div>

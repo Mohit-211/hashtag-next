@@ -40,8 +40,3 @@ export const UpdateCartQuantityApi = (payload: {
 // ❌ Remove item from cart (FIXED)
 export const RemoveFromCartApi = (cart_id: string | number) =>
   client.delete(CART_ENDPOINTS.REMOVE_FROM_CART(cart_id));
-
-// ❤️ Move item to wishlist
-export const MoveCartToWishlistApi = (payload: { cart_id: string | number }) =>
-  client.post(CART_ENDPOINTS.MOVE_TO_WISHLIST, payload);
-// ❤️ Move item to wishlist

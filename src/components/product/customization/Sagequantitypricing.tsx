@@ -75,7 +75,6 @@ export function parseSageMeta(
   if (!obj || typeof obj !== "object") return null;
 
   /* ── Extract parallel arrays ── */
-  const rawPriceTiers = obj.priceTiers;
   const rawNetTiers = obj.netTiers;
   const rawQtyTiers = obj.qtyTiers;
 
@@ -251,12 +250,12 @@ const TierTable = React.memo(function TierTable({
             className={cn(
               "group relative rounded-2xl border p-3.5 text-left transition-all duration-150",
               active
-                ? "border-[#F5D800] bg-gradient-to-b from-[#FFFBEA] to-[#FFF6CC] shadow-[0_4px_16px_-2px_rgba(245,216,0,0.35)] -translate-y-0.5"
-                : "border-gray-200 bg-white hover:border-[#F5D800]/70 hover:-translate-y-0.5 hover:shadow-md"
+                ? "border-primary bg-gradient-to-b from-primary-soft to-primary-soft shadow-lg shadow-primary/35 -translate-y-0.5"
+                : "border-border bg-card hover:border-primary/70 hover:-translate-y-0.5 hover:shadow-md"
             )}
           >
             {isBestValue && (
-              <span className="absolute -top-2 right-2.5 inline-flex items-center gap-0.5 text-[9px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full shadow-sm">
+              <span className="absolute -top-2 right-2.5 inline-flex items-center gap-0.5 text-[9px] font-black bg-success text-background px-1.5 py-0.5 rounded-full shadow-sm">
                 <TrendingDown size={9} strokeWidth={3} /> BEST
               </span>
             )}
@@ -264,20 +263,20 @@ const TierTable = React.memo(function TierTable({
             <div className="flex items-baseline justify-between gap-1">
               <span className={cn(
                 "text-[11px] font-bold tracking-tight",
-                active ? "text-[#8a6d00]" : "text-gray-400 group-hover:text-gray-600"
+                active ? "text-primary-ink" : "text-muted-foreground group-hover:text-muted-foreground"
               )}>
                 {tier.minQty.toLocaleString()}{tier.maxQty != null ? `–${tier.maxQty.toLocaleString()}` : "+"}
               </span>
-              {active && <Check size={13} strokeWidth={3} className="text-[#b89000] flex-shrink-0" />}
+              {active && <Check size={13} strokeWidth={3} className="text-primary-ink flex-shrink-0" />}
             </div>
 
-            <div className="mt-2 text-xl font-black leading-none tabular-nums text-gray-900">
+            <div className="mt-2 text-xl font-black leading-none tabular-nums text-foreground">
               {fmt(markedPrice)}
             </div>
-            <p className="text-[10px] text-gray-400 mt-0.5">per piece</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">per piece</p>
 
             {pctOff > 0 && (
-              <p className="mt-1.5 text-[10px] font-bold text-emerald-600">
+              <p className="mt-1.5 text-[10px] font-bold text-success">
                 {pctOff}% off base
               </p>
             )}
@@ -318,7 +317,7 @@ const QtyStepper = React.memo(function QtyStepper({
           onClick={onDecrease}
           disabled={qty <= effectiveMin}
           aria-label="Decrease quantity"
-          className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 hover:border-gray-300 hover:bg-gray-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          className="w-12 h-12 rounded-full border-2 border-border flex items-center justify-center text-xl font-bold text-muted-foreground hover:border-input hover:bg-muted active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
           −
         </button>
@@ -332,7 +331,7 @@ const QtyStepper = React.memo(function QtyStepper({
             onFocus={onFocus}
             onChange={(e) => onInputChange(e.target.value)}
             onBlur={(e) => onInputBlur(e.target.value)}
-            className="w-32 h-12 rounded-2xl border-2 border-gray-200 text-center text-xl font-black text-gray-900 outline-none focus:border-[#F5D800] focus:ring-4 focus:ring-[#F5D800]/15 transition-all tabular-nums"
+            className="w-32 h-12 rounded-2xl border-2 border-border text-center text-xl font-black text-foreground outline-none focus:border-primary focus:ring-4 focus:ring-primary/15 transition-all tabular-nums"
           />
         </div>
 
@@ -340,7 +339,7 @@ const QtyStepper = React.memo(function QtyStepper({
           onClick={onIncrease}
           disabled={stockLimit != null && qty >= stockLimit}
           aria-label="Increase quantity"
-          className="w-12 h-12 rounded-full border-2 border-gray-200 flex items-center justify-center text-xl font-bold text-gray-500 hover:border-gray-300 hover:bg-gray-50 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          className="w-12 h-12 rounded-full border-2 border-border flex items-center justify-center text-xl font-bold text-muted-foreground hover:border-input hover:bg-muted active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
           +
         </button>
@@ -367,39 +366,39 @@ const PriceBar = React.memo(function PriceBar({
   activeTier,
 }: PriceBarProps) {
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 text-white p-5 overflow-hidden relative">
+    <div className="rounded-2xl bg-gradient-to-br from-foreground to-foreground text-background p-5 overflow-hidden relative">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
             {qty.toLocaleString()} units × {fmt(unitPrice)}
           </p>
-          <p className="text-3xl font-black text-[#F5D800] leading-tight tabular-nums">
+          <p className="text-3xl font-black text-primary-ink leading-tight tabular-nums">
             {fmt(total)}
           </p>
         </div>
         {activeTier && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 border border-white/15 text-[10px] font-bold text-gray-200 flex-shrink-0">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card/10 border border-card/15 text-[10px] font-bold text-muted-foreground flex-shrink-0">
             <Package size={10} />
             Tier {activeTier.minQty.toLocaleString()}{activeTier.maxQty != null ? `–${activeTier.maxQty.toLocaleString()}` : "+"}
           </span>
         )}
       </div>
 
-      <div className="space-y-2 pt-3 border-t border-white/10">
+      <div className="space-y-2 pt-3 border-t border-card/10">
         <div className="flex justify-between text-xs">
-          <span className="text-gray-400">Unit price</span>
-          <span className="font-semibold text-gray-100 tabular-nums">{fmt(unitPrice)}</span>
+          <span className="text-muted-foreground">Unit price</span>
+          <span className="font-semibold text-background tabular-nums">{fmt(unitPrice)}</span>
         </div>
         {setupFee ? (
           <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Setup fee</span>
-            <span className="font-semibold text-gray-100 tabular-nums">{fmt(setupFee)}</span>
+            <span className="text-muted-foreground">Setup fee</span>
+            <span className="font-semibold text-background tabular-nums">{fmt(setupFee)}</span>
           </div>
         ) : null}
         {saving > 0 && (
           <div className="flex justify-between text-xs">
-            <span className="text-emerald-400 flex items-center gap-1"><TrendingDown size={11} /> You save</span>
-            <span className="font-bold text-emerald-400 tabular-nums">{fmt(saving)}</span>
+            <span className="text-success flex items-center gap-1"><TrendingDown size={11} /> You save</span>
+            <span className="font-bold text-success tabular-nums">{fmt(saving)}</span>
           </div>
         )}
       </div>
@@ -427,22 +426,22 @@ const NextTierNudge = React.memo(function NextTierNudge({
     applySageMarkup(nextTier.price)
   ).toFixed(2);
   return (
-    <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+    <div className="flex items-center gap-3 bg-primary-soft border border-primary rounded-xl px-4 py-3">
       <span className="relative flex-shrink-0">
-        <Zap size={14} className="text-amber-500 relative z-10" />
-        <span className="absolute inset-0 rounded-full bg-amber-300/50 animate-ping" />
+        <Zap size={14} className="text-primary-ink relative z-10" />
+        <span className="absolute inset-0 rounded-full bg-primary/50 animate-ping" />
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-amber-800">
+        <p className="text-xs font-bold text-primary-ink">
           {needed.toLocaleString()} more unlocks {fmt(applySageMarkup(nextTier.price))}/pc
         </p>
-        <p className="text-[11px] text-amber-600 mt-0.5">
+        <p className="text-[11px] text-primary-ink mt-0.5">
           Save ${savingPerPc}/pc at {nextTier.minQty.toLocaleString()}+ units
         </p>
       </div>
       <button
         onClick={() => onJumpToTier(nextTier)}
-        className="text-[10px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-1.5 rounded-full hover:bg-amber-200 transition-colors flex-shrink-0"
+        className="text-[10px] font-black text-primary-ink bg-primary-soft border border-primary px-2.5 py-1.5 rounded-full hover:bg-primary transition-colors flex-shrink-0"
       >
         Jump to {nextTier.minQty.toLocaleString()}
       </button>
@@ -476,9 +475,9 @@ export default function SageQuantityPricing({
     return Math.max(start, effectiveMin);
   });
 
-  useEffect(() => {
-    setQty(q => (q < effectiveMin ? effectiveMin : q));
-  }, [effectiveMin]);
+  // A higher minimum (new variant/meta) lifts the quantity to it — adjusted
+  // during render so the clamped value is what gets painted.
+  if (qty < effectiveMin) setQty(effectiveMin);
 
   const [showTable, setShowTable] = useState(true);
 
@@ -526,7 +525,6 @@ export default function SageQuantityPricing({
       unitPrice,
       total,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qty, unitPrice, total, resolvedItemId, meta?.sku, meta?.productName]);
 
   // A supplier feed can report stock as null/undefined (unknown/untracked),
@@ -595,7 +593,7 @@ export default function SageQuantityPricing({
           onClick={handleDecrease}
           disabled={qty <= effectiveMin}
           aria-label="Decrease quantity"
-          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          className="w-11 h-11 rounded-2xl border-2 border-border flex items-center justify-center text-lg font-bold text-muted-foreground hover:border-input disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
           −
         </button>
@@ -606,13 +604,13 @@ export default function SageQuantityPricing({
           onFocus={handleQtyInputFocus}
           onChange={e => handleQtyInputChange(e.target.value)}
           onBlur={e => handleQtyInputBlur(e.target.value)}
-          className="w-20 h-11 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
+          className="w-20 h-11 rounded-2xl border-2 border-border text-center text-lg font-black text-foreground outline-none focus:border-primary transition-all"
         />
         <button
           onClick={handleIncrease}
           disabled={stockLimit != null && qty >= stockLimit}
           aria-label="Increase quantity"
-          className="w-11 h-11 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          className="w-11 h-11 rounded-2xl border-2 border-border flex items-center justify-center text-lg font-bold text-muted-foreground hover:border-input disabled:opacity-30 disabled:cursor-not-allowed transition-all"
         >
           +
         </button>
@@ -627,18 +625,18 @@ export default function SageQuantityPricing({
         {/* Collapsible tier table */}
         <button
           onClick={() => setShowTable(s => !s)}
-          className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+          className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-border bg-muted hover:bg-border hover:border-input transition-colors"
         >
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
-            <span className="w-6 h-6 rounded-lg bg-[#F5D800]/20 flex items-center justify-center">
-              <Tag size={12} className="text-[#b89000]" />
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+            <span className="w-6 h-6 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Tag size={12} className="text-primary-ink" />
             </span>
             Volume Pricing
-            <span className="text-gray-400 font-medium">
+            <span className="text-muted-foreground font-medium">
               · {meta.netTiers.length} tiers · {fmt(applySageMarkup(meta.netTiers[meta.netTiers.length - 1]?.price ?? 0))}–{fmt(applySageMarkup(meta.netTiers[0]?.price ?? 0))}/pc
             </span>
           </div>
-          {showTable ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
+          {showTable ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
         </button>
 
         {showTable && (
@@ -651,7 +649,7 @@ export default function SageQuantityPricing({
         )}
 
         <div className="pt-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Select Quantity</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Select Quantity</p>
           <QtyStepper
             qty={qty}
             qtyInput={qtyInput}
@@ -683,8 +681,8 @@ export default function SageQuantityPricing({
     <div className="space-y-5">
       <div className="grid md:grid-cols-2 gap-5">
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-            <Tag size={12} className="text-[#F5D800]" /> Quantity Breaks
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+            <Tag size={12} className="text-primary-ink" /> Quantity Breaks
           </p>
           <TierTable
             netTiers={meta.netTiers}
@@ -694,8 +692,8 @@ export default function SageQuantityPricing({
           />
         </div>
         <div className="space-y-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-            <Package size={12} className="text-[#F5D800]" /> Your Order
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+            <Package size={12} className="text-primary-ink" /> Your Order
           </p>
           <QtyStepper
             qty={qty}

@@ -6,7 +6,6 @@ export const AUTH_ENDPOINTS = {
   VERIFY_OTP: "user/auth/verify-otp",
   FORGOT_PASSWORD: "user/auth/forgot-password",
   RESET_PASSWORD: "user/auth/reset-password",
-  // CHANGE_PASSWORD: "user/auth/change-password",
 };
 export const USER_ENDPOINTS = {
   PROFILE: "user/profile",
@@ -20,25 +19,19 @@ export const PRODUCT_ENDPOINTS = {
   PRODUCT_DETAIL: (id: string) => `product/${id}`,
   PRODUCT_DETAIL_GUEST: (id: string) => `product/guest/${id}`,
   PRODUCT_CATEGORY: "product-category/get-grand-categories",
-  PRODUCT_VARIANT: "product/get-variant",
   PRODUCT_VARIANT_DETAIL: (id: string | number) => `product/variant/${id}`,
-  PRODUCT_GRAND_CATEGORY: "product/grand-category-products",
   INDUSTRY: "industry",
   USE_CASE_PRODUCTS: "industry/use-case/products",
   PRODUCT_ADDONS: (id: string | number) => `add-on/product/${id}/addons`,
   PRODUCT_CUSTOMIZATIONS: (id: string | number) => `customization-option/product/${id}/customizations`,
-  // PRODUCT_PARENT_CATEGORY: "product/parent-category-products", // if available
 };
 export const CART_ENDPOINTS = {
-  CART: "cart",
   ADD_TO_CART: "product/cart",
   GET_ALL: "product/cart/get",
   INCREMENT: "product/cart/increment",
   DECREMENT: "product/cart/decrement",
   UPDATE_QUANTITY: "product/cart",
   REMOVE_FROM_CART: (cart_id: string | number) => `product/cart/${cart_id}`,
-  MOVE_TO_WISHLIST: "product/cart/move",
-
 };
 export const SHIPPING_ENDPOINTS = {
   GET_RATES: "/order/shipping/rates",

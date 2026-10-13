@@ -2,7 +2,7 @@
 
 import { GetPaymentHistoryApi } from "@/api/operations/payment.api";
 import PaymentHistoryCard, { Payment } from "@/components/PaymentHistoryCard/PaymentHistoryCard";
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 interface PaginationMeta {
@@ -64,7 +64,7 @@ function EmptyState() {
         No payments yet
       </h3>
       <p className="text-sm text-muted-foreground max-w-xs">
-        Your payment history will appear here once you've made a purchase.
+        Your payment history will appear here once you&apos;ve made a purchase.
       </p>
     </div>
   );
@@ -86,40 +86,40 @@ export default function PaymentHistoryPage() {
   // accumulated set and we can just replace `payments` wholesale rather
   // than merging/deduping pages by hand.
   const [limit, setLimit] = useState(PAGE_SIZE);
-  const [loading, setLoading] = useState(true); // first load only
-  const [loadingMore, setLoadingMore] = useState(false); // subsequent scroll-triggered loads
+  const [attempt, setAttempt] = useState(0); // bumped by "Try again"
+  // The request (limit + attempt) whose response arrived last.
+  const [settled, setSettled] = useState<{ limit: number; attempt: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const isFirstLoad = useRef(true);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const fetchPayments = useCallback(async (currentLimit: number) => {
-    if (isFirstLoad.current) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-    setError(null);
-    try {
-      const res = await GetPaymentHistoryApi({ page: 1, limit: currentLimit });
-      if (!res?.success) throw new Error(res?.message || "Failed to fetch");
-      setPayments(res.data.payments);
-      setMeta({
-        total: res.data.total,
-        current_page: res.data.current_page,
-        total_pages: res.data.total_pages,
-      });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-      isFirstLoad.current = false;
-    }
-  }, []);
+  const inFlight = settled?.limit !== limit || settled?.attempt !== attempt;
+  const loading = inFlight && payments.length === 0; // first load (skeleton)
+  const loadingMore = inFlight && payments.length > 0; // scroll-triggered load
 
   useEffect(() => {
-    fetchPayments(limit);
-  }, [limit, fetchPayments]);
+    let cancelled = false;
+    GetPaymentHistoryApi({ page: 1, limit })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res?.success) throw new Error(res?.message || "Failed to fetch");
+        setPayments(res.data.payments);
+        setMeta({
+          total: res.data.total,
+          current_page: res.data.current_page,
+          total_pages: res.data.total_pages,
+        });
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Something went wrong");
+      })
+      .finally(() => {
+        if (!cancelled) setSettled({ limit, attempt });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [limit, attempt]);
 
   const hasMore = payments.length < meta.total;
 
@@ -144,17 +144,16 @@ export default function PaymentHistoryPage() {
   }, [loading, loadingMore, hasMore]);
 
   const handleRetry = () => {
-    isFirstLoad.current = payments.length === 0;
-    fetchPayments(limit);
+    setError(null);
+    setAttempt((n) => n + 1);
   };
 
   return (
     <main className="min-h-screen bg-background">
       {/* Decorative header band */}
       <div className="h-1.5 w-full bg-primary" />
-<div className="container max-w-3xl">
-
-      <div className="max-w-full px-4 sm:px-6 py-10">
+<div className="container max-w-6xl">
+      <div className="py-10">
         {/* Page header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-1">
@@ -220,7 +219,7 @@ export default function PaymentHistoryPage() {
         )}
 
         {loading && (
-          <div className="grid gap-8 sm:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -231,7 +230,7 @@ export default function PaymentHistoryPage() {
 
         {!loading && !error && payments.length > 0 && (
           <>
-            <div className="grid gap-8 sm:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {payments.map((payment) => (
                 <PaymentHistoryCard key={payment.payment_id} payment={payment} />
               ))}
@@ -243,7 +242,7 @@ export default function PaymentHistoryPage() {
                 line once hasMore is false. */}
             <div ref={hasMore ? sentinelRef : null} className="mt-8 flex justify-center">
               {loadingMore && (
-                <div className="grid gap-8 sm:grid-cols-3 w-full">
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 w-full">
                   <SkeletonCard />
                   <SkeletonCard />
                   <SkeletonCard />

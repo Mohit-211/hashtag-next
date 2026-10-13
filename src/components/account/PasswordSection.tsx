@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/data/constants";
-import { message } from "antd";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { changePasswordApi } from "@/api/auth/auth.api";
@@ -31,10 +30,10 @@ const getStrength = () => {
   if (/[0-9]/.test(newPw)) score++;
   if (/[^A-Za-z0-9]/.test(newPw)) score++;
 
-  if (score <= 2) return { label: "Weak", color: "text-red-500" };
-  if (score === 3) return { label: "Medium", color: "text-yellow-500" };
+  if (score <= 2) return { label: "Weak", color: "text-destructive" };
+  if (score === 3) return { label: "Medium", color: "text-primary-ink" };
 
-  return { label: "Strong", color: "text-green-600" };
+  return { label: "Strong", color: "text-success" };
 };
 
 const strength = getStrength();
@@ -83,7 +82,7 @@ const strength = getStrength();
       const res = await changePasswordApi(payload);
 
       if (res?.data?.success) {
-        message.success("Password updated. Logging out...");
+        toast.success("Password updated. Logging out...");
 
         setCurrentPw("");
         setNewPw("");
@@ -95,9 +94,9 @@ const strength = getStrength();
           router.push("/login");
         }, 1500);
       } else {
-        message.error(res?.data?.message || "Something went wrong");
+        toast.error(res?.data?.message || "Something went wrong");
       }
-    } catch (error: any) {
+    } catch (error) {
       // The axios response interceptor already toasts the failure.
       console.error(error);
     } finally {

@@ -1,4 +1,3 @@
-import ContactUs from '@/components/conatctUs/ConatctUs'
 import ConciergeSourcingSection from '@/components/conatctUs/Conciergesourcingsection'
 import React from 'react'
 
@@ -9,7 +8,6 @@ const ContactUsPage = () => {
         <ConciergeSourcingSection />
       </div>
 
-      {/* <ContactUs /> */}
     </div>
   )
 }

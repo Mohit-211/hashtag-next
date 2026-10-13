@@ -1,5 +1,3 @@
-// components/product/ProductDetail.tsx
-
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,13 +14,19 @@ import {
 } from "@/lib/authRedirect";
 import { clearPendingFiles, savePendingFiles } from "@/lib/pendingAuthFiles";
 import { GetWishlistApi } from "@/api/operations/wishlist.api";
+import Link from "next/link";
 import {
   ShoppingCart,
   Heart,
   Sparkles,
   Loader2,
   CheckCircle2,
+  ChevronRight,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { isGrandCategory } from "@/lib/productFamily";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
+import type { ProductCategoryRef } from "@/data/typesproduct";
 import ProductGallery from "@/components/product/ProductGallery";
 import ProductInfo from "@/components/product/ProductInfo";
 import ProductAccordion from "@/components/product/ProductAccordion";
@@ -32,9 +36,8 @@ import {
 } from "@/api/operations/product.api";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { cn } from "@/lib/utils";
-import { Spin } from "antd";
 import AddProductConfigurationModal from "@/components/product/Addproductconfigurationmodal/Addproductconfigurationmodal";
-import AddToCartModal from "@/components/common/AddToCartModal";
+import AddToCartModal, { type ConfiguredVariant } from "@/components/common/AddToCartModal";
 import ManualCustomizationPage from "@/components/product/ManualCustomizationPage";
 import { useCart } from "@/contexts/CartContext";
 import { parseManualMeta, parseManualOptionValues } from "@/components/product/customization/Productcustomizationpage";
@@ -54,7 +57,8 @@ interface VariantImage {
   is_primary: boolean;
 }
 interface Variant {
-  pricing_tiers_customer: any;
+  /** SAGE pricing tiers; `net` is the customer price for that tier. */
+  pricing_tiers_customer?: { net?: number }[] | null;
   id: number;
   product_id: number;
   sku: string;
@@ -76,15 +80,15 @@ interface Variant {
   supplier?: string | null;
 }
 interface Product {
-  brand: any;
+  brand?: { name?: string; logo_url?: string | null } | null;
   id: string;
   name: string;
   price: number;
   image: string;
   description?: string;
   sizes: Size[];
-  attachments: any[];
-  categories: any[];
+  attachments: { file_uri: string; file_name?: string; url?: string }[];
+  categories: ProductCategoryRef[];
   variants: Variant[];
   meta?: string | null;
 }
@@ -97,7 +101,13 @@ interface ManualOptionGroup {
   /** Backend-controlled UI for the group (dropdown / radio / checkbox / button / color). */
   displayStyle?: string;
 }
-const parseJson = (raw?: string | null): any => {
+/** Shape of one entry in a MANUAL product's `meta.options`. */
+interface RawManualOption {
+  name?: unknown;
+  display_style?: string;
+  values?: Array<{ name?: unknown; display_style?: string } | null>;
+}
+const parseJson = (raw?: string | null): { options?: unknown; option_values?: unknown } | null => {
   if (!raw) return null;
   try {
     const obj = JSON.parse(raw);
@@ -116,15 +126,15 @@ const getManualOptionGroups = (product: Product): ManualOptionGroup[] => {
   });
   const options = parseJson(product.meta)?.options;
   if (Array.isArray(options) && options.length > 0) {
-    return options
-      .map((o: any) => {
+    return (options as RawManualOption[])
+      .map((o) => {
         const name = String(o?.name ?? "").trim();
         return {
           name,
-          values: (Array.isArray(o?.values) ? o.values : []).map((v: any) => String(v?.name ?? "").trim()).filter(Boolean),
+          values: (Array.isArray(o?.values) ? o.values : []).map((v) => String(v?.name ?? "").trim()).filter(Boolean),
           displayStyle:
             o?.display_style ??
-            (Array.isArray(o?.values) ? o.values.find((v: { display_style?: string } | null) => v?.display_style)?.display_style : undefined) ??
+            (Array.isArray(o?.values) ? o.values.find((v) => v?.display_style)?.display_style : undefined) ??
             sizeStyles.get(name.toLowerCase()),
         };
       })
@@ -153,6 +163,12 @@ const getVariantOptionValues = (v: Variant): Record<string, string> => {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
+/** Logged-in shoppers get their cart/wishlist flags; guests use the public endpoint. */
+const fetchProductData = async (id: string): Promise<Product | null> => {
+  const res = hasAuthToken() ? await ProductDetailApi(id) : await ProductDetailGuestApi(id);
+  return res?.data?.data || res?.data || null;
+};
+
 /* ── actions resumed after a login round trip (see lib/authRedirect) ── */
 export const PRODUCT_ADD_TO_CART_ACTION = "product:add-to-cart";
 export const PRODUCT_WISHLIST_ACTION = "product:wishlist";
@@ -170,12 +186,8 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [variantData, setVariantData] = useState<Variant | null>(null);
-  const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
   /* auth */
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  const isLoggedIn =
-    mounted && typeof window !== "undefined" && !!localStorage.getItem("hastagBillionaire");
+  const isLoggedIn = useIsLoggedIn();
   const [showLoginModal, setShowLoginModal] = useState(false);
   // The action to resume after login; saved only once the user picks "Sign in".
   const loginResumeRef = useRef<LoginResumeRequest | null>(null);
@@ -198,6 +210,13 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     }
     router.push(loginUrl(returnTo));
   };
+  // "Products" crumb returns to the filtered listing the shopper came from.
+  const backToProducts = (e: React.MouseEvent) => {
+    const returnUrl = sessionStorage.getItem("categoriesReturnUrl");
+    if (!returnUrl) return;
+    e.preventDefault();
+    router.push(returnUrl);
+  };
   const cancelLogin = () => {
     if (loginResumeRef.current?.files?.length) clearPendingFiles();
     loginResumeRef.current = null;
@@ -210,17 +229,8 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const [configurationLoading, setConfigurationLoading] = useState(false);
   const [showCartModal, setShowCartModal] = useState(false);
   const [customizationJson, setCustomizationJson] = useState<string>("");
-  const [configuredVariants, setConfiguredVariants] = useState<any[]>([]);
+  const [configuredVariants, setConfiguredVariants] = useState<ConfiguredVariant[]>([]);
   const { refreshCart } = useCart();
-  // Navigating to another product reuses this component — don't carry an
-  // open modal over to the new product.
-  useEffect(() => {
-    setShowCartModal(false);
-    setConfiguredVariants([]);
-  }, [id]);
-
-  /* customize */
-  const [customizeLoading, setCustomizeLoading] = useState(false);
 
   /* wishlist */
   const { wishlist, addToWishlist, removeItem, fetchWishlist } = useWishlist();
@@ -250,72 +260,72 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   );
   const inWishlist = !!wishlistItem;
 
-  /* fetch */
-  const fetchProduct = async () => {
+  /* fetch — the page is keyed by product/variant, so this runs once per product */
+  useEffect(() => {
     if (!id) return;
+    let cancelled = false;
+    fetchProductData(id)
+      .then((data) => {
+        if (cancelled || !data) return;
+        setProduct(data);
+        if (!data.variants?.length) return;
+        // Start on the variant from the URL, else the first one.
+        const preselected = variantId ? data.variants.find((v) => v.id === Number(variantId)) : undefined;
+        const initial = preselected || data.variants[0];
+        const isManual = data.variants.some((v) => (v.supplier ?? "").toUpperCase() === "MANUAL");
+        setSelectedColor(initial.color);
+        setSelectedSize(initial.size_details);
+        setVariantData(initial);
+        setSelectedOptions(isManual ? getVariantOptionValues(initial) : {});
+        setInCart(Boolean(initial.is_in_cart));
+        setQuantity(initial.min_order_quantity || 1);
+      })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, variantId]);
+
+  /** Re-fetch after adding to cart (fresh `is_in_cart` flags) without the
+   *  loading skeleton and without touching the shopper's selection. */
+  const refreshProduct = async () => {
     try {
-      setLoading(true);
-      const token = typeof window !== "undefined" ? localStorage.getItem("hastagBillionaire") : null;
-      const res = token ? await ProductDetailApi(id) : await ProductDetailGuestApi(id);
-      const data = res?.data?.data || res?.data;
+      const data = await fetchProductData(id);
+      if (!data) return;
       setProduct(data);
+      const current = data.variants?.find((v) => v.id === variantData?.id);
+      if (current) setVariantData(current);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   };
-  useEffect(() => { fetchProduct(); }, [id]);
-  /* default variant */
-  useEffect(() => {
-    if (!product?.variants?.length) return;
-    const preselected = variantId
-      ? product.variants.find((v) => v.id === Number(variantId))
-      : undefined;
-    const initial = preselected || product.variants[0];
-    setSelectedColor(initial.color);
-    setSelectedSize(initial.size_details);
-    setVariantData(initial);
-    setSelectedOptions(manualVariantOptions.get(initial.id) ?? {});
-    setInCart(Boolean(initial.is_in_cart));
-    setQuantity(initial.min_order_quantity || 1);
-  }, [product, variantId, manualVariantOptions]);
 
-  /* update variant */
-  useEffect(() => {
-    if (!product || !selectedColor) return;
-
-    const match = product.variants.find((v) => {
-      // Promo / Pre-Made products: no size
-      if (!v.size_id) {
-        return v.color === selectedColor;
-      }
-
-      // Apparel: color + size
-      return (
-        v.color === selectedColor &&
-        selectedSize &&
-        v.size_id === selectedSize.id
-      );
-    });
-
-    if (match) {
-      setVariantData(match);
-      setInCart(Boolean(match.is_in_cart));
-      setQuantity(match.min_order_quantity || 1);
-    }
-  }, [selectedColor, selectedSize, product]);
+  /** Pick the variant for a colour/size combination (sizeless products match on colour). */
+  const selectColorSize = (color: string, size: Size | null) => {
+    const match = product?.variants.find((v) =>
+      !v.size_id ? v.color === color : v.color === color && !!size && v.size_id === size.id
+    );
+    if (!match) return;
+    setVariantData(match);
+    setInCart(Boolean(match.is_in_cart));
+    setQuantity(match.min_order_quantity || 1);
+  };
   /* handlers */
   const handleColorChange = (color: string) => {
     setSelectedColor(color);
     const first = product?.variants.find((v) => v.color === color);
     if (first) {
       setSelectedSize(first.size_details);
-      setVariantData(first);
-      setInCart(Boolean(first.is_in_cart));
+      selectColorSize(color, first.size_details);
     }
   };
-  const handleSizeChange = (size: Size) => setSelectedSize(size);
+  const handleSizeChange = (size: Size) => {
+    setSelectedSize(size);
+    if (selectedColor) selectColorSize(selectedColor, size);
+  };
 
   // Prefer the variant matching every selected option; if that combination
   // doesn't exist, jump to the first variant carrying the clicked value.
@@ -356,7 +366,6 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
         });
       }
       await fetchWishlist();
-      await fetchProduct();
     } catch (e) {
       console.error(e);
     } finally {
@@ -591,27 +600,26 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   /* ── skeleton ── */
   if (loading) {
     return (
-      <section className="min-h-screen py-10">
-        <div className="container mx-auto max-w-7xl px-4">
-          <div className="animate-pulse grid lg:grid-cols-2 gap-10">
-            <div className="space-y-3">
-              <div className="aspect-[4/5]" style={{ background: "#e2e2e2" }} />
-              <div className="flex gap-2">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="w-16 h-16" style={{ background: "#e2e2e2" }} />
-                ))}
-              </div>
+      <section className="container max-w-7xl py-6 lg:py-10" aria-busy="true" aria-label="Loading product">
+        <div className="mb-6 h-3 w-48 animate-pulse rounded bg-muted" />
+        <div className="grid animate-pulse gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] xl:gap-14">
+          <div className="space-y-3">
+            <div className="aspect-square rounded-2xl bg-muted" />
+            <div className="flex gap-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-16 w-16 rounded-xl bg-muted" />
+              ))}
             </div>
-            <div className="space-y-5 pt-4">
-              <div className="h-3 w-1/3" style={{ background: "#e2e2e2" }} />
-              <div className="h-9 w-4/5" style={{ background: "#e2e2e2" }} />
-              <div className="h-7 w-1/4" style={{ background: "#e2e2e2" }} />
-              <div className="space-y-2 pt-2">
-                <div className="h-3 w-full" style={{ background: "#e2e2e2" }} />
-                <div className="h-3 w-5/6" style={{ background: "#e2e2e2" }} />
-              </div>
-              <div className="h-12 w-full mt-6" style={{ background: "#e2e2e2" }} />
+          </div>
+          <div className="space-y-5 pt-2">
+            <div className="h-3 w-1/3 rounded bg-muted" />
+            <div className="h-9 w-4/5 rounded bg-muted" />
+            <div className="h-7 w-1/4 rounded bg-muted" />
+            <div className="space-y-2 pt-2">
+              <div className="h-3 w-full rounded bg-muted" />
+              <div className="h-3 w-5/6 rounded bg-muted" />
             </div>
+            <div className="mt-6 h-12 w-full rounded-lg bg-muted" />
           </div>
         </div>
       </section>
@@ -619,11 +627,14 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   }
   if (!product) {
     return (
-      <section className="min-h-screen flex items-center justify-center py-10">
-        <div className="text-center">
-          <p className="text-gray-500 mb-4">Product not found</p>
-          <a href="/categories" className="text-black underline">Back to Products</a>
-        </div>
+      <section className="container flex min-h-[60vh] flex-col items-center justify-center gap-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">Product not found</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          This product may have been removed or is no longer available.
+        </p>
+        <Button asChild variant="hero">
+          <Link href="/categories?view=all">Browse all products</Link>
+        </Button>
       </section>
     );
   }
@@ -648,16 +659,13 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const category = product?.categories?.[0]?.parent_categories?.[0];
   // Grand category tells us the product family (e.g. "Pre-Made products" vs customizable apparel)
   const grandCategory = category?.grand_categories?.[0];
-  const isPreMade = grandCategory?.title === "Pre-Made products";
+  const isPreMade = isGrandCategory(grandCategory?.title, "preMade");
   // MANUAL-supplier products skip the customizer — they customize and add to
   // cart inline via ManualCustomizationPage.
   const isManualSupplier = isManualProduct;
   const isDirectAdd = isPreMade || isManualSupplier;
-  // NOTE: adjust these two titles to match whatever your backend actually
-  // sends for the other grand categories — "Pre-Made products" was the only
-  // confirmed value, these two are best-guess placeholders.
-  const isApparel = grandCategory?.title === "Apparel";
-  const isPromo = grandCategory?.title === "Promo Products";
+  const isApparel = isGrandCategory(grandCategory?.title, "apparel");
+  const isPromo = isGrandCategory(grandCategory?.title, "promo");
   const isLowStock = variantData?.stock != null && variantData.stock > 0 && variantData.stock <= 5;
 
   const configModalVariants = product.variants.map((v) => ({
@@ -687,208 +695,144 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
 
   /* ───────────────────────────────────────────────── render */
   return (
-    <div className="min-h-screen">
-
-      {/* ── LOGIN MODAL ── */}
+    <div>
       <LoginPromptModal open={showLoginModal} onSignIn={goToLogin} onCancel={cancelLogin} />
 
-      {/* ── MAIN CONTENT ── */}
-      <section className="py-8 lg:py-14">
-        <div className="container mx-auto max-w-7xl px-4">
+      <section className="container max-w-7xl py-6 lg:py-10">
+        {/* ── BREADCRUMB ── */}
+        <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted-foreground">
+          <ol className="flex min-w-0 items-center gap-1.5">
+            <li>
+              <Link href="/" className="transition-colors hover:text-foreground">Home</Link>
+            </li>
+            <li aria-hidden="true"><ChevronRight size={12} /></li>
+            <li>
+              <Link href="/categories?view=all" onClick={backToProducts} className="transition-colors hover:text-foreground">
+                Products
+              </Link>
+            </li>
+            {category?.title && (
+              <>
+                <li aria-hidden="true"><ChevronRight size={12} /></li>
+                <li className="capitalize">{category.title}</li>
+              </>
+            )}
+            <li aria-hidden="true" className="hidden sm:block"><ChevronRight size={12} /></li>
+            <li className="hidden min-w-0 truncate font-medium text-foreground sm:block" aria-current="page">
+              {product.name}
+            </li>
+          </ol>
+        </nav>
 
-          <div className="grid lg:grid-cols-[55%_45%] gap-8 xl:gap-14">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] xl:gap-14">
+          {/* ── GALLERY ── */}
+          <div className="self-start lg:sticky lg:top-24">
+            <ProductGallery attachments={displayAttachments} />
+          </div>
 
-            {/* ── GALLERY ── */}
-            <div className="lg:sticky lg:top-[50px] self-start">
-              <ProductGallery
-                attachments={displayAttachments}
-                onActiveChange={setActiveGalleryIndex}
-              />
-            </div>
+          {/* ── DETAILS & PURCHASE ── */}
+          <div className="flex min-w-0 flex-col gap-6">
+            {category?.title && (
+              <span className="inline-flex w-fit items-center rounded-full bg-primary px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-primary-foreground">
+                {category.title}
+              </span>
+            )}
 
-            {/* ── RIGHT PANEL ── */}
-            <div className="flex flex-col gap-5">
+            <ProductInfo
+              name={product.name}
+              price={displayPrice}
+              variants={product.variants}
+              sizes={product.sizes}
+              selectedColor={selectedColor}
+              selectedSize={selectedSize}
+              onColorChange={handleColorChange}
+              onSizeChange={handleSizeChange}
+              brandName={product?.brand?.name}
+              brandLogo={product?.brand?.logo_url}
+              manualOptions={isManualSupplier ? manualOptions : undefined}
+              selectedOptions={selectedOptions}
+              onOptionChange={handleOptionChange}
+              manualPricing={manualPricing}
+            />
 
-              {/* category pill */}
-              {category?.title && (
-                <span
-                  className="inline-flex items-center gap-1.5 self-start text-xs font-bold tracking-widest uppercase px-3 py-1.5"
-                  style={{
-                    background: "#f0c419",
-                    color: "#111",
-                    fontFamily: "var(--font-heading)",
-                  }}
-                >
-                  {category.title}
-                </span>
-              )}
-
-              {/* product info */}
-              <ProductInfo
-                name={product.name}
-                price={displayPrice}
-                description={product.description}
-                variants={product.variants}
-                sizes={product.sizes}
-                selectedColor={selectedColor}
-                selectedSize={selectedSize}
-                onColorChange={handleColorChange}
-                onSizeChange={handleSizeChange}
-                variantStock={variantData?.stock ?? null}
-                variantSku={variantData?.sku ?? null}
-                variantLoading={false}
-                brandName={product?.brand?.name}
-                brandLogo={product?.brand?.logo_url}
-                tagline={isManualSupplier ? null : undefined}
-                manualOptions={isManualSupplier ? manualOptions : undefined}
-                selectedOptions={selectedOptions}
-                onOptionChange={handleOptionChange}
-                manualPricing={manualPricing}
-              />
-
-              {/* low stock badge */}
-              {isLowStock && (
-                <div
-                  className="flex items-center gap-2 px-4 py-3"
-                  style={{ background: "#fff8ed", borderLeft: "3px solid #f59e0b" }}
-                >
-                  <div
-                    className="w-2 h-2 rounded-full animate-pulse flex-shrink-0"
-                    style={{ background: "#f59e0b" }}
-                  />
-                  <p
-                    className="text-xs font-bold"
-                    style={{ color: "#92640a", fontFamily: "var(--font-heading)" }}
-                  >
-                    Only {variantData?.stock} left in stock — order soon
-                  </p>
-                </div>
-              )}
-
-              {/* ── MANUAL CUSTOMIZATION + ADD TO CART ── */}
-              {isManualSupplier && variantData && (
-                <ManualCustomizationPage
-                  productId={product.id}
-                  variant={variantData}
-                  variantLabel={manualVariantLabel}
-                  onBeforeAdd={requireLogin}
-                  onAdded={refreshCart}
-                />
-              )}
-
-              {/* ── ACTION BUTTONS ── */}
-              <div className="flex flex-col gap-3 pt-1">
-
-                {/* Wishlist */}
-                <button
-                  onClick={handleWishlist}
-                  disabled={wishlistLoading}
-                  className={cn(
-                    "w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]"
-                  )}
-                  style={{
-                    fontFamily: "var(--font-heading)",
-                    background: inWishlist ? "#111" : "transparent",
-                    color: inWishlist ? "#f0c419" : "#111",
-                    border: "2px solid #111",
-                  }}
-                >
-                  {wishlistLoading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Heart
-                      size={16}
-                      fill={inWishlist ? "#f0c419" : "none"}
-                      color={inWishlist ? "#f0c419" : "#111"}
-                    />
-                  )}
-                  {inWishlist ? "Saved to Wishlist" : "Add to Wishlist"}
-                </button>
-
-                {/* Customize (apparel) OR Add to Cart (Pre-Made products).
-                    MANUAL products add to cart from ManualCustomizationPage above. */}
-                {isManualSupplier ? null : isPreMade ? (
-                  <button
-                    onClick={handleAddToCart}
-                    className="w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]"
-                    style={{
-                      fontFamily: "var(--font-heading)",
-                      background: inCart ? "#666" : "#111",
-                      color: inCart ? "#999" : "#fff",
-                      border: "none",
-                    }}
-                    disabled={inCart}
-                  >
-                    {inCart ? (
-                      <>
-                        <CheckCircle2 size={16} />
-                        In Cart
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart size={16} />
-                        Add to Cart
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleCustomize}
-                    disabled={customizeLoading}
-                    className={cn(
-                      "group w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98]",
-                      customizeLoading ? "opacity-80 cursor-not-allowed" : ""
-                    )}
-                    style={{
-                      fontFamily: "var(--font-heading)",
-                      background: "#f0c419",
-                      color: "#111",
-                      border: "none",
-                    }}
-                  >
-                    {customizeLoading ? (
-                      <>
-                        <Spin className="animate-spin" />
-                        <span>Preparing customizer…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles
-                          size={16}
-                          className="transition-transform duration-300 group-hover:rotate-12"
-                        />
-                        Customize This Product
-                      </>
-                    )}
-                  </button>
-                )}
+            {isLowStock && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary bg-primary-soft px-4 py-3">
+                <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary-ink" />
+                <p className="text-xs font-bold text-primary-ink">
+                  Only {variantData?.stock} left in stock — order soon
+                </p>
               </div>
+            )}
+
+            {/* MANUAL-supplier products customize and add to cart inline. */}
+            {isManualSupplier && variantData && (
+              <ManualCustomizationPage
+                productId={product.id}
+                variant={variantData}
+                variantLabel={manualVariantLabel}
+                onBeforeAdd={requireLogin}
+                onAdded={refreshCart}
+              />
+            )}
+
+            <div className="flex flex-col gap-3">
+              {/* Customize (apparel / promo) or Add to Cart (Pre-Made). */}
+              {isManualSupplier ? null : isPreMade ? (
+                <Button
+                  variant={inCart ? "secondary" : "hero"}
+                  size="lg"
+                  className="h-12 w-full"
+                  onClick={handleAddToCart}
+                  disabled={inCart}
+                >
+                  {inCart ? <CheckCircle2 /> : <ShoppingCart />}
+                  {inCart ? "In your cart" : "Add to cart"}
+                </Button>
+              ) : (
+                <Button variant="hero" size="lg" className="group h-12 w-full" onClick={handleCustomize}>
+                  <Sparkles className="transition-transform duration-300 group-hover:rotate-12" />
+                  Customize this product
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="lg"
+                className={cn("h-12 w-full", inWishlist && "bg-foreground text-background hover:bg-foreground/90")}
+                onClick={handleWishlist}
+                disabled={wishlistLoading}
+                aria-pressed={inWishlist}
+              >
+                {wishlistLoading ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Heart fill={inWishlist ? "currentColor" : "none"} className={cn(inWishlist && "text-primary")} />
+                )}
+                {inWishlist ? "Saved" : "Save for later"}
+              </Button>
             </div>
           </div>
+        </div>
 
-          {/* ── ACCORDION ── */}
-          <div className="mt-32">
-            <ProductAccordion description={product.description} />
-          </div>
+        {/* ── DETAILS ── */}
+        <div className="mt-14 lg:mt-20">
+          <ProductAccordion description={product.description} />
         </div>
       </section>
 
-      {/* ── CONFIGURATION MODAL ── */}
-      {variantData && (
+      {/* ── CONFIGURATION MODAL (mounted per opening, so it starts fresh) ── */}
+      {showConfigurationModal && variantData && (
         <AddProductConfigurationModal
           open={showConfigurationModal}
           onClose={() => setShowConfigurationModal(false)}
           onConfirm={handleConfigurationComplete}
-          productId={Number(product.id)}
           productName={product.name}
           variants={configModalVariants}
           sizes={product.sizes}
           selectedVariant={configModalSelectedVariant}
           mode="premade"
           isSubmitting={configurationLoading}
-          // ✅ category flags
           isApparel={isApparel}
-          isPreMade={isPreMade}
           isPromo={isPromo}
         />
       )}
@@ -905,7 +849,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
           price={displayPrice}
           initialQuantity={
             configuredVariants.length > 0
-              ? configuredVariants.reduce((sum: number, cv: any) => sum + cv.totalQty, 0)
+              ? configuredVariants.reduce((sum, cv) => sum + cv.totalQty, 0)
               : quantity
           }
           sageMetaStr={variantData.meta ?? null}
@@ -914,16 +858,13 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
           printPricePerPiece={0}
           digitizingFee={0}
           configuredVariants={configuredVariants.length > 0 ? configuredVariants : undefined}
-          // ✅ category flags
           isApparel={isApparel}
-          isPreMade={isPreMade}
-          isPromo={isPromo}
           onSuccess={() => {
             refreshCart();
             setInCart(true);
             setShowCartModal(false);
             setConfiguredVariants([]);
-            fetchProduct();
+            refreshProduct();
           }}
         />
       )}

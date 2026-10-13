@@ -178,10 +178,9 @@ export default function ManualCustomizationPage({
   const [availableAddons, setAvailableAddons] = useState<ProductAddon[] | null>(null);
   const [addonModalOpen, setAddonModalOpen] = useState(false);
 
+  // The product page remounts per product, so these start fresh for each one.
   useEffect(() => {
     let cancelled = false;
-    setAvailableAddons(null);
-    setAddonModalOpen(false);
     (async () => {
       try {
         const res = await ProductAddonsApi(productId);
@@ -508,7 +507,7 @@ export default function ManualCustomizationPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selections]);
 
-  const sectionLabel = "text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]";
+  const sectionLabel = "text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground";
 
   return (
     <div className="flex flex-col gap-6">
@@ -517,25 +516,25 @@ export default function ManualCustomizationPage({
         <div className="space-y-4" aria-busy="true" aria-label="Loading customization options">
           {[0, 1].map((i) => (
             <div key={i} className="animate-pulse space-y-3">
-              <div className="h-3 w-1/4 rounded bg-[#E5E5E5]" />
+              <div className="h-3 w-1/4 rounded bg-muted" />
               <div className="flex flex-wrap gap-2">
                 {[0, 1, 2].map((j) => (
-                  <div key={j} className="h-10 w-24 rounded-lg bg-[#EFEFEF]" />
+                  <div key={j} className="h-10 w-24 rounded-lg bg-muted" />
                 ))}
               </div>
             </div>
           ))}
         </div>
       ) : loadError ? (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-[#F5C6C6] bg-[#FFF5F5] px-4 py-3">
-          <p className="flex items-center gap-2 text-sm text-[#C0392B]">
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive-soft px-4 py-3">
+          <p className="flex items-center gap-2 text-sm text-destructive">
             <AlertCircle size={16} className="flex-shrink-0" />
             Couldn&apos;t load customization options.
           </p>
           <button
             type="button"
             onClick={() => setReloadKey((k) => k + 1)}
-            className="text-sm font-semibold text-[#111111] underline underline-offset-2"
+            className="text-sm font-semibold text-foreground underline underline-offset-2"
           >
             Retry
           </button>
@@ -550,14 +549,14 @@ export default function ManualCustomizationPage({
                 <div key={g.customization.id}>
                   <div className="flex items-center justify-between gap-3 mb-1">
                     <p className={sectionLabel}>
-                      {g.option.name} <span className="text-xs font-medium normal-case tracking-normal text-[#9CA3AF]">(optional)</span>
+                      {g.option.name} <span className="text-xs font-medium normal-case tracking-normal text-muted-foreground">(optional)</span>
                     </p>
-                    <p className="text-sm font-semibold text-[#111111] text-right">
+                    <p className="text-sm font-semibold text-foreground text-right">
                       {selectedValue?.name || "None"}
                     </p>
                   </div>
                   {g.option.description && (
-                    <p className="text-xs text-[#6B7280] mb-3">{g.option.description}</p>
+                    <p className="text-xs text-muted-foreground mb-3">{g.option.description}</p>
                   )}
                   <div className={cn("flex flex-wrap gap-2", !g.option.description && "mt-2")}>
                     {g.values.map((v) => {
@@ -572,15 +571,15 @@ export default function ManualCustomizationPage({
                           className={cn(
                             "min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 text-left",
                             isActive
-                              ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
-                              : "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
+                              ? "bg-foreground text-primary border-foreground"
+                              : "bg-card text-foreground border-border hover:border-primary hover:bg-primary-soft"
                           )}
                         >
                           {v.name}
                           <span
                             className={cn(
                               "ml-1.5 text-xs font-medium",
-                              !price.available ? "text-[#C0392B]" : isActive ? "text-[#E8D03A]/80" : "text-[#6B7280]"
+                              !price.available ? "text-destructive" : isActive ? "text-background/70" : "text-muted-foreground"
                             )}
                           >
                             {priceLabel(price, qty)}
@@ -595,14 +594,14 @@ export default function ManualCustomizationPage({
 
                   {/* Optional text / images for options that allow them */}
                   {selectedValue && (g.option.allow_text_input || g.option.allow_image_upload) && (
-                    <div className="mt-4 rounded-xl border border-[#EDEDED] bg-[#FAFAF7] p-4 sm:p-5">
+                    <div className="mt-4 rounded-xl border border-border bg-muted p-4 sm:p-5">
                       <div className="mb-4 flex items-start gap-3">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#111111] text-[#E8D03A]">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-primary">
                           <Sparkles size={15} />
                         </span>
                         <div>
-                          <p className="text-sm font-semibold text-[#111111]">Personalize your {g.option.name.toLowerCase()}</p>
-                          <p className="text-xs text-[#6B7280]">
+                          <p className="text-sm font-semibold text-foreground">Personalize your {g.option.name.toLowerCase()}</p>
+                          <p className="text-xs text-muted-foreground">
                             {g.option.allow_text_input && g.option.allow_image_upload
                               ? "Add your text and upload artwork. Both are optional."
                               : g.option.allow_text_input
@@ -614,12 +613,12 @@ export default function ManualCustomizationPage({
                       <div className="flex flex-col gap-4">
                         {g.option.allow_text_input && (
                           <label className="block">
-                            <span className="mb-1.5 flex items-center justify-between text-xs font-medium text-[#444]">
+                            <span className="mb-1.5 flex items-center justify-between text-xs font-medium text-foreground">
                               <span className="flex items-center gap-1.5">
-                                <Type size={13} className="text-[#6B7280]" />
+                                <Type size={13} className="text-muted-foreground" />
                                 Custom text
                               </span>
-                              <span className={cn("tabular-nums", (sel?.text.length ?? 0) >= TEXT_MAX ? "text-[#C0392B]" : "text-[#9CA3AF]")}>
+                              <span className={cn("tabular-nums", (sel?.text.length ?? 0) >= TEXT_MAX ? "text-destructive" : "text-muted-foreground")}>
                                 {sel?.text.length ?? 0}/{TEXT_MAX}
                               </span>
                             </span>
@@ -629,7 +628,7 @@ export default function ManualCustomizationPage({
                               maxLength={TEXT_MAX}
                               onChange={(e) => updateSelection(g.customization.id, { text: e.target.value })}
                               placeholder="e.g. your name, company or tagline"
-                              className="w-full h-11 rounded-lg border border-[#E5E5E5] bg-white px-3 text-sm text-[#111111] outline-none transition-shadow placeholder:text-[#B0B0B0] focus:border-[#111111] focus:ring-2 focus:ring-[#E8D03A]/40"
+                              className="w-full h-11 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none transition-shadow placeholder:text-muted-foreground focus:border-foreground focus:ring-2 focus:ring-primary/40"
                             />
                           </label>
                         )}
@@ -659,7 +658,7 @@ export default function ManualCustomizationPage({
             {manualMeta?.pricing_mode === "quantity_fixed" ? "Select Quantity" : "Quantity"}
           </p>
           {manualMeta?.pricing_mode !== "quantity_fixed" && (
-            <p className="text-xs text-[#6B7280]">
+            <p className="text-xs text-muted-foreground">
               Min. {minQty}
               {maxQty != null ? ` · Max. ${maxQty}` : ""} pcs
             </p>
@@ -679,16 +678,16 @@ export default function ManualCustomizationPage({
                   className={cn(
                     "rounded-lg border px-3 py-2.5 text-left transition-all duration-200",
                     isActive
-                      ? "bg-[#111111] border-[#111111]"
+                      ? "bg-foreground border-foreground"
                       : soldOut
-                        ? "bg-[#F5F5F5] border-[#E5E5E5] opacity-60 cursor-not-allowed"
-                        : "bg-white border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
+                        ? "bg-muted border-border opacity-60 cursor-not-allowed"
+                        : "bg-card border-border hover:border-primary hover:bg-primary-soft"
                   )}
                 >
-                  <p className={cn("text-sm font-semibold", isActive ? "text-[#E8D03A]" : "text-[#111111]")}>
+                  <p className={cn("text-sm font-semibold", isActive ? "text-primary" : "text-foreground")}>
                     {pkg.quantity} pcs
                   </p>
-                  <p className={cn("text-xs mt-0.5", isActive ? "text-white/70" : "text-[#6B7280]")}>
+                  <p className={cn("text-xs mt-0.5", isActive ? "text-background/70" : "text-muted-foreground")}>
                     ${formatMoney(pkg.price)} · ${formatMoney(pkg.price / pkg.quantity)}/pc
                   </p>
                 </button>
@@ -710,14 +709,14 @@ export default function ManualCustomizationPage({
                     className={cn(
                       "rounded-lg border px-3 py-2.5 text-left transition-all duration-200",
                       isActive
-                        ? "bg-[#111111] border-[#111111]"
-                        : "bg-white border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
+                        ? "bg-foreground border-foreground"
+                        : "bg-card border-border hover:border-primary hover:bg-primary-soft"
                     )}
                   >
-                    <p className={cn("text-sm font-semibold", isActive ? "text-[#E8D03A]" : "text-[#111111]")}>
+                    <p className={cn("text-sm font-semibold", isActive ? "text-primary" : "text-foreground")}>
                       {t.max_qty === null ? `${t.min_qty}+` : `${t.min_qty} – ${t.max_qty}`} pcs
                     </p>
-                    <p className={cn("text-xs mt-0.5", isActive ? "text-white/70" : "text-[#6B7280]")}>
+                    <p className={cn("text-xs mt-0.5", isActive ? "text-background/70" : "text-muted-foreground")}>
                       ${formatMoney(t.price)}/pc
                     </p>
                   </button>
@@ -731,7 +730,7 @@ export default function ManualCustomizationPage({
               aria-label="Decrease quantity"
               onClick={() => setQty((q) => clampQty(q - 1))}
               disabled={qty <= minQty}
-              className="w-11 h-11 rounded-lg border border-[#E5E5E5] flex items-center justify-center text-[#111111] hover:border-[#111111] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-11 h-11 rounded-lg border border-border flex items-center justify-center text-foreground hover:border-foreground disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Minus size={16} />
             </button>
@@ -744,14 +743,14 @@ export default function ManualCustomizationPage({
               max={maxQty ?? undefined}
               onChange={(e) => setQty(Number(e.target.value) || 0)}
               onBlur={() => setQty((q) => clampQty(q))}
-              className="w-24 h-11 rounded-lg border border-[#E5E5E5] text-center text-sm font-semibold text-[#111111] outline-none focus:border-[#111111]"
+              className="w-24 h-11 rounded-lg border border-border text-center text-sm font-semibold text-foreground outline-none focus:border-foreground"
             />
             <button
               type="button"
               aria-label="Increase quantity"
               onClick={() => setQty((q) => clampQty(q + 1))}
               disabled={maxQty != null && qty >= maxQty}
-              className="w-11 h-11 rounded-lg border border-[#E5E5E5] flex items-center justify-center text-[#111111] hover:border-[#111111] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-11 h-11 rounded-lg border border-border flex items-center justify-center text-foreground hover:border-foreground disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Plus size={16} />
             </button>
@@ -763,21 +762,21 @@ export default function ManualCustomizationPage({
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           {manualMeta?.pricing_mode === "quantity_fixed" ? (
             <>
-              <p className="text-[#6B7280]">
-                Selected: <span className="font-semibold text-[#111111]">{packPrice != null ? `${qty} pcs` : "—"}</span>
+              <p className="text-muted-foreground">
+                Selected: <span className="font-semibold text-foreground">{packPrice != null ? `${qty} pcs` : "—"}</span>
               </p>
-              <p className="text-right text-[#6B7280]">
-                Price: <span className="font-semibold text-[#111111]">{packPrice != null ? `$${formatMoney(packPrice)}` : "—"}</span>
+              <p className="text-right text-muted-foreground">
+                Price: <span className="font-semibold text-foreground">{packPrice != null ? `$${formatMoney(packPrice)}` : "—"}</span>
               </p>
             </>
           ) : (
             <>
-              <p className="text-[#6B7280]">
+              <p className="text-muted-foreground">
                 {tiers.length > 0 ? "Unit Price" : "Price"}:{" "}
-                <span className="font-semibold text-[#111111]">${formatMoney(productUnitPrice)}</span>
+                <span className="font-semibold text-foreground">${formatMoney(productUnitPrice)}</span>
               </p>
-              <p className="text-right text-[#6B7280]">
-                Total: <span className="font-semibold text-[#111111]">${formatMoney(totals.productTotal)}</span>
+              <p className="text-right text-muted-foreground">
+                Total: <span className="font-semibold text-foreground">${formatMoney(totals.productTotal)}</span>
               </p>
             </>
           )}
@@ -785,21 +784,21 @@ export default function ManualCustomizationPage({
       </div>
 
       {/* ── Summary ── */}
-      <div className="rounded-lg border border-[#E5E5E5] bg-[#FAFAFA] px-4 py-3 text-sm">
-        <div className="flex justify-between py-1 text-[#444]">
+      <div className="rounded-lg border border-border bg-muted px-4 py-3 text-sm">
+        <div className="flex justify-between py-1 text-foreground">
           <span>{packPrice != null ? `Product · ${qty} pcs pack` : "Product"}</span>
-          <span className="font-medium text-[#111111]">
+          <span className="font-medium text-foreground">
             {packPrice != null
               ? `$${formatMoney(totals.productTotal)}`
               : `${qty} × $${formatMoney(productUnitPrice)} = $${formatMoney(totals.productTotal)}`}
           </span>
         </div>
         {selectedLines.map((l) => (
-          <div key={l.group.customization.id} className="flex justify-between gap-3 py-1 text-[#444]">
+          <div key={l.group.customization.id} className="flex justify-between gap-3 py-1 text-foreground">
             <span className="min-w-0 truncate">
               {l.group.option.name}: {l.value.name}
             </span>
-            <span className={cn("font-medium flex-shrink-0", l.price.available ? "text-[#111111]" : "text-[#C0392B]")}>
+            <span className={cn("font-medium flex-shrink-0", l.price.available ? "text-foreground" : "text-destructive")}>
               {!l.price.available
                 ? "N/A"
                 : l.price.total > 0
@@ -811,15 +810,15 @@ export default function ManualCustomizationPage({
           </div>
         ))}
         {selectedAddons.map((a) => (
-          <div key={`addon-${a.id}`} className="flex justify-between gap-3 py-1 text-[#444]">
+          <div key={`addon-${a.id}`} className="flex justify-between gap-3 py-1 text-foreground">
             <span className="min-w-0 truncate">Add-on: {a.name}</span>
-            <span className="font-medium text-[#111111] flex-shrink-0">${formatMoney(addonPrice(a))}</span>
+            <span className="font-medium text-foreground flex-shrink-0">${formatMoney(addonPrice(a))}</span>
           </div>
         ))}
-        <div className="h-px bg-[#E5E5E5] my-2" />
+        <div className="h-px bg-muted my-2" />
         <div className="flex justify-between items-baseline">
-          <span className="font-semibold text-[#111111]">Total</span>
-          <span className="text-lg font-bold text-[#111111]">${formatMoney(grandTotal)}</span>
+          <span className="font-semibold text-foreground">Total</span>
+          <span className="text-lg font-bold text-foreground">${formatMoney(grandTotal)}</span>
         </div>
       </div>
 
@@ -828,14 +827,10 @@ export default function ManualCustomizationPage({
         type="button"
         onClick={handleAddToCart}
         disabled={submitting || loading || inCart}
-        className="w-full h-[52px] flex items-center justify-center gap-2.5 text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed"
-        style={{
-          fontFamily: "var(--font-heading)",
-          background: inCart ? "#666" : "#111",
-          color: inCart ? "#999" : "#fff",
-          border: "none",
-          opacity: submitting || loading ? 0.8 : 1,
-        }}
+        className={`w-full h-[52px] flex items-center justify-center gap-2.5 font-heading text-sm font-bold tracking-widest uppercase transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed ${
+          inCart ? "bg-muted text-muted-foreground" : "bg-foreground text-background"
+        }`}
+        style={{ opacity: submitting || loading ? 0.8 : 1 }}
       >
         {submitting ? (
           <>
@@ -881,8 +876,8 @@ function CustomizationPriceTable({ value, qty }: { value: CustomizationOptionVal
   const rows = getCustomizationPriceRows(value);
   if (rows.length === 0) return null;
   return (
-    <div className="mt-3 overflow-hidden rounded-lg border border-[#E5E5E5] text-sm">
-      <div className="grid grid-cols-2 bg-[#FAFAFA] px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280]">
+    <div className="mt-3 overflow-hidden rounded-lg border border-border text-sm">
+      <div className="grid grid-cols-2 bg-muted px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         <span>Quantity</span>
         <span className="text-right">Price</span>
       </div>
@@ -892,8 +887,8 @@ function CustomizationPriceTable({ value, qty }: { value: CustomizationOptionVal
           <div
             key={r.label}
             className={cn(
-              "grid grid-cols-2 border-t border-[#E5E5E5] px-3 py-2",
-              isActive ? "bg-[#111111] text-[#E8D03A] font-semibold" : "text-[#111111]"
+              "grid grid-cols-2 border-t border-border px-3 py-2",
+              isActive ? "bg-foreground text-primary font-semibold" : "text-foreground"
             )}
           >
             <span>{r.label}</span>
@@ -913,9 +908,9 @@ const formatBytes = (n: number) =>
 
 // Checkerboard so transparent PNG/SVG logos stay visible.
 const CHECKER_BG = {
-  backgroundColor: "#FFFFFF",
+  backgroundColor: "var(--color-card)",
   backgroundImage:
-    "linear-gradient(45deg,#F1F1F1 25%,transparent 25%),linear-gradient(-45deg,#F1F1F1 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#F1F1F1 75%),linear-gradient(-45deg,transparent 75%,#F1F1F1 75%)",
+    "linear-gradient(45deg,var(--color-muted) 25%,transparent 25%),linear-gradient(-45deg,var(--color-muted) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,var(--color-muted) 75%),linear-gradient(-45deg,transparent 75%,var(--color-muted) 75%)",
   backgroundSize: "14px 14px",
   backgroundPosition: "0 0,0 7px,7px -7px,-7px 0",
 };
@@ -955,12 +950,12 @@ function FilePicker({
 
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-[#444]">
+      <div className="mb-1.5 flex items-center justify-between text-xs font-medium text-foreground">
         <span className="flex items-center gap-1.5">
-          <ImagePlus size={13} className="text-[#6B7280]" />
+          <ImagePlus size={13} className="text-muted-foreground" />
           Artwork / logo
         </span>
-        <span className="text-[#9CA3AF] tabular-nums">
+        <span className="text-muted-foreground tabular-nums">
           {images.length}/{IMAGE_MAX_COUNT}
         </span>
       </div>
@@ -984,31 +979,31 @@ function FilePicker({
           className={cn(
             "group w-full flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-7 text-center transition-all duration-200",
             dragging
-              ? "border-[#E8D03A] bg-[#FFFBE6] scale-[1.01]"
-              : "border-[#D6D6D6] bg-white hover:border-[#111111] hover:bg-[#FCFCFA]"
+              ? "border-primary bg-primary-soft scale-[1.01]"
+              : "border-border bg-card hover:border-foreground hover:bg-muted"
           )}
         >
           <span
             className={cn(
               "flex h-11 w-11 items-center justify-center rounded-full transition-colors",
               dragging
-                ? "bg-[#E8D03A] text-[#111111]"
-                : "bg-[#F3F3F0] text-[#444] group-hover:bg-[#111111] group-hover:text-[#E8D03A]"
+                ? "bg-primary text-foreground"
+                : "bg-muted text-foreground group-hover:bg-foreground group-hover:text-primary"
             )}
           >
             <UploadCloud size={20} />
           </span>
-          <span className="text-sm font-semibold text-[#111111]">
+          <span className="text-sm font-semibold text-foreground">
             {dragging ? (
               "Drop images here"
             ) : (
               <>
                 Drag &amp; drop or{" "}
-                <span className="underline underline-offset-2 decoration-[#E8D03A] decoration-2">browse</span>
+                <span className="underline underline-offset-2 decoration-primary-ink decoration-2">browse</span>
               </>
             )}
           </span>
-          <span className="text-xs text-[#6B7280]">
+          <span className="text-xs text-muted-foreground">
             SVG or AI · up to 5 MB each · max {IMAGE_MAX_COUNT} files
           </span>
         </button>
@@ -1017,7 +1012,7 @@ function FilePicker({
           {...dropProps}
           className={cn(
             "grid grid-cols-3 sm:grid-cols-4 gap-2.5 rounded-xl transition-colors",
-            dragging && "bg-[#FFFBE6] ring-2 ring-[#E8D03A] ring-offset-4 ring-offset-[#FFFBE6]"
+            dragging && "bg-primary-soft ring-2 ring-primary ring-offset-4 ring-offset-primary"
           )}
         >
           {images.map((img, i) => (
@@ -1034,7 +1029,7 @@ function FilePicker({
             <button
               type="button"
               onClick={browse}
-              className="aspect-square flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#D6D6D6] bg-white text-xs font-semibold text-[#444] transition-colors hover:border-[#111111] hover:text-[#111111]"
+              className="aspect-square flex flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-border bg-card text-xs font-semibold text-foreground transition-colors hover:border-foreground hover:text-foreground"
             >
               <Plus size={18} />
               Add more
@@ -1077,12 +1072,12 @@ function ImageThumb({
   const previewable = canPreview(image.file);
   const croppable = isRaster(image.original);
   const actionBtn =
-    "flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-[#111111] shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#E8D03A]";
+    "flex h-8 w-8 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
   return (
     <figure className="min-w-0">
       <div
-        className="group relative aspect-square overflow-hidden rounded-xl border border-[#E5E5E5] shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-md"
+        className="group relative aspect-square overflow-hidden rounded-xl border border-border shadow-xs transition-shadow hover:shadow-md"
         style={CHECKER_BG}
       >
         {previewable ? (
@@ -1090,26 +1085,26 @@ function ImageThumb({
           <img ref={previewRef} alt={image.original.name} className="h-full w-full object-contain p-1.5" />
         ) : (
           // e.g. Adobe Illustrator — browsers can't draw it, so show a file badge.
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#FAFAF7]">
-            <FileImage size={26} className="text-[#6B7280]" />
-            <span className="rounded bg-[#111111] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#E8D03A]">
+          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-muted">
+            <FileImage size={26} className="text-muted-foreground" />
+            <span className="rounded bg-foreground px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
               {fileExt(image.file) || "file"}
             </span>
           </div>
         )}
 
-        <span className="absolute left-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#111111] px-1.5 text-[10px] font-bold text-[#E8D03A]">
+        <span className="absolute left-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-bold text-primary">
           {index}
         </span>
         {cropped && (
-          <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-[#E8D03A] px-1.5 py-0.5 text-[10px] font-bold text-[#111111]">
+          <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-foreground">
             <Crop size={10} />
             Cropped
           </span>
         )}
 
         {/* Actions: always shown on touch screens, on hover / keyboard focus with a mouse */}
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-linear-to-t from-black/60 to-transparent pb-2 pt-6 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-linear-to-t from-foreground/60 to-transparent pb-2 pt-6 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
           {croppable && (
             <button type="button" onClick={onCrop} aria-label={`Crop ${image.original.name}`} title="Crop" className={actionBtn}>
               <Crop size={14} />
@@ -1131,17 +1126,17 @@ function ImageThumb({
             onClick={onRemove}
             aria-label={`Remove ${image.original.name}`}
             title="Remove"
-            className={cn(actionBtn, "hover:bg-[#C0392B] hover:text-white")}
+            className={cn(actionBtn, "hover:bg-destructive hover:text-background")}
           >
             <Trash2 size={14} />
           </button>
         </div>
       </div>
       <figcaption className="mt-1 px-0.5">
-        <p className="truncate text-[11px] font-medium text-[#444]" title={image.original.name}>
+        <p className="truncate text-[11px] font-medium text-foreground" title={image.original.name}>
           {image.original.name}
         </p>
-        <p className="text-[10px] text-[#9CA3AF]">{formatBytes(image.file.size)}</p>
+        <p className="text-[10px] text-muted-foreground">{formatBytes(image.file.size)}</p>
       </figcaption>
     </figure>
   );

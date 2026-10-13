@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Inter } from "next/font/google";
 
+import { Suspense } from "react";
 import Providers from "./providers";
-import Script from "next/script";
 import { Toaster as Sonner } from "sonner";
 
 import Header from "@/components/layout/Header";
@@ -12,15 +12,11 @@ import Footer from "@/components/layout/Footer";
 import "./globals.css";
 import HistoryManager from "@/components/history/HistoryManager";
 
+// The site's single font family. Exposed as --font-inter on <html>; every
+// font token in globals.css (sans/body/heading/mono) resolves to it.
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-body",
-  display: "swap",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-heading",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -85,29 +81,47 @@ export const metadata: Metadata = {
   },
 };
 
+/** Points sonner's colour variables at the design tokens in globals.css. */
+const mix = (token: string, pct: number) => `color-mix(in srgb, var(--color-${token}) ${pct}%, transparent)`;
+const toastTheme = {
+  "--normal-bg": "var(--color-card)",
+  "--normal-border": "var(--color-border)",
+  "--normal-text": "var(--color-foreground)",
+  "--success-bg": "var(--color-success-soft)",
+  "--success-border": mix("success", 30),
+  "--success-text": "var(--color-success)",
+  "--error-bg": "var(--color-destructive-soft)",
+  "--error-border": mix("destructive", 30),
+  "--error-text": "var(--color-destructive)",
+  "--warning-bg": "var(--color-primary-soft)",
+  "--warning-border": "var(--color-primary)",
+  "--warning-text": "var(--color-primary-ink)",
+  "--info-bg": "var(--color-muted)",
+  "--info-border": "var(--color-border)",
+  "--info-text": "var(--color-foreground)",
+} as React.CSSProperties;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body
-        className={`${inter.variable} ${spaceGrotesk.variable}`}
-        suppressHydrationWarning
-      >
-        <Script
-  src="https://sandbox.web.squarecdn.com/v1/square.js"
-  strategy="afterInteractive"
-/>
+    <html lang="en" className={inter.variable}>
+      <body suppressHydrationWarning>
         <Providers>
-          <Header />
-     <HistoryManager />
-          {children}
+          {/* Column layout keeps the footer at the bottom on short pages. */}
+          <div className="flex min-h-screen flex-col">
+            <Header />
+            {/* Reads the query string, which needs a Suspense boundary on static pages. */}
+            <Suspense fallback={null}>
+              <HistoryManager />
+            </Suspense>
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </div>
 
-          <Footer />
-
-          <Sonner position="top-right" richColors />
+          <Sonner position="top-right" richColors style={toastTheme} />
         </Providers>
       </body>
     </html>

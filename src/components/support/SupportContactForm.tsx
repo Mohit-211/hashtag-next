@@ -2,6 +2,7 @@
 
 "use client";
 
+import { inputClass } from "@/data/constants";
 import { useState, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { SUBJECTS } from "@/data/supportData";
@@ -57,7 +58,7 @@ export default function SupportContactForm() {
 
         {submitted ? (
           <div className="text-center py-10 space-y-3">
-            <CheckCircle className="h-10 w-10 mx-auto text-primary" />
+            <CheckCircle className="h-10 w-10 mx-auto text-primary-ink" />
 
             <p className="text-muted-foreground">
               Your message has been received.
@@ -67,7 +68,7 @@ export default function SupportContactForm() {
           <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <input
               placeholder="Full Name"
-              className="input"
+              className={inputClass}
               maxLength={80}
               value={form.name}
               onChange={(e) => setField("name", e.target.value)}
@@ -76,14 +77,14 @@ export default function SupportContactForm() {
             <input
               placeholder="Email"
               type="email"
-              className="input"
+              className={inputClass}
               maxLength={254}
               value={form.email}
               onChange={(e) => setField("email", e.target.value)}
             />
 
             <select
-              className="input"
+              className={inputClass}
               value={form.subject}
               onChange={(e) => setField("subject", e.target.value)}
             >
@@ -99,7 +100,7 @@ export default function SupportContactForm() {
             <textarea
               rows={5}
               placeholder="Your message"
-              className="input"
+              className={inputClass}
               maxLength={2000}
               value={form.message}
               onChange={(e) => setField("message", e.target.value)}

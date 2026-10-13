@@ -17,18 +17,6 @@ export const AllProductsApi = (params?: ProductQueryParams) => {
     params,
   });
 };
-export const ProductsByGrandCategoryApi = (
-  params?: ProductQueryParams
-) => {
-  return client.get(PRODUCT_ENDPOINTS.PRODUCT_GRAND_CATEGORY, {
-    params,
-  });
-};
-export const ProductsByParentCategoryApi = (params?: ProductQueryParams) => {
-  return client.get(PRODUCT_ENDPOINTS.PRODUCT, {
-    params,
-  });
-};
 export const ProductDetailApi = (id: string) => client.get(PRODUCT_ENDPOINTS.PRODUCT_DETAIL(id))
 export const ProductDetailGuestApi = (id: string) => client.get(PRODUCT_ENDPOINTS.PRODUCT_DETAIL_GUEST(id))
 export const ProductAddonsApi = (id: string | number) => client.get(PRODUCT_ENDPOINTS.PRODUCT_ADDONS(id))
@@ -43,9 +31,6 @@ export const ProductCategoryApi = ({
     params: { page, limit, search },
   });
 };
-export const ProductVariantApi = (payload: any) =>
-  client.post(PRODUCT_ENDPOINTS.PRODUCT_VARIANT, payload);
-
 export const ProductVariantByIdApi = (id: number | string) =>
   client.get(PRODUCT_ENDPOINTS.PRODUCT_VARIANT_DETAIL(id));
 export interface IndustryQueryParams {

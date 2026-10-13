@@ -20,13 +20,23 @@ const DESCRIPTION_SANITIZE_CONFIG = {
   ALLOWED_ATTR: ["href", "target", "rel"],
 };
 
-// Any link a product description opens in a new tab gets a safe rel, so the
-// opened page can't reach back into this one via window.opener (tabnabbing).
-DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-  if (node.tagName === "A") {
-    if (node.getAttribute("target")) node.setAttribute("rel", "noopener noreferrer");
+// DOMPurify needs a DOM — during server rendering it's an inert stub with no
+// addHook/sanitize — so the hook is registered on first use in the browser.
+let linkHookRegistered = false;
+const sanitizeDescription = (html: string): string => {
+  if (!DOMPurify.isSupported) return ""; // server render; descriptions load client-side
+  if (!linkHookRegistered) {
+    // Any link a product description opens in a new tab gets a safe rel, so the
+    // opened page can't reach back into this one via window.opener (tabnabbing).
+    DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+      if (node.tagName === "A" && node.getAttribute("target")) {
+        node.setAttribute("rel", "noopener noreferrer");
+      }
+    });
+    linkHookRegistered = true;
   }
-});
+  return DOMPurify.sanitize(html, DESCRIPTION_SANITIZE_CONFIG);
+};
 
 interface AccordionItem {
   id: string;
@@ -49,12 +59,9 @@ export default function ProductAccordion({
       icon: <FileText className="w-4 h-4" />,
       content: (
         <div
-          className="text-sm text-[#6B7280] leading-7 prose prose-sm max-w-none"
+          className="text-sm text-muted-foreground leading-7 [&_a]:text-primary-ink [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:border-primary [&_blockquote]:pl-3 [&_h1]:font-semibold [&_h1]:text-foreground [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:font-semibold [&_h3]:text-foreground [&_h4]:font-semibold [&_h4]:text-foreground [&_li]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p:not(:last-child)]:mb-3 [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:pl-5"
           dangerouslySetInnerHTML={{
-            __html: DOMPurify.sanitize(
-              description || "No description available",
-              DESCRIPTION_SANITIZE_CONFIG
-            ),
+            __html: sanitizeDescription(description || "No description available"),
           }}
         />
       ),
@@ -85,13 +92,13 @@ export default function ProductAccordion({
             },
           ].map((item) => (
             <div key={item.title} className="flex items-start gap-3">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#CFAF2E] mt-2 flex-shrink-0" />
+              <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
 
               <div>
-                <span className="text-xs font-bold text-[#111111] uppercase tracking-wider">
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
                   {item.title}
                 </span>
-                <span className="text-xs text-[#6B7280]">
+                <span className="text-xs text-muted-foreground">
                   {" "}
                   — {item.detail}
                 </span>
@@ -107,45 +114,45 @@ export default function ProductAccordion({
       icon: <Truck className="w-4 h-4" />,
       content: (
         <div className="space-y-4">
-          <p className="text-xs text-[#6B7280] bg-[#f5f5f5] border border-[#E5E5E5] rounded-xl px-4 py-3 leading-6">
+          <p className="text-xs text-muted-foreground bg-muted border border-border rounded-xl px-4 py-3 leading-6">
             Returns accepted only for unworn, unwashed items in
             original packaging. Custom/personalized items are
             non-refundable.
           </p>
 
-          <div className="rounded-xl border border-[#E5E5E5] bg-white px-4 py-4 space-y-3">
+          <div className="rounded-xl border border-border bg-card px-4 py-4 space-y-3">
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-[#111111]">
+              <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-foreground">
                 Estimated Delivery
               </h4>
 
-              <p className="text-xs text-[#6B7280] leading-6 mt-2">
+              <p className="text-xs text-muted-foreground leading-6 mt-2">
                 We strive to ship everything within 10 days,
                 but some items may take longer.
               </p>
 
-              <p className="text-xs text-[#6B7280] leading-6 mt-2">
+              <p className="text-xs text-muted-foreground leading-6 mt-2">
                 Delivery times may vary due to courier
                 schedules, holidays, or remote locations.
               </p>
             </div>
 
-            <div className="pt-3 border-t border-[#E5E5E5]">
-              <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-[#111111]">
+            <div className="pt-3 border-t border-border">
+              <h4 className="text-xs font-bold uppercase tracking-[0.12em] text-foreground">
                 Production Delays
               </h4>
 
-              <p className="text-xs text-[#6B7280] leading-6 mt-2">
+              <p className="text-xs text-muted-foreground leading-6 mt-2">
                 Custom production may occasionally face delays
                 due to quality checks or machine maintenance.
               </p>
 
-              <p className="text-xs text-[#6B7280] leading-6 mt-2">
+              <p className="text-xs text-muted-foreground leading-6 mt-2">
                 If your order is delayed, we will notify you
                 immediately with updated timelines.
               </p>
 
-              <p className="text-xs text-[#6B7280] leading-6 mt-2">
+              <p className="text-xs text-muted-foreground leading-6 mt-2">
                 We never ship anything that does not meet our
                 quality standards.
               </p>
@@ -160,18 +167,18 @@ export default function ProductAccordion({
     <div >
       {/* Header */}
       <div className="mb-6">
-        <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#CFAF2E]">
-          <span className="w-4 h-px bg-[#CFAF2E]" />
+        <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-primary-ink">
+          <span className="w-4 h-px bg-primary" />
           Details
         </span>
 
-        <h2 className="text-2xl font-bold text-[#111111] mt-2">
+        <h2 className="text-2xl font-bold text-foreground mt-2">
           Product Information
         </h2>
       </div>
 
       {/* Accordion */}
-      <div className="border border-[#E5E5E5] rounded-2xl overflow-hidden bg-white">
+      <div className="border border-border rounded-2xl overflow-hidden bg-card">
         {items.map((item) => {
           const isOpen = open === item.id;
 
@@ -180,8 +187,8 @@ export default function ProductAccordion({
               key={item.id}
               className={`transition-colors ${
                 isOpen
-                  ? "bg-[#f5f5f5]"
-                  : "bg-white hover:bg-[#FAFAFA]"
+                  ? "bg-muted"
+                  : "bg-card hover:bg-border"
               }`}
             >
               <button
@@ -194,8 +201,8 @@ export default function ProductAccordion({
                   <span
                     className={`transition-colors ${
                       isOpen
-                        ? "text-[#CFAF2E]"
-                        : "text-[#6B7280]"
+                        ? "text-primary-ink"
+                        : "text-muted-foreground"
                     }`}
                   >
                     {item.icon}
@@ -204,8 +211,8 @@ export default function ProductAccordion({
                   <span
                     className={`text-[14px] font-semibold tracking-wide ${
                       isOpen
-                        ? "text-[#111111]"
-                        : "text-[#111111]"
+                        ? "text-foreground"
+                        : "text-foreground"
                     }`}
                   >
                     {item.label}
@@ -215,8 +222,8 @@ export default function ProductAccordion({
                 <div
                   className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 ${
                     isOpen
-                      ? "bg-[#111111] text-[#E8D03A]"
-                      : "bg-[#F5F5F5] text-[#6B7280]"
+                      ? "bg-foreground text-primary"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   <ChevronDown
@@ -235,8 +242,8 @@ export default function ProductAccordion({
                     : "grid-rows-[0fr] opacity-0"
                 }`}
               >
-                <div className="overflow-hidden px-5 pb-5">
-                  {item.content}
+                <div className="overflow-hidden">
+                  <div className="px-5 pb-5">{item.content}</div>
                 </div>
               </div>
             </div>

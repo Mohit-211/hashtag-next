@@ -1,8 +1,12 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
+import NextImage from "next/image";
 import { useRouter } from "next/navigation";
-import { loginUrl } from "@/lib/authRedirect";
+import { hasAuthToken, loginUrl } from "@/lib/authRedirect";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
+import { isGrandCategory } from "@/lib/productFamily";
+import type { ProductCategoryRef } from "@/data/typesproduct";
 import {
   ArrowLeft, Check, Circle, X, ChevronDown, ChevronUp, Table2,
   Upload, RotateCw, RotateCcw, Download, Sparkles, Eye, ImageDown,
@@ -11,13 +15,18 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ProductVariantByIdApi, ProductDetailApi } from "@/api/operations/product.api";
+import { ProductVariantByIdApi, ProductDetailApi, ProductDetailGuestApi } from "@/api/operations/product.api";
 import AddToCartModal from "@/components/common/AddToCartModal";
+import LoginPromptModal from "@/components/auth/LoginPromptModal";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 import SageQuantityPricing, { getSageUnitPriceWithMarkup, parseSageMeta } from "./Sagequantitypricing";
 import AddProductConfigurationModal from "../Addproductconfigurationmodal/Addproductconfigurationmodal";
-import { calculateVariantTotal, sumVariantTotals, formatMoney } from "./pricing";
+import {
+  calculateVariantTotal, sumVariantTotals, formatMoney,
+  EMB_TIERS, EMB_PRICES, DTF_TIERS, DTF_PRICES, SP_PRICES, SP_COLOR_COUNTS, SP_TIERS, DTG_TIERS, DTG_PRICES,
+  getMaterialPrintTotal, getDigitizingFee, getMaterialFloor, type SpColorCount, type MaterialId,
+} from "./pricing";
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
 interface VariantImage { id: number; file_name: string; file_uri: string; is_primary: boolean }
@@ -40,16 +49,18 @@ interface Variant {
   meta: string | null;
   images: VariantImage[];
   size_details: Size | null;
-  product: {
-    brand: null;
-    id: number;
-    name: string;
-    description?: string;
-    brand_id?: number | null;
-    attachments: any[];
-    categories: any[];
-    meta: string | null;
-  };
+  product: RawProduct;
+}
+/** The parent product as nested in a variant response. */
+interface RawProduct {
+  brand: { name?: string; logo_url?: string | null } | null;
+  id: number;
+  name: string;
+  description?: string;
+  brand_id?: number | null;
+  attachments: { file_uri: string; file_name?: string }[];
+  categories: ProductCategoryRef[];
+  meta: string | null;
 }
 interface Product {
   id: string;
@@ -57,12 +68,12 @@ interface Product {
   price: number;
   image: string;
   description?: string;
-  attachments: any[];
-  categories: any[];
-  brand?: any;
+  attachments: RawProduct["attachments"];
+  categories: ProductCategoryRef[];
+  brand?: RawProduct["brand"];
   images: VariantImage[];
   variants: Variant[];
-  product: any;
+  product: Partial<RawProduct>;
 }
 /* ── Configured-variant types (multi-variant cart configuration) ── */
 export interface ConfiguredSize {
@@ -115,7 +126,6 @@ const PROMO_MIN_QTY = 100; // ← DEFAULT fallback floor, only used when a
 // its own min_order_quantity. Per-product minimum should come from the
 // product's own data (see getPromoMinQty below) — this is not a global
 // floor applied to every Promo product regardless of its actual meta.
-type MaterialId = "embroidery" | "dtf" | "screen_print" | "dtg";
 const MATERIALS = [
   { id: "embroidery" as MaterialId, label: "Embroidery", desc: "Premium thread-stitched branding", bestFor: "Polos, jackets, uniforms", badge: "All Fabrics", emoji: "🧵" },
   { id: "dtf" as MaterialId, label: "DTF Print", desc: "Full-color Direct-to-Film transfers", bestFor: "Small runs, multi-color logos", badge: "No Minimum", emoji: "🖨️" },
@@ -232,122 +242,6 @@ const DRINKWARE_PRINT_LOCATIONS = [
 type DrinkwarePrintLocation = typeof DRINKWARE_PRINT_LOCATIONS[number]["id"];
 /** Per-product surcharge for each print location beyond the first (first is free). */
 const DRINKWARE_SECOND_LOCATION_FEE = 8;
-const EMB_TIERS = [
-  { label: "1–11", min: 1, max: 11 },
-  { label: "12–23", min: 12, max: 23 },
-  { label: "24–35", min: 24, max: 35 },
-  { label: "36–71", min: 36, max: 71 },
-  { label: "72–95", min: 72, max: 95 },
-  { label: "96–143", min: 96, max: 143 },
-  { label: "144+", min: 144, max: Infinity },
-];
-const EMB_PRICES: Record<string, number[]> = {
-  LEFT_CHEST: [12, 11, 10, 9, 8, 7, 6],
-  RIGHT_CHEST: [12, 11, 10, 9, 8, 7, 6],
-  SLEEVE_LEFT: [12, 11, 10, 9, 8, 7, 6],
-  SLEEVE_RIGHT: [12, 11, 10, 9, 8, 7, 6],
-  // FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
-  FULL_BACK_STANDARD: [18, 16, 14, 13, 12, 11, 10],
-  FULL_BACK_LARGE: [22, 20, 18, 16, 15, 14, 12],
-
-  HAT_FRONT: [15, 14, 12, 11, 10, 9, 8],
-  HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
-  HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],
-};
-const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
-const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
-const SP_PRICES: Record<string, number[]> = {
-  "1 Color": [11.19, 7.46, 4.85, 3.36, 2.24, 1.87],
-  "2 Color": [22.39, 11.19, 7.09, 5.22, 3.36, 3.21],
-  "3 Color": [37.31, 14.93, 9.33, 7.46, 4.48, 4.25],
-  "4 Color": [52.24, 26.87, 11.19, 10.07, 5.60, 5.37],
-  "5 Color": [67.16, 32.84, 14.93, 11.57, 6.72, 6.49],
-  "6 Color": [82.09, 37.31, 17.16, 13.06, 8.58, 7.61],
-};
-/** Number-of-colours options for Screen Print — derived from SP_PRICES so
- *  adding/removing a colour tier there automatically updates the picker. */
-export type SpColorCount = keyof typeof SP_PRICES;
-const SP_COLOR_COUNTS = Object.keys(SP_PRICES) as SpColorCount[];
-/** Screen Print quantity tiers — order/count must match each SP_PRICES row.
- *  Single source of truth for the min order qty, the price-index lookup,
- *  and the "View Full Price Table" headers. */
-const SP_TIERS = [
-  { label: "12–23", min: 12 },
-  { label: "24–47", min: 24 },
-  { label: "48–99", min: 48 },
-  { label: "100–299", min: 100 },
-  { label: "300–499", min: 300 },
-  { label: "500+", min: 500 },
-];
-const SP_MIN_QTY = SP_TIERS[0].min;
-const DTG_TIERS = [{ min: 1 }, { min: 24 }, { min: 48 }, { min: 100 }];
-const DTG_PRICES: Record<string, number[]> = {
-  "Front Regular": [15, 12, 11, 9],
-  "Oversized": [20, 17, 16, 14],
-  "Front & Back Regular": [30, 24, 22, 18],
-  "Front & Back Oversized": [40, 34, 32, 28],
-};
-/* ── Pure, exported print-pricing logic — single source of truth for
-   print/decoration pricing. Used by the main page AND by
-   AddProductConfigurationModal, so every screen prices identically. ── */
-export function getMaterialPrintTotal(
-  material: MaterialId | null,
-  locations: string[],
-  qty: number,
-  spColorCount: SpColorCount = "1 Color",
-  dtgStyle: keyof typeof DTG_PRICES = "Front Regular"
-): number | null {
-  if (!material) return null;
-  if (locations.length === 0) return null;
-  if (qty <= 0) return null;
-  switch (material) {
-    case "embroidery": {
-      const tierIndex = EMB_TIERS.findIndex(t => qty >= t.min && qty <= t.max);
-      let total = 0;
-      locations.forEach(location => {
-        const row = EMB_PRICES[location];
-        if (!row) return;
-        total += row[tierIndex] * qty;
-      });
-      if (qty <= 11) total += 35;
-      return total;
-    }
-    case "dtf": {
-      const tier =
-        qty >= 144 ? 6 :
-          qty >= 96 ? 5 :
-            qty >= 72 ? 4 :
-              qty >= 36 ? 3 :
-                qty >= 24 ? 2 :
-                  qty >= 12 ? 1 : 0;
-      return DTF_PRICES[tier] * qty * locations.length;
-    }
-  case "screen_print": {
-  if (qty < SP_MIN_QTY) return null;
-
-  const priceIndex = SP_TIERS.reduce((found, t, idx) => (qty >= t.min ? idx : found), 0);
-  const price = SP_PRICES[spColorCount]?.[priceIndex];
-
-  if (price == null) return null;
-
-  return price * qty * locations.length;
-}
-    case "dtg": {
-      const tier =
-        qty >= 100 ? 3 :
-          qty >= 48 ? 2 :
-            qty >= 24 ? 1 : 0;
-      return DTG_PRICES[dtgStyle][tier] * qty;
-    }
-    default:
-      return null;
-  }
-}
-/* ── Pure, exported digitizing-fee rule so every consumer (main page,
-   modal, cart modal) applies the exact same one-time embroidery fee. ── */
-export function getDigitizingFee(material: MaterialId | null, qty: number): number {
-  return material === "embroidery" && qty > 0 && qty <= 11 ? 35 : 0;
-}
 const FONTS = [
   { label: "Georgia", value: "Georgia, serif" },
   { label: "Montserrat", value: "'Montserrat', sans-serif" },
@@ -428,32 +322,37 @@ export interface ManualMeta {
   option_values: ManualOptionValue[];
 }
 /** Admin-entered option names/values can carry stray spaces (e.g. " Size") — trim them. */
+/** One row of raw (untrusted) JSON from product/variant meta. */
+type RawMetaRow = Record<string, unknown> | null | undefined;
+const metaRows = (list: unknown): RawMetaRow[] => (Array.isArray(list) ? list : []);
+
 export const parseManualOptionValues = (list: unknown): ManualOptionValue[] =>
-  (Array.isArray(list) ? list : [])
-    .map((ov: any) => ({ name: String(ov?.name ?? "").trim(), value: String(ov?.value ?? "").trim() }))
+  metaRows(list)
+    .map((ov) => ({ name: String(ov?.name ?? "").trim(), value: String(ov?.value ?? "").trim() }))
     .filter((ov: ManualOptionValue) => ov.name !== "");
 export const parseManualMeta = (raw?: string | null): ManualMeta | null => {
   if (!raw) return null;
-  let obj: any;
+  let parsed: unknown;
   try {
-    obj = JSON.parse(raw);
-    if (typeof obj === "string") obj = JSON.parse(obj);
+    parsed = JSON.parse(raw);
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
   } catch {
     return null;
   }
-  if (!obj || typeof obj !== "object") return null;
+  if (!parsed || typeof parsed !== "object") return null;
+  const obj = parsed as Record<string, unknown>;
   const mode = obj.pricing_mode;
   if (mode !== "tiered" && mode !== "fixed" && mode !== "quantity_fixed") return null;
-  const bulk_pricing: ManualBulkTier[] = (Array.isArray(obj.bulk_pricing) ? obj.bulk_pricing : [])
-    .map((t: any) => ({
+  const bulk_pricing: ManualBulkTier[] = metaRows(obj.bulk_pricing)
+    .map((t) => ({
       min_qty: Number(t?.min_qty),
       max_qty: t?.max_qty === null || t?.max_qty === undefined || t?.max_qty === "" ? null : Number(t.max_qty),
       price: Number(t?.price),
     }))
     .filter((t: ManualBulkTier) => t.min_qty > 0 && Number.isFinite(t.price))
     .sort((a: ManualBulkTier, b: ManualBulkTier) => a.min_qty - b.min_qty);
-  const quantity_pricing: ManualQtyPackage[] = (Array.isArray(obj.quantity_pricing) ? obj.quantity_pricing : [])
-    .map((p: any) => ({ quantity: Number(p?.quantity), price: Number(p?.price) }))
+  const quantity_pricing: ManualQtyPackage[] = metaRows(obj.quantity_pricing)
+    .map((p) => ({ quantity: Number(p?.quantity), price: Number(p?.price) }))
     .filter((p: ManualQtyPackage) => p.quantity > 0 && Number.isFinite(p.price))
     .sort((a: ManualQtyPackage, b: ManualQtyPackage) => a.quantity - b.quantity);
   const option_values = parseManualOptionValues(obj.option_values);
@@ -490,15 +389,16 @@ export const getPromoMinQty = (
     return minOrderQuantity && minOrderQuantity > 0 ? minOrderQuantity : 1;
   }
   const meta = parseSageMeta(metaStr ?? null);
-  const qtyTiers = ((meta as any)?.qtyTiers ?? [])
+  // Defensive: admin-entered tiers can contain blanks or numeric strings.
+  const qtyTiers = ((meta?.qtyTiers ?? []) as unknown[])
     .filter(
-      (qty: any) =>
+      (qty) =>
         qty !== null &&
         qty !== undefined &&
         qty !== "" &&
         Number(qty) > 0
     )
-    .map((qty: any) => Number(qty));
+    .map((qty) => Number(qty));
   if (qtyTiers.length > 0) {
     return qtyTiers[0];
   }
@@ -507,11 +407,32 @@ export const getPromoMinQty = (
   }
   return PROMO_MIN_QTY;
 };
+interface Point { x: number; y: number }
+interface DrawCanvasOptions {
+  ctx: CanvasRenderingContext2D;
+  size: number;
+  productImg: HTMLImageElement | null;
+  logo: HTMLImageElement | null;
+  logoPos: Point;
+  logoSize: number;
+  logoRotation: number;
+  logoOpacity: number;
+  text: string;
+  textPos: Point;
+  textSize: number;
+  textColor: string;
+  textRotation: number;
+  fontFamily: string;
+  textBold: boolean;
+  textItalic: boolean;
+  textShadow: boolean;
+  textOpacity: number;
+}
 function drawCanvas({
   ctx, size, productImg, logo, logoPos, logoSize, logoRotation, logoOpacity,
   text, textPos, textSize, textColor, textRotation, fontFamily,
   textBold, textItalic, textShadow, textOpacity,
-}: any) {
+}: DrawCanvasOptions) {
   ctx.clearRect(0, 0, size, size);
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, size, size);
@@ -552,7 +473,7 @@ function StepBadge({ n, done }: { n: number; done: boolean }) {
   return (
     <div className={cn(
       "w-8 h-8 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0",
-      done ? "bg-[#F5D800] text-black" : "bg-gray-900 text-white"
+      done ? "bg-primary text-foreground" : "bg-foreground text-background"
     )}>
       {done ? <Check size={14} /> : n}
     </div>
@@ -563,18 +484,18 @@ function SectionCard({ step, title, subtitle, status, children }: {
   status: "required" | "done" | "optional"; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden mb-5">
-      <div className="px-3 py-3 sm:px-5 sm:py-4 border-b border-gray-100 flex items-center gap-2 sm:gap-3">
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden mb-5">
+      <div className="px-3 py-3 sm:px-5 sm:py-4 border-b border-border flex items-center gap-2 sm:gap-3">
         <StepBadge n={step} done={status === "done"} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-gray-900">{title}</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">{subtitle}</p>
+          <p className="text-sm font-bold text-foreground">{title}</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
         </div>
         {status === "required" && (
-          <span className="text-[11px] font-bold text-red-500 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full whitespace-nowrap">Required</span>
+          <span className="text-[11px] font-bold text-destructive bg-destructive-soft border border-destructive/30 px-2.5 py-1 rounded-full whitespace-nowrap">Required</span>
         )}
         {status === "optional" && (
-          <span className="text-[11px] font-bold text-gray-400 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full whitespace-nowrap">Optional</span>
+          <span className="text-[11px] font-bold text-muted-foreground bg-muted border border-border px-2.5 py-1 rounded-full whitespace-nowrap">Optional</span>
         )}
       </div>
       <div className="p-3 sm:p-5">{children}</div>
@@ -588,14 +509,13 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
   return (
     <div>
       <div className="flex justify-between items-center mb-1.5">
-        <span className="text-xs font-medium text-gray-500">{label}</span>
-        <span className="text-xs font-bold text-[#F5D800] bg-[#F5D800]/10 px-2 py-0.5 rounded-md">{value}{unit}</span>
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span className="text-xs font-bold text-primary-ink bg-primary/10 px-2 py-0.5 rounded-md">{value}{unit}</span>
       </div>
       <input
         type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none bg-gray-200 cursor-pointer"
-        style={{ accentColor: "#F5D800" }}
+        className="w-full h-1.5 rounded-full appearance-none bg-muted cursor-pointer accent-foreground"
       />
     </div>
   );
@@ -607,9 +527,7 @@ const RESUME_ACTIONS = ["addToCart", "wishlist", "preview"] as const;
 type ResumeAction = (typeof RESUME_ACTIONS)[number];
 export default function ProductCustomizationPage({ productDataId, variantDataId }: Props) {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
-  const isLoggedIn = mounted && !!localStorage.getItem("hastagBillionaire");
+  // ── State & refs (hoisted so effects/helpers below can reference them) ──
   const [variantData, setVariantData] = useState<Variant | null>(null);
   const [allProductVariants, setAllProductVariants] = useState<Variant[]>([]);
   const [allSizes, setAllSizes] = useState<Size[]>([]);
@@ -621,68 +539,137 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const isRestoringSessionRef = useRef(false);
   const hasAttemptedRestoreRef = useRef(false);
   const [restorePending, setRestorePending] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  // Which button sent the user to log in, so it can continue afterwards.
+  const loginResumeActionRef = useRef<ResumeAction | null>(null);
+  // Set by the restore below; consumed once the restored design is ready.
+  const resumeAfterRestoreRef = useRef<ResumeAction | null>(null);
+  const [viewSelection, setViewSelection] = useState<{ garment: GarmentType; idx: number } | null>(null);
+  const [selectedColor, setSelectedColor] = useState("");
+  const [variantQty, setVariantQty] = useState<Record<number, number>>({});
+  const variantQtyRef = useRef<Record<number, number>>({});
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
+  const [selectedPrintType, setSelectedPrintType] = useState<DrinkwarePrintType | null>(null);
+  const [selectedPrintLocations, setSelectedPrintLocations] = useState<DrinkwarePrintLocation[]>([]);
+  const [showPriceTable, setShowPriceTable] = useState(false);
+  const [spColorCount, setSpColorCount] = useState<SpColorCount>("1 Color");
+  const [dtgStyle, setDtgStyle] = useState<keyof typeof DTG_PRICES>("Front Regular");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [loadedProductImg, setProductImg] = useState<HTMLImageElement | null>(null);
+  const [loadedLogoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+  const [isRemovingLogoBg, setIsRemovingLogoBg] = useState(false);
+  const [autoRemoveBg, setAutoRemoveBg] = useState(false);
+  const [bgRemoved, setBgRemoved] = useState(false);
+  const [logoSize, setLogoSize] = useState(120);
+  const [logoRotation, setLogoRotation] = useState(0);
+  const [logoOpacity, setLogoOpacity] = useState(1);
+  const [logoPos, setLogoPos] = useState({ x: 190, y: 190 });
+  const [customText, setCustomText] = useState("");
+  const [textSize, setTextSize] = useState(36);
+  const [textColor, setTextColor] = useState("#1a1a1a");
+  const [textRotation, setTextRotation] = useState(0);
+  const [fontFamily, setFontFamily] = useState("Georgia, serif");
+  const [textBold, setTextBold] = useState(false);
+  const [textItalic, setTextItalic] = useState(false);
+  const [textShadow, setTextShadow] = useState(false);
+  const [textOpacity, setTextOpacity] = useState(1);
+  const [textPos, setTextPos] = useState({ x: 80, y: 300 });
+  const [activeTab, setActiveTab] = useState<"image" | "text">("image");
+  const [dragging, setDragging] = useState<"logo" | "text" | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [inCart, setInCart] = useState(false);
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [canvasBlob, setCanvasBlob] = useState<Blob | null>(null);
+  const [customizationJson, setCustomizationJson] = useState<string>("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [showValidationShake, setShowValidationShake] = useState(false);
+  const [pendingVariantList, setPendingVariantList] = useState<ConfiguredVariant[]>([]);
+  const [justStagedVariantIds, setJustStagedVariantIds] = useState<number[]>([]);
+  const [configuredVariants, setConfiguredVariants] = useState<ConfiguredVariant[]>([]);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [sageRemountKey, setSageRemountKey] = useState(0);
+  const [configSubmitting, setConfigSubmitting] = useState(false);
+  // What the shopper is typing in the apparel qty box; null when not editing.
+  const [apparelQtyDraft, setApparelQtyDraft] = useState<string | null>(null);
+  const [orderRows, setOrderRows] = useState<OrderRow[]>(() => [
+    { id: Date.now(), color: "", qty: 1, variantId: "" }
+  ]);
+  const orderRowsRef = useRef(orderRows);
+  // ── Data loading, restore & derived values ──
+  const isLoggedIn = useIsLoggedIn();
   useEffect(() => {
     // Also after a cancelled login, so the design survives it.
-    if (typeof window === "undefined" || !mounted) return;
     try {
       if (sessionStorage.getItem(CUSTOMIZATION_SESSION_KEY)) {
+        // Syncing from sessionStorage (an external store) — runs once per login state.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRestorePending(true);
       }
     } catch (e) {
       console?.error("Failed to check for saved customization:", e);
     }
-  }, [mounted, isLoggedIn]);
-  const fetchProduct = async () => {
-    try {
-      setLoading(true);
-      const res = await ProductVariantByIdApi(String(variantDataId));
-      const variantRaw: Variant = res?.data?.data;
-      if (!variantRaw) { setProduct(null); setVariantData(null); return; }
-      setVariantData(variantRaw);
-      const productRaw = variantRaw.product ?? {};
-      const mapped: Product = {
-        id: String(productRaw.id ?? variantRaw.product_id),
-        name: productRaw.name ?? "",
-        price: getVariantPrice(variantRaw),
-        image: variantRaw.images?.[0]?.file_uri ?? "",
-        description: productRaw.description ?? "",
-        attachments: productRaw.attachments ?? [],
-        categories: productRaw.categories ?? [],
-        brand: productRaw?.brand ?? null,
-        images: variantRaw.images ?? [],
-        variants: [variantRaw],
-        product: productRaw,
-      };
-      setProduct(mapped);
-    } catch (e) {
-      console?.error(e);
-      setProduct(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [isLoggedIn]);
+  // The route remounts this page per product/variant (see the page's `key`),
+  // so `loading` starts true and only needs clearing here.
   useEffect(() => {
-    if (variantDataId) fetchProduct();
-    if (productDataId) fetchProductVariants();
+    let cancelled = false;
+    const loadVariant = async () => {
+      try {
+        const res = await ProductVariantByIdApi(String(variantDataId));
+        if (cancelled) return;
+        const variantRaw: Variant = res?.data?.data;
+        if (!variantRaw) { setProduct(null); setVariantData(null); return; }
+        setVariantData(variantRaw);
+        const productRaw: Partial<RawProduct> = variantRaw.product ?? {};
+        setProduct({
+          id: String(productRaw.id ?? variantRaw.product_id),
+          name: productRaw.name ?? "",
+          price: getVariantPrice(variantRaw),
+          image: variantRaw.images?.[0]?.file_uri ?? "",
+          description: productRaw.description ?? "",
+          attachments: productRaw.attachments ?? [],
+          categories: productRaw.categories ?? [],
+          brand: productRaw?.brand ?? null,
+          images: variantRaw.images ?? [],
+          variants: [variantRaw],
+          product: productRaw,
+        });
+      } catch (e) {
+        console?.error(e);
+        if (!cancelled) setProduct(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    const loadAllVariants = async () => {
+      try {
+        // Guests can't use the authenticated endpoint (401) — same split as the product page.
+        const res = hasAuthToken()
+          ? await ProductDetailApi(String(productDataId))
+          : await ProductDetailGuestApi(String(productDataId));
+        if (cancelled) return;
+        const variants: Variant[] = res?.data?.data?.variants || [];
+        setAllProductVariants(variants);
+        const sizes = variants
+          .map((v) => v.size_details)
+          .filter((size): size is Size => !!size)
+          .filter((size, index, self) => index === self.findIndex((s) => s.id === size.id));
+        setAllSizes(sizes);
+      } catch (err) {
+        console.error("Failed to fetch product variants:", err);
+      }
+    };
+    if (variantDataId) loadVariant();
+    if (productDataId) loadAllVariants();
+    return () => { cancelled = true; };
   }, [variantDataId, productDataId]);
-  const fetchProductVariants = async () => {
-    try {
-      const res = await ProductDetailApi(String(productDataId));
-      const variants = res?.data?.data?.variants || [];
-      console.log(variants,"variants===========>>>")
-      setAllProductVariants(variants);
-      const sizes = variants
-        .filter((v: any) => v.size_details)
-        .map((v: any) => v.size_details)
-        .filter(
-          (size: any, index: number, self: any[]) =>
-            index === self.findIndex((s) => s.id === size.id)
-        );
-      setAllSizes(sizes);
-    } catch (err) {
-      console.error("Failed to fetch product variants:", err);
-    }
-  };
   const grandCategoryTitle = useMemo((): string => {
     if (!product) return "";
     for (const cat of product.product?.categories ?? []) {
@@ -694,14 +681,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
     return "";
   }, [product]);
-  const isApparel = grandCategoryTitle === "Apparel & Uniforms";
-  const isPreMade = grandCategoryTitle === "Pre-Made";
+  const isApparel = isGrandCategory(grandCategoryTitle, "apparel");
+  const isPreMade = isGrandCategory(grandCategoryTitle, "preMade");
   const isPromo = !isApparel && !isPreMade;
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  // Which button sent the user to log in, so it can continue afterwards.
-  const loginResumeActionRef = useRef<ResumeAction | null>(null);
-  // Set by the restore below; consumed once the restored design is ready.
-  const resumeAfterRestoreRef = useRef<ResumeAction | null>(null);
   const saveCustomizationToSession = () => {
     if (typeof window === "undefined") return;
     try {
@@ -759,7 +741,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return false;
   };
   useEffect(() => {
-    if (!mounted || !product || loading) return;
+    if (!product || loading) return;
     if (hasAttemptedRestoreRef.current) return;
     if (allProductVariants.length === 0) return;
     if (typeof window === "undefined") return;
@@ -771,6 +753,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
     if (!raw) {
       hasAttemptedRestoreRef.current = true;
+      // Restoring from sessionStorage once the product has loaded.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRestorePending(false);
       return;
     }
@@ -854,14 +838,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setRestorePending(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mounted, isLoggedIn, product, loading, productDataId, allProductVariants]);
+  }, [isLoggedIn, product, loading, productDataId, allProductVariants]);
   const grandCategory = useMemo((): string => {
     if (!product) return "";
     return (
       (product.product?.categories ?? [])
-        .flatMap((c: any) => c.parent_categories ?? [])
-        .flatMap((p: any) => p.grand_categories ?? [])
-        .map((g: any) => g.title?.toLowerCase().trim())
+        .flatMap((c) => c.parent_categories ?? [])
+        .flatMap((p) => p.grand_categories ?? [])
+        .map((g) => g.title?.toLowerCase().trim())
         .find(Boolean) ?? ""
     );
   }, [product]);
@@ -869,8 +853,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (!product) return "";
     return (
       (product.product?.categories ?? [])
-        .flatMap((c: any) => c.parent_categories ?? [])
-        .map((p: any) => p.title?.toLowerCase().trim())
+        .flatMap((c) => c.parent_categories ?? [])
+        .map((p) => p.title?.toLowerCase().trim())
         .find(Boolean) ?? ""
     );
   }, [product]);
@@ -887,10 +871,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return "tshirt";
   }, [grandCategory, parentCategory]);
   const garmentViews = useMemo(() => GARMENT_VIEWS[garmentType], [garmentType]);
-  const [activeViewIdx, setActiveViewIdx] = useState(0);
+  // The chosen view only applies to the garment it was picked on; a new garment starts on its first view.
+  const activeViewIdx = viewSelection?.garment === garmentType ? viewSelection.idx : 0;
+  const setActiveViewIdx = (idx: number) => setViewSelection({ garment: garmentType, idx });
   const activeView = garmentViews[activeViewIdx] ?? garmentViews[0];
-  useEffect(() => { setActiveViewIdx(0); }, [garmentType]);
-  const [selectedColor, setSelectedColor] = useState("");
   const colors = useMemo(() => {
     if (!product) return [];
     const map = new Map<string, string>();
@@ -906,29 +890,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (isRestoringSessionRef.current) return;
     if (!selectedColor) {
       const first = variantData?.color || product?.variants?.[0]?.color;
+      // Default colour goes through state on purpose: the [selectedColor] effect below
+      // seeds quantities from it, and the session restore relies on that ordering.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (first) setSelectedColor(first);
     }
-  }, [variantData, product]);
-  useEffect(() => {
-    if (isRestoringSessionRef.current) {
-      isRestoringSessionRef.current = false;
-      return;
-    }
-    setProductImg(null);
-    setLogoPos({ x: 190, y: 190 });
-    setJustStagedVariantIds([]);
-    if (activeVariant) {
-      const floor = isPromo
-        ? promoMinQty
-        : isApparel
-          ? getMaterialFloor(selectedMaterial)
-          : Math.max(1, activeVariant.min_order_quantity || 1);
-      setQty(activeVariant.id, floor);
-    } else {
-      setVariantQty({ 1: 1 });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedColor]);
+  }, [variantData, product, selectedColor]);
   const colorVariants = useMemo(() => {
     const pool = allProductVariants.length > 0 ? allProductVariants : (product?.variants ?? []);
     if (pool.length === 0) return variantData ? [variantData] : [];
@@ -937,8 +904,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     const filtered = pool.filter(v => normalise(v.color) === target);
     return filtered.length > 0 ? filtered : pool;
   }, [allProductVariants, product, selectedColor, variantData]);
-  const [variantQty, setVariantQty] = useState<Record<number, number>>({});
-  const variantQtyRef = useRef<Record<number, number>>({});
 
   useEffect(() => {
     variantQtyRef.current = variantQty;
@@ -1010,6 +975,28 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     () => getPromoMinQty(promoMetaStr, activeVariant?.min_order_quantity),
     [promoMetaStr, activeVariant]
   );
+  useEffect(() => {
+    if (isRestoringSessionRef.current) {
+      isRestoringSessionRef.current = false;
+      return;
+    }
+    setProductImg(null);
+    setLogoPos({ x: 190, y: 190 });
+    setJustStagedVariantIds([]);
+    if (activeVariant) {
+      const floor = isPromo
+        ? promoMinQty
+        : isApparel
+          ? getMaterialFloor(selectedMaterial)
+          : Math.max(1, activeVariant.min_order_quantity || 1);
+      setQty(activeVariant.id, floor);
+    } else {
+      // Colour change resets quantities (skipped during a session restore, see above).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVariantQty({ 1: 1 });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on colour change only, by design
+  }, [selectedColor]);
   const setPromoQty = (variantId: number, qty: number) => {
     if (!isPromo) { setQty(variantId, Math.max(0, qty)); return; }
     const safe = Number.isFinite(qty) ? Math.floor(qty) : promoMinQty;
@@ -1048,7 +1035,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       ? fileUri
       : `${BASE_URL}${fileUri.startsWith("/") ? "" : "/"}${fileUri}`;
   }, [product, activeVariant]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
   // Full Back Standard vs Large are two sizes of the SAME print area — never
   // selectable together, so picking one always drops the other.
   const MUTUALLY_EXCLUSIVE_LOCATIONS = ["FULL_BACK_STANDARD", "FULL_BACK_LARGE"];
@@ -1060,9 +1046,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         : prev;
       return [...next, id];
     });
-  const [selectedMaterial, setSelectedMaterial] = useState<MaterialId | null>(null);
-  const [selectedPrintType, setSelectedPrintType] = useState<DrinkwarePrintType | null>(null);
-  const [selectedPrintLocations, setSelectedPrintLocations] = useState<DrinkwarePrintLocation[]>([]);
   const toggleDrinkwareLocation = (id: DrinkwarePrintLocation) =>
     setSelectedPrintLocations(prev =>
       prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
@@ -1071,13 +1054,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const drinkwareLocationFee = isDrinkware
     ? Math.max(0, selectedPrintLocations.length - 1) * DRINKWARE_SECOND_LOCATION_FEE
     : 0;
-  const [showPriceTable, setShowPriceTable] = useState(false);
-  const [spColorCount, setSpColorCount] = useState<SpColorCount>("1 Color");
-  const [dtgStyle, setDtgStyle] = useState<keyof typeof DTG_PRICES>("Front Regular");
-  const getMaterialFloor = (id: MaterialId | null): number => {
-    if (id === "screen_print") return SP_MIN_QTY;
-    return 1; // embroidery, dtf, dtg, or no material yet — apparel always floors at 1
-  };
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
@@ -1095,59 +1071,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     });
     lastMaterialFloorRef.current = floor;
   };
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [productImg, setProductImg] = useState<HTMLImageElement | null>(null);
-  const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
-  const [logoSrc, setLogoSrc] = useState<string | null>(null);
-  const [isRemovingLogoBg, setIsRemovingLogoBg] = useState(false);
-  const [autoRemoveBg, setAutoRemoveBg] = useState(false);
-  const [bgRemoved, setBgRemoved] = useState(false);
-  const [logoSize, setLogoSize] = useState(120);
-  const [logoRotation, setLogoRotation] = useState(0);
-  const [logoOpacity, setLogoOpacity] = useState(1);
-  const [logoPos, setLogoPos] = useState({ x: 190, y: 190 });
-  const [customText, setCustomText] = useState("");
-  const [textSize, setTextSize] = useState(36);
-  const [textColor, setTextColor] = useState("#1a1a1a");
-  const [textRotation, setTextRotation] = useState(0);
-  const [fontFamily, setFontFamily] = useState("Georgia, serif");
-  const [textBold, setTextBold] = useState(false);
-  const [textItalic, setTextItalic] = useState(false);
-  const [textShadow, setTextShadow] = useState(false);
-  const [textOpacity, setTextOpacity] = useState(1);
-  const [textPos, setTextPos] = useState({ x: 80, y: 300 });
-  const [activeTab, setActiveTab] = useState<"image" | "text">("image");
-  const [dragging, setDragging] = useState<"logo" | "text" | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewDataUrl, setPreviewDataUrl] = useState<string | null>(null);
-  const [previewError, setPreviewError] = useState(false);
   const { refreshCart } = useCart();
   const { wishlist, loading: wishlistSyncing, addToWishlist, removeItem, fetchWishlist } = useWishlist();
   const wishlistItem = wishlist.find(i => i.product_id === variantDataId);
   const inWishlist = !!wishlistItem;
-  const [wishlistLoading, setWishlistLoading] = useState(false);
-  const [inCart, setInCart] = useState(false);
-  const [showCartModal, setShowCartModal] = useState(false);
-  const [canvasBlob, setCanvasBlob] = useState<Blob | null>(null);
-  const [customizationJson, setCustomizationJson] = useState<string>("");
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [showValidationShake, setShowValidationShake] = useState(false);
-  const [pendingVariantList, setPendingVariantList] = useState<ConfiguredVariant[]>([]);
-  const [justStagedVariantIds, setJustStagedVariantIds] = useState<number[]>([]);
-  const [configuredVariants, setConfiguredVariants] = useState<ConfiguredVariant[]>([]);
-  const [showConfigModal, setShowConfigModal] = useState(false);
-  const [sageRemountKey, setSageRemountKey] = useState(0);
-  const [configSubmitting, setConfigSubmitting] = useState(false);
-  const [apparelQtyInput, setApparelQtyInput] = useState<string>(String(currentQty || "1"));
-  useEffect(() => {
-    setApparelQtyInput(currentQty > 0 ? String(currentQty) : "1");
-  }, [currentQty, activeVariant?.id]);
+  const apparelQtyInput = apparelQtyDraft ?? (currentQty > 0 ? String(currentQty) : "1");
   const useMockupOnCanvas = isApparel;
   const canvasBaseImageSrc = useMockupOnCanvas ? (activeView?.mockup ?? null) : displayImage;
+  const productImg = canvasBaseImageSrc ? loadedProductImg : null;
   useEffect(() => {
-    if (!canvasBaseImageSrc) { setProductImg(null); return; }
+    if (!canvasBaseImageSrc) return;
     let cancelled = false;
     (async () => {
       try {
@@ -1161,8 +1094,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     })();
     return () => { cancelled = true; };
   }, [canvasBaseImageSrc, useMockupOnCanvas]);
+  const logoImg = logoSrc ? loadedLogoImg : null;
   useEffect(() => {
-    if (!logoSrc) { setLogoImg(null); return; }
+    if (!logoSrc) return;
     let cancelled = false;
     loadImage(logoSrc).then(img => { if (!cancelled) setLogoImg(img); });
     return () => { cancelled = true; };
@@ -1206,7 +1140,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   }, [
     productImg, logoImg, logoPos, logoSize, logoRotation, logoOpacity,
     customText, textPos, textSize, textColor, textRotation,
-    fontFamily, textBold, textItalic, textShadow, textOpacity,
+    fontFamily, textBold, textItalic, textShadow, textOpacity, displayImage,
   ]);
   const getPoint = (e: React.MouseEvent) => {
     const r = canvasRef.current!.getBoundingClientRect();
@@ -1250,7 +1184,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       dh,
     };
   };
-  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
     if (!dragging) return;
     const pt = getPoint(e);
     if (dragging === "logo") {
@@ -1276,7 +1210,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         y: Math.max(textSize, Math.min(CANVAS_SIZE, pt.y - dragOffset.y)),
       });
     }
-  }, [dragging, dragOffset, logoSize, textSize, useMockupOnCanvas, productImg]);
+  };
   const stopDrag = () => setDragging(null);
   const getCursor = () => dragging ? "grabbing" : (logoImg || customText.trim()) ? "grab" : "default";
   /* ── Apparel print pricing ── */
@@ -1334,17 +1268,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   ];
   const allMet = REQUIREMENTS.every(r => r.done);
   interface OrderRow { id: number; color: string; qty: number; variantId: number | "" }
-  const [orderRows, setOrderRows] = useState<OrderRow[]>([
-    { id: Date.now(), color: "", qty: 1, variantId: "" }
-  ]);
-  const orderRowsRef = useRef(orderRows);
   useEffect(() => { orderRowsRef.current = orderRows; }, [orderRows]);
   const addOrderRow = () => setOrderRows(prev => [...prev, { id: Date.now(), color: "", qty: 1, variantId: "" }]);
   const removeOrderRow = (id: number) => setOrderRows(prev => prev.filter(r => r.id !== id));
-  const updateOrderRow = (
+  const updateOrderRow = <K extends keyof OrderRow>(
     id: number,
-    field: keyof OrderRow,
-    value: any
+    field: K,
+    value: OrderRow[K]
   ) => {
     setOrderRows((prev) =>
       prev.map((r) => {
@@ -1544,7 +1474,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         };
       })
     );
-    const base: any = {
+    const base: {
+      product_id: number;
+      customizations: typeof customizations;
+      variants: { variant_id: number; sizes: { size_id: number | null; variant_id: number; quantity: number }[] }[];
+      print_method?: string | null;
+      locations?: { location: string }[];
+      second_location_fee?: number;
+    } = {
       product_id: productDataId,
       customizations,
       variants: variantList.map(cv => ({
@@ -1736,7 +1673,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         });
       }
       await fetchWishlist();
-      fetchProduct();
     } catch (e) { console?.error(e); }
     finally { setWishlistLoading(false); }
   };
@@ -1812,23 +1748,24 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
 
   if (loading || restorePending) {
     return (
-      <div className="min-h-screen bg-[#fafafa]">
-        <div className="sticky top-0 z-20 bg-white border-b border-gray-100 h-14 animate-pulse" />
-        <div className="container max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
-          {restorePending && (
-            <div className="mb-4 flex items-center gap-2 text-xs font-semibold text-[#b89000] bg-[#F5D800]/10 border border-[#F5D800]/20 rounded-xl px-3 py-2 w-fit">
-              <Loader2 size={13} className="animate-spin" />
-              Restoring your saved customization…
-            </div>
-          )}
-          <div className="flex flex-col lg:grid lg:grid-cols-[1fr_380px] gap-6">
-            <div className="space-y-5">
-              <div className="h-64 rounded-2xl bg-gray-200 animate-pulse" />
-              <div className="h-40 rounded-2xl bg-gray-200 animate-pulse" />
-              <div className="h-72 rounded-2xl bg-gray-200 animate-pulse" />
-            </div>
-            <div className="h-96 rounded-2xl bg-gray-200 animate-pulse" />
+      <div className="container max-w-6xl py-6 lg:py-10" aria-busy="true">
+        {restorePending && (
+          <div className="mb-4 flex w-fit items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary-ink">
+            <Loader2 size={13} className="animate-spin" />
+            Restoring your saved customization…
           </div>
+        )}
+        <div className="mb-8 space-y-3 border-b border-border pb-6">
+          <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+          <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
+          <div className="space-y-5">
+            <div className="h-64 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-72 animate-pulse rounded-2xl bg-muted" />
+          </div>
+          <div className="h-96 animate-pulse rounded-2xl bg-muted" />
         </div>
       </div>
     );
@@ -1837,78 +1774,60 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return (
       <section className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center space-y-3">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto">
-            <Package size={28} className="text-gray-400" />
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+            <Package size={28} className="text-muted-foreground" />
           </div>
-          <p className="text-gray-900 font-bold">Product not found</p>
-          <Link href="/categories" className="inline-block px-5 py-2.5 rounded-xl bg-black text-white text-sm font-semibold">
-            Browse Products
+          <p className="text-foreground font-bold">Product not found</p>
+          <Link href="/categories?view=all" className="inline-block rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-hover">
+            Browse products
           </Link>
         </div>
       </section>
     );
   }
   return (
-    <div className="min-h-screen bg-[#fafafa]">
-      {showLoginModal && (
-        <div className="fixed inset-0 z-[999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-2xl">
-            <div className="flex items-start justify-between mb-5">
-              <div className="w-11 h-11 rounded-2xl bg-gray-900 flex items-center justify-center">
-                <span className="text-xl">🔒</span>
-              </div>
-              <button onClick={cancelLoginPrompt} className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-900">
-                <X size={15} />
-              </button>
-            </div>
-            <h2 className="text-xl font-black text-gray-900 mb-2">Sign in to continue</h2>
-            <p className="text-sm text-gray-500 leading-relaxed mb-6">Login to customize products, save to wishlist, and add to cart. Your current customization will be saved.</p>
-            <div className="flex gap-3">
-              <button onClick={cancelLoginPrompt} className="flex-1 h-11 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600">Cancel</button>
-              <button
-                onClick={() => {
-                  saveCustomizationToSession();
-                  router.push(loginUrl());
-                }}
-                className="flex-1 h-11 rounded-xl bg-[#F5D800] text-black text-sm font-black"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen bg-background">
+      <LoginPromptModal
+        open={showLoginModal}
+        message="Log in to save this product or add your design to the cart. We'll keep your customization exactly as it is."
+        onSignIn={() => {
+          saveCustomizationToSession();
+          router.push(loginUrl());
+        }}
+        onCancel={cancelLoginPrompt}
+      />
       {showPreviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl overflow-hidden shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/70 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-card rounded-2xl overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#F5D800] flex items-center justify-center">
-                  <Eye size={15} className="text-black" />
+                <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
+                  <Eye size={15} className="text-foreground" />
                 </div>
-                <h3 className="font-black text-gray-900">Preview Design</h3>
+                <h3 className="font-black text-foreground">Preview Design</h3>
               </div>
-              <button onClick={() => setShowPreviewModal(false)} className="w-8 h-8 rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-100 text-gray-400">
+              <button onClick={() => setShowPreviewModal(false)} className="w-8 h-8 rounded-xl border border-border flex items-center justify-center hover:bg-muted text-muted-foreground">
                 <X size={15} />
               </button>
             </div>
             <div className="p-5">
-              <div className="w-full aspect-square rounded-xl border border-gray-100 bg-gray-50 overflow-hidden relative">
+              <div className="w-full aspect-square rounded-xl border border-border bg-muted overflow-hidden relative">
                 {previewError ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-destructive">
                     <AlertCircle size={40} /><p className="text-sm">Preview failed</p>
                   </div>
                 ) : previewDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- canvas data URL
                   <img src={previewDataUrl} alt="Preview" className="w-full h-full object-contain" />
                 ) : (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="animate-spin text-[#F5D800]" size={32} />
+                    <Loader2 className="animate-spin text-primary-ink" size={32} />
                   </div>
                 )}
               </div>
             </div>
             <div className="flex gap-3 px-5 pb-5">
-              <button onClick={() => setShowPreviewModal(false)} className="flex-1 h-12 rounded-xl border border-gray-200 font-semibold text-gray-600">Cancel</button>
+              <button onClick={() => setShowPreviewModal(false)} className="flex-1 h-12 rounded-xl border border-border font-semibold text-muted-foreground">Cancel</button>
               <button
                 onClick={() => {
                   if (!previewDataUrl) return;
@@ -1920,7 +1839,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 }}
                 disabled={!previewDataUrl}
                 className={cn("flex-1 h-12 rounded-xl font-black flex items-center justify-center gap-2",
-                  previewDataUrl ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-400 cursor-not-allowed")}
+                  previewDataUrl ? "bg-primary text-foreground" : "bg-muted text-muted-foreground cursor-not-allowed")}
               >
                 <ImageDown size={17} /> Download
               </button>
@@ -1928,48 +1847,36 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           </div>
         </div>
       )}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
-        <div className="container max-w-6xl mx-auto px-4">
-          <div className="flex items-center gap-3 py-3.5">
-            <Link href={`/product/${productDataId}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-black transition-colors">
-              <ArrowLeft size={14} /> Back to product
-            </Link>
-            <span className="text-gray-200">/</span>
-            <span className="text-xs font-semibold text-gray-900 truncate max-w-[200px]">Customize — {product.name}</span>
-            <span className={cn(
-              "hidden md:inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border",
-              isApparel ? "bg-blue-50 text-blue-600 border-blue-200" :
-                isPreMade ? "bg-purple-50 text-purple-600 border-purple-200" :
-                  "bg-orange-50 text-orange-600 border-orange-200"
-            )}>
-              {isApparel ? "Apparel & Uniforms" : isPreMade ? "Pre-Made" : "Promo Product"}
+      <div className="container max-w-6xl py-6 lg:py-10">
+        <Link
+          href={`/product/${productDataId}`}
+          className="mb-5 inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ArrowLeft size={14} /> Back to product
+        </Link>
+
+        <header className="mb-8 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <span
+              className={cn(
+                "inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest",
+                isPromo ? "bg-primary-soft text-primary-ink" : "bg-muted text-foreground"
+              )}
+            >
+              {grandCategoryTitle || (isApparel ? "Apparel & Uniforms" : isPreMade ? "Pre-Made" : "Promo Product")}
             </span>
-            <div className="ml-auto hidden md:flex items-center gap-1.5">
-              {REQUIREMENTS.map(r => (
-                <span key={r.key} className={cn(
-                  "flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border",
-                  r.done ? "bg-[#F5D800]/15 text-[#b89000] border-[#F5D800]/30" : "bg-gray-100 text-gray-400 border-gray-200"
-                )}>
-                  {r.done ? <Check size={9} /> : <Circle size={9} className="opacity-40" />}
-                  {r.label}
-                </span>
-              ))}
-            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Customize your order</h1>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{product.name}</span>
+              {" · "}
+              {isApparel && "Pick a print location and decoration method, then upload your logo."}
+              {isPreMade && "Choose your color, size and quantity."}
+              {isPromo && `Choose a quantity (minimum ${promoMinQty}) and optionally add your logo.`}
+            </p>
           </div>
-        </div>
-      </div>
-      <div className="bg-white border-b border-gray-100 py-6">
-        <div className="container max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-2xl font-black text-gray-900 mb-1">Customize Your Order</h1>
-          <p className="text-sm text-gray-500">
-            {isApparel && "Select print location, decoration method, then upload your logo"}
-            {isPreMade && "Choose your color, size & quantity"}
-            {isPromo && `Select quantity (min ${promoMinQty}) and optionally upload your logo`}
-          </p>
-        </div>
-      </div>
-      <div className="container max-w-6xl mx-auto px-4 py-8">
-        <div className="flex flex-col lg:grid lg:grid-cols-[1fr_380px] gap-6">
+        </header>
+
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-8">
           <div>
             {isApparel && (
               <>
@@ -1979,19 +1886,19 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   subtitle="Select a view, then tap the hotspot to choose your print location."
                   status={selectedLocations.length > 0 ? "done" : "required"}
                 >
-                  <div className="flex gap-1.5 mb-4 bg-gray-100 p-1 rounded-xl">
+                  <div className="flex gap-1.5 mb-4 bg-muted p-1 rounded-xl">
                     {garmentViews.map((view, idx) => (
                       <button key={view.key} onClick={() => setActiveViewIdx(idx)}
                         className={cn("flex-1 h-9 rounded-lg text-xs font-bold transition-all",
-                          activeViewIdx === idx ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                          activeViewIdx === idx ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                         )}>
                         {view.label}
                       </button>
                     ))}
                   </div>
                   <div className="relative mx-auto mb-4" style={{ maxWidth: 300 }}>
-                    <div className="relative rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
-                      <img src={activeView.mockup} alt={activeView.label} className="w-full h-auto object-contain" />
+                    <div className="relative rounded-2xl overflow-hidden bg-muted border border-border">
+                      <NextImage src={activeView.mockup} alt={activeView.label} width={600} height={600} unoptimized className="w-full h-auto object-contain" />
                       <div className="absolute inset-0">
                         {activeView.hotspots.map(h => (
                           <button key={h.id} onClick={() => toggleLocation(h.id)}
@@ -2001,8 +1908,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             <div className={cn(
                               "w-10 h-10 rounded-full border-2 flex items-center justify-center shadow-sm transition-all duration-150",
                               selectedLocations.includes(h.id)
-                                ? "bg-[#F5D800] border-[#d4a800] text-black scale-110 shadow-md"
-                                : "bg-white/85 border-gray-300 text-gray-600 hover:bg-[#F5D800]/70 hover:border-[#d4a800] hover:scale-105 backdrop-blur-sm"
+                                ? "bg-primary border-primary text-foreground scale-110 shadow-md"
+                                : "bg-card/85 border-input text-muted-foreground hover:bg-primary/70 hover:border-primary hover:scale-105 backdrop-blur-sm"
                             )}>
                               {selectedLocations.includes(h.id)
                                 ? <Check size={14} />
@@ -2010,31 +1917,31 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                               }
                             </div>
                             {!selectedLocations.includes(h.id) && (
-                              <span className="absolute inset-0 rounded-full border-2 border-[#F5D800]/40 animate-ping" />
+                              <span className="absolute inset-0 rounded-full border-2 border-primary/40 animate-ping" />
                             )}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <p className="text-center text-[11px] text-gray-400 mt-2">Tap a hotspot to select a print location</p>
+                    <p className="text-center text-[11px] text-muted-foreground mt-2">Tap a hotspot to select a print location</p>
                   </div>
                   {selectedLocations.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 p-3 bg-[#F5D800]/5 rounded-xl border border-[#F5D800]/20">
-                      <span className="text-[11px] font-bold text-[#b89000] mr-1 self-center">Selected:</span>
+                    <div className="flex flex-wrap gap-1.5 p-3 bg-primary/5 rounded-xl border border-primary/20">
+                      <span className="text-[11px] font-bold text-primary-ink mr-1 self-center">Selected:</span>
                       {selectedLocations.map(id => (
-                        <span key={id} className="inline-flex items-center gap-1 bg-[#F5D800] text-black text-[11px] font-bold px-2.5 py-1 rounded-full">
+                        <span key={id} className="inline-flex items-center gap-1 bg-primary text-foreground text-[11px] font-bold px-2.5 py-1 rounded-full">
                           {ALL_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id}
                           <button onClick={() => toggleLocation(id)} className="hover:opacity-60 ml-0.5"><X size={10} /></button>
                         </span>
                       ))}
                       {selectedLocations.length > 1 && (
-                        <button onClick={() => setSelectedLocations([])} className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 text-gray-500 hover:bg-white">Clear all</button>
+                        <button onClick={() => setSelectedLocations([])} className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:bg-card">Clear all</button>
                       )}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                      <Circle size={13} className="text-gray-300 flex-shrink-0" />
-                      <p className="text-xs text-gray-400">No location selected yet — tap a hotspot above</p>
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-xl border border-dashed border-border">
+                      <Circle size={13} className="text-muted-foreground flex-shrink-0" />
+                      <p className="text-xs text-muted-foreground">No location selected yet — tap a hotspot above</p>
                     </div>
                   )}
                 </SectionCard>
@@ -2051,35 +1958,35 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                         <div key={mat.id}>
                           <button onClick={() => handleSelectMaterial(mat.id)}
                             className={cn("w-full text-left flex items-start gap-2.5 sm:gap-3 rounded-2xl border-2 p-3 sm:p-3.5 transition-all relative",
-                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                              isSelected ? "border-primary bg-primary-soft" : "border-border bg-card hover:border-input hover:bg-muted"
                             )}>
                             {isSelected && (
-                              <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#F5D800] flex items-center justify-center">
-                                <Check size={11} className="text-black" />
+                              <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                <Check size={11} className="text-foreground" />
                               </div>
                             )}
-                            <div className={cn("w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-lg sm:text-xl flex-shrink-0", isSelected ? "bg-[#F5D800]/20" : "bg-gray-100")}>
+                            <div className={cn("w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-lg sm:text-xl flex-shrink-0", isSelected ? "bg-primary/20" : "bg-muted")}>
                               {mat.emoji}
                             </div>
                             <div className="flex-1 min-w-0 pr-6">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-black text-gray-900">{mat.label}</p>
-                                <span className={cn("shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-[#F5D800] text-black" : "bg-gray-100 text-gray-500")}>{mat.badge}</span>
+                                <p className="text-sm font-black text-foreground">{mat.label}</p>
+                                <span className={cn("shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-primary text-foreground" : "bg-muted text-muted-foreground")}>{mat.badge}</span>
                               </div>
-                              <p className="text-[11px] text-gray-500 mt-0.5">{mat.desc}</p>
-                              <p className="text-[10px] text-gray-400 mt-0.5">Best for: {mat.bestFor}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">{mat.desc}</p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">Best for: {mat.bestFor}</p>
                             </div>
                           </button>
                           {isSelected && (
                             <div className="mt-2 mb-1">
                               {mat.id === "screen_print" && (
-                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Number of Colours</p>
+                                <div className="rounded-xl border border-border bg-muted p-4">
+                                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Number of Colours</p>
                                   <div className="grid grid-cols-3 gap-2">
                                     {SP_COLOR_COUNTS.map(c => (
                                       <button key={c} onClick={() => setSpColorCount(c)}
                                         className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all",
-                                          spColorCount === c ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
+                                          spColorCount === c ? "border-primary bg-primary text-foreground" : "border-border text-muted-foreground bg-card")}>
                                         {c}
                                       </button>
                                     ))}
@@ -2087,13 +1994,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                 </div>
                               )}
                               {(mat.id === "dtg" || mat.id === "dtf") && mat.id === "dtg" && (
-                                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">Print Area</p>
+                                <div className="rounded-xl border border-border bg-muted p-4">
+                                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Print Area</p>
                                   <div className="grid grid-cols-2 gap-2">
                                     {(Object.keys(DTG_PRICES) as (keyof typeof DTG_PRICES)[]).map(s => (
                                       <button key={s} onClick={() => setDtgStyle(s)}
                                         className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all px-2",
-                                          dtgStyle === s ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 bg-white")}>
+                                          dtgStyle === s ? "border-primary bg-primary text-foreground" : "border-border text-muted-foreground bg-card")}>
                                         {s}
                                       </button>
                                     ))}
@@ -2102,15 +2009,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                               )}
                               <div className="mt-3">
                                 <button onClick={() => setShowPriceTable(p => !p)}
-                                  className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors">
-                                  <div className="flex items-center gap-2 text-xs font-bold text-gray-600">
-                                    <Table2 size={14} className="text-[#F5D800]" /> View Full Price Table
+                                  className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-border bg-muted hover:bg-border transition-colors">
+                                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                                    <Table2 size={14} className="text-primary-ink" /> View Full Price Table
                                   </div>
-                                  {showPriceTable ? <ChevronUp size={15} className="text-gray-400" /> : <ChevronDown size={15} className="text-gray-400" />}
+                                  {showPriceTable ? <ChevronUp size={15} className="text-muted-foreground" /> : <ChevronDown size={15} className="text-muted-foreground" />}
                                 </button>
                                 {showPriceTable && (
-                                  <div className="mt-3 rounded-xl border border-gray-200 overflow-hidden text-xs">
-                                    <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 text-[11px] font-bold uppercase tracking-widest text-gray-600">
+                                  <div className="mt-3 rounded-xl border border-border overflow-hidden text-xs">
+                                    <div className="bg-muted px-4 py-2.5 border-b border-border text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                                       {mat.id === "embroidery" && "Embroidery — Price per Location"}
                                       {mat.id === "dtf" && "DTF Print Pricing"}
                                       {mat.id === "screen_print" && "Screen Print Pricing"}
@@ -2120,15 +2027,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                       {mat.id === "embroidery" && (
                                         <table className="w-full border-collapse min-w-105 sm:min-w-130">
                                           <thead>
-                                            <tr className="bg-gray-50 border-b border-gray-200">
-                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-36">Location</th>
-                                              {EMB_TIERS.map(t => <th key={t.label} className="px-2 py-2 font-bold text-gray-500 border-r border-gray-100 text-center">{t.label}</th>)}
+                                            <tr className="bg-muted border-b border-border">
+                                              <th className="text-left px-3 py-2 font-bold text-muted-foreground border-r border-border w-36">Location</th>
+                                              {EMB_TIERS.map(t => <th key={t.label} className="px-2 py-2 font-bold text-muted-foreground border-r border-border text-center">{t.label}</th>)}
                                             </tr>
                                           </thead>
                                           <tbody>
                                             {selectedLocations.length === 0 ? (
                                               <tr>
-                                                <td colSpan={EMB_TIERS.length + 1} className="px-3 py-3 text-center text-gray-400">
+                                                <td colSpan={EMB_TIERS.length + 1} className="px-3 py-3 text-center text-muted-foreground">
                                                   Select a print location above to see pricing.
                                                 </td>
                                               </tr>
@@ -2138,18 +2045,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                   const prices = EMB_PRICES[key];
                                                   if (!prices) return null;
                                                   return (
-                                                    <tr key={key} className="border-b border-gray-100 bg-[#F5D800]/8">
-                                                      <td className="px-3 py-2 font-semibold text-gray-600 border-r border-gray-200">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
+                                                    <tr key={key} className="border-b border-border bg-primary/8">
+                                                      <td className="px-3 py-2 font-semibold text-muted-foreground border-r border-border">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
                                                       {prices.map((p, j) => (
-                                                        <td key={j} className="px-2 py-2 text-center border-r border-gray-100 text-gray-500">
+                                                        <td key={j} className="px-2 py-2 text-center border-r border-border text-muted-foreground">
                                                           ${formatMoney(basePrice + p)}
                                                         </td>
                                                       ))}
                                                     </tr>
                                                   );
                                                 })}
-                                                {/* <tr className="border-t-2 border-gray-300 bg-gray-50">
-                                                  <td className="px-3 py-2.5 font-black text-gray-900 border-r border-gray-200">
+                                                {/* <tr className="border-t-2 border-input bg-muted">
+                                                  <td className="px-3 py-2.5 font-black text-foreground border-r border-border">
                                                     Total ({selectedLocations.length} location{selectedLocations.length > 1 ? "s" : ""})
                                                   </td>
                                                   {EMB_TIERS.map((_, tierIdx) => {
@@ -2158,7 +2065,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                                       return sum + (row ? row[tierIdx] : 0);
                                                     }, 0);
                                                     return (
-                                                      <td key={tierIdx} className="px-2 py-2.5 text-center border-r border-gray-100 font-black text-gray-900">
+                                                      <td key={tierIdx} className="px-2 py-2.5 text-center border-r border-border font-black text-foreground">
                                                         ${formatMoney(basePrice + printSum)}
                                                       </td>
                                                     );
@@ -2172,31 +2079,31 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                       {mat.id === "dtf" && (
                                         <table className="w-full border-collapse min-w-95 sm:min-w-120">
                                           <thead>
-                                            <tr className="bg-gray-50 border-b border-gray-200">
-                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Method</th>
+                                            <tr className="bg-muted border-b border-border">
+                                              <th className="text-left px-3 py-2 font-bold text-muted-foreground border-r border-border">Method</th>
                                               {["1–11", "12–23", "24–35", "36–71", "72–95", "96–143", "144+"].map((l, i) => (
-                                                <th key={l} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
-                                                  DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{l}</th>
+                                                <th key={l} className={cn("px-2 py-2 font-bold border-r border-border text-center",
+                                                  DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-primary-ink bg-primary/8" : "text-muted-foreground")}>{l}</th>
                                               ))}
                                             </tr>
                                           </thead>
                                           <tbody>
                                             <tr>
-                                              <td className="px-3 py-3 font-bold text-[#b89000] border-r border-gray-200">DTF (per location)</td>
+                                              <td className="px-3 py-3 font-bold text-primary-ink border-r border-border">DTF (per location)</td>
                                               {DTF_PRICES.map((p, i) => (
-                                                <td key={i} className={cn("px-2 py-3 text-center border-r border-gray-100 font-medium",
-                                                  DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-[#b89000] font-bold" : "text-gray-500")}>
+                                                <td key={i} className={cn("px-2 py-3 text-center border-r border-border font-medium",
+                                                  DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-primary-ink font-bold" : "text-muted-foreground")}>
                                                   ${formatMoney(basePrice + p)}
                                                 </td>
                                               ))}
                                             </tr>
                                             {/* {selectedLocations.length > 0 && (
-                                              <tr className="border-t-2 border-gray-300 bg-gray-50">
-                                                <td className="px-3 py-2.5 font-black text-gray-900 border-r border-gray-200">
+                                              <tr className="border-t-2 border-input bg-muted">
+                                                <td className="px-3 py-2.5 font-black text-foreground border-r border-border">
                                                   Total ({selectedLocations.length} location{selectedLocations.length > 1 ? "s" : ""})
                                                 </td>
                                                 {DTF_PRICES.map((p, i) => (
-                                                  <td key={i} className="px-2 py-2.5 text-center border-r border-gray-100 font-black text-gray-900">
+                                                  <td key={i} className="px-2 py-2.5 text-center border-r border-border font-black text-foreground">
                                                     ${formatMoney(basePrice + p * selectedLocations.length)}
                                                   </td>
                                                 ))}
@@ -2208,34 +2115,34 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                       {mat.id === "screen_print" && (
                                         <table className="w-full border-collapse min-w-120 sm:min-w-160">
                                           <thead>
-                                            <tr className="bg-gray-50 border-b border-gray-200">
-                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200">Colors</th>
+                                            <tr className="bg-muted border-b border-border">
+                                              <th className="text-left px-3 py-2 font-bold text-muted-foreground border-r border-border">Colors</th>
                                               {SP_TIERS.map((t, i) => (
-                                                <th key={t.label} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center last:border-r-0",
-                                                  SP_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>{t.label}</th>
+                                                <th key={t.label} className={cn("px-2 py-2 font-bold border-r border-border text-center last:border-r-0",
+                                                  SP_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-primary-ink bg-primary/8" : "text-muted-foreground")}>{t.label}</th>
                                               ))}
                                             </tr>
                                           </thead>
                                           <tbody>
                                             {Object.entries(SP_PRICES).map(([k, p], i) => (
-                                              <tr key={k} className={cn("border-b border-gray-100", k === spColorCount ? "bg-[#F5D800]/5" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                                <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">
-                                                  {k} <span className="text-[10px] font-normal text-gray-400">(per location)</span>
+                                              <tr key={k} className={cn("border-b border-border", k === spColorCount ? "bg-primary/5" : i % 2 === 0 ? "bg-card" : "bg-muted/50")}>
+                                                <td className="px-3 py-2.5 font-semibold text-muted-foreground border-r border-border">
+                                                  {k} <span className="text-[10px] font-normal text-muted-foreground">(per location)</span>
                                                 </td>
                                                 {SP_TIERS.map((t, j) => (
-                                                  <td key={t.label} className="px-2 py-2.5 text-center border-r border-gray-100 text-gray-500 last:border-r-0">${formatMoney(basePrice + p[j])}</td>
+                                                  <td key={t.label} className="px-2 py-2.5 text-center border-r border-border text-muted-foreground last:border-r-0">${formatMoney(basePrice + p[j])}</td>
                                                 ))}
                                               </tr>
                                             ))}
                                             {/* {selectedLocations.length > 0 && (
-                                              <tr className="border-t-2 border-gray-300 bg-gray-50">
-                                                <td className="px-3 py-2.5 font-black text-gray-900 border-r border-gray-200">
+                                              <tr className="border-t-2 border-input bg-muted">
+                                                <td className="px-3 py-2.5 font-black text-foreground border-r border-border">
                                                   Total ({spColorCount}, {selectedLocations.length} location{selectedLocations.length > 1 ? "s" : ""})
                                                 </td>
-                                                <td className="px-3 py-2.5 text-center border-r border-gray-100 font-black text-gray-900">
+                                                <td className="px-3 py-2.5 text-center border-r border-border font-black text-foreground">
                                                   ${formatMoney(basePrice + SP_PRICES[spColorCount][0] * selectedLocations.length)}
                                                 </td>
-                                                <td className="px-3 py-2.5 text-center font-black text-gray-900">
+                                                <td className="px-3 py-2.5 text-center font-black text-foreground">
                                                   ${formatMoney(basePrice + SP_PRICES[spColorCount][1] * selectedLocations.length)}
                                                 </td>
                                               </tr>
@@ -2246,11 +2153,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                       {mat.id === "dtg" && (
                                         <table className="w-full border-collapse min-w-80 sm:min-w-100">
                                           <thead>
-                                            <tr className="bg-gray-50 border-b border-gray-200">
-                                              <th className="text-left px-3 py-2 font-bold text-gray-500 border-r border-gray-200 w-40">Print Area</th>
+                                            <tr className="bg-muted border-b border-border">
+                                              <th className="text-left px-3 py-2 font-bold text-muted-foreground border-r border-border w-40">Print Area</th>
                                               {DTG_TIERS.map((t, i) => (
-                                                <th key={i} className={cn("px-2 py-2 font-bold border-r border-gray-100 text-center",
-                                                  DTG_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-[#b89000] bg-[#F5D800]/8" : "text-gray-500")}>
+                                                <th key={i} className={cn("px-2 py-2 font-bold border-r border-border text-center",
+                                                  DTG_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-primary-ink bg-primary/8" : "text-muted-foreground")}>
                                                   {["1–23", "24–47", "48–99", "100+"][i]}
                                                 </th>
                                               ))}
@@ -2258,10 +2165,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                           </thead>
                                           <tbody>
                                             {Object.entries(DTG_PRICES).map(([k, p], i) => (
-                                              <tr key={k} className={cn("border-b border-gray-100", k === dtgStyle ? "bg-[#F5D800]/5" : i % 2 === 0 ? "bg-white" : "bg-gray-50/50")}>
-                                                <td className="px-3 py-2.5 font-semibold text-gray-600 border-r border-gray-200">{k}</td>
+                                              <tr key={k} className={cn("border-b border-border", k === dtgStyle ? "bg-primary/5" : i % 2 === 0 ? "bg-card" : "bg-muted/50")}>
+                                                <td className="px-3 py-2.5 font-semibold text-muted-foreground border-r border-border">{k}</td>
                                                 {p.map((vv, j) => (
-                                                  <td key={j} className="px-2 py-2.5 text-center border-r border-gray-100 text-gray-500">
+                                                  <td key={j} className="px-2 py-2.5 text-center border-r border-border text-muted-foreground">
                                                     ${formatMoney(basePrice + vv)}
                                                   </td>
                                                 ))}
@@ -2299,7 +2206,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               >
                 <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "1fr 100px 1fr 36px" }}>
                   {["Color", "Quantity", "Size", ""].map((h, i) => (
-                    <p key={i} className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</p>
+                    <p key={i} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{h}</p>
                   ))}
                 </div>
                 <div className="space-y-2 mb-3">
@@ -2310,12 +2217,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     return (
                       <div key={row.id} className="grid gap-2 items-center" style={{ gridTemplateColumns: "1fr 100px 1fr 36px" }}>
                         <select value={row.color} onChange={e => updateOrderRow(row.id, "color", e.target.value)}
-                          className="h-10 rounded-xl border-2 border-gray-200 px-2 text-xs font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none">
+                          className="h-10 rounded-xl border-2 border-border px-2 text-xs font-semibold text-foreground bg-card focus:border-primary outline-none">
                           <option value="">Color…</option>
                           {colors.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
                         </select>
-                        <div className="flex items-center border-2 border-gray-200 rounded-xl overflow-hidden h-10">
-                          <button onClick={() => updateOrderRow(row.id, "qty", Math.max(1, row.qty - 1))} className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"><Minus size={12} /></button>
+                        <div className="flex items-center border-2 border-border rounded-xl overflow-hidden h-10">
+                          <button onClick={() => updateOrderRow(row.id, "qty", Math.max(1, row.qty - 1))} className="w-8 h-full flex items-center justify-center text-muted-foreground hover:bg-muted"><Minus size={12} /></button>
                           <input
                             type="number"
                             value={row.qty}
@@ -2328,45 +2235,45 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                               const val = Number(e.target.value);
                               updateOrderRow(row.id, "qty", Math.max(1, Number.isFinite(val) ? val : 1));
                             }}
-                            className="flex-1 w-full text-center text-xs font-black text-gray-900 outline-none bg-transparent"
+                            className="flex-1 w-full text-center text-xs font-black text-foreground outline-none bg-transparent"
                           />
-                          <button onClick={() => updateOrderRow(row.id, "qty", row.qty + 1)} className="w-8 h-full flex items-center justify-center text-gray-400 hover:bg-gray-50"><Plus size={12} /></button>
+                          <button onClick={() => updateOrderRow(row.id, "qty", row.qty + 1)} className="w-8 h-full flex items-center justify-center text-muted-foreground hover:bg-muted"><Plus size={12} /></button>
                         </div>
                         <select value={row.variantId} onChange={e => updateOrderRow(row.id, "variantId", Number(e.target.value))}
                           disabled={!row.color}
-                          className="h-10 rounded-xl border-2 border-gray-200 px-2 text-xs font-semibold text-gray-700 bg-white focus:border-[#F5D800] outline-none disabled:opacity-40">
+                          className="h-10 rounded-xl border-2 border-border px-2 text-xs font-semibold text-foreground bg-card focus:border-primary outline-none disabled:opacity-40">
                           <option value="">Size…</option>
                           {sizesForColor.map(v => (
                             <option key={v.id} value={v.id}>{v.size_details?.name || v.size} (stock: {v.stock})</option>
                           ))}
                         </select>
                         <button onClick={() => removeOrderRow(row.id)} disabled={orderRows.length === 1}
-                          className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-400 hover:border-red-200 disabled:opacity-30">
+                          className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:bg-destructive-soft hover:text-destructive hover:border-destructive/30 disabled:opacity-30">
                           <Trash2 size={13} />
                         </button>
                       </div>
                     );
                   })}
                 </div>
-                <button onClick={addOrderRow} className="w-full h-10 rounded-xl border border-dashed border-gray-300 flex items-center justify-center gap-2 text-xs font-semibold text-gray-400 hover:border-[#F5D800] hover:text-[#b89000] hover:bg-[#FFFBEA] transition-all mb-4">
+                <button onClick={addOrderRow} className="w-full h-10 rounded-xl border border-dashed border-input flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground hover:border-primary hover:text-primary-ink hover:bg-primary-soft transition-all mb-4">
                   <Plus size={14} /> Add another row
                 </button>
-                <div className="flex gap-2 pt-3 border-t border-gray-100">
-                  <button onClick={cancelOrderRows} className="h-10 px-5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50">Cancel</button>
+                <div className="flex gap-2 pt-3 border-t border-border">
+                  <button onClick={cancelOrderRows} className="h-10 px-5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
                   <button onClick={saveOrderRows} disabled={!orderRows.every(r => r.color && r.variantId && r.qty >= 1)}
                     className={cn("flex-1 h-10 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all",
-                      orderRows.every(r => r.color && r.variantId && r.qty >= 1) ? "bg-[#F5D800] text-black hover:bg-[#e6ca00]" : "bg-gray-100 text-gray-400 cursor-not-allowed")}>
+                      orderRows.every(r => r.color && r.variantId && r.qty >= 1) ? "bg-primary text-foreground hover:bg-primary-hover" : "bg-muted text-muted-foreground cursor-not-allowed")}>
                     <Check size={14} /> Save selection
                   </button>
                 </div>
                 {activeSizes.length > 0 && (
-                  <div className="mt-3 px-4 py-3 bg-[#F5D800]/8 rounded-xl border border-[#F5D800]/20">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#b89000] mb-2">Saved — {totalQty} total pieces</p>
+                  <div className="mt-3 px-4 py-3 bg-primary/8 rounded-xl border border-primary/20">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-primary-ink mb-2">Saved — {totalQty} total pieces</p>
                     <div className="flex flex-wrap gap-1.5">
                       {orderRows.filter(r => r.variantId && r.qty > 0).map(r => {
                         const v = product.variants.find(vv => vv.id === r.variantId);
                         return (
-                          <span key={r.id} className="inline-flex items-center gap-1 bg-[#F5D800] text-black text-[11px] font-bold px-2.5 py-1 rounded-full">
+                          <span key={r.id} className="inline-flex items-center gap-1 bg-primary text-foreground text-[11px] font-bold px-2.5 py-1 rounded-full">
                             {r.color} · {v?.size_details?.name || v?.size} · ×{r.qty}
                           </span>
                         );
@@ -2400,12 +2307,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             onClick={() => { if (activeVariant) setPromoQty(activeVariant.id, pkg.quantity); }}
                             className={cn(
                               "rounded-xl border-2 px-3 py-3 text-left transition-all",
-                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                              isSelected ? "border-primary bg-primary-soft" : "border-border hover:border-input"
                             )}
                           >
-                            <p className="text-sm font-black text-gray-900">{pkg.quantity} pcs</p>
-                            <p className="text-xs font-bold text-gray-700">${pkg.price.toFixed(2)}</p>
-                            <p className="text-[10px] text-gray-400">${(pkg.price / pkg.quantity).toFixed(2)}/pc</p>
+                            <p className="text-sm font-black text-foreground">{pkg.quantity} pcs</p>
+                            <p className="text-xs font-bold text-foreground">${pkg.price.toFixed(2)}</p>
+                            <p className="text-[10px] text-muted-foreground">${(pkg.price / pkg.quantity).toFixed(2)}/pc</p>
                           </button>
                         );
                       })}
@@ -2436,13 +2343,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                               onClick={() => { if (activeVariant) setPromoQty(activeVariant.id, tier.min_qty); }}
                               className={cn(
                                 "rounded-xl border-2 px-3 py-3 text-left transition-all",
-                                isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                                isSelected ? "border-primary bg-primary-soft" : "border-border hover:border-input"
                               )}
                             >
-                              <p className="text-sm font-black text-gray-900">
+                              <p className="text-sm font-black text-foreground">
                                 {tier.max_qty !== null ? `${tier.min_qty} – ${tier.max_qty}` : `${tier.min_qty}+`} pcs
                               </p>
-                              <p className="text-xs font-bold text-gray-700">${tier.price.toFixed(2)}/pc</p>
+                              <p className="text-xs font-bold text-foreground">${tier.price.toFixed(2)}/pc</p>
                             </button>
                           );
                         })}
@@ -2458,8 +2365,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                         className={cn(
                           "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
                           (variantQty[activeVariant?.id ?? -1] ?? promoMinQty) <= promoMinQty
-                            ? "border-gray-100 text-gray-300 cursor-not-allowed"
-                            : "border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50"
+                            ? "border-border text-muted-foreground cursor-not-allowed"
+                            : "border-border text-muted-foreground hover:border-input hover:bg-muted"
                         )}
                       ><Minus size={20} /></button>
                       <input
@@ -2472,24 +2379,24 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                         onBlur={e => {
                           if (activeVariant) setPromoQty(activeVariant.id, Number(e.target.value));
                         }}
-                        className="w-24 h-12 rounded-2xl border-2 border-gray-200 text-center text-lg font-black text-gray-900 outline-none focus:border-[#F5D800] transition-all"
+                        className="w-24 h-12 rounded-2xl border-2 border-border text-center text-lg font-black text-foreground outline-none focus:border-primary transition-all"
                       />
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
                           setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? promoMinQty) + 1);
                         }}
-                        className="w-12 h-12 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-gray-500 hover:border-gray-300 hover:bg-gray-50 transition-all"
+                        className="w-12 h-12 rounded-2xl border-2 border-border flex items-center justify-center text-muted-foreground hover:border-input hover:bg-muted transition-all"
                       ><Plus size={20} /></button>
-                      <div className="pl-2 border-l border-gray-200">
-                        <p className="text-[10px] text-gray-400">Unit price</p>
-                        <p className="text-xl font-black text-gray-900">${(promoUnitPrice ?? (basePrice + drinkwareLocationFee)).toFixed(2)}</p>
+                      <div className="pl-2 border-l border-border">
+                        <p className="text-[10px] text-muted-foreground">Unit price</p>
+                        <p className="text-xl font-black text-foreground">${(promoUnitPrice ?? (basePrice + drinkwareLocationFee)).toFixed(2)}</p>
                       </div>
                     </div>
                     </>
                   )}
                   {totalQty > 0 && totalQty < promoMinQty && (
-                    <p className="text-xs text-red-500 font-semibold mt-3 text-center">
+                    <p className="text-xs text-destructive font-semibold mt-3 text-center">
                       Minimum order quantity for this product is {promoMinQty}.
                     </p>
                   )}
@@ -2501,47 +2408,47 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     status={(selectedPrintType && selectedPrintLocations.length > 0) ? "done" : "required"}
                   >
                     <div className="mb-5">
-                      <p className="text-xs font-bold text-gray-700 mb-2">Print Type</p>
+                      <p className="text-xs font-bold text-foreground mb-2">Print Type</p>
                       <div className="grid grid-cols-2 gap-2.5">
                         {DRINKWARE_PRINT_TYPES.map(pt => {
                           const isSelected = selectedPrintType === pt.id;
                           return (
                             <label key={pt.id} className={cn(
                               "flex items-center gap-2.5 rounded-xl border-2 px-3.5 py-3 cursor-pointer transition-all",
-                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                              isSelected ? "border-primary bg-primary-soft" : "border-border hover:border-input"
                             )}>
                               <input
-                                type="radio" name="drinkware-print-type" className="accent-[#F5D800]"
+                                type="radio" name="drinkware-print-type" className="accent-primary"
                                 checked={isSelected}
                                 onChange={() => setSelectedPrintType(pt.id)}
                               />
-                              <span className="text-xs font-bold text-gray-800">{pt.label}</span>
+                              <span className="text-xs font-bold text-foreground">{pt.label}</span>
                             </label>
                           );
                         })}
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-gray-700 mb-2">Print Location</p>
+                      <p className="text-xs font-bold text-foreground mb-2">Print Location</p>
                       <div className="grid grid-cols-3 gap-2.5">
                         {DRINKWARE_PRINT_LOCATIONS.map(loc => {
                           const isSelected = selectedPrintLocations.includes(loc.id);
                           return (
                             <label key={loc.id} className={cn(
                               "flex flex-col items-center gap-1 rounded-xl border-2 px-3 py-3 cursor-pointer transition-all text-center",
-                              isSelected ? "border-[#F5D800] bg-[#FFFBEA]" : "border-gray-200 hover:border-gray-300"
+                              isSelected ? "border-primary bg-primary-soft" : "border-border hover:border-input"
                             )}>
                               <input
-                                type="checkbox" className="accent-[#F5D800]"
+                                type="checkbox" className="accent-primary"
                                 checked={isSelected}
                                 onChange={() => toggleDrinkwareLocation(loc.id)}
                               />
-                              <span className="text-xs font-bold text-gray-800">{loc.label}</span>
+                              <span className="text-xs font-bold text-foreground">{loc.label}</span>
                             </label>
                           );
                         })}
                       </div>
-                      <p className="text-[11px] text-gray-400 mt-2">
+                      <p className="text-[11px] text-muted-foreground mt-2">
                         The first location is free — each additional location adds ${DRINKWARE_SECOND_LOCATION_FEE} per product.
                       </p>
                     </div>
@@ -2557,36 +2464,37 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               </>
             )}
           </div>
-          <div className="w-full xl:sticky xl:top-[60px] self-start">
-            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-                <ShoppingCart size={16} className="text-[#F5D800]" />
-                <h2 className="text-sm font-black text-gray-900">Order Summary</h2>
+          <div className="w-full self-start lg:sticky lg:top-24">
+            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+                <ShoppingCart size={16} className="text-primary-ink" />
+                <h2 className="text-sm font-black text-foreground">Order Summary</h2>
               </div>
               <div className="p-5 space-y-4">
                 <div className="flex gap-3">
                   {(previewUrl || displayImage) && (
-                    <div className="w-14 h-14 rounded-xl border border-gray-100 overflow-hidden flex-shrink-0">
-                      <img src={previewUrl || displayImage!} alt={product.name} className="w-full h-full object-contain bg-white" />
+                    <div className="w-14 h-14 rounded-xl border border-border overflow-hidden flex-shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- canvas data URL or product image */}
+                      <img src={previewUrl || displayImage!} alt={product.name} className="w-full h-full object-contain bg-card" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-gray-900 leading-tight">{product.name}</p>
-                    {selectedColor && <p className="text-xs text-gray-500 mt-0.5">Current: {selectedColor}</p>}
+                    <p className="text-sm font-bold text-foreground leading-tight">{product.name}</p>
+                    {selectedColor && <p className="text-xs text-muted-foreground mt-0.5">Current: {selectedColor}</p>}
                     <span className={cn("inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
-                      isApparel ? "bg-blue-50 text-blue-600" :
-                        isPreMade ? "bg-purple-50 text-purple-600" :
-                          "bg-orange-50 text-orange-600")}>
-                      {isApparel ? "Apparel & Uniforms" : isPreMade ? "Pre-Made" : "Promo Product"}
+                      isApparel ? "bg-muted text-foreground" :
+                        isPreMade ? "bg-muted text-foreground" :
+                          "bg-primary-soft text-primary-ink")}>
+                      {grandCategoryTitle || (isApparel ? "Apparel & Uniforms" : isPreMade ? "Pre-Made" : "Promo Product")}
                     </span>
                   </div>
                 </div>
                 {configuredVariants.length > 0 && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
+                  <div className="rounded-xl border border-border overflow-hidden">
                     {configuredVariants.map((cv, item) => (
                       <div
                         key={`${cv.variantId}-${item}`}
-                        className="px-3 py-2.5 border-b border-gray-50 last:border-0"
+                        className="px-3 py-2.5 border-b border-border last:border-0"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 min-w-0">
@@ -2594,23 +2502,23 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                               const safeName = cv.variantName || cv.color || `Variant #${cv.variantId}`;
                               const [colorPart, sizePart] = safeName.split(" · ");
                               return (
-                                <span className="text-xs font-bold text-gray-900 truncate">
+                                <span className="text-xs font-bold text-foreground truncate">
                                   {colorPart}
                                   {sizePart && (
-                                    <span className="font-semibold text-gray-500"> · {sizePart}</span>
+                                    <span className="font-semibold text-muted-foreground"> · {sizePart}</span>
                                   )}
                                 </span>
                               );
                             })()}
-                            <span className="text-[11px] text-gray-400 flex-shrink-0">×{cv.totalQty}</span>
+                            <span className="text-[11px] text-muted-foreground flex-shrink-0">×{cv.totalQty}</span>
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs font-bold text-gray-700">
+                            <span className="text-xs font-bold text-foreground">
                               ${formatMoney(cv.totalPrice)}
                             </span>
                             <button
                               onClick={() => removeConfiguredVariant(cv.variantName)}
-                              className="text-gray-300 hover:text-red-400"
+                              className="text-muted-foreground hover:text-destructive"
                               title="Remove this variant"
                             >
                               <Trash2 size={12} />
@@ -2618,7 +2526,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           </div>
                         </div>
                         <div className="mt-1 pl-0.5 space-y-0.5">
-                          <div className="flex items-center justify-between text-[10px] text-gray-400">
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <span>
                               Item ({cv.totalQty} × $
                               {formatMoney(cv.totalQty > 0 ? cv.productTotal / cv.totalQty : 0)})
@@ -2626,7 +2534,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             <span>${formatMoney(cv.productTotal)}</span>
                           </div>
                           {cv.decorationTotal > 0 && (
-                            <div className="flex items-center justify-between text-[10px] text-gray-400">
+                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                               <span>
                                 Decoration ({cv.totalQty} × $
                                 {formatMoney(
@@ -2637,7 +2545,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             </div>
                           )}
                           {cv.digitizingFeeTotal > 0 && (
-                            <div className="flex items-center justify-between text-[10px] text-[#b89000] font-semibold">
+                            <div className="flex items-center justify-between text-[10px] text-primary-ink font-semibold">
                               <span>Digitizing Fee</span>
                               <span>${formatMoney(cv.digitizingFeeTotal)}</span>
                             </div>
@@ -2645,43 +2553,43 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                         </div>
                       </div>
                     ))}
-                    <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
-                      <span className="text-xs font-bold text-gray-700">Total — {grandConfiguredQty} pcs</span>
-                      <span className="text-xs font-black text-gray-900">${formatMoney(grandConfiguredPrice)}</span>
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-muted border-t border-border">
+                      <span className="text-xs font-bold text-foreground">Total — {grandConfiguredQty} pcs</span>
+                      <span className="text-xs font-black text-foreground">${formatMoney(grandConfiguredPrice)}</span>
                     </div>
                   </div>
                 )}
                 {isPreMade && activeSizes.length > 0 && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">
                       Current Selection
                     </div>
                     {activeSizes.map(({ variant_id, quantity }) => {
                       const v = product.variants.find(vv => vv.id === variant_id);
                       if (!v) return null;
                       return (
-                        <div key={variant_id} className="flex items-center justify-between px-3 py-2 border-b border-gray-50 last:border-0">
+                        <div key={variant_id} className="flex items-center justify-between px-3 py-2 border-b border-border last:border-0">
                           <div className="flex items-center gap-2">
-                            <span className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-black text-gray-700">
+                            <span className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center text-xs font-black text-foreground">
                               {v.size_details?.name || v.size}
                             </span>
-                            <span className="text-xs text-gray-500">{v.color ? `${v.color} · ` : ""}×{quantity}</span>
+                            <span className="text-xs text-muted-foreground">{v.color ? `${v.color} · ` : ""}×{quantity}</span>
                           </div>
-                          <span className="text-xs font-bold text-gray-700">
+                          <span className="text-xs font-bold text-foreground">
                             ${formatMoney(calculateVariantTotal({ productPrice: getVariantPrice(v) || basePrice, decorationPrice: 0, quantity }).total)}
                           </span>
                         </div>
                       );
                     })}
-                    <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-t border-gray-100">
-                      <span className="text-xs font-bold text-gray-700">{totalQty} total pieces</span>
-                      <span className="text-xs font-black text-gray-900">${formatMoney(preMadeSelectionPricing.total)}</span>
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-muted border-t border-border">
+                      <span className="text-xs font-bold text-foreground">{totalQty} total pieces</span>
+                      <span className="text-xs font-black text-foreground">${formatMoney(preMadeSelectionPricing.total)}</span>
                     </div>
                   </div>
                 )}
                 {isApparel && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">
                       Quantity
                     </div>
                     <div className="flex items-center justify-between px-3 py-3">
@@ -2691,39 +2599,35 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           const min = getMaterialFloor(selectedMaterial);
                           setQty(activeVariant.id, Math.max(min, currentQty - 1));
                         }}
-                        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
+                        className="w-10 h-10 rounded-lg border border-border flex items-center justify-center"
                       >
                         <Minus size={16} />
                       </button>
-                   <input
-  type="text"
-  inputMode="numeric"
-  
-  value={apparelQtyInput}
-  onChange={(e) => {
-    const digitsOnly = e.target.value.replace(/\D/g, "");
-    setApparelQtyInput(digitsOnly);
-  }}
-  onBlur={(e) => {
-    if (!activeVariant) return;
-    const min = getMaterialFloor(selectedMaterial);
-    const val = Number(e.target.value);
-    const safe = Number.isFinite(val) && val > 0 ? Math.floor(val) : min;
-    const clamped = Math.max(min, safe);
-    setQty(activeVariant.id, clamped);
-    setApparelQtyInput(String(clamped));
-  }}
-  onKeyDown={(e) => {
-    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-  }}
-  className="w-16 text-lg font-black text-center outline-none focus:border-[#F5D800] border-2 border-transparent focus:border-2 rounded-lg bg-transparent"
-/>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        aria-label="Quantity"
+                        value={apparelQtyInput}
+                        onChange={(e) => setApparelQtyDraft(e.target.value.replace(/\D/g, ""))}
+                        onBlur={(e) => {
+                          setApparelQtyDraft(null);
+                          if (!activeVariant) return;
+                          const min = getMaterialFloor(selectedMaterial);
+                          const val = Number(e.target.value);
+                          const safe = Number.isFinite(val) && val > 0 ? Math.floor(val) : min;
+                          setQty(activeVariant.id, Math.max(min, safe));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                        }}
+                        className="w-16 text-lg font-black text-center outline-none focus:border-primary border-2 border-transparent focus:border-2 rounded-lg bg-transparent"
+                      />
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
                           setQty(activeVariant.id, currentQty + 1);
                         }}
-                        className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center"
+                        className="w-10 h-10 rounded-lg border border-border flex items-center justify-center"
                       >
                         <Plus size={16} />
                       </button>
@@ -2731,22 +2635,22 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   </div>
                 )}
                 {isApparel && currentQty > 0 && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">
                       Current Selection
                     </div>
                     <div className="px-3 py-2 space-y-1">
                       {selectedColor && (
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Color</span>
-                          <span className="text-xs font-bold text-gray-800">
+                          <span className="text-xs text-muted-foreground">Color</span>
+                          <span className="text-xs font-bold text-foreground">
                             {selectedColor}
                           </span>
                         </div>
                       )}
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">Size</span>
-                        <span className="text-xs font-bold text-gray-800">
+                        <span className="text-xs text-muted-foreground">Size</span>
+                        <span className="text-xs font-bold text-foreground">
                           {activeVariant?.size_details?.name || activeVariant?.size
                             ? ` ${activeVariant?.size_details?.name || activeVariant?.size}`
                             : ""}
@@ -2756,73 +2660,73 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   </div>
                 )}
                 {isDrinkware && (selectedPrintType || selectedPrintLocations.length > 0) && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Print Details</div>
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">Print Details</div>
                     <div className="px-3 py-2 space-y-1.5">
                       {selectedPrintType && (
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Print Type</span>
-                          <span className="text-xs font-bold text-gray-800">
+                          <span className="text-xs text-muted-foreground">Print Type</span>
+                          <span className="text-xs font-bold text-foreground">
                             {DRINKWARE_PRINT_TYPES.find(pt => pt.id === selectedPrintType)?.label}
                           </span>
                         </div>
                       )}
                       {selectedPrintLocations.length > 0 && (
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs text-gray-500 flex-shrink-0">Locations</span>
-                          <span className="text-xs font-bold text-gray-800 text-right">
+                          <span className="text-xs text-muted-foreground flex-shrink-0">Locations</span>
+                          <span className="text-xs font-bold text-foreground text-right">
                             {selectedPrintLocations.map(id => DRINKWARE_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id).join(", ")}
                           </span>
                         </div>
                       )}
                       {drinkwareLocationFee > 0 && (
-                        <div className="flex items-center justify-between gap-2 bg-[#FFFBEA] -mx-3 px-3 py-1.5 border-t border-[#F5D800]/20">
-                          <span className="text-xs text-[#b89000] font-semibold">
+                        <div className="flex items-center justify-between gap-2 bg-primary-soft -mx-3 px-3 py-1.5 border-t border-primary/20">
+                          <span className="text-xs text-primary-ink font-semibold">
                             Extra Location Fee ({selectedPrintLocations.length - 1} × $
                             {DRINKWARE_SECOND_LOCATION_FEE}, per product)
                           </span>
-                          <span className="text-xs font-black text-[#b89000]">${drinkwareLocationFee.toFixed(2)}</span>
+                          <span className="text-xs font-black text-primary-ink">${drinkwareLocationFee.toFixed(2)}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
                 {isApparel && (selectedLocations.length > 0 || selectedMaterial) && (
-                  <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 border-b border-gray-100">Print Details</div>
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">Print Details</div>
                     <div className="px-3 py-2 space-y-1.5">
                       {selectedMaterial && (
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Method</span>
-                          <span className="text-xs font-bold text-gray-800">{MATERIALS.find(m => m.id === selectedMaterial)?.label}</span>
+                          <span className="text-xs text-muted-foreground">Method</span>
+                          <span className="text-xs font-bold text-foreground">{MATERIALS.find(m => m.id === selectedMaterial)?.label}</span>
                         </div>
                       )}
                       {selectedLocations.length > 0 && (
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs text-gray-500 flex-shrink-0">Locations</span>
-                          <span className="text-xs font-bold text-gray-800 text-right">
+                          <span className="text-xs text-muted-foreground flex-shrink-0">Locations</span>
+                          <span className="text-xs font-bold text-foreground text-right">
                             {selectedLocations.map(id => ALL_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id).join(", ")}
                           </span>
                         </div>
                       )}
                       {printPrice !== null && (
-                        <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
-                          <span className="text-xs text-gray-500">
+                        <div className="flex items-center justify-between pt-1.5 border-t border-border">
+                          <span className="text-xs text-muted-foreground">
                             price
                           </span>
-                          <span className="text-xs font-black text-gray-900">${formatMoney(productTotal + decorationTotal)}
+                          <span className="text-xs font-black text-foreground">${formatMoney(productTotal + decorationTotal)}
                           </span>
                         </div>
                       )}
                       {digitizingFee > 0 && (
-                        <div className="flex items-center justify-between gap-2 bg-[#FFFBEA] -mx-3 px-3 py-1.5 border-t border-[#F5D800]/20">
-                          <span className="text-xs text-[#b89000] font-semibold">
+                        <div className="flex items-center justify-between gap-2 bg-primary-soft -mx-3 px-3 py-1.5 border-t border-primary/20">
+                          <span className="text-xs text-primary-ink font-semibold">
                             Digitizing Fee{" "}
-                            <span className="text-[10px] font-normal text-[#8A6D00]">
+                            <span className="text-[10px] font-normal text-primary-ink">
                               (Free on 12+ pieces)
                             </span>
                           </span>
-                          <span className="text-xs font-black text-[#b89000]">
+                          <span className="text-xs font-black text-primary-ink">
                             ${formatMoney(digitizingFee)}
                           </span>
                         </div>
@@ -2830,18 +2734,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   </div>
                 )}
-                <div className="rounded-xl bg-gray-900 text-white p-4">
+                <div className="rounded-xl bg-foreground text-background p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-bold opacity-70">Estimated Total</span>
-                    <span className="text-xl font-black text-[#F5D800]">
+                    <span className="text-xl font-black text-primary">
                       ${formatMoney(displayTotal)}
                     </span>
                   </div>
                 </div>
                 {isApparel && selectedMaterial && currentQty > 0 && currentQty < 144 && (
-                  <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
-                    <Zap size={13} className="text-amber-500 flex-shrink-0" />
-                    <p className="text-xs text-amber-700 font-medium">
+                  <div className="flex items-center gap-2 bg-primary-soft border border-primary rounded-xl px-3.5 py-2.5">
+                    <Zap size={13} className="text-primary-ink flex-shrink-0" />
+                    <p className="text-xs text-primary-ink font-medium">
                       {(() => {
                         const milestones = [12, 24, 36, 50, 72, 100, 144];
                         for (const m of milestones) { if (currentQty < m) return `${m - currentQty} more pieces unlocks the ${m}-pc tier.`; }
@@ -2854,8 +2758,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   {REQUIREMENTS.map(({ key, label, done }) => (
                     <div key={key} className={cn(
                       "flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all",
-                      done ? "bg-[#F5D800]/10 text-[#b89000]" :
-                        showValidationShake ? "bg-red-50 text-red-500" : "bg-gray-50 text-gray-400"
+                      done ? "bg-primary/10 text-primary-ink" :
+                        showValidationShake ? "bg-destructive-soft text-destructive" : "bg-muted text-muted-foreground"
                     )}>
                       {done ? <CheckCircle2 size={14} className="flex-shrink-0" /> : <Circle size={14} className="flex-shrink-0 opacity-40" />}
                       {label}
@@ -2863,18 +2767,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   ))}
                 </div>
                 {validationError && (
-                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
-                    <AlertCircle size={13} className="text-red-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-red-500 leading-relaxed">{validationError}</p>
+                  <div className="flex items-start gap-2 bg-destructive-soft border border-destructive/30 rounded-xl px-3 py-2.5">
+                    <AlertCircle size={13} className="text-destructive flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-destructive leading-relaxed">{validationError}</p>
                   </div>
                 )}
                 <button onClick={handleAddToCart}
                   className={cn(
                     "w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all duration-200",
                     showValidationShake ? "animate-[shake_0.4s_ease-in-out]" : "",
-                    (!allMet && configuredVariants.length === 0) ? "bg-gray-100 text-gray-400 cursor-not-allowed border-2 border-gray-200" :
-                      inCart ? "bg-[#F5D800]/10 text-[#b89000] border-2 border-[#F5D800]/40" :
-                        "bg-[#F5D800] text-black hover:bg-[#e6ca00] shadow-md"
+                    (!allMet && configuredVariants.length === 0) ? "bg-muted text-muted-foreground cursor-not-allowed border-2 border-border" :
+                      inCart ? "bg-primary/10 text-primary-ink border-2 border-primary/40" :
+                        "bg-primary text-foreground hover:bg-primary-hover shadow-md"
                   )}>
                   <ShoppingCart size={16} />
                   {inCart ? "Added to Cart ✓" : "Add to Cart"}
@@ -2882,9 +2786,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 <button onClick={handleWishlist} disabled={wishlistLoading}
                   className={cn(
                     "w-full h-11 rounded-2xl border-2 font-bold text-sm flex items-center justify-center gap-2 transition-all",
-                    wishlistLoading ? "opacity-40 cursor-not-allowed border-gray-200 text-gray-400" :
-                      inWishlist ? "border-red-300 bg-red-50 text-red-500 hover:bg-red-100" :
-                        "border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-500 hover:bg-red-50"
+                    wishlistLoading ? "opacity-40 cursor-not-allowed border-border text-muted-foreground" :
+                      inWishlist ? "border-destructive/30 bg-destructive-soft text-destructive hover:bg-destructive-soft" :
+                        "border-border text-muted-foreground hover:border-destructive/30 hover:text-destructive hover:bg-destructive-soft"
                   )}>
                   {wishlistLoading
                     ? <Loader2 size={15} className="animate-spin" />
@@ -2897,25 +2801,22 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           </div>
         </div>
       </div>
-      {product && (
+      {showConfigModal && product && (
         <AddProductConfigurationModal
           open={showConfigModal}
           onClose={() => { setShowConfigModal(false); setJustStagedVariantIds([]); }}
           onConfirm={handleConfigConfirm}
-          productId={productDataId}
           productName={product?.name ?? ""}
           variants={allProductVariants}
           sizes={allSizes}
           selectedVariant={variantData ?? undefined}
           mode="customized"
           isSubmitting={configSubmitting}
-          decorationUnitPrice={decorationUnitPrice}
-          selectedMaterial={selectedMaterial ?? ""}
+          selectedMaterial={selectedMaterial}
           spColorCount={spColorCount}
           dtgStyle={dtgStyle}
           selectedLocations={selectedLocations}
           isApparel={isApparel}
-          isPreMade={isPreMade}
           isPromo={isPromo}
           previousTotal={grandConfiguredPrice}
           previousQty={grandConfiguredQty}
@@ -2941,8 +2842,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               : undefined
           }
           isApparel={isApparel}
-          isPreMade={isPreMade}
-          isPromo={isPromo}
           onSuccess={() => {
             refreshCart();
             setInCart(true);
@@ -2980,11 +2879,65 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     };
   }
 }
+type Setter<T> = React.Dispatch<React.SetStateAction<T>>;
+interface LogoCanvasSectionProps {
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  logoImg: HTMLImageElement | null;
+  logoSrc: string | null;
+  logoSize: number;
+  logoRotation: number;
+  logoOpacity: number;
+  customText: string;
+  textSize: number;
+  textColor: string;
+  textRotation: number;
+  fontFamily: string;
+  textBold: boolean;
+  textItalic: boolean;
+  textShadow: boolean;
+  textOpacity: number;
+  activeTab: "image" | "text";
+  setLogoSrc: Setter<string | null>;
+  setLogoSize: Setter<number>;
+  setLogoRotation: Setter<number>;
+  setLogoOpacity: Setter<number>;
+  setLogoPos: Setter<Point>;
+  setCustomText: Setter<string>;
+  setTextSize: Setter<number>;
+  setTextColor: Setter<string>;
+  setTextRotation: Setter<number>;
+  setFontFamily: Setter<string>;
+  setTextBold: Setter<boolean>;
+  setTextItalic: Setter<boolean>;
+  setTextShadow: Setter<boolean>;
+  setTextOpacity: Setter<number>;
+  setActiveTab: Setter<"image" | "text">;
+  handleCanvasMouseDown: (e: React.MouseEvent) => void;
+  handleCanvasMouseMove: (e: React.MouseEvent) => void;
+  stopDrag: () => void;
+  getCursor: () => string;
+  handleOpenPreview: () => void;
+  setLogoImg: Setter<HTMLImageElement | null>;
+  CANVAS_SIZE: number;
+  FONTS: readonly { label: string; value: string }[];
+  PRESET_COLORS: readonly string[];
+  garmentViews: GarmentView[];
+  activeViewIdx: number;
+  setActiveViewIdx: (idx: number) => void;
+  isApparel: boolean;
+  handleRemoveLogoBackground: (srcOverride?: string) => Promise<void>;
+  isRemovingLogoBg: boolean;
+  autoRemoveBg: boolean;
+  setAutoRemoveBg: Setter<boolean>;
+  bgRemoved: boolean;
+  setBgRemoved: Setter<boolean>;
+}
 function LogoCanvasSection({
-  canvasRef, fileRef, productImg, logoImg, logoSrc, logoSize, logoRotation,
-  logoOpacity, logoPos, customText, textSize, textColor, textRotation,
-  fontFamily, textBold, textItalic, textShadow, textOpacity, textPos,
-  activeTab, dragging,
+  canvasRef, fileRef, logoImg, logoSrc, logoSize, logoRotation,
+  logoOpacity, customText, textSize, textColor, textRotation,
+  fontFamily, textBold, textItalic, textShadow, textOpacity,
+  activeTab,
   setLogoSrc, setLogoSize, setLogoRotation, setLogoOpacity, setLogoPos,
   setCustomText, setTextSize, setTextColor, setTextRotation, setFontFamily,
   setTextBold, setTextItalic, setTextShadow, setTextOpacity, setActiveTab,
@@ -2994,27 +2947,27 @@ function LogoCanvasSection({
   garmentViews, activeViewIdx, setActiveViewIdx, isApparel,
   handleRemoveLogoBackground, isRemovingLogoBg,
   autoRemoveBg, setAutoRemoveBg, bgRemoved, setBgRemoved,
-}: any) {
+}: LogoCanvasSectionProps) {
   return (
     <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
       <div className="w-full xl:w-[380px] flex-shrink-0">
-        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-[#F5D800] flex items-center justify-center">
-                <Sparkles size={12} className="text-black" />
+              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
+                <Sparkles size={12} className="text-foreground" />
               </div>
               <div>
-                <p className="text-xs font-black text-gray-900">Live Preview</p>
-                <p className="text-[10px] text-gray-400">Drag elements to reposition</p>
+                <p className="text-xs font-black text-foreground">Live Preview</p>
+                <p className="text-[10px] text-muted-foreground">Drag elements to reposition</p>
               </div>
             </div>
-            <button onClick={handleOpenPreview} className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition-colors">
+            <button onClick={handleOpenPreview} className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-foreground text-background text-xs font-bold hover:bg-foreground/85 transition-colors">
               <Download size={12} /> Export
             </button>
           </div>
           {isApparel && garmentViews?.length > 0 && (
-            <div className="flex gap-1.5 px-3 pt-3 bg-[#fafafa]">
+            <div className="flex gap-1.5 px-3 pt-3 bg-muted">
               {garmentViews.map((view: GarmentView, idx: number) => (
                 <button
                   key={view.key}
@@ -3022,8 +2975,8 @@ function LogoCanvasSection({
                   className={cn(
                     "flex-1 h-8 rounded-lg text-[11px] font-bold transition-all",
                     activeViewIdx === idx
-                      ? "bg-white text-gray-900 shadow-sm border border-gray-200"
-                      : "text-gray-500 hover:text-gray-700 border border-transparent"
+                      ? "bg-card text-foreground shadow-sm border border-border"
+                      : "text-muted-foreground hover:text-foreground border border-transparent"
                   )}
                 >
                   {view.label}
@@ -3031,27 +2984,27 @@ function LogoCanvasSection({
               ))}
             </div>
           )}
-          <div className="p-3 bg-[#fafafa]">
+          <div className="p-3 bg-muted">
             <canvas
               ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE}
               onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove}
               onMouseUp={stopDrag} onMouseLeave={stopDrag}
-              className="w-full h-auto rounded-xl block border border-gray-200"
+              className="w-full h-auto rounded-xl block border border-border"
               style={{ cursor: getCursor() }}
             />
           </div>
         </div>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-          <div className="flex border-b border-gray-100">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="flex border-b border-border">
             {([
               { key: "image", icon: ImageIcon, label: "Upload Logo" },
               { key: "text", icon: Type, label: "Custom Text" },
             ] as const).map(({ key, icon: Icon, label }) => (
               <button key={key} onClick={() => setActiveTab(key)}
                 className={cn("flex-1 flex items-center justify-center gap-2 h-12 text-sm font-bold transition-all border-b-2",
-                  activeTab === key ? "text-gray-900 border-[#F5D800] bg-[#FFFBEA]" : "text-gray-400 border-transparent hover:bg-gray-50")}>
+                  activeTab === key ? "text-foreground border-primary bg-primary-soft" : "text-muted-foreground border-transparent hover:bg-muted")}>
                 <Icon size={15} />{label}
               </button>
             ))}
@@ -3079,7 +3032,7 @@ function LogoCanvasSection({
                   className="hidden"
                 />
                 <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-semibold text-gray-700">Auto-remove background</span>
+                  <span className="text-sm font-semibold text-foreground">Auto-remove background</span>
                   <button
                     type="button"
                     role="switch"
@@ -3087,35 +3040,36 @@ function LogoCanvasSection({
                     onClick={() => setAutoRemoveBg((p: boolean) => !p)}
                     className={cn(
                       "relative w-11 h-6 rounded-full transition-colors flex-shrink-0",
-                      autoRemoveBg ? "bg-[#F5D800]" : "bg-gray-200"
+                      autoRemoveBg ? "bg-primary" : "bg-muted"
                     )}
                   >
                     <span className={cn(
-                      "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+                      "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform",
                       autoRemoveBg ? "translate-x-5" : "translate-x-0"
                     )} />
                   </button>
                 </div>
                 {!logoImg ? (
                   <div onClick={() => fileRef.current?.click()}
-                    className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#F5D800]/60 hover:bg-[#FFFBEA] transition-all group">
-                    <div className="w-12 h-12 rounded-2xl bg-gray-100 border border-gray-200 flex items-center justify-center group-hover:border-[#F5D800]/40 group-hover:bg-[#F5D800]/10 transition-all">
-                      <Upload size={20} className="text-gray-400 group-hover:text-[#F5D800] transition-colors" />
+                    className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-border cursor-pointer hover:border-primary/60 hover:bg-primary-soft transition-all group">
+                    <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center group-hover:border-primary/40 group-hover:bg-primary/10 transition-all">
+                      <Upload size={20} className="text-muted-foreground group-hover:text-primary-ink transition-colors" />
                     </div>
                     <div className="text-center">
-                      <p className="font-bold text-gray-900 text-sm">Click to upload logo</p>
-                      <p className="text-xs text-gray-400 mt-1">PNG, JPG, SVG — max 10MB</p>
+                      <p className="font-bold text-foreground text-sm">Click to upload logo</p>
+                      <p className="text-xs text-muted-foreground mt-1">PNG, JPG, SVG — max 10MB</p>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                      <div className="w-12 h-12 rounded-xl border border-gray-200 bg-white overflow-hidden flex-shrink-0">
+                    <div className="flex items-center gap-3 p-3 bg-muted rounded-xl border border-border">
+                      <div className="w-12 h-12 rounded-xl border border-border bg-card overflow-hidden flex-shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- uploaded logo data URL */}
                         <img src={logoSrc!} alt="Logo" className="w-full h-full object-contain" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-gray-900">Logo uploaded</p>
-                        <p className="text-[10px] text-gray-400">
+                        <p className="text-xs font-bold text-foreground">Logo uploaded</p>
+                        <p className="text-[10px] text-muted-foreground">
                           {isRemovingLogoBg
                             ? "Removing background…"
                             : bgRemoved
@@ -3126,19 +3080,19 @@ function LogoCanvasSection({
                       <div className="flex gap-1.5 flex-shrink-0">
                         <button onClick={() => handleRemoveLogoBackground()} disabled={isRemovingLogoBg}
                           title={isRemovingLogoBg ? "Removing background…" : "Remove Background"}
-                          className="w-8 h-8 rounded-lg border border-[#F5D800]/60 bg-[#FFFBEA] flex items-center justify-center hover:bg-[#F5D800]/20 text-[#b89000] disabled:opacity-60 disabled:cursor-not-allowed">
+                          className="w-8 h-8 rounded-lg border border-primary/60 bg-primary-soft flex items-center justify-center hover:bg-primary/20 text-primary-ink disabled:opacity-60 disabled:cursor-not-allowed">
                           {isRemovingLogoBg ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
                         </button>
-                        <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-100 text-gray-500"><Upload size={13} /></button>
-                        <button onClick={() => { setLogoSrc(null); setLogoImg(null); setBgRemoved(false); }} className="w-8 h-8 rounded-lg border border-red-100 flex items-center justify-center hover:bg-red-50 text-red-400"><Trash2 size={13} /></button>
+                        <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted text-muted-foreground"><Upload size={13} /></button>
+                        <button onClick={() => { setLogoSrc(null); setLogoImg(null); setBgRemoved(false); }} className="w-8 h-8 rounded-lg border border-destructive/30 flex items-center justify-center hover:bg-destructive-soft text-destructive"><Trash2 size={13} /></button>
                       </div>
                     </div>
                     <Slider label="Size" value={logoSize} min={40} max={280} unit="px" onChange={setLogoSize} />
                     <Slider label="Rotation" value={logoRotation} min={0} max={360} unit="°" onChange={setLogoRotation} />
                     <Slider label="Opacity" value={Math.round(logoOpacity * 100)} min={10} max={100} unit="%" onChange={(v: number) => setLogoOpacity(v / 100)} />
                     <div className="flex gap-2">
-                      <button onClick={() => setLogoRotation((p: number) => (p - 15 + 360) % 360)} className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"><RotateCcw size={13} /> Left</button>
-                      <button onClick={() => setLogoRotation((p: number) => (p + 15) % 360)} className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"><RotateCw size={13} /> Right</button>
+                      <button onClick={() => setLogoRotation((p: number) => (p - 15 + 360) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCcw size={13} /> Left</button>
+                      <button onClick={() => setLogoRotation((p: number) => (p + 15) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCw size={13} /> Right</button>
                     </div>
                   </div>
                 )}
@@ -3147,17 +3101,17 @@ function LogoCanvasSection({
             {activeTab === "text" && (
               <>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Your Text</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Your Text</p>
                   <input type="text" value={customText} onChange={e => setCustomText(e.target.value)} placeholder="Type something..."
-                    className="w-full h-11 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder-gray-300 outline-none focus:border-[#F5D800] transition-all" />
+                    className="w-full h-11 rounded-xl border-2 border-border px-4 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary transition-all" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Font</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Font</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {FONTS.map((f: any) => (
+                    {FONTS.map((f) => (
                       <button key={f.value} onClick={() => setFontFamily(f.value)} style={{ fontFamily: f.value }}
                         className={cn("h-10 rounded-xl border-2 text-sm transition-all px-3 text-left truncate",
-                          fontFamily === f.value ? "border-[#F5D800] bg-[#FFFBEA] text-[#b89000] font-bold" : "border-gray-200 text-gray-600 hover:border-gray-300")}>
+                          fontFamily === f.value ? "border-primary bg-primary-soft text-primary-ink font-bold" : "border-border text-muted-foreground hover:border-input")}>
                         {f.label}
                       </button>
                     ))}
@@ -3171,32 +3125,32 @@ function LogoCanvasSection({
                   ]).map(({ label, active, toggle, cls }) => (
                     <button key={label} onClick={toggle}
                       className={cn("h-10 px-4 rounded-xl border-2 text-sm transition-all", cls,
-                        active ? "border-[#F5D800] bg-[#F5D800] text-black" : "border-gray-200 text-gray-600 hover:border-gray-300")}>
+                        active ? "border-primary bg-primary text-foreground" : "border-border text-muted-foreground hover:border-input")}>
                       {label}
                     </button>
                   ))}
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-2">Color</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Color</p>
                   <div className="flex items-center gap-2 flex-wrap">
                     {PRESET_COLORS.map((c: string) => (
                       <button key={c} onClick={() => setTextColor(c)} style={{ background: c }}
                         className={cn("w-7 h-7 rounded-full border-2 transition-transform hover:scale-110",
-                          textColor === c ? "border-[#F5D800] scale-110 ring-2 ring-[#F5D800]/30" : "border-gray-200 shadow-sm")} />
+                          textColor === c ? "border-primary scale-110 ring-2 ring-primary/30" : "border-border shadow-sm")} />
                     ))}
-                    <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded-xl border border-gray-200 cursor-pointer p-0.5 bg-white ml-auto" />
+                    <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="w-8 h-8 rounded-xl border border-border cursor-pointer p-0.5 bg-card ml-auto" />
                   </div>
                 </div>
                 <Slider label="Font Size" value={textSize} min={12} max={96} unit="px" onChange={setTextSize} />
                 <Slider label="Rotation" value={textRotation} min={0} max={360} unit="°" onChange={setTextRotation} />
                 <Slider label="Opacity" value={Math.round(textOpacity * 100)} min={10} max={100} unit="%" onChange={(v: number) => setTextOpacity(v / 100)} />
                 <div className="flex gap-2">
-                  <button onClick={() => setTextRotation((p: number) => (p - 15 + 360) % 360)} className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"><RotateCcw size={13} /> Left</button>
-                  <button onClick={() => setTextRotation((p: number) => (p + 15) % 360)} className="flex-1 h-9 rounded-xl border border-gray-200 flex items-center justify-center gap-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"><RotateCw size={13} /> Right</button>
+                  <button onClick={() => setTextRotation((p: number) => (p - 15 + 360) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCcw size={13} /> Left</button>
+                  <button onClick={() => setTextRotation((p: number) => (p + 15) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCw size={13} /> Right</button>
                 </div>
                 {customText.trim() && (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Preview</p>
+                  <div className="rounded-xl border border-border bg-muted p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Preview</p>
                     <p style={{
                       fontFamily, fontSize: Math.min(textSize, 28), color: textColor,
                       fontWeight: textBold ? 700 : 400, fontStyle: textItalic ? "italic" : "normal",

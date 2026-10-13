@@ -6,7 +6,8 @@ import { sendOtpApi, verifyOtpApi } from "@/api/auth/auth.api";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { withReturnTo } from "@/lib/authRedirect";
-import { Mail, ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const OTP_LENGTH = 4;
 const RESEND_SECONDS = 30;
@@ -84,7 +85,7 @@ export default function VerifyOtpClient() {
   async function handleVerify() {
     if (otpValue.length !== OTP_LENGTH) {
       setHasError(true);
-      toast.error("Please enter the complete 4-digit OTP ⚠️");
+      toast.error(`Please enter the complete ${OTP_LENGTH}-digit code.`);
       return;
     }
 
@@ -100,7 +101,7 @@ export default function VerifyOtpClient() {
       const res = await verifyOtpApi(payload);
 
       if (res?.data?.success || res?.data?.status) {
-        toast.success(res.data.message || "OTP verified successfully 🎉");
+        toast.success(res.data.message || "Verified.");
 
         setTimeout(() => {
           if (type === "forgot_password") {
@@ -113,7 +114,7 @@ export default function VerifyOtpClient() {
         }, 1000);
       } else {
         setHasError(true);
-        toast.error(res?.data?.message || "Invalid OTP ❌");
+        toast.error(res?.data?.message || "Invalid code.");
       }
     } catch (err) {
       // The axios response interceptor already toasts the failure.
@@ -132,15 +133,15 @@ export default function VerifyOtpClient() {
       const res = await sendOtpApi({ email, type });
 
       if (res?.data?.success || res?.data?.status) {
-        toast.success(res.data.message || "OTP sent successfully 📧");
+        toast.success(res.data.message || "A new code is on its way.");
         setDigits(Array(OTP_LENGTH).fill(""));
         setHasError(false);
         setTimer(RESEND_SECONDS);
         inputRefs.current[0]?.focus();
       } else {
-        toast.error(res?.data?.message || "Failed to resend OTP ❌");
+        toast.error(res?.data?.message || "Could not resend the code.");
       }
-    } catch (err: any) {
+    } catch (err) {
       // The axios response interceptor already toasts the failure.
       console.error(err);
     } finally {
@@ -149,34 +150,22 @@ export default function VerifyOtpClient() {
   }
 
   /* ── Render ─────────────────────────────────────────────────────────────── */
-
- return (
-  <div className="flex items-center justify-center">
-    <div className="w-full max-w-md p-6 bg-white rounded-2xl shadow-md">
-      <div className="text-center mb-6">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 mb-3">
-          <ShieldCheck className="h-6 w-6 text-blue-600" />
+  return (
+    <>
+      <div className="space-y-1.5">
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-primary-soft">
+          <ShieldCheck className="h-5 w-5 text-primary-ink" />
         </div>
-
-        <h2 className="text-2xl font-semibold mb-2">
-          Verify OTP
-        </h2>
-
-        <p className="text-sm text-gray-500">
-          Enter the 4-digit OTP sent to
-        </p>
-
-        <p className="text-sm font-medium text-gray-700 mt-1 break-all">
-          {email}
+        <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
+        <p className="text-sm text-muted-foreground">Enter the {OTP_LENGTH}-digit code we sent to</p>
+        {/* Own line, never split mid-address; very long addresses truncate (full value on hover). */}
+        <p className="truncate text-sm font-semibold text-foreground" title={email || undefined}>
+          {email || "your email"}
         </p>
       </div>
 
-      {/* OTP Inputs */}
-      <div className="space-y-2 mb-5">
-        <div
-          className="flex justify-center gap-3"
-          onPaste={handlePaste}
-        >
+      <div className="space-y-2">
+        <div className="flex justify-between gap-3" onPaste={handlePaste}>
           {digits.map((digit, i) => (
             <input
               key={i}
@@ -185,32 +174,23 @@ export default function VerifyOtpClient() {
               }}
               type="text"
               inputMode="numeric"
+              autoComplete={i === 0 ? "one-time-code" : "off"}
+              aria-label={`Digit ${i + 1}`}
               maxLength={1}
               value={digit}
               disabled={loading}
               onChange={(e) => handleChange(i, e.target.value)}
               onKeyDown={(e) => handleKeyDown(i, e)}
-              className={`h-14 w-12 rounded-lg border text-center text-2xl font-semibold outline-none transition-all
-                ${
-                  hasError
-                    ? "border-red-500"
-                    : digit
-                    ? "border-blue-500"
-                    : "border-gray-300"
-                }
-                focus:ring-2 focus:ring-blue-500 disabled:opacity-50`}
+              className={cn(
+                "h-14 w-full rounded-lg border bg-card text-center text-2xl font-semibold text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/25 disabled:opacity-50",
+                hasError ? "border-destructive" : digit ? "border-foreground" : "border-input"
+              )}
             />
           ))}
         </div>
-
-        {hasError && (
-          <p className="text-center text-sm text-red-500">
-            Invalid OTP. Please try again.
-          </p>
-        )}
+        {hasError && <p className="text-sm font-medium text-destructive">That code didn&apos;t work. Check it and try again.</p>}
       </div>
 
-      {/* Verify Button */}
       <Button
         type="button"
         variant="hero"
@@ -220,45 +200,33 @@ export default function VerifyOtpClient() {
         onClick={handleVerify}
       >
         {loading ? (
-          <span className="flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Verifying...
-          </span>
+          <>
+            <Loader2 className="animate-spin" /> Verifying…
+          </>
         ) : (
-          "Verify OTP"
+          "Verify"
         )}
       </Button>
 
-      {/* Resend */}
-      <div className="text-center mt-5">
+      <div className="flex items-center justify-between text-sm">
+        <button type="button" onClick={() => router.back()} className="text-muted-foreground hover:text-foreground">
+          Back
+        </button>
         {timer > 0 ? (
-          <p className="text-sm text-gray-500">
-            Resend OTP in{" "}
-            <span className="font-semibold text-blue-600">
-              {timer}s
-            </span>
+          <p className="text-muted-foreground">
+            Resend code in <span className="font-semibold tabular-nums text-foreground">{timer}s</span>
           </p>
         ) : (
           <button
             type="button"
             onClick={handleResend}
             disabled={resendLoading}
-            className="text-sm font-medium text-blue-600 hover:underline disabled:opacity-50"
+            className="font-semibold text-foreground underline-offset-4 hover:underline disabled:opacity-50"
           >
-            {resendLoading ? "Sending..." : "Resend OTP"}
+            {resendLoading ? "Sending…" : "Resend code"}
           </button>
         )}
       </div>
-
-      <button
-        type="button"
-        onClick={() => router.back()}
-        className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700"
-      >
-        Back
-      </button>
-    </div>
-  </div>
-);
-  
+    </>
+  );
 }

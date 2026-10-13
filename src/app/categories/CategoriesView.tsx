@@ -109,12 +109,10 @@ export default function CategoriesView({
           activeIndustryCategories={v.activeIndustryCategories}
           activeUseCaseIds={v.activeUseCaseIds}
           expandedIndustryIds={v.expandedIndustryIds}
-          collapsedUseCaseIds={v.collapsedUseCaseIds}
           industryOpen={v.openSections.industry}
           onToggleIndustrySection={() => v.toggleSection("industry")}
           onToggleIndustryExpand={v.toggleIndustryExpand}
           onSelectLeafIndustry={v.handleIndustrySelect}
-          onToggleUseCaseExpand={v.toggleUseCaseExpand}
           onToggleUseCaseCategories={v.toggleUseCaseCategories}
           onClearIndustry={v.clearIndustryFacet}
           brandList={v.brandList}
@@ -169,6 +167,7 @@ export default function CategoriesView({
             totalProducts={v.total_products}
             productGridLoading={v.productGridLoading}
             pills={v.pills}
+            onRemovePill={v.removePill}
             totalFacetCount={v.totalFacetCount}
             onClearAll={v.handleClearFilter}
             onOpenSidebar={() => v.setSidebarOpen(true)}

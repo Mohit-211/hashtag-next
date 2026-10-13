@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Minus, Plus, Trash2, UploadCloud, Stamp, Loader2 } from "lucide-react";
-import { message } from "antd";
+import { toast } from "sonner";
 
 import {
   IncrementCartItemApi,
@@ -13,10 +13,6 @@ import {
 
 import ProxyImage from "../ProxyImage";
 import type { CartItemType } from "./CartItemsList";
-
-// ---- design tokens for the "production ticket" treatment ----
-const STAMP = "#C1440E"; // rubber-stamp ink, print method badge
-const THREAD = "#0E7C7B"; // thread teal, location pins
 
 interface Props {
   item: CartItemType;
@@ -29,15 +25,14 @@ export default function CartItem({ item, onRefresh }: Props) {
 
   /* ── Typeable quantity ──
      There's no "set quantity to X" endpoint — only +1 / -1 (Increment /
-     DecrementCartItemApi). So `qtyInput` is a local string buffer the user
-     can freely type/clear into, and on blur/Enter we reconcile it against
+     DecrementCartItemApi). So `qtyDraft` is a local string buffer the user
+     can freely type/clear into (null when not editing — the box then shows
+     `item.quantity`), and on blur/Enter we reconcile it against
      the server's current `item.quantity` by firing however many
      increment/decrement calls are needed to land on the typed value —
      functionally identical to clicking +/- that many times. */
-  const [qtyInput, setQtyInput] = useState<string>(String(item.quantity));
-  useEffect(() => {
-    setQtyInput(String(item.quantity));
-  }, [item.quantity]);
+  const [qtyDraft, setQtyDraft] = useState<string | null>(null);
+  const qtyInput = qtyDraft ?? String(item.quantity);
 
   // ★ FIXED — the API nests print method / locations under
   // `customization_config`, not `customization`, and does not include a
@@ -71,9 +66,9 @@ export default function CartItem({ item, onRefresh }: Props) {
     try {
       setLoading(true);
       await DecrementCartItemApi({ cart_id: item.cart_id });
-      message.success("Quantity decreased");
+      toast.success("Quantity decreased");
       onRefresh();
-    } catch (err: any) {
+    } catch (err) {
       // The axios response interceptor already toasts the failure.
       console.error(err);
     } finally {
@@ -87,9 +82,9 @@ export default function CartItem({ item, onRefresh }: Props) {
     try {
       setLoading(true);
       await IncrementCartItemApi({ cart_id: item.cart_id });
-      message.success("Quantity increased");
+      toast.success("Quantity increased");
       onRefresh();
-    } catch (err: any) {
+    } catch (err) {
       // The axios response interceptor already toasts the failure.
       console.error(err);
     } finally {
@@ -108,10 +103,8 @@ export default function CartItem({ item, onRefresh }: Props) {
     const safeTarget = Math.max(1, target);
 
     if (loading) return;
-    if (safeTarget === item.quantity) {
-      setQtyInput(String(item.quantity));
-      return;
-    }
+    setQtyDraft(null);
+    if (safeTarget === item.quantity) return;
 
     setLoading(true);
     try {
@@ -131,9 +124,9 @@ export default function CartItem({ item, onRefresh }: Props) {
           current -= 1;
         }
       }
-      message.success("Quantity updated");
+      toast.success("Quantity updated");
       onRefresh();
-    } catch (err: any) {
+    } catch (err) {
       // The axios response interceptor already toasts the failure.
       console.error(err);
     } finally {
@@ -146,9 +139,9 @@ export default function CartItem({ item, onRefresh }: Props) {
     try {
       setLoading(true);
       await RemoveFromCartApi(item.cart_id);
-      message.success("Item removed");
+      toast.success("Item removed");
       onRefresh();
-    } catch (err: any) {
+    } catch (err) {
       // The axios response interceptor already toasts the failure.
       console.error(err);
     } finally {
@@ -167,7 +160,7 @@ export default function CartItem({ item, onRefresh }: Props) {
           href={item.product_id ? `/product/${item.product_id}` : "#"}
           className="relative w-24 h-24 shrink-0"
         >
-          <div className="w-full h-full rounded-lg overflow-hidden bg-secondary ring-1 ring-border">
+          <div className="w-full h-full rounded-lg overflow-hidden bg-muted ring-1 ring-border">
             <ProxyImage
               src={item?.image}
               alt={item?.name}
@@ -195,7 +188,7 @@ export default function CartItem({ item, onRefresh }: Props) {
             <div className="space-y-1">
               <Link
                 href={item.product_id ? `/product/${item.product_id}` : "#"}
-                className="font-semibold leading-tight whitespace-normal sm:truncate hover:text-primary transition-colors block"
+                className="font-semibold leading-tight whitespace-normal sm:truncate hover:text-primary-ink transition-colors block"
               >
                 {item.name}
               </Link>
@@ -212,7 +205,7 @@ export default function CartItem({ item, onRefresh }: Props) {
                   <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span
                       className="w-3 h-3 rounded-full border border-border shrink-0"
-                      style={{ backgroundColor: colorCode ?? "#d4d4d4" }}
+                      style={{ backgroundColor: colorCode ?? "var(--color-muted)" }}
                     />
                     {item.color}
                   </span>
@@ -238,8 +231,7 @@ export default function CartItem({ item, onRefresh }: Props) {
           <div className="flex flex-wrap items-center gap-2 mt-5">
             {printMethod && (
               <span
-                className="inline-flex items-center gap-1 rounded-md border-2 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
-                style={{ borderColor: STAMP, color: STAMP }}
+                className="inline-flex items-center gap-1 rounded-md border-2 border-foreground px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-foreground"
               >
                 <Stamp className="h-3 w-3" />
                 {printMethod}
@@ -248,8 +240,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
             {locations.length > 0 && (
               <span
-                className="inline-flex items-center rounded px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide border"
-                style={{ borderColor: THREAD, color: THREAD }}
+                className="inline-flex items-center rounded border border-secondary-ink px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-secondary-ink"
               >
                 {locations.length} {locations.length === 1 ? "Location" : "Locations"}
               </span>
@@ -258,12 +249,10 @@ export default function CartItem({ item, onRefresh }: Props) {
             {locations.map((l, i) => (
               <span
                 key={`${l.location}-${i}`}
-                className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide"
-                style={{ backgroundColor: `${THREAD}1A`, color: THREAD }}
+                className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-foreground"
               >
                 <span
-                  className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] text-white"
-                  style={{ backgroundColor: THREAD }}
+                  className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-foreground text-[9px] text-background"
                 >
                   {i + 1}
                 </span>
@@ -360,7 +349,7 @@ export default function CartItem({ item, onRefresh }: Props) {
                 value={qtyInput}
                 min={1}
                 disabled={loading}
-                onChange={(e) => setQtyInput(e.target.value)}
+                onChange={(e) => setQtyDraft(e.target.value)}
                 onBlur={(e) => commitTypedQty(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -386,17 +375,18 @@ export default function CartItem({ item, onRefresh }: Props) {
       {/* Artwork preview lightbox */}
       {previewSrc && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/70 p-4"
           onClick={() => setPreviewSrc(null)}
         >
           <button
             type="button"
             onClick={() => setPreviewSrc(null)}
-            className="absolute top-4 right-4 text-white/80 hover:text-white text-2xl leading-none"
+            className="absolute top-4 right-4 text-background/80 hover:text-background text-2xl leading-none"
             aria-label="Close preview"
           >
             ×
           </button>
+          {/* eslint-disable-next-line @next/next/no-img-element -- lightbox sized by the image itself */}
           <img
             src={previewSrc}
             alt="Artwork preview"

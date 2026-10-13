@@ -22,6 +22,10 @@ const nextConfig = {
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  // Browsers request /favicon.ico by convention; the site ships favicon.png.
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/favicon.png" }];
+  },
 };
 
 module.exports = nextConfig;

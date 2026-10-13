@@ -3,16 +3,16 @@ import { useCallback, useRef, useState } from "react";
 import { AllProductsApi, ProductCategoryApi, IndustryApi, ProductsByUseCaseApi } from "@/api/operations/product.api";
 import { GetAllBrandsApi } from "@/api/operations/brand.api";
 
-import type { ProductApiResponse, ProductCategoryApiResponse } from "@/data/typesproduct";
+import type { Product, ProductApiResponse, ProductCategoryApiResponse } from "@/data/typesproduct";
 import { CATEGORY_LIMIT, INDUSTRY_LIMIT, LOAD_MORE_LIMIT } from "@/data/constants";
 import { buildFilterParams } from "@/lib/utils";
-import type { Brand, FilterParams, GrandCategory, Industry } from "@/data/types";
+import type { Brand, FilterParams, GrandCategory, Industry, RawBrand, RawGrandCategory, RawIndustry } from "@/data/types";
 
 
 /** Owns the three initial data loads (brands, categories, industries) and
  * the unified product fetch — every facet goes through AllProductsApi. */
 export function useCategoriesData() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [total_products, setTotalProducts] = useState(0);
   const [productLoading, setProductLoading] = useState(false);
   const [productGridLoading, setProductGridLoading] = useState(false);
@@ -32,16 +32,16 @@ export function useCategoriesData() {
     try {
       setBrandLoading(true);
       const res = await GetAllBrandsApi(1, 1000);
-      const raw: any[] = Array.isArray(res?.data?.data?.data)
+      const raw: RawBrand[] = Array.isArray(res?.data?.data?.data)
         ? res.data.data.data
         : Array.isArray(res?.data?.data)
           ? res.data.data
           : [];
-      const formatted: Brand[] = raw.map((b: any) => ({
+      const formatted: Brand[] = raw.map((b) => ({
         id: b?.id,
         name: b?.name ?? b?.brand_name ?? "",
         slug: b?.slug ?? "",
-        logo: b?.logo_url ?? null,
+        logo: b?.logo_url ?? "",
         count: b?.product_count ?? b?.count ?? undefined,
       }));
       setBrandList(formatted);
@@ -55,14 +55,14 @@ export function useCategoriesData() {
   const fetchCategories = useCallback(async () => {
     try {
       const res: ProductCategoryApiResponse = await ProductCategoryApi({ page: 1, limit: CATEGORY_LIMIT });
-      const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
-      const formatted: GrandCategory[] = raw.map((cat: any) => ({
+      const raw = (Array.isArray(res?.data?.data?.data) ? res.data.data.data : []) as RawGrandCategory[];
+      const formatted: GrandCategory[] = raw.map((cat) => ({
         id: cat.id,
         name: cat.title ?? cat.name ?? cat.category_name ?? "",
         slug: cat.slug ?? "",
         count: cat.product_count ?? cat.count ?? undefined,
         parent_categories: Array.isArray(cat.parent_categories)
-          ? cat.parent_categories.map((p: any) => ({
+          ? cat.parent_categories.map((p) => ({
               id: p.id,
               title: p.title ?? p.name ?? "",
               slug: p.slug ?? "",
@@ -83,7 +83,7 @@ export function useCategoriesData() {
       // pages until a short page tells us we've reached the end, so the
       // Industry facet always reflects every industry, not just the first
       // INDUSTRY_LIMIT.
-      const raw: any[] = [];
+      const raw: RawIndustry[] = [];
       let page = 1;
       while (true) {
         const res = await IndustryApi({ page, limit: INDUSTRY_LIMIT });
@@ -92,7 +92,7 @@ export function useCategoriesData() {
         if (pageData.length < INDUSTRY_LIMIT) break;
         page += 1;
       }
-      const formatted: Industry[] = raw.map((ind: any) => ({
+      const formatted: Industry[] = raw.map((ind) => ({
         id: ind.id,
         title: ind.title ?? ind.name ?? "",
         slug: ind.slug ?? "",
@@ -100,8 +100,8 @@ export function useCategoriesData() {
         count: ind.product_count ?? ind.count ?? undefined,
         use_cases: Array.isArray(ind.use_cases)
           ? ind.use_cases
-              .filter((uc: any) => uc?.is_active !== false)
-              .map((uc: any) => ({
+              .filter((uc) => uc?.is_active !== false)
+              .map((uc) => ({
                 id: uc.id,
                 title: uc.title ?? uc.name ?? "",
                 image:uc.image,
@@ -110,7 +110,7 @@ export function useCategoriesData() {
                 is_active: uc.is_active,
                 count: uc.product_count ?? uc.count ?? undefined,
                 parent_categories: Array.isArray(uc.parent_categories)
-                  ? uc.parent_categories.map((p: any) => ({
+                  ? uc.parent_categories.map((p) => ({
                       id: p.id,
                       title: p.title ?? p.name ?? "",
                       slug: p.slug ?? "",

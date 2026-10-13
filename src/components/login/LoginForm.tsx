@@ -1,141 +1,130 @@
 "use client";
-import { useState, FormEvent } from "react";
+
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import PasswordInput from "./PasswordInput";
-import DemoCredentials from "./DemoCredentials";
-// import { loginApi } from "@/api/auth/auth.api";
-// ✅ Sonner toast
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
+
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { emailSchema, PASSWORD_MAX_LENGTH } from "@/lib/validation";
+import { emailSchema, PASSWORD_MAX_LENGTH, zodErrors } from "@/lib/validation";
 import { notifyAuthChanged, resolvePostLoginRedirect, withReturnTo } from "@/lib/authRedirect";
+import { PasswordField, TextField } from "./FormField";
+
 interface LoginFormProps {
   switchToRegister: () => void;
   /** Sanitized page to return to after login. */
   returnTo?: string | null;
 }
-const inputClass =
-  "w-full px-4 py-3 rounded-lg border border-input bg-background text-sm";
-// Message returned by API when user hasn't verified OTP
-const UNVERIFIED_MESSAGE = "User is not verified yet.Please verify Your Otp First";
+
+const loginSchema = z.object({
+  email: emailSchema,
+  password: z
+    .string()
+    .min(1, "Password is required.")
+    .max(PASSWORD_MAX_LENGTH, `Password must be under ${PASSWORD_MAX_LENGTH} characters.`),
+});
+
 export default function LoginForm({ switchToRegister, returnTo }: LoginFormProps) {
   const router = useRouter();
+  const { login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
- const { login } = useAuth();
 
-const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFormError(null);
 
-  // Validation feedback is surfaced via toast only (one message at a
-  // time) rather than inline field errors.
-  const emailResult = emailSchema.safeParse(email);
-  if (!emailResult.success) {
-    toast.error(emailResult.error.issues[0]?.message ?? "Enter a valid email address. ⚠️");
-    return;
-  }
-  if (!password) {
-    toast.error("Password is required ⚠️");
-    return;
-  }
-  if (password.length > PASSWORD_MAX_LENGTH) {
-    toast.error(`Password must be under ${PASSWORD_MAX_LENGTH} characters ⚠️`);
-    return;
-  }
+    const fieldErrors = zodErrors(loginSchema, { email, password });
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length) return;
 
-  setLoading(true);
+    setLoading(true);
+    const res = await login(email.trim(), password);
 
-  const res = await login(email.trim(), password);
+    if (res.success) {
+      toast.success("Welcome back!");
+      notifyAuthChanged();
+      // Back to the page that asked for login (it restores its state and
+      // resumes any pending action). `replace` keeps /login out of history so
+      // Back doesn't land on the login form again.
+      router.replace(resolvePostLoginRedirect(returnTo));
+      return;
+    }
 
-  if (res.success) {
-    toast.success("Login successful 🎉");
-    notifyAuthChanged();
-
-    // Back to the page that asked for login (it restores its state and
-    // resumes any pending action). `replace` keeps /login out of history so
-    // Back doesn't land on the login form again.
-    router.replace(resolvePostLoginRedirect(returnTo));
-  } else {
     if (res.error?.toLowerCase().includes("not verified")) {
-      toast.warning("Please verify your email first 📧");
-
+      toast.warning("Please verify your email first.");
       router.push(
-        withReturnTo(
-          `/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`,
-          returnTo
-        )
+        withReturnTo(`/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`, returnTo)
       );
       return;
     }
 
-    toast.error(res.error || "Login failed ❌");
-  }
+    setFormError(res.error || "We couldn't log you in. Please try again.");
+    setLoading(false);
+  };
 
-  setLoading(false);
-};
   return (
     <>
-      <div className="text-center space-y-1">
-        <h1 className="text-xl font-heading font-bold">Welcome Back</h1>
-        <p className="text-sm text-muted-foreground">
-          Log in to continue shopping.
-        </p>
+      <div className="space-y-1.5">
+        <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
+        <p className="text-sm text-muted-foreground">Log in to manage your orders, saved items and checkout.</p>
       </div>
+
+      {formError && (
+        <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-2.5 text-sm text-destructive">
+          {formError}
+        </div>
+      )}
+
       <form onSubmit={handleLogin} className="space-y-4" noValidate>
-        <input
+        <TextField
+          label="Email address"
           type="email"
-          placeholder="Email Address"
+          autoComplete="email"
+          placeholder="you@company.com"
           value={email}
           maxLength={254}
+          error={errors.email}
           onChange={(e) => setEmail(e.target.value)}
-          className={inputClass}
         />
-        <PasswordInput
+        <PasswordField
+          label="Password"
+          autoComplete="current-password"
+          placeholder="Enter your password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
           maxLength={PASSWORD_MAX_LENGTH}
+          error={errors.password}
+          onChange={(e) => setPassword(e.target.value)}
+          labelAction={
+            <Link href="/send-otp" className="text-xs font-medium text-primary-ink hover:underline">
+              Forgot password?
+            </Link>
+          }
         />
-        <div className="flex justify-between items-center">
-          {/* <label className="flex items-center gap-2">
-            <Checkbox
-              checked={remember}
-              onCheckedChange={(v) => setRemember(!!v)}
-            />
-            <span className="text-sm text-muted-foreground">Remember me</span>
-          </label> */}
-          <button
-            type="button"
-            onClick={() => router.push("/send-otp")}
-            className="text-sm text-muted-foreground hover:underline"
-          >
-            Forgot Password?
-          </button>
-        </div>
-        <Button
-          type="submit"
-          variant="hero"
-          size="lg"
-          className="w-full cursor-pointer596"
-          disabled={loading}
-        >
-          {loading ? "Logging in..." : "Login"}
+        <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="animate-spin" /> Logging in…
+            </>
+          ) : (
+            "Log in"
+          )}
         </Button>
       </form>
-      <p className="text-sm text-center text-muted-foreground">
-        Don't have an account?{" "}
-        <button
-          onClick={switchToRegister}
-          className="font-semibold hover:underline"
-        >
-          Sign Up
+
+      <p className="text-center text-sm text-muted-foreground">
+        New to HashtagBillionaire?{" "}
+        <button type="button" onClick={switchToRegister} className="font-semibold text-foreground underline-offset-4 hover:underline">
+          Create an account
         </button>
       </p>
-      <DemoCredentials />
     </>
   );
 }

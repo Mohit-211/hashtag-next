@@ -18,8 +18,6 @@ import {
   ChevronDown,
 } from "lucide-react";
 
-import { Badge } from "antd";
-
 import { Button } from "@/components/ui/button";
 
 import { useCart } from "@/contexts/CartContext";
@@ -27,20 +25,32 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { loginUrl } from "@/lib/authRedirect";
 
+import { useIsClient } from "@/hooks/useIsClient";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
+/** Small count bubble for the header icons. */
+function CountBadge({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-secondary tabular-nums">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 const navLinks = [
   { label: "Home", href: "/" },
   { label: "All Products", href: "/categories" },
   { label: "Orders", href: "/orders" },
   { label: "Saved", href: "/saved" },
   { label: "Gallery", href: "/gallery" },
-  { label: "Submit Your Sourcing Request", href: "/contact-us" },
+  // The full label overflows the desktop bar next to search; it is kept for the mobile menu.
+  { label: "Submit Your Sourcing Request", short: "Sourcing Request", href: "/contact-us" },
 ];
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [dropdownRect, setDropdownRect] = useState({ top: 0, left: 0 });
-  const [mounted, setMounted] = useState(false);
 
   // ✅ Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,21 +63,13 @@ export default function Header() {
   const router = useRouter();
 
   const { totalItems } = useCart();
-  useEffect(() => {
-  }, [totalItems]);
   const { wishlistCount } = useWishlist();
 
   const { user, logout } = useAuth();
 
-  // ✅ SINGLE CONDITION
-  const isLoggedIn =
-    typeof window !== "undefined" &&
-    !!localStorage.getItem("hastagBillionaire");
-
-  // ✅ Needed because createPortal can't run during SSR
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const isLoggedIn = useIsLoggedIn();
+  // createPortal can't run during SSR.
+  const mounted = useIsClient();
 
   // ✅ Close dropdown on outside click — checks BOTH the trigger and the
   // portaled dropdown, since the dropdown is no longer a DOM descendant
@@ -91,12 +93,14 @@ export default function Header() {
   // Orders, Saved, Gallery, Contact) never leaves an old search query
   // sitting in the box. Without this, the header persists across routes
   // and a typed-but-not-submitted query would silently survive navigation.
-  useEffect(() => {
+  const [menuPathname, setMenuPathname] = useState(pathname);
+  if (menuPathname !== pathname) {
+    setMenuPathname(pathname);
     setUserDropdownOpen(false);
     setMobileOpen(false);
     setMobileSearchOpen(false);
     setSearchQuery("");
-  }, [pathname]);
+  }
 
   // ✅ Recalculate position on scroll/resize while open, so it doesn't
   // drift out of place under the trigger.
@@ -134,7 +138,6 @@ export default function Header() {
 
   // ✅ Logout
   const handleLogout = () => {
-    localStorage.removeItem("hastagBillionaire");
     logout();
     setUserDropdownOpen(false);
     setMobileOpen(false);
@@ -159,7 +162,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
   setMobileSearchOpen(false);
 };
   return (
-    <header className="sticky top-0 z-50 bg-gray-500/50 backdrop-blur border-b border-gray-500">
+    <header className="sticky top-0 z-50 border-b border-secondary-hover bg-secondary text-secondary-foreground">
       <div className="container flex h-16 items-center justify-between gap-4">
         {/* Logo */}
         <Link href="/" className="flex items-center shrink-0">
@@ -174,18 +177,18 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-1 min-w-0 flex-1 overflow-x-auto scrollbar-hide">
+        <nav className="hidden lg:flex items-center gap-1 shrink-0">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={`shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 pathname === link.href
-                  ? "text-primary-foreground bg-primary"
-                  : "  hover:text-foreground hover:bg-secondary"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-secondary-foreground hover:bg-secondary-hover"
               }`}
             >
-              {link.label}
+              {"short" in link ? link.short : link.label}
             </Link>
           ))}
         </nav>
@@ -193,18 +196,17 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         {/* Search Bar (Desktop) */}
         <form
           onSubmit={handleSearchSubmit}
-          className="hidden lg:flex flex-1 min-w-0 max-w-md"
+          className="hidden xl:flex flex-1 min-w-0 max-w-md"
         >
          <div className="relative w-full">
   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
   <input
     type="text"
-    autoFocus
     value={searchQuery}
     maxLength={100}
     onChange={(e) => setSearchQuery(e.target.value)}
     placeholder="Search for products, styles, brands..."
-    className="w-full h-9 rounded-md border border-border bg-secondary/60 pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
+    className="w-full h-9 rounded-md border border-secondary-hover bg-background/80 pl-9 pr-9 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
   />
   {searchQuery && (
     <button
@@ -224,7 +226,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
           {/* Mobile Search Toggle */}
           <button
             type="button"
-            className="lg:hidden rounded-md p-1.5 hover:bg-secondary/70 transition"
+            className="xl:hidden rounded-md p-1.5 hover:bg-secondary-hover transition"
             onClick={() => setMobileSearchOpen((prev) => !prev)}
             aria-label="Toggle search"
           >
@@ -235,25 +237,30 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
             )}
           </button>
 
-          {/* ================= LOGGED IN ================= */}
-          {isLoggedIn ? (
+          {/* Login state is only known in the browser: hold the space until then
+              so neither "Login" nor the account menu flashes on first paint. */}
+          {!mounted ? (
+            <div aria-hidden="true" className="hidden h-8 w-20 sm:block" />
+          ) : isLoggedIn ? (
             <>
               {/* Wishlist */}
-              <Link href="/saved">
-                <Badge count={wishlistCount} size="small" offset={[0, 4]}>
-                  <div className="rounded-md hover:bg-secondary transition">
-                    <Heart className="h-5 w-5" />
-                  </div>
-                </Badge>
+              <Link
+                href="/saved"
+                aria-label={`Saved items${wishlistCount ? ` (${wishlistCount})` : ""}`}
+                className="relative rounded-md p-1.5 transition hover:bg-secondary-hover"
+              >
+                <Heart className="h-5 w-5" />
+                <CountBadge count={wishlistCount} />
               </Link>
 
               {/* Cart */}
-              <Link href="/cart">
-                <Badge count={totalItems} size="small" offset={[0, 4]}>
-                  <div className="rounded-md hover:bg-secondary transition">
-                    <ShoppingBag className="h-5 w-5" />
-                  </div>
-                </Badge>
+              <Link
+                href="/cart"
+                aria-label={`Cart${totalItems ? ` (${totalItems})` : ""}`}
+                className="relative rounded-md p-1.5 transition hover:bg-secondary-hover"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                <CountBadge count={totalItems} />
               </Link>
 
               {/* User Dropdown trigger — NOTE: no wrapping ref div anymore,
@@ -264,11 +271,11 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                   onClick={toggleDropdown}
                   className="
                     flex items-center gap-1.5 px-2.5 py-1.5
-                    rounded-md hover:bg-secondary/70
+                    rounded-md hover:bg-secondary-hover
                     transition
                   "
                 >
-                  <span className="text-xs   max-w-[80px] truncate">
+                  <span className="text-xs max-w-[80px] truncate">
                     {user?.name?.split(" ")[0] || "Account"}
                   </span>
                   <User className="h-5 w-5" />
@@ -293,14 +300,14 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                         left: dropdownRect.left,
                         zIndex: 10001,
                       }}
-                      className="w-56 rounded-xl border bg-background shadow-xl py-1 animate-in fade-in zoom-in-95"
+                      className="w-56 rounded-xl border bg-popover text-popover-foreground shadow-xl py-1 animate-in fade-in-0 zoom-in-95"
                     >
                       {/* User Info */}
                       <div className="px-4 py-3 border-b">
                         <p className="text-sm font-medium truncate">
                           {user?.name || "User"}
                         </p>
-                        <p className="text-xs   truncate">
+                        <p className="text-xs text-muted-foreground truncate">
                           {user?.email || ""}
                         </p>
                       </div>
@@ -309,7 +316,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                       <Link
                         href="/account"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary/60 transition"
+                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition"
                       >
                         <UserCircle className="h-4 w-4" />
                         My Profile
@@ -317,7 +324,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                       <Link
                         href="/payment-history"
                         onClick={() => setUserDropdownOpen(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-secondary/60 transition"
+                        className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-muted transition"
                       >
                         <UserCircle className="h-4 w-4" />
                         Payment History
@@ -353,7 +360,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden hover:bg-secondary/70 transition"
+            className="lg:hidden hover:bg-secondary-hover transition"
             onClick={() => setMobileOpen((prev) => !prev)}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -363,7 +370,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 
       {/* ================= MOBILE SEARCH BAR ================= */}
       {mobileSearchOpen && (
-        <div className="lg:hidden border-t bg-background px-4 py-3">
+        <div className="xl:hidden border-t bg-background px-4 py-3">
           <form onSubmit={handleSearchSubmit}>
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -374,7 +381,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                 maxLength={100}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search for products, styles, brands..."
-                className="w-full h-9 rounded-md border border-border bg-secondary/60 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
+                className="w-full h-9 rounded-md border border-border bg-muted pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
               />
             </div>
           </form>
@@ -383,7 +390,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
 
       {/* ================= MOBILE MENU ================= */}
       {mobileOpen && (
-        <div className="md:hidden border-t bg-background">
+        <div className="lg:hidden border-t bg-background">
           <nav className="container py-4 flex flex-col gap-1">
             {navLinks.map((link) => (
               <Link
@@ -392,8 +399,8 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                 onClick={() => setMobileOpen(false)}
                 className={`px-3 py-2 text-sm rounded-md ${
                   pathname === link.href
-                    ? "bg-primary text-white"
-                    : "  hover:bg-secondary"
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
                 }`}
               >
                 {link.label}
@@ -405,7 +412,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                 <Link
                   href="/account"
                   onClick={() => setMobileOpen(false)}
-                  className="px-3 py-2 text-sm hover:bg-secondary rounded-md"
+                  className="px-3 py-2 text-sm hover:bg-muted rounded-md"
                 >
                   My Account ({user?.name?.split(" ")[0] || "User"})
                 </Link>
@@ -413,7 +420,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
                 <Link
                   href="/payment-history"
                   onClick={() => setMobileOpen(false)}
-                  className="px-3 py-2 text-sm hover:bg-secondary rounded-md"
+                  className="px-3 py-2 text-sm hover:bg-muted rounded-md"
                 >
                   Payment History
                 </Link>
@@ -429,7 +436,7 @@ const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
               <Link
                 href="/login"
                 onClick={(e) => { setMobileOpen(false); goToLogin(e); }}
-                className="px-3 py-2 text-sm hover:bg-secondary rounded-md"
+                className="px-3 py-2 text-sm hover:bg-muted rounded-md"
               >
                 Login / Register
               </Link>

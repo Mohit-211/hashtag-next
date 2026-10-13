@@ -45,12 +45,10 @@ interface CategoriesSidebarProps {
   activeIndustryCategories: SelectedIndustryCategory[];
   activeUseCaseIds: Array<number | string>;
   expandedIndustryIds: Set<number>;
-  collapsedUseCaseIds: Set<number>;
   industryOpen: boolean;
   onToggleIndustrySection: () => void;
   onToggleIndustryExpand: (indId: number) => void;
   onSelectLeafIndustry: (ind: Industry) => void;
-  onToggleUseCaseExpand: (ucId: number) => void;
   onToggleUseCaseCategories: (ind: Industry, useCase: UseCase) => void;
   onClearIndustry: () => void;
 
@@ -168,12 +166,10 @@ export default function CategoriesSidebar(props: CategoriesSidebarProps) {
         activeIndustryCategories={props.activeIndustryCategories}
         activeUseCaseIds={props.activeUseCaseIds}
         expandedIndustryIds={props.expandedIndustryIds}
-        collapsedUseCaseIds={props.collapsedUseCaseIds}
         open={props.industryOpen}
         onToggleSection={props.onToggleIndustrySection}
         onToggleIndustryExpand={props.onToggleIndustryExpand}
         onSelectLeafIndustry={props.onSelectLeafIndustry}
-        onToggleUseCaseExpand={props.onToggleUseCaseExpand}
         onToggleUseCaseCategories={props.onToggleUseCaseCategories}
         onClear={props.onClearIndustry}
       />

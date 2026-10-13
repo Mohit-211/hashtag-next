@@ -57,7 +57,6 @@ export default function AddOnSuggestions({
       try {
         setLoading(true);
         const res = await ProductAddonsApi(productId);
-        console.log(res,"res===>>")
         const data: ProductAddon[] = Array.isArray(res?.data?.data) ? res.data.data : [];
         if (!cancelled) {
           setAddons([...data].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)));
@@ -72,7 +71,7 @@ export default function AddOnSuggestions({
     return () => {
       cancelled = true;
     };
-  }, [productId]);
+  }, [productId, providedAddons]);
 
   const isSelected = (a: ProductAddon) => selected.some((s) => s.id === a.id);
   const toggle = (a: ProductAddon) =>
@@ -84,8 +83,7 @@ export default function AddOnSuggestions({
   return (
     <section className="addon-section" aria-label="Available add-ons">
       <p
-        className="text-sm font-bold tracking-widest uppercase mb-3"
-        style={{ color: "#111", fontFamily: "var(--font-heading)" }}
+        className="text-sm font-bold tracking-widest uppercase mb-3 text-foreground font-heading"
       >
         Complete Your Order
       </p>
@@ -94,10 +92,10 @@ export default function AddOnSuggestions({
         {loading
           ? Array.from({ length: 2}).map((_, i) => (
               <div key={i} className="addon-card">
-                <div className="aspect-video animate-pulse" style={{ background: "#F5F5F5" }} />
+                <div className="aspect-video animate-pulse bg-muted" />
                 <div className="p-3 space-y-2">
-                  <div className="h-3 animate-pulse" style={{ background: "#EFEFEF" }} />
-                  <div className="h-3 w-1/2 animate-pulse" style={{ background: "#EFEFEF" }} />
+                  <div className="h-3 animate-pulse bg-muted" />
+                  <div className="h-3 w-1/2 animate-pulse bg-muted" />
                 </div>
               </div>
             ))
@@ -114,42 +112,43 @@ export default function AddOnSuggestions({
                   aria-pressed={checked}
                   className={`addon-card text-left${checked ? " is-selected" : ""}`}
                 >
-                  <div className="relative aspect-video overflow-hidden" style={{ background: "#fafafa" }}>
+                  <div className="relative aspect-video overflow-hidden bg-muted">
                     {a.image && (
                       <ProxyImage src={a.image} alt={a.name} fill sizes="200px" className="object-contain p-3" />
                     )}
                     <span
-                      className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center border"
-                      style={{ background: checked ? "#111" : "#fff", borderColor: checked ? "#111" : "#D4D4D4" }}
+                      className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center border ${
+                        checked ? "bg-foreground border-foreground" : "bg-card border-input"
+                      }`}
                     >
-                      {checked && <Check size={12} strokeWidth={3} style={{ color: "#F5D800" }} />}
+                      {checked && <Check size={12} strokeWidth={3} className="text-primary" />}
                     </span>
                   </div>
                   <div className="p-3 flex flex-col gap-1 flex-1">
-                    <p className="text-[13px] font-semibold leading-snug line-clamp-2" style={{ color: "#111" }}>
+                    <p className="text-[13px] font-semibold leading-snug line-clamp-2 text-foreground">
                       {a.name}
                     </p>
                     {a.description && (
-                      <p className="text-[11px] leading-snug line-clamp-2" style={{ color: "#6B7280" }}>
+                      <p className="text-[11px] leading-snug line-clamp-2 text-muted-foreground">
                         {a.description}
                       </p>
                     )}
                     {features.length > 0 && (
                       <ul className="mt-0.5 space-y-0.5">
                         {features.slice(0, 2).map((f) => (
-                          <li key={f} className="flex items-start gap-1 text-[11px] leading-snug" style={{ color: "#6B7280" }}>
-                            <Check size={11} className="mt-[2px] flex-shrink-0" style={{ color: "#b89000" }} />
+                          <li key={f} className="flex items-start gap-1 text-[11px] leading-snug text-muted-foreground">
+                            <Check size={11} className="mt-[2px] flex-shrink-0 text-primary-ink" />
                             <span className="line-clamp-2">{f}</span>
                           </li>
                         ))}
                       </ul>
                     )}
                     <div className="flex items-baseline gap-1.5 mt-auto pt-1.5">
-                      <span className="text-sm font-bold" style={{ color: "#111" }}>
+                      <span className="text-sm font-bold text-foreground">
                         ${formatMoney(price)}
                       </span>
                       {original > price && (
-                        <span className="text-[11px] line-through" style={{ color: "#a09b96" }}>
+                        <span className="text-[11px] line-through text-muted-foreground">
                           ${formatMoney(original)}
                         </span>
                       )}
@@ -170,11 +169,11 @@ export default function AddOnSuggestions({
           padding-bottom: 6px; scrollbar-width: thin;
         }
         .addon-card {
-          display: flex; flex-direction: column; background: #fff; border: 1px solid #E5E5E5;
+          display: flex; flex-direction: column; background: var(--color-card); border: 1px solid var(--color-border);
           scroll-snap-align: start; transition: box-shadow .2s ease, border-color .2s ease;
         }
-        .addon-card:hover { border-color: #d8d3ce; box-shadow: 0 8px 24px rgba(26,22,18,0.08); }
-        .addon-card.is-selected { border-color: #111; box-shadow: 0 0 0 1px #111; }
+        .addon-card:hover { border-color: var(--color-input); box-shadow: 0 8px 24px color-mix(in srgb, var(--color-foreground) 8%, transparent); }
+        .addon-card.is-selected { border-color: var(--color-foreground); box-shadow: 0 0 0 1px var(--color-foreground); }
         @media (max-width: 640px) {
           .addon-rail { grid-auto-columns: 44%; gap: 10px; }
         }

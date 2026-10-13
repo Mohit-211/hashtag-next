@@ -19,7 +19,7 @@ export default function ProcessingScreen({
           <div className="absolute inset-0 rounded-full bg-primary/15" />
           <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-ping opacity-40" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <Loader2 className="h-10 w-10 animate-spin text-primary-ink" />
           </div>
         </div>
 

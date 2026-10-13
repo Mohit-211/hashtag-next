@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useCart } from "@/contexts/CartContext";
-import { useOrders } from "@/contexts/OrdersContext";
 import {
   CreatePaymentApi,
   GetSquareConfigApi,
@@ -21,6 +20,7 @@ import ShippingSection from "./ShippingSection";
 import PaymentSection from "./PaymentSection";
 import OrderSummary from "./OrderSummary";
 import AddressSection from "../account/AddressSection";
+import { errorMessage } from "@/lib/errors";
 export type CheckoutStep =
   | "address"
   | "shipping"
@@ -55,7 +55,6 @@ export default function CheckoutLayout() {
     pending_order,
   } = useCart();
   const subtotal = summary?.items_total ?? 0;
-  const { addOrder } = useOrders();
   const [step, setStep] = useState<CheckoutStep>("address");
   const [selectedAddressId, setSelectedAddressId] =
     useState<number | null>(null);
@@ -103,6 +102,9 @@ export default function CheckoutLayout() {
       pending_order?.order_id &&
       pending_order?.payment_status === "PENDING"
     ) {
+      // Resume an unpaid order: the cart's pending order arrives from the
+      // server after mount and jumps the flow straight to payment.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCreatedOrderId(pending_order.order_id);
       setHasPendingOrder(true);
       setSelectedRate({
@@ -197,10 +199,10 @@ export default function CheckoutLayout() {
 
       await refreshCart();
       setStep("payment");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setOrderError(
-        err?.response?.data?.message || err?.message || "Something went wrong"
+        errorMessage(err, "Something went wrong")
       );
     } finally {
       setProcessing(false);
@@ -262,16 +264,13 @@ export default function CheckoutLayout() {
       checkoutCompletedRef.current = true;
       setStep("done");
       clearCart();
-      addOrder?.({
-        id: createdOrderId,
-      } as any);
       setTimeout(() => {
        window.location.href = "/categories";
       }, 3000);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setOrderError(
-        err?.response?.data?.message || err?.message || "Payment failed"
+        errorMessage(err, "Payment failed")
       );
       checkoutCompletedRef.current = false;
       setStep("payment");
@@ -305,10 +304,10 @@ export default function CheckoutLayout() {
       }
       sessionStorage.setItem("paypal_pending_order_id", String(createdOrderId));
       window.location.href = approvalUrl;
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setOrderError(
-        err?.response?.data?.message || err?.message || "Unable to start PayPal checkout"
+        errorMessage(err, "Unable to start PayPal checkout")
       );
       paypalSubmittingRef.current = false;
       setProcessing(false);
@@ -333,15 +332,15 @@ export default function CheckoutLayout() {
     return <EmptyCart />;
   }
   return (
-    <section className="min-h-screen bg-slate-50 py-8 lg:py-12">
-      <div className="container max-w-5xl px-4 mx-auto">
+    <section className="py-8 lg:py-12">
+      <div className="container max-w-5xl">
         <ProgressRail current={step} />
 
         {/* ★ ADDED — surface it when the carrier's actual label price
             differs from the estimate the user picked, instead of
             silently swapping the total on the payment step. */}
         {/* {shipmentPricing && shipmentPricing.shippingDifference !== 0 && (
-          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+          <div className="mt-4 rounded-lg border border-primary bg-primary-soft px-4 py-3 text-sm text-primary-ink">
             {shipmentPricing.explanation ??
               `Shipping was updated to $${shipmentPricing.actualShipping.toFixed(2)} based on the carrier's final rate.`}
           </div>

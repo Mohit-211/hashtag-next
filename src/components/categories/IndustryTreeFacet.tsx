@@ -9,12 +9,10 @@ interface IndustryTreeFacetProps {
   activeIndustryCategories: SelectedIndustryCategory[];
   activeUseCaseIds: Array<number | string>;
   expandedIndustryIds: Set<number>;
-  collapsedUseCaseIds: Set<number>;
   open: boolean;
   onToggleSection: () => void;
   onToggleIndustryExpand: (indId: number) => void;
   onSelectLeafIndustry: (ind: Industry) => void;
-  onToggleUseCaseExpand: (ucId: number) => void;
   onToggleUseCaseCategories: (ind: Industry, useCase: UseCase) => void;
   onClear: () => void;
 }
@@ -31,12 +29,10 @@ export default function IndustryTreeFacet({
   activeIndustryCategories,
   activeUseCaseIds,
   expandedIndustryIds,
-  collapsedUseCaseIds,
   open,
   onToggleSection,
   onToggleIndustryExpand,
   onSelectLeafIndustry,
-  onToggleUseCaseExpand,
   onToggleUseCaseCategories,
   onClear,
 }: IndustryTreeFacetProps) {
@@ -102,15 +98,8 @@ export default function IndustryTreeFacet({
                   // Checked state comes straight from the use case's own id —
                   // this is the same id sent to ProductsByUseCaseApi.
                   const ucAllChecked = activeUseCaseIds.some((id) => String(id) === String(uc.id));
-                  const ucIsExpanded = !collapsedUseCaseIds.has(uc.id);
                   return (
                     <div key={uc.id}>
-                      {/* Clicking the checkbox/label checks or unchecks EVERY
-                          real category listed under this use case in one go.
-                          The separate chevron button only collapses/expands
-                          the list — it never changes any selection.
-                          `title` gives a native hover tooltip with the
-                          full name since long titles get truncated. */}
                       <div className="cat-row usecase-row">
                         <div
                           className="check-row usecase-check-row"
@@ -133,16 +122,6 @@ export default function IndustryTreeFacet({
                             <span className="check-row-name usecase-check-row-label">{uc.title}</span>
                           </span>
                         </div>
-                        {/* <button
-                          type="button"
-                          className="cat-row-expand"
-                          onClick={() => onToggleUseCaseExpand(uc.id)}
-                          aria-label={`${ucIsExpanded ? "Collapse" : "Expand"} ${uc.title} categories`}
-                          aria-expanded={ucIsExpanded}
-                          title={ucIsExpanded ? "Collapse" : "Expand"}
-                        >
-                          <ChevronDown size={14} className={`facet-chevron ${ucIsExpanded ? "open" : ""}`} />
-                        </button> */}
                       </div>
                     </div>
                   );

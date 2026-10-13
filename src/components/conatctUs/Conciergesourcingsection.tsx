@@ -181,7 +181,7 @@ export default function ConciergeSourcingSection() {
             Text our Sourcing Desk directly at{" "}
             <a
               href="tel:8327526450"
-              className="font-medium text-foreground underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary"
+              className="font-medium text-foreground underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary-ink"
             >
               832 752 6450
             </a>{" "}
@@ -192,7 +192,7 @@ export default function ConciergeSourcingSection() {
         {/* Right column — form */}
         <div className="rounded-lg border border-border bg-background/60 p-6 md:p-8">
           <div className="mb-6 border-b border-border pb-5">
-            <p className="mb-1.5 inline-block bg-black px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-[#FAE52E]">
+            <p className="mb-1.5 inline-block bg-foreground px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
               Sourcing Desk
             </p>
             <h3 className="text-2xl leading-tight">
@@ -202,7 +202,7 @@ export default function ConciergeSourcingSection() {
 
           {status === "success" ? (
             <div className="flex flex-col items-start gap-4 py-2">
-              <span className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary/70 bg-primary/10 text-primary">
+              <span className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 border-primary/70 bg-primary/10 text-primary-ink">
                 <span
                   className="absolute inset-0 animate-ping rounded-full bg-primary/20 [animation-iteration-count:2]"
                   aria-hidden="true"
@@ -223,7 +223,7 @@ export default function ConciergeSourcingSection() {
                 Need it faster? Text{" "}
                 <a
                   href={`tel:${SOURCING_PHONE_TEL}`}
-                  className="text-primary underline underline-offset-2"
+                  className="text-primary-ink underline underline-offset-2"
                 >
                   {SOURCING_PHONE_DISPLAY}
                 </a>
@@ -324,6 +324,7 @@ export default function ConciergeSourcingSection() {
                         key={src}
                         className="group relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md border border-border bg-background"
                       >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- local blob: preview */}
                         <img
                           src={src}
                           alt={files[index]?.name ?? "Uploaded file"}
@@ -333,7 +334,7 @@ export default function ConciergeSourcingSection() {
                           type="button"
                           onClick={() => removeFile(index)}
                           aria-label={`Remove ${files[index]?.name ?? "file"}`}
-                          className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                          className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-foreground/70 text-background opacity-0 transition-opacity group-hover:opacity-100"
                         >
                           <X size={10} />
                         </button>
@@ -377,7 +378,7 @@ function Field({
     <div>
       <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
         {label}
-        {required && <span className="text-primary"> *</span>}
+        {required && <span className="text-primary-ink"> *</span>}
       </label>
       <input
         className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"

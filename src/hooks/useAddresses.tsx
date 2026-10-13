@@ -4,6 +4,7 @@ import {
   GetAddressApi,
   UpdateAddressApi,
   DeleteAddressApi,
+  type AddressPayload,
 } from "@/api/operations/address.api";
 
 export type Address = {
@@ -22,7 +23,22 @@ export type Address = {
 
 export type AddressFormData = Omit<Address, "id">;
 
-const normalize = (item: any): Address => ({
+/** Address row as the API returns it. */
+interface RawAddress {
+  id: number;
+  name: string;
+  phone: string;
+  address_line1: string;
+  address_line2: string;
+  postal_code: string;
+  state?: string;
+  city?: string;
+  state_id?: number;
+  city_id?: number;
+  is_default?: boolean | 0 | 1;
+}
+
+const normalize = (item: RawAddress): Address => ({
   id: item.id,
   fullName: item.name,
   phone: item.phone,
@@ -33,10 +49,10 @@ const normalize = (item: any): Address => ({
   city: item.city,
   state_id: item.state_id,
   city_id: item.city_id,
-  isDefault: item.is_default,
+  isDefault: Boolean(item.is_default),
 });
 
-const toPayload = (data: AddressFormData) => ({
+const toPayload = (data: AddressFormData): AddressPayload => ({
   name: data.fullName,
   phone: data.phone,
   address_line1: data.line1,
@@ -60,10 +76,10 @@ export function useAddresses(autoLoad = true) {
     setError(null);
     try {
       const res = await GetAddressApi();
-      const list = (res?.data?.data ?? []).map(normalize);
+      const list = ((res?.data?.data ?? []) as RawAddress[]).map(normalize);
       setAddresses(list);
       return list;
-    } catch (err) {
+    } catch {
       setError("Failed to load addresses");
       return [];
     } finally {
@@ -76,16 +92,15 @@ export function useAddresses(autoLoad = true) {
       setSavingId(editingId ?? "new");
       setError(null);
       try {
-        const payload: any = toPayload(data);
+        const payload = toPayload(data);
         if (editingId) {
-          payload.id = editingId;
-          await UpdateAddressApi(payload);
+          await UpdateAddressApi({ ...payload, id: editingId });
         } else {
           await AddAddressApi(payload);
         }
         const list = await fetchAddresses();
         return { success: true, list };
-      } catch (err) {
+      } catch {
         setError("Something went wrong while saving the address");
         return { success: false, list: addresses };
       } finally {
@@ -114,7 +129,7 @@ export function useAddresses(autoLoad = true) {
         });
         await fetchAddresses();
         return true;
-      } catch (err) {
+      } catch {
         setError("Failed to set default address");
         return false;
       } finally {
@@ -131,7 +146,7 @@ export function useAddresses(autoLoad = true) {
       await DeleteAddressApi(id);
       setAddresses((prev) => prev.filter((a) => a.id !== id));
       return true;
-    } catch (err) {
+    } catch {
       setError("Failed to delete address");
       return false;
     } finally {

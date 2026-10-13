@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { loginUrl } from "@/lib/authRedirect";
+import { useIsClient } from "@/hooks/useIsClient";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 import { ShoppingBag, ArrowRight, Package } from "lucide-react";
 
 import OrdersEmpty from "@/components/orders/OrdersEmpty";
@@ -32,32 +34,50 @@ function OrderSkeleton() {
 // Page
 // ─────────────────────────────────────────────
 export default function Orders() {
-  const [orders, setOrders] = useState<OrderData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const isClient = useIsClient();
+  const isLoggedIn = useIsLoggedIn();
+  // null until the first response arrives.
+  const [orders, setOrders] = useState<OrderData[] | null>(null);
 
-  const isLoggedIn =
-    typeof window !== "undefined" && !!localStorage.getItem("hastagBillionaire");
   useEffect(() => {
-    if (!isLoggedIn) {
-      setLoading(false);
-      return;
-    }
-    fetchOrders();
-  }, []);
+    if (!isLoggedIn) return;
+    let cancelled = false;
+    GetAllOrderApi()
+      .then((response) => {
+        if (!cancelled) setOrders(response?.data?.data?.data || []);
+      })
+      .catch((error) => {
+        console.error("Failed to fetch orders:", error);
+        if (!cancelled) setOrders([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const response = await GetAllOrderApi();
-      const orderData = response?.data?.data?.data || [];
-      setOrders(orderData);
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // The login state is only known in the browser — show the skeleton until then
+  // rather than flashing "sign in" at a logged-in shopper.
+  const loading = !isClient || (isLoggedIn && orders === null);
+
+  // ── Loading ──
+  if (loading) {
+    return (
+      <section className="py-8 lg:py-16">
+        <div className="container max-w-3xl">
+          {/* Skeleton header */}
+          <div className="mb-8 space-y-2 animate-pulse">
+            <div className="h-7 bg-muted rounded-full w-40" />
+            <div className="h-4 bg-muted rounded-full w-72" />
+          </div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <OrderSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   // ── Not logged in ──
   if (!isLoggedIn) {
@@ -86,28 +106,8 @@ export default function Orders() {
     );
   }
 
-  // ── Loading ──
-  if (loading) {
-    return (
-      <section className="py-8 lg:py-16">
-        <div className="container max-w-3xl">
-          {/* Skeleton header */}
-          <div className="mb-8 space-y-2 animate-pulse">
-            <div className="h-7 bg-muted rounded-full w-40" />
-            <div className="h-4 bg-muted rounded-full w-72" />
-          </div>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <OrderSkeleton key={i} />
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   // ── Empty ──
-  if (orders.length === 0) {
+  if (!orders || orders.length === 0) {
     return <OrdersEmpty />;
   }
 

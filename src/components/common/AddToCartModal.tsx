@@ -6,7 +6,6 @@ import {
   Loader2,
   CheckCircle,
   Sparkles,
-  Package,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -14,6 +13,7 @@ import { AddToCartApi } from "@/api/operations/cart.api";
 import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../product/customization/pricing";
 
+import { errorMessage } from "@/lib/errors";
 /* ── Mirrors ConfiguredVariant from the customization page ── */
 export interface ConfiguredSize {
   variant_id: number;
@@ -34,7 +34,7 @@ export interface ConfiguredVariant {
   variantName: string;
   color: string;
   colorCode: string;
-  images?: any[];
+  images?: { file_uri?: string; file_name?: string }[];
   sizes: ConfiguredSize[];
   totalQty: number;
   totalPrice: number;
@@ -101,17 +101,7 @@ interface AddToCartModalProps {
   sageMetaStr?: string | Record<string, unknown> | null;
   configuredVariants?: ConfiguredVariant[];
   isApparel?: boolean;
-  isPromo?: boolean;
-  isPreMade?: boolean;
 }
-
-const isRenderableSwatch = (code?: string) => {
-  if (!code) return false;
-  const c = code.trim().toLowerCase();
-  if (c === "" || c === "transparent" || c === "none") return false;
-  if (c === "#fff" || c === "#ffffff" || c === "white") return false;
-  return true;
-};
 
 export default function AddToCartModal({
   open,
@@ -129,8 +119,6 @@ export default function AddToCartModal({
   sageMetaStr,
   configuredVariants,
   isApparel,
-  isPromo,
-  isPreMade
 }: AddToCartModalProps) {
   const quantity = initialQuantity;
   const [loading, setLoading] = useState(false);
@@ -138,15 +126,24 @@ export default function AddToCartModal({
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
+  // Each opening starts clean.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setError(null);
       setSuccess(false);
-      requestAnimationFrame(() => setVisible(true));
-    } else {
-      setVisible(false);
     }
-  }, [open, initialQuantity]);
+  }
+  // Fade in on the next frame after opening; hide again when closed.
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => setVisible(true));
+    return () => {
+      cancelAnimationFrame(frame);
+      setVisible(false);
+    };
+  }, [open]);
 
   const hasConfigured = !!configuredVariants && configuredVariants.length > 0;
 
@@ -203,7 +200,6 @@ export default function AddToCartModal({
   // (which was previously hardcoded to 0 on the configured-variants path,
   // silently dropping the fee from the modal's total).
   const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + configuredDigitizingFeeTotal;
-  const perPiece = grandQty > 0 ? grandTotal / grandQty : 0;
 
   /* ✅ Parse customization JSON safely (legacy single-payload shape) */
   const parsedCustomization = useMemo(() => {
@@ -219,16 +215,22 @@ export default function AddToCartModal({
     ? parsedCustomization[0]
     : parsedCustomization;
 
-  const locationLabel = customizationObj?.locations?.[0]?.location
-    ? customizationObj.locations[0].location
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (c: string) => c.toUpperCase())
-    : null;
+  // e.g. [{ location: "RIGHT_CHEST" }, { location: "FULL_BACK_STANDARD" }] → "Right Chest, Full Back Standard"
+  const locationLabel =
+    (Array.isArray(customizationObj?.locations) ? customizationObj.locations : [])
+      .map((l: { location?: string }) =>
+        (l?.location ?? "").toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      )
+      .filter(Boolean)
+      .join(", ") || null;
 
-  const methodLabel = customizationObj?.print_method
-    ? customizationObj.print_method.charAt(0).toUpperCase() +
-      customizationObj.print_method.slice(1).toLowerCase()
-    : null;
+  // "SCREEN_PRINT" → "Screen print", "DTF" stays an acronym.
+  const rawMethod: string = customizationObj?.print_method ?? "";
+  const methodLabel = !rawMethod
+    ? null
+    : ["DTF", "DTG"].includes(rawMethod.toUpperCase())
+      ? rawMethod.toUpperCase()
+      : rawMethod.charAt(0).toUpperCase() + rawMethod.slice(1).toLowerCase().replace(/_/g, " ");
 
   const customizationDetail =
     [methodLabel, locationLabel].filter(Boolean).join(" · ") ||
@@ -247,7 +249,8 @@ export default function AddToCartModal({
       setLoading(true);
       setError(null);
 
-      let customizationPayload: any;
+      // Only ever serialised into the form body, so its exact shape is irrelevant here.
+      let customizationPayload: unknown;
 
       if (hasConfigured) {
         // Every selected variant/size line becomes one customization
@@ -298,11 +301,9 @@ export default function AddToCartModal({
         setSuccess(false);
         onClose();
       }, 1600);
-    } catch (err: any) {
+    } catch (err) {
       setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          "Something went wrong. Please try again."
+        errorMessage(err, "Something went wrong. Please try again.")
       );
     } finally {
       setLoading(false);
@@ -311,282 +312,177 @@ export default function AddToCartModal({
 
   if (!open) return null;
 
+  const pcs = (n: number) => `${n} ${n === 1 ? "pc" : "pcs"}`;
+
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Add to cart"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}
+      aria-labelledby="cart-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4 backdrop-blur-sm"
     >
       <div
         className={cn(
-          "relative w-full sm:w-[440px] max-w-[92vw] bg-white overflow-hidden",
-          "rounded-[20px]",
-          "shadow-[0_8px_48px_rgba(0,0,0,0.18)]",
+          "relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-card shadow-2xl",
           "transition-all duration-300 ease-out",
-          "max-h-[90vh] sm:max-h-[85vh] flex flex-col",
-          visible
-            ? "translate-y-0 opacity-100 sm:scale-100"
-            : "translate-y-6 opacity-0 sm:scale-95"
+          visible ? "translate-y-0 opacity-100 sm:scale-100" : "translate-y-6 opacity-0 sm:scale-95"
         )}
       >
-        {/* ── SUCCESS OVERLAY ── */}
+        {/* Success state — hidden from assistive tech until it's shown */}
         <div
+          aria-hidden={!success}
+          role={success ? "status" : undefined}
           className={cn(
-            "absolute inset-0 z-10 flex flex-col items-center justify-center gap-3",
-            "bg-white rounded-[20px] transition-opacity duration-250",
-            success ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+            "absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-card transition-opacity duration-200",
+            success ? "pointer-events-auto visible opacity-100" : "pointer-events-none invisible opacity-0"
           )}
         >
-          <div className="w-16 h-16 rounded-full bg-[#F5D800] flex items-center justify-center">
-            <CheckCircle size={30} className="text-[#111111]" strokeWidth={2} />
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success-soft">
+            <CheckCircle size={30} className="text-success" strokeWidth={2} />
           </div>
-          <p className="text-lg font-medium text-[#111111]">Added to cart!</p>
-          <p className="text-sm text-[#111111]/50">
-            {grandQty} × {name}
+          <p className="text-lg font-semibold text-foreground">Added to cart</p>
+          <p className="text-sm text-muted-foreground">
+            {pcs(grandQty)} · {name}
           </p>
         </div>
 
-        {/* ── HEADER (fixed, never scrolls) ── */}
-        <div className="bg-[#F5D800] px-5 pt-5 pb-4 flex-shrink-0">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-[10px] bg-[#111111] flex items-center justify-center flex-shrink-0">
-                <ShoppingCart size={16} className="text-[#F5D800]" strokeWidth={2.2} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium text-[#111111]/50 uppercase tracking-[0.16em] mb-0.5">
-                  Confirm order
-                </p>
-                <p className="text-[15px] font-medium text-[#111111] leading-tight truncate">
-                  {name}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              className="w-8 h-8 rounded-[8px] bg-[#111111]/10 border border-[#111111]/15 flex items-center justify-center text-[#111111]/50 hover:text-[#111111] hover:bg-[#111111]/18 transition-all flex-shrink-0"
-            >
-              <X size={14} />
-            </button>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground">Review before adding</p>
+            <h2 id="cart-modal-title" className="mt-0.5 truncate text-lg font-bold text-foreground">
+              {name}
+            </h2>
           </div>
-
-          <div className="flex items-end justify-between border-t border-[#111111]/15 pt-3 mt-1">
-            <div>
-              <p className="text-[10px] font-medium text-[#111111]/40 uppercase tracking-[0.1em] mb-1">
-                Order total ({grandQty} {grandQty === 1 ? "pc" : "pcs"})
-              </p>
-              <p className="text-[32px] font-medium text-[#111111] leading-none">
-                ${formatMoney(grandTotal)}
-              </p>
-            </div>
-          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="-mr-1 shrink-0 rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="h-[1.5px] bg-[#111111] flex-shrink-0" />
-
-        {/* ── BODY (the ONLY scrollable region) ── */}
-        <div className="px-5 pt-4 pb-2 space-y-4 bg-white overflow-y-auto flex-1 min-h-0">
+        {/* Body */}
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5 text-sm">
           {customizationObj && (methodLabel || locationLabel) && (
-            <div className="flex items-center gap-3 rounded-[12px] border border-black/10 bg-black/[0.03] px-3.5 py-2.5">
-              <div className="w-8 h-8 rounded-[9px] bg-[#111111] flex items-center justify-center flex-shrink-0">
-                <Sparkles size={13} className="text-[#F5D800]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-medium text-[#111111] uppercase tracking-[0.08em]">
-                  Custom design
-                </p>
-                <p className="text-[11px] text-[#111111]/50 truncate mt-0.5">
+            <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3">
+              <Sparkles size={16} className="shrink-0 text-primary-ink" />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-foreground">Your custom design</p>
+                <p className="truncate text-xs text-muted-foreground">
                   {customizationDetail}
+                  {canvasBlob ? " · artwork attached" : ""}
                 </p>
               </div>
-              {canvasBlob && (
-                <span className="flex-shrink-0 text-[10px] font-medium text-[#F5D800] bg-[#111111] px-2 py-1 rounded-full">
-                  PNG ✓
-                </span>
-              )}
             </div>
           )}
 
           {hasConfigured ? (
-            <div className="space-y-3">
-              <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[#111111]/40">
-                {configuredVariants!.length} variant{configuredVariants!.length > 1 ? "s" : ""} in this order
-              </p>
+            <div className="space-y-4">
               {configuredVariants!.map((cv) => {
-                // ★ Recompute this variant's totals from its own size
-                // lines — never trust a stored cv.totalPrice that could
-                // be stale, and sum digitizing fees flat, separately.
-                const cvPricing = sumVariantTotals(
-                  cv.sizes.map((s) => ({
-                    productPrice: s.unit_price,
-                    decorationPrice: s.decoration_unit_price ?? 0,
-                    quantity: s.quantity,
-                  }))
-                );
-                const cvDigitizingFeeTotal = cv.sizes.reduce(
-                  (sum, s) => sum + (s.digitizing_fee ?? 0),
-                  0
-                );
-                const cvGrandTotal = cvPricing.total + cvDigitizingFeeTotal;
-
+                const cvDigitizingFeeTotal = cv.sizes.reduce((sum, s) => sum + (s.digitizing_fee ?? 0), 0);
                 return (
-                  <div
-                    key={`${cv.variantId}-${cv.variantName}`}
-                    className="rounded-[14px] border border-black/10 bg-black/[0.02] p-3.5"
-                  >
-                    <div className="flex items-center justify-between mb-2 gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <p className="text-[13px] font-semibold text-[#111111] truncate">
-                          {cv.variantName || cv.color || `Variant #${cv.variantId}`}
-                        </p>
-                      </div>
-                      <span className="text-[12px] font-bold text-[#111111] flex-shrink-0">
-                        ${formatMoney(cvGrandTotal)}
-                      </span>
-                    </div>
-                    <div className="space-y-1">
-                      {cv.sizes.map((s) => {
-                        const linePricing = calculateVariantTotal({
-                          productPrice: s.unit_price,
-                          decorationPrice: s.decoration_unit_price ?? 0,
-                          quantity: s.quantity,
-                        });
-                        const lineFee = s.digitizing_fee ?? 0;
-                        return (
-                          <div
-                            key={`${s.variant_id}-${s.size_id}`}
-                            className="flex items-center justify-between text-[11px] text-[#111111]/55"
-                          >
-                            <span>
-                              {s.size && s.size !== "—" ? s.size : "Standard"} · ×{s.quantity}
-                            </span>
-                            <span className="font-medium text-[#111111]/70">
-                              ${formatMoney(linePricing.total + lineFee)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div key={`${cv.variantId}-${cv.variantName}`} className="space-y-1.5">
+                    <p className="font-semibold text-foreground">
+                      {cv.variantName || cv.color || `Variant #${cv.variantId}`}
+                    </p>
+                    {cv.sizes.map((s) => {
+                      const linePricing = calculateVariantTotal({
+                        productPrice: s.unit_price,
+                        decorationPrice: s.decoration_unit_price ?? 0,
+                        quantity: s.quantity,
+                      });
+                      return (
+                        <div
+                          key={`${s.variant_id}-${s.size_id}`}
+                          className="flex items-center justify-between gap-3 text-muted-foreground"
+                        >
+                          <span>
+                            {s.size && s.size !== "—" ? `Size ${s.size}` : "Quantity"} × {s.quantity}
+                          </span>
+                          <span className="tabular-nums">${formatMoney(linePricing.total)}</span>
+                        </div>
+                      );
+                    })}
                     {cvDigitizingFeeTotal > 0 && (
-                      <div className="flex items-center justify-between text-[10px] text-[#b89000] font-semibold pt-1.5 mt-1.5 border-t border-black/5">
-                        <span>Digitizing Fee</span>
-                        <span>${formatMoney(cvDigitizingFeeTotal)}</span>
+                      <div className="flex items-center justify-between gap-3 text-muted-foreground">
+                        <span>Digitizing fee (one-time)</span>
+                        <span className="tabular-nums">${formatMoney(cvDigitizingFeeTotal)}</span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between text-[11px] font-semibold text-[#111111]/80 pt-1 mt-1">
-                      <span>{cv.totalQty} pcs</span>
-                      <span>${formatMoney(cvGrandTotal)}</span>
-                    </div>
                   </div>
                 );
               })}
-
-              <div className="flex items-center justify-between rounded-[12px] bg-[#111111] px-4 py-3">
-                <span className="text-[12px] font-medium text-white/70">
-                  Total Qty: {grandQty}
-                </span>
-                <span className="text-[14px] font-bold text-[#F5D800]">
-                  ${formatMoney(grandTotal)}
-                </span>
-              </div>
             </div>
           ) : (
-            /* ── Legacy single-quantity summary (no configuredVariants) ── */
-            <div className="rounded-xl border border-gray-200 p-4 bg-gray-50">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Quantity</span>
-                <span className="text-lg font-bold">{quantity}</span>
-              </div>
-              <div className="flex justify-between mt-2">
-                <span className="text-xs text-gray-400">
-                  Garment ({quantity} × ${formatMoney(effectiveUnitPrice)})
+            /* Single-quantity path (quantity chosen on the product page) */
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-muted-foreground">
+                <span>
+                  Product · {quantity} × ${formatMoney(effectiveUnitPrice)}
                 </span>
-                <span className="text-xs font-medium text-gray-600">
-                  ${formatMoney(garmentTotal)}
-                </span>
+                <span className="tabular-nums">${formatMoney(garmentTotal)}</span>
               </div>
               {isApparel && decorationTotal > 0 && (
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-gray-400">
-                    Decoration ({quantity} × ${formatMoney(printPricePerPiece)})
+                <div className="flex items-center justify-between gap-3 text-muted-foreground">
+                  <span>
+                    Decoration · {quantity} × ${formatMoney(printPricePerPiece)}
                   </span>
-                  <span className="text-xs font-medium text-gray-600">
-                    ${formatMoney(decorationTotal)}
-                  </span>
+                  <span className="tabular-nums">${formatMoney(decorationTotal)}</span>
                 </div>
               )}
               {digitizingFee > 0 && (
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-[#b89000] font-semibold">
-                    Digitizing Fee
-                  </span>
-                  <span className="text-xs font-bold text-[#b89000]">
-                    ${formatMoney(digitizingFee)}
-                  </span>
+                <div className="flex items-center justify-between gap-3 text-muted-foreground">
+                  <span>Digitizing fee (one-time)</span>
+                  <span className="tabular-nums">${formatMoney(digitizingFee)}</span>
                 </div>
               )}
-              <p className="text-xs text-gray-400 mt-2">
-                Quantity selected on the product page.
-              </p>
               {sageMetaStr && (
-                <p className="text-[10px] text-black/30 mt-2">
-                  Price updates automatically based on quantity.
-                </p>
+                <p className="pt-1 text-xs text-muted-foreground">Unit price depends on the quantity ordered.</p>
               )}
             </div>
           )}
 
+          <div className="flex items-baseline justify-between gap-3 border-t border-border pt-4">
+            <span className="font-semibold text-foreground">Total · {pcs(grandQty)}</span>
+            <span className="text-2xl font-bold tabular-nums text-foreground">${formatMoney(grandTotal)}</span>
+          </div>
+
           {error && (
-            <div className="flex items-start gap-2.5 rounded-[10px] border border-red-300/50 bg-red-50 px-3.5 py-3">
-              <div className="w-3.5 h-3.5 rounded-full bg-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-[12px] text-red-600 leading-relaxed">{error}</p>
-            </div>
+            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-3 text-destructive">
+              {error}
+            </p>
           )}
         </div>
 
-        {/* ── FOOTER (fixed, never scrolls) ── */}
-        <div className="px-5 pb-5 pt-3 flex flex-col gap-2 bg-white flex-shrink-0 border-t border-black/5">
+        {/* Footer */}
+        <div className="flex gap-3 border-t border-border px-6 py-4">
+          <button
+            onClick={onClose}
+            className="h-11 flex-1 rounded-lg border border-input text-sm font-semibold text-foreground transition hover:bg-muted"
+          >
+            Cancel
+          </button>
           <button
             onClick={handleAddToCart}
             disabled={loading || success}
             className={cn(
-              "relative w-full h-[52px] rounded-[14px] text-[14px] font-medium",
-              "flex items-center justify-between px-4 gap-2 transition-all duration-200",
+              "flex h-11 flex-[1.4] items-center justify-center gap-2 rounded-lg text-sm font-semibold transition",
               loading || success
-                ? "bg-black/10 text-black/30 cursor-not-allowed"
-                : "bg-[#111111] text-[#F5D800] hover:bg-[#222222] hover:-translate-y-px active:scale-[0.98]"
+                ? "cursor-not-allowed bg-muted text-muted-foreground"
+                : "bg-primary text-primary-foreground hover:bg-primary-hover active:scale-[0.98]"
             )}
           >
-            {success ? (
+            {loading ? (
               <>
-                <CheckCircle size={16} strokeWidth={2} />
-                Added to cart!
-              </>
-            ) : loading ? (
-              <>
-                <Loader2 size={15} className="animate-spin" />
-                Processing...
+                <Loader2 size={16} className="animate-spin" /> Adding…
               </>
             ) : (
               <>
-                <span className="flex items-center gap-2 flex-1 justify-start">
-                  <ShoppingCart size={15} strokeWidth={2.2} />
-                  Add to cart
-                </span>
-                <span className="text-[#F5D800]/50 text-[13px]">
-                  ${formatMoney(grandTotal)}
-                </span>
+                <ShoppingCart size={16} /> Add to cart
               </>
             )}
-          </button>
-          <button
-            onClick={onClose}
-            className="w-full h-9 text-[13px] text-black/30 hover:text-black/60 transition-colors rounded-[10px]"
-          >
-            Cancel
           </button>
         </div>
       </div>

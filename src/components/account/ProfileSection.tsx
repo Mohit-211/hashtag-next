@@ -61,7 +61,7 @@ export default function ProfileSection({ user }: Props) {
         <input
           value={user?.email ?? ""}
           readOnly
-          className={`${inputClass} bg-secondary`}
+          className={`${inputClass} bg-muted`}
         />
 
         <input

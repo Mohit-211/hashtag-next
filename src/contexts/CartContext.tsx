@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import { GetAllCartItemsApi } from "@/api/operations/cart.api";
-import { AUTH_CHANGED_EVENT } from "@/lib/authRedirect";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 
 export interface CartItem {
   cart_id: number;
@@ -35,10 +35,10 @@ export interface CartItem {
   customization_config?: {
     print_method?: string | null;
     locations?: { location: string }[];
-    [key: string]: any;
+    [key: string]: unknown;
   };
 
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface CartSummary {
@@ -63,7 +63,6 @@ interface CartContextType {
   totalItems: number;
   summary: CartSummary | null;
   pending_order: PendingOrder | null;
-  cartData: any;
   refreshCart: () => Promise<void>;
   clearCart: () => void;
 }
@@ -83,7 +82,6 @@ export const useCart = () => {
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [summary, setSummary] = useState<CartSummary | null>(null);
-  const [cartData, setCartData] = useState<any>(null);
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
 
   const fetchCart = useCallback(async () => {
@@ -93,7 +91,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setItems([]);
       setSummary(null);
       setPendingOrder(null);
-      setCartData(null);
       return;
     }
 
@@ -101,7 +98,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const res = await GetAllCartItemsApi();
       const data = res?.data?.data || res?.data;
 
-      setCartData(data);
       setItems(data?.items ?? []);
       setSummary(data?.summary ?? null);
       setPendingOrder(data?.pending_order ?? null);
@@ -111,19 +107,31 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setItems([]);
       setSummary(null);
       setPendingOrder(null);
-      setCartData(null);
     }
   }, []);
 
-  // Runs once when CartProvider mounts — this is what re-syncs the cart
-  // from the server every time the provider is freshly mounted, e.g. after
-  // a full page reload triggered by window.location.href.
+  // Load the cart on page load with a stored token and on every login;
+  // clear it on logout.
+  const loggedIn = useIsLoggedIn();
   useEffect(() => {
-    fetchCart();
-    // Refetch after login/logout (client-side, so the provider stays mounted).
-    window.addEventListener(AUTH_CHANGED_EVENT, fetchCart);
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, fetchCart);
-  }, [fetchCart]);
+    if (!loggedIn) return;
+    let cancelled = false;
+    GetAllCartItemsApi()
+      .then((res) => {
+        if (cancelled) return;
+        const data = res?.data?.data || res?.data;
+        setItems(data?.items ?? []);
+        setSummary(data?.summary ?? null);
+        setPendingOrder(data?.pending_order ?? null);
+      })
+      .catch((err) => console.error("Fetch Cart Error:", err));
+    return () => {
+      cancelled = true;
+      setItems([]);
+      setSummary(null);
+      setPendingOrder(null);
+    };
+  }, [loggedIn]);
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -134,7 +142,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setItems([]);
     setSummary(null);
     setPendingOrder(null);
-    setCartData(null);
   }, []);
 
   return (
@@ -144,7 +151,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         totalItems,
         summary,
         pending_order: pendingOrder,
-        cartData,
         refreshCart: fetchCart,
         clearCart,
       }}

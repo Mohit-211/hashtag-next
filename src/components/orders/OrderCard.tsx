@@ -10,16 +10,14 @@ import {
   XCircle,
   RotateCcw,
   ShoppingBag,
-  MapPin,
   CreditCard,
   Loader2,
   AlertCircle,
   Sparkles,
-  Ban,
 } from "lucide-react";
 import OrderPriceSummary from "./OrderPriceSummary";
+import ShipmentTracking from "./ShipmentTracking";
 import ProxyImage from "../ProxyImage";
-import { Button } from "@/components/ui/button";
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
@@ -52,7 +50,7 @@ export interface OrderData {
       total: number;
     }>;
   };
-  [key: string]: any;
+  [key: string]: unknown;
 }
 export interface OrderDetail {
   tax_amount: number;
@@ -114,8 +112,6 @@ interface OrderCardProps {
   toggleExpand: (orderId: string) => void;
   detail?: OrderDetail | null;
   loadingDetail?: boolean;
-  onCancel?: () => void;
-  cancelling?: boolean;
 }
 // ─────────────────────────────────────────────
 // Status Config
@@ -130,50 +126,50 @@ const statusConfig: Record<
 > = {
   PENDING_PAYMENT: {
     pill:
-      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20",
-    dot: "bg-amber-400",
+      "bg-primary-soft text-primary-ink border-primary",
+    dot: "bg-primary",
     icon: <Clock className="h-3 w-3" />,
   },
   PENDING: {
     pill:
-      "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/10 dark:text-yellow-300 dark:border-yellow-500/20",
-    dot: "bg-yellow-400",
+      "bg-primary-soft text-primary-ink border-primary",
+    dot: "bg-primary",
     icon: <RotateCcw className="h-3 w-3" />,
   },
   PROCESSING: {
     pill:
-      "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20",
-    dot: "bg-blue-400",
+      "bg-muted text-foreground border-input",
+    dot: "bg-secondary-ink",
     icon: <RotateCcw className="h-3 w-3 animate-spin" />,
   },
   SHIPPED: {
     pill:
-      "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/10 dark:text-violet-300 dark:border-violet-500/20",
-    dot: "bg-violet-400",
+      "bg-muted text-foreground border-input",
+    dot: "bg-secondary-ink",
     icon: <Truck className="h-3 w-3" />,
   },
   OUT_FOR_DELIVERY: {
     pill:
-      "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/20",
-    dot: "bg-indigo-400",
+      "bg-muted text-foreground border-input",
+    dot: "bg-secondary-ink",
     icon: <Truck className="h-3 w-3" />,
   },
   DELIVERED: {
     pill:
-      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",
-    dot: "bg-emerald-400",
+      "bg-success-soft text-success border-success/30",
+    dot: "bg-success",
     icon: <CheckCircle2 className="h-3 w-3" />,
   },
   SUCCESS: {
     pill:
-      "bg-green-50 text-green-700 border-green-200 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/20",
-    dot: "bg-green-400",
+      "bg-success-soft text-success border-success/30",
+    dot: "bg-success",
     icon: <CheckCircle2 className="h-3 w-3" />,
   },
   CANCELLED: {
     pill:
-      "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20",
-    dot: "bg-red-400",
+      "bg-destructive-soft text-destructive border-destructive/30",
+    dot: "bg-destructive",
     icon: <XCircle className="h-3 w-3" />,
   },
 };
@@ -205,13 +201,11 @@ export default function OrderCard({
   toggleExpand,
   detail,
   loadingDetail,
-  onCancel,
-  cancelling,
 }: OrderCardProps) {
   const cardKey = String(order?.orderId || order?.id);
   const rawDate = order?.created_at || order?.date;
   const orderDate = rawDate
-    ? new Date(rawDate).toLocaleDateString("en-IN", {
+    ? new Date(rawDate).toLocaleDateString("en-US", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -223,7 +217,7 @@ export default function OrderCard({
     "PENDING"
   ).toUpperCase();
   const config = statusConfig[orderStatus] || {
-    pill: "bg-secondary text-foreground border-border",
+    pill: "bg-muted text-foreground border-border",
     dot: "bg-muted-foreground",
     icon: <Clock className="h-3 w-3" />,
   };
@@ -234,7 +228,7 @@ export default function OrderCard({
   const totalItems =
     order?.preview?.total_items ||
     order?.preview?.customization_summary?.reduce(
-      (acc: number, item: any) => acc + (item.quantity || 0),
+      (acc, item) => acc + (item.quantity || 0),
       0
     ) ||
     0;
@@ -252,8 +246,8 @@ export default function OrderCard({
         bg-card border border-border/70 rounded-2xl overflow-hidden
         transition-all duration-300
         ${expanded
-          ? "shadow-lg shadow-black/5 dark:shadow-black/20 border-border"
-          : "shadow-sm hover:shadow-md hover:shadow-black/5 dark:hover:shadow-black/15 hover:border-border"
+          ? "shadow-lg shadow-foreground/5 border-border"
+          : "shadow-sm hover:shadow-md hover:shadow-foreground/5 hover:border-border"
         }
       `}
     >
@@ -347,7 +341,7 @@ export default function OrderCard({
             {order?.preview?.print_method && (
               <>
                 <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                <span className="text-[10px] bg-violet-100 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300 font-semibold px-2 py-0.5 rounded-full">
+                <span className="text-[10px] bg-muted text-foreground font-semibold px-2 py-0.5 rounded-full">
                   {order.preview.print_method}
                 </span>
               </>
@@ -361,28 +355,6 @@ export default function OrderCard({
               ${Number(order?.total_amount || 0).toFixed(2)}
             </p>
           </div>
-          {/* {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={cancelling}
-              onClick={(e) => {
-                e.stopPropagation();
-                onCancel();
-              }}
-              className="h-7 px-2.5 text-[11px] gap-1 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:border-red-500/20 dark:hover:bg-red-500/10 cursor-pointer shrink-0"
-            >
-              {cancelling ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Ban className="h-3 w-3" />
-              )}
-              <span className="hidden sm:inline">
-                {cancelling ? "Cancelling Order..." : "Cancel Order"}
-              </span>
-            </Button>
-          )} */}
           <div
             className={`
               h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200
@@ -477,7 +449,7 @@ export default function OrderCard({
                             </div>
                             {item.customization_config && (
                               <div className="flex flex-wrap items-center gap-1 mt-1.5">
-                                <span className="inline-flex items-center gap-0.5 text-[10px] bg-primary/8 text-primary border border-primary/15 px-1.5 py-0.5 rounded-full font-semibold">
+                                <span className="inline-flex items-center gap-0.5 text-[10px] bg-primary/8 text-primary-ink border border-primary/15 px-1.5 py-0.5 rounded-full font-semibold">
                                   <Sparkles className="h-2.5 w-2.5" />
                                   {
                                     item.customization_config
@@ -502,19 +474,24 @@ export default function OrderCard({
                   })}
                 </div>
               </section>
+              {/* Shipping & tracking */}
+              <section className="mt-5">
+                <SectionLabel>Shipping</SectionLabel>
+                <ShipmentTracking order={detail} />
+              </section>
               {/* Payment */}
               <section className="rounded-xl border border-border/70 bg-card px-4 py-3 mt-5">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-7 w-7 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <CreditCard className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <div className="h-7 w-7 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
+                    <CreditCard className="h-3.5 w-3.5 text-success" />
                   </div>
                   <span className="text-xs font-medium text-muted-foreground">
                     Payment
                   </span>
                   <span
                     className={`ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full border ${detail.payment_status === "SUCCESS"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                      : "bg-amber-50 text-amber-700 border-amber-200"
+                      ? "bg-success-soft text-success border-success/30"
+                      : "bg-primary-soft text-primary-ink border-primary"
                       }`}
                   >
                     {detail.payment_status}

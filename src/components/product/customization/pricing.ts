@@ -82,7 +82,7 @@ export function sumVariantTotals(lines: VariantLineInput[]): VariantLineResult {
 /** Format a number as money with exactly 2 decimal places, comma-separated. */
 export function formatMoney(value: number): string {
   const safeValue = Number.isFinite(value) ? value : 0;
-  return safeValue.toLocaleString(undefined, {
+  return safeValue.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -92,14 +92,12 @@ export function formatMoney(value: number): string {
  * ─────────────────────────────────────────────────────────────────────────
  * APPAREL DECORATION (print) PRICING — SINGLE SOURCE OF TRUTH
  *
- * These tables/tiers previously only lived inside Productcustomizationpage.tsx,
- * so any other screen (e.g. Addproductconfigurationmodal.tsx, which lets a
- * user add MULTIPLE rows each with its own quantity) had no way to price
- * decoration per-row — it could only reuse the single decorationUnitPrice
- * computed for the page's "current" quantity, which is wrong wherever a
- * row's own quantity falls into a different pricing tier.
+ * Tiers and per-piece rates for each decoration method, used by the
+ * customization page (pricing + "View Full Price Table") and by
+ * AddProductConfigurationModal, which prices every row at its own quantity.
  * ─────────────────────────────────────────────────────────────────────────
  */
+export type MaterialId = "embroidery" | "dtf" | "screen_print" | "dtg";
 
 export const EMB_TIERS = [
   { label: "1–11", min: 1, max: 11 },
@@ -115,9 +113,10 @@ export const EMB_PRICES: Record<string, number[]> = {
   RIGHT_CHEST: [12, 11, 10, 9, 8, 7, 6],
   SLEEVE_LEFT: [12, 11, 10, 9, 8, 7, 6],
   SLEEVE_RIGHT: [12, 11, 10, 9, 8, 7, 6],
-  FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
+  // FULL_FRONT: [18, 16, 14, 13, 12, 11, 10],
   FULL_BACK_STANDARD: [18, 16, 14, 13, 12, 11, 10],
   FULL_BACK_LARGE: [22, 20, 18, 16, 15, 14, 12],
+
   HAT_FRONT: [15, 14, 12, 11, 10, 9, 8],
   HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
   HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],
@@ -132,89 +131,86 @@ export const SP_PRICES: Record<string, number[]> = {
   "5 Color": [67.16, 32.84, 14.93, 11.57, 6.72, 6.49],
   "6 Color": [82.09, 37.31, 17.16, 13.06, 8.58, 7.61],
 };
+/** Number-of-colours options for Screen Print — derived from SP_PRICES so
+ *  adding/removing a colour tier there automatically updates the picker. */
+export type SpColorCount = keyof typeof SP_PRICES;
+export const SP_COLOR_COUNTS = Object.keys(SP_PRICES) as SpColorCount[];
+/** Screen Print quantity tiers — order/count must match each SP_PRICES row.
+ *  Single source of truth for the min order qty, the price-index lookup,
+ *  and the "View Full Price Table" headers. */
+export const SP_TIERS = [
+  { label: "12–23", min: 12 },
+  { label: "24–47", min: 24 },
+  { label: "48–99", min: 48 },
+  { label: "100–299", min: 100 },
+  { label: "300–499", min: 300 },
+  { label: "500+", min: 500 },
+];
+export const SP_MIN_QTY = SP_TIERS[0].min;
+export const DTG_TIERS = [{ min: 1 }, { min: 24 }, { min: 48 }, { min: 100 }];
 export const DTG_PRICES: Record<string, number[]> = {
   "Front Regular": [15, 12, 11, 9],
   "Oversized": [20, 17, 16, 14],
   "Front & Back Regular": [30, 24, 22, 18],
   "Front & Back Oversized": [40, 34, 32, 28],
 };
-
-export interface PrintPriceParams {
-  material: string;
-  locations: string[];
-  quantity: number;
-  spColorCount?: keyof typeof SP_PRICES;
-  dtgStyle?: keyof typeof DTG_PRICES;
-}
-
-/**
- * Total decoration charge for a print run at `quantity` pieces — mirrors
- * Productcustomizationpage.tsx's getPrintPrice() exactly (same tiers, same
- * embroidery digitizing-fee smear for qty <= 11). Returns null when the
- * selection isn't priceable yet (no material/location, or qty <= 0).
- */
-export function getPrintPriceTotal({
-  material,
-  locations,
-  quantity,
-  spColorCount = "1 Color",
-  dtgStyle = "Front Regular",
-}: PrintPriceParams): number | null {
+export function getMaterialPrintTotal(
+  material: MaterialId | null,
+  locations: string[],
+  qty: number,
+  spColorCount: SpColorCount = "1 Color",
+  dtgStyle: keyof typeof DTG_PRICES = "Front Regular"
+): number | null {
   if (!material) return null;
-  if (!locations || locations.length === 0) return null;
-  if (quantity <= 0) return null;
+  if (locations.length === 0) return null;
+  if (qty <= 0) return null;
   switch (material) {
     case "embroidery": {
-      const tierIndex = EMB_TIERS.findIndex(t => quantity >= t.min && quantity <= t.max);
+      const tierIndex = EMB_TIERS.findIndex(t => qty >= t.min && qty <= t.max);
       let total = 0;
       locations.forEach(location => {
         const row = EMB_PRICES[location];
         if (!row) return;
-        total += row[tierIndex] * quantity;
+        total += row[tierIndex] * qty;
       });
-      if (quantity <= 11) total += 35;
+      if (qty <= 11) total += 35;
       return total;
     }
     case "dtf": {
       const tier =
-        quantity >= 144 ? 6 :
-          quantity >= 96 ? 5 :
-            quantity >= 72 ? 4 :
-              quantity >= 36 ? 3 :
-                quantity >= 24 ? 2 :
-                  quantity >= 12 ? 1 : 0;
-      return DTF_PRICES[tier] * quantity * locations.length;
+        qty >= 144 ? 6 :
+          qty >= 96 ? 5 :
+            qty >= 72 ? 4 :
+              qty >= 36 ? 3 :
+                qty >= 24 ? 2 :
+                  qty >= 12 ? 1 : 0;
+      return DTF_PRICES[tier] * qty * locations.length;
     }
     case "screen_print": {
-      if (quantity < 50) return null;
-      const price = quantity >= 100 ? SP_PRICES[spColorCount][1] : SP_PRICES[spColorCount][0];
-      return price * quantity * locations.length;
+      if (qty < SP_MIN_QTY) return null;
+      const priceIndex = SP_TIERS.reduce((found, t, idx) => (qty >= t.min ? idx : found), 0);
+      const price = SP_PRICES[spColorCount]?.[priceIndex];
+      if (price == null) return null;
+      return price * qty * locations.length;
     }
     case "dtg": {
       const tier =
-        quantity >= 100 ? 3 :
-          quantity >= 48 ? 2 :
-            quantity >= 24 ? 1 : 0;
-      return DTG_PRICES[dtgStyle][tier] * quantity;
+        qty >= 100 ? 3 :
+          qty >= 48 ? 2 :
+            qty >= 24 ? 1 : 0;
+      return DTG_PRICES[dtgStyle][tier] * qty;
     }
     default:
       return null;
   }
 }
-
-/** The $35 embroidery digitizing fee — already folded into getPrintPriceTotal's
- *  total for qty <= 11 above. Exported purely so screens can call this out as
- *  its own breakdown line without re-deriving/duplicating the qty <= 11 rule. */
-export function getDigitizingFee(material: string, quantity: number): number {
-  return material === "embroidery" && quantity > 0 && quantity <= 11 ? 35 : 0;
+/** Minimum apparel quantity for a decoration method (screen print has a run minimum). */
+export function getMaterialFloor(material: MaterialId | null): number {
+  return material === "screen_print" ? SP_MIN_QTY : 1;
 }
-
-/** Per-unit decoration price for `quantity` pieces — the tiered total divided
- *  back down to a per-piece rate, ready to feed into calculateVariantTotal. */
-export function getDecorationUnitPrice(params: PrintPriceParams): number {
-  if (params.quantity <= 0) return 0;
-  const total = getPrintPriceTotal(params);
-  return total == null ? 0 : total / params.quantity;
+/** One-time embroidery digitizing fee — applies to runs of 11 pieces or fewer. */
+export function getDigitizingFee(material: MaterialId | null, qty: number): number {
+  return material === "embroidery" && qty > 0 && qty <= 11 ? 35 : 0;
 }
 /**
  * ─────────────────────────────────────────────────────────────────────────

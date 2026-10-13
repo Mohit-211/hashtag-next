@@ -1,26 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ShoppingBag } from "lucide-react";
-import OrderCard, { OrderData } from "@/components/orders/OrderCard";
-import { GetOrderDetailApi, CancelOrderApi } from "@/api/operations/order.api";
-import { toast } from "sonner"; // swap for whatever toast lib you use, or remove
+import OrderCard, { type OrderData, type OrderDetail } from "@/components/orders/OrderCard";
+import { GetOrderDetailApi } from "@/api/operations/order.api";
 
 interface OrdersListProps {
   orders: OrderData[];
 }
 
 export default function OrdersList({ orders }: OrdersListProps) {
-  const [localOrders, setLocalOrders] = useState<OrderData[]>(orders);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
-  const [orderDetails, setOrderDetails] = useState<Record<string, any>>({});
+  const [orderDetails, setOrderDetails] = useState<Record<string, OrderDetail>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
-  const [cancellingOrders, setCancellingOrders] = useState<Record<string, boolean>>({});
-  // Keep local copy in sync if parent refetches/passes new orders
-  useEffect(() => {
-    setLocalOrders(orders);
-  }, [orders]);
-
   const toggleExpand = async (cardKey: string, realId: string | number) => {
     const isCurrentlyExpanded = expandedOrders[cardKey];
 
@@ -47,32 +39,8 @@ export default function OrdersList({ orders }: OrdersListProps) {
     }
   };
 
-  const handleCancelOrder = async (cardKey: string, realId: string | number) => {
-    const confirmed = window.confirm("Are you sure you want to cancel this order?");
-    if (!confirmed) return;
 
-    try {
-      setCancellingOrders((prev) => ({ ...prev, [cardKey]: true }));
-      await CancelOrderApi(realId);
-
-      // Reflect cancellation locally so UI updates immediately
-      setLocalOrders((prev) =>
-        prev.map((order) => {
-          const key = String(order?.orderId || order?.id);
-          return key === cardKey ? { ...order, status: "Cancelled" } : order;
-        })
-      );
-
-      toast?.success?.("Order cancelled successfully");
-    } catch (err: any) {
-      console.error("Failed to cancel order:", err);
-      toast?.error?.(err?.response?.data?.message || "Failed to cancel order");
-    } finally {
-      setCancellingOrders((prev) => ({ ...prev, [cardKey]: false }));
-    }
-  };
-
-  if (!localOrders?.length) {
+  if (!orders?.length) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-muted-foreground">
         <div className="relative">
@@ -95,11 +63,9 @@ export default function OrdersList({ orders }: OrdersListProps) {
 
   return (
     <div className="space-y-3">
-      {localOrders.map((order) => {
+      {orders.map((order) => {
         const cardKey = String(order?.orderId || order?.id);
         const realId = order?.id ?? order?.orderId;
-        const status = String(order?.status || "").toLowerCase();
-        const isCancellable = !["cancelled", "delivered", "completed"].includes(status);
         return (
           <OrderCard
             key={cardKey}
@@ -108,8 +74,6 @@ export default function OrdersList({ orders }: OrdersListProps) {
             toggleExpand={(key) => toggleExpand(key, realId)}
             detail={orderDetails[cardKey] ?? null}
             loadingDetail={loadingDetails[cardKey] ?? false}
-            onCancel={isCancellable ? () => handleCancelOrder(cardKey, realId) : undefined}
-            cancelling={cancellingOrders[cardKey] ?? false}
           />
         );
       })}

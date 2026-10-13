@@ -94,7 +94,7 @@ export function buildFilterParams(opts: {
 }) {
   const PRICE_MIN = 0;
   const PRICE_MAX = 500;
-  const params: Record<string, any> = {
+  const params: Record<string, string | number | boolean> = {
     page: opts.page,
     limit: opts.limit,
   };

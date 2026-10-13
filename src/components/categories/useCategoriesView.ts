@@ -22,10 +22,19 @@ import type {
   Industry,
   ParentCategory,
   Pill,
+  PillTarget,
   SelectedIndustryCategory,
   SelectedSubCategory,
   UseCase,
 } from "@/data/types";
+
+/** Query params that represent an active product filter. */
+const FILTER_PARAMS = [
+  "category_id", "industry_id", "search", "brand_id", "use_case_id",
+  "size", "color", "gender", "fabric", "tier", "in_stock", "min_price", "max_price",
+] as const;
+const hasFilterParams = (params: { get(key: string): string | null }) =>
+  FILTER_PARAMS.some((key) => !!params.get(key));
 
 export function useCategoriesView({
   initialCategoryId,
@@ -64,7 +73,6 @@ export function useCategoriesView({
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<number>>(new Set());
   const [activeIndustry, setActiveIndustry] = useState<Industry>({ id: null, title: "All" });
   const [expandedIndustryIds, setExpandedIndustryIds] = useState<Set<number>>(new Set());
-  const [collapsedUseCaseIds, setCollapsedUseCaseIds] = useState<Set<number>>(new Set());
   const [activeParents, setActiveParents] = useState<SelectedSubCategory[]>([]);
   const [activeIndustryCategories, setActiveIndustryCategories] = useState<SelectedIndustryCategory[]>([]);
   const [activeBrands, setActiveBrands] = useState<Brand[]>([]);
@@ -81,10 +89,10 @@ export function useCategoriesView({
   });
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const [sortBy, setSortBy] = useState<SortOption["value"]>("" as SortOption["value"]);
+  // Any filter in the URL (including facets like ?size=M, which the grid writes
+  // when a facet is picked) means "show the products grid", e.g. on reload.
   const hasUrlFilterParam =
-    !!initialCategoryId || !!initialBrandId || !!initialIndustryId || !!urlSearch || urlBrowseAll ||
-    !!searchParams.get("category_id") || !!searchParams.get("industry_id") || !!searchParams.get("use_case_id") ||
-    !!searchParams.get("brand_id");
+    !!initialCategoryId || !!initialBrandId || !!initialIndustryId || urlBrowseAll || hasFilterParams(searchParams);
   const [urlRestoreAttempted, setUrlRestoreAttempted] = useState(!hasUrlFilterParam);
   const [viewMode, setViewMode] = useState<"picker" | "products">(hasUrlFilterParam ? "products" : "picker");
   const [pickerIndustryId, setPickerIndustryId] = useState<number | null>(null);
@@ -125,7 +133,14 @@ export function useCategoriesView({
   const [brandMenuOpen, setBrandMenuOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(urlSearch);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => { setSearchInput(urlSearch); }, [urlSearch]);
+  // A new search term in the URL fills the search box and shows the results grid
+  // (a fresh mount with ?search= already starts in products view — see viewMode).
+  const [seenUrlSearch, setSeenUrlSearch] = useState(urlSearch);
+  if (urlSearch !== seenUrlSearch) {
+    setSeenUrlSearch(urlSearch);
+    setSearchInput(urlSearch);
+    if (urlSearch) setViewMode("products");
+  }
   const fetchingRef = useRef(false);
   const pageRef = useRef(1);
   const [page, setPage] = useState(1);
@@ -166,6 +181,7 @@ export function useCategoriesView({
       const ids = qBrandId.split(",").map((s) => s.trim());
       const matched = brandList.filter((b) => ids.includes(String(b.id)));
       if (matched.length) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring brand filters from the URL once brands have loaded
         setActiveBrands(matched);
         activeBrandsRef.current = matched;
       }
@@ -256,9 +272,13 @@ export function useCategoriesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories, brandList, initialCategoryId, initialParentId, initialBrandId]);
 
-  useEffect(() => {
+  // A different initial category/parent (new route) closes any open sub-nav.
+  const initialSelectionKey = `${initialCategoryId ?? ""}|${initialParentId ?? ""}`;
+  const [hoverResetKey, setHoverResetKey] = useState(initialSelectionKey);
+  if (hoverResetKey !== initialSelectionKey) {
+    setHoverResetKey(initialSelectionKey);
     setHoveredCatId("none");
-  }, [initialCategoryId, initialParentId]);
+  }
 
   const industryRestoreAttemptedRef = useRef(false);
   useEffect(() => {
@@ -275,6 +295,7 @@ export function useCategoriesView({
       }
       if (matches.length) {
         const ids = matches.map((m) => m.uc.id);
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring use-case filters from the URL once industries have loaded
         setActiveUseCaseId(ids.length === 1 ? ids[0] : ids);
         activeUseCaseIdRef.current = ids.length === 1 ? ids[0] : ids;
         const categoryIds = Array.from(new Set(matches.flatMap((m) => (m.uc.parent_categories ?? []).map((c) => c.id))));
@@ -343,6 +364,7 @@ export function useCategoriesView({
     if (qPickerIndustry) {
       const ind = industries.find((i) => String(i.id) === String(qPickerIndustry));
       if (ind && ind.id != null) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring the picker's industry from the URL once industries have loaded
         setPickerIndustryId(ind.id);
       }
     }
@@ -407,17 +429,6 @@ export function useCategoriesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlSearch]);
 
-  // FIX: as long as a search term is present in the URL, guarantee the
-  // products view is shown. This is unconditional and doesn't depend on
-  // ref-diffing/previous state, so it can't be missed by mount timing,
-  // StrictMode double-effects, or a fresh mount that already carries
-  // ?search=... (e.g. Header's <form onSubmit={handleSearchSubmit}>
-  // pushing straight to /categories?search=...).
-  useEffect(() => {
-    if (urlSearch) {
-      setViewMode("products");
-    }
-  }, [urlSearch]);
 
   // Clears every active filter (category, industry, brand, and all facets)
   // without touching viewMode — used whenever the URL itself says "no
@@ -488,21 +499,7 @@ export function useCategoriesView({
     if (pathname !== "/categories") return; // only care about bare /categories route
     if (prevUrlKey === currentUrlKey) return// only on a genuine route change
 
-    const hasFilterParam =
-      !!searchParams.get("category_id") ||
-      !!searchParams.get("industry_id") ||
-      !!searchParams.get("search") ||
-      !!searchParams.get("brand_id") ||
-      !!searchParams.get("use_case_id") ||
-      !!searchParams.get("size") ||
-      !!searchParams.get("color") ||
-      !!searchParams.get("gender") ||
-      !!searchParams.get("fabric") ||
-      !!searchParams.get("tier") ||
-      !!searchParams.get("in_stock") ||
-      !!searchParams.get("min_price") ||
-      !!searchParams.get("max_price");
-    if (hasFilterParam) return; // deep-linked/shared URL — keep products view
+    if (hasFilterParams(searchParams)) return; // deep-linked/shared URL — keep products view
 
     if (searchParams.get("view") === "all") {
       // Explicit "browse all, no filters" state (set by Skip/Clear-filters,
@@ -511,12 +508,12 @@ export function useCategoriesView({
       // over from a previous route (e.g. picking a category, then going
       // back) must be cleared too — but stay on the products grid instead
       // of bouncing back to the picker gate.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- re-syncing filter state with the URL on back/forward navigation
       clearAllFilterState();
       return;
     }
 
     resetToInitialFlow();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams, resetToInitialFlow, clearAllFilterState]);
 
   // Remember the current filtered products URL so a product detail page's
@@ -582,18 +579,29 @@ export function useCategoriesView({
       const inStock = next.inStock ?? inStockOnlyRef.current;
       const sort = next.sort ?? sortByRef.current;
       const [min, max] = next.priceRange ?? priceRangeRef.current;
-      categoryIds.length ? sp.set("category_id", categoryIds.join(",")) : sp.delete("category_id");
-      brandIds.length ? sp.set("brand_id", brandIds.join(",")) : sp.delete("brand_id");
+      if (categoryIds.length) sp.set("category_id", categoryIds.join(","));
+      else sp.delete("category_id");
+      if (brandIds.length) sp.set("brand_id", brandIds.join(","));
+      else sp.delete("brand_id");
       sp.delete("use_case_id");
-      sizes.length ? sp.set("size", sizes.join(",")) : sp.delete("size");
-      colors.length ? sp.set("color", colors.join(",")) : sp.delete("color");
-      genders.length ? sp.set("gender", genders.join(",")) : sp.delete("gender");
-      fabrics.length ? sp.set("fabric", fabrics.join(",")) : sp.delete("fabric");
-      tier && tier !== "all" ? sp.set("tier", tier) : sp.delete("tier");
-      inStock ? sp.set("in_stock", "true") : sp.delete("in_stock");
-      sort ? sp.set("sort", sort) : sp.delete("sort");
-      min > PRICE_MIN ? sp.set("min_price", String(min)) : sp.delete("min_price");
-      max < PRICE_MAX ? sp.set("max_price", String(max)) : sp.delete("max_price");
+      if (sizes.length) sp.set("size", sizes.join(","));
+      else sp.delete("size");
+      if (colors.length) sp.set("color", colors.join(","));
+      else sp.delete("color");
+      if (genders.length) sp.set("gender", genders.join(","));
+      else sp.delete("gender");
+      if (fabrics.length) sp.set("fabric", fabrics.join(","));
+      else sp.delete("fabric");
+      if (tier && tier !== "all") sp.set("tier", tier);
+      else sp.delete("tier");
+      if (inStock) sp.set("in_stock", "true");
+      else sp.delete("in_stock");
+      if (sort) sp.set("sort", sort);
+      else sp.delete("sort");
+      if (min > PRICE_MIN) sp.set("min_price", String(min));
+      else sp.delete("min_price");
+      if (max < PRICE_MAX) sp.set("max_price", String(max));
+      else sp.delete("max_price");
       if (next.clearSearch) {
         sp.delete("search");
         if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
@@ -607,7 +615,8 @@ export function useCategoriesView({
         categoryIds.length || brandIds.length || sizes.length || colors.length ||
         genders.length || fabrics.length || (tier && tier !== "all") || inStock ||
         min > PRICE_MIN || max < PRICE_MAX || sp.has("search");
-      stillHasFilter ? sp.delete("view") : sp.set("view", "all");
+      if (stillHasFilter) sp.delete("view");
+      else sp.set("view", "all");
       router.replace(`${url.pathname}?${sp.toString()}`.replace(/\?$/, ""), { scroll: false });
     },
     [router]
@@ -698,6 +707,7 @@ export function useCategoriesView({
     if (!urlRestoreAttempted) return;
     setProductGridLoading(true);
     pageRef.current = 1;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a filter change starts a new product request; the grid shows it as loading
     setPage(1);
     if (activeUseCaseId != null) {
       fetchProductsByUseCase(activeUseCaseId, 1, false, undefined, activeUseCaseCategoryIds, activeTier);
@@ -805,35 +815,33 @@ export function useCategoriesView({
 
   const toggleSubCategory = (cat: GrandCategory, parent: ParentCategory) => {
     if (cat.id == null) return;
-    setActiveParents((prev) => {
-      const exists = prev.some((p) => p.grandId === cat.id && p.id === parent.id);
-      const next = exists
-        ? prev.filter((p) => !(p.grandId === cat.id && p.id === parent.id))
-        : [...prev, { ...parent, grandId: cat.id as number, grandName: cat.name }];
-      activeParentsRef.current = next;
-      persistSelection(next.length ? "category" : null, next.length ? next.map((p) => p.id).join(",") : null, {
-        parentIds: next.map((p) => p.id),
-      });
-      syncQueryString({
-        categoryIds: [...next.map((p) => String(p.id)), ...activeIndustryCategoriesRef.current.map((c) => String(c.id))],
-        clearSearch: true,
-      });
-      return next;
+    const prev = activeParentsRef.current;
+    const exists = prev.some((p) => p.grandId === cat.id && p.id === parent.id);
+    const next = exists
+      ? prev.filter((p) => !(p.grandId === cat.id && p.id === parent.id))
+      : [...prev, { ...parent, grandId: cat.id as number, grandName: cat.name }];
+    activeParentsRef.current = next;
+    persistSelection(next.length ? "category" : null, next.length ? next.map((p) => p.id).join(",") : null, {
+      parentIds: next.map((p) => p.id),
     });
+    syncQueryString({
+      categoryIds: [...next.map((p) => String(p.id)), ...activeIndustryCategoriesRef.current.map((c) => String(c.id))],
+      clearSearch: true,
+    });
+    setActiveParents(next);
   };
 
   const handleIndustrySelect = (ind: Industry) => {
     setActiveIndustry(ind);
     activeIndustryRef.current = ind;
-    setActiveIndustryCategories((prev) => {
-      const next = prev.filter((c) => c.industryId !== ind.id);
-      activeIndustryCategoriesRef.current = next;
-      syncQueryString({
-        categoryIds: [...activeParentsRef.current.map((p) => String(p.id)), ...next.map((c) => String(c.id))],
-        clearSearch: true,
-      });
-      return next;
+    const prev = activeIndustryCategoriesRef.current;
+    const next = prev.filter((c) => c.industryId !== ind.id);
+    activeIndustryCategoriesRef.current = next;
+    syncQueryString({
+      categoryIds: [...activeParentsRef.current.map((p) => String(p.id)), ...next.map((c) => String(c.id))],
+      clearSearch: true,
     });
+    setActiveIndustryCategories(next);
     persistSelection(ind.id != null ? "industry" : null, ind.id, { name: ind.title });
   };
 
@@ -845,31 +853,22 @@ export function useCategoriesView({
     });
   };
 
-  const toggleUseCaseExpand = (ucId: number) => {
-    setCollapsedUseCaseIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(ucId)) next.delete(ucId); else next.add(ucId);
-      return next;
-    });
-  };
-
   const toggleIndustryCategory = (ind: Industry, useCase: UseCase, category: ParentCategory) => {
     if (ind.id == null) return;
-    setActiveIndustryCategories((prev) => {
-      const exists = prev.some((c) => c.industryId === ind.id && c.useCaseId === useCase.id && c.id === category.id);
-      const next = exists
-        ? prev.filter((c) => !(c.industryId === ind.id && c.useCaseId === useCase.id && c.id === category.id))
-        : [...prev, { ...category, industryId: ind.id as number, industryName: ind.title, useCaseId: useCase.id, useCaseName: useCase.title }];
-      activeIndustryCategoriesRef.current = next;
-      persistSelection(next.length ? "industry" : null, next.length ? next.map((c) => c.id).join(",") : null, {
-        categoryIds: next.map((c) => c.id),
-      });
-      syncQueryString({
-        categoryIds: [...activeParentsRef.current.map((p) => String(p.id)), ...next.map((c) => String(c.id))],
-        clearSearch: true,
-      });
-      return next;
+    const prev = activeIndustryCategoriesRef.current;
+    const exists = prev.some((c) => c.industryId === ind.id && c.useCaseId === useCase.id && c.id === category.id);
+    const next = exists
+      ? prev.filter((c) => !(c.industryId === ind.id && c.useCaseId === useCase.id && c.id === category.id))
+      : [...prev, { ...category, industryId: ind.id as number, industryName: ind.title, useCaseId: useCase.id, useCaseName: useCase.title }];
+    activeIndustryCategoriesRef.current = next;
+    persistSelection(next.length ? "industry" : null, next.length ? next.map((c) => c.id).join(",") : null, {
+      categoryIds: next.map((c) => c.id),
     });
+    syncQueryString({
+      categoryIds: [...activeParentsRef.current.map((p) => String(p.id)), ...next.map((c) => String(c.id))],
+      clearSearch: true,
+    });
+    setActiveIndustryCategories(next);
   };
 
   // Checking a use case row in the sidebar now goes straight through
@@ -908,7 +907,8 @@ export function useCategoriesView({
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       const sp = url.searchParams;
-      nextIds.length ? sp.set("use_case_id", nextIds.join(",")) : sp.delete("use_case_id");
+      if (nextIds.length) sp.set("use_case_id", nextIds.join(","));
+      else sp.delete("use_case_id");
       sp.delete("category_id");
       sp.delete("industry_id");
       sp.delete("tier");
@@ -919,7 +919,8 @@ export function useCategoriesView({
       // mark it as the explicit "browse all" state so the bare-/categories
       // effect doesn't mistake it for a fresh nav and bounce back to the
       // picker gate.
-      nextIds.length ? sp.delete("view") : sp.set("view", "all");
+      if (nextIds.length) sp.delete("view");
+      else sp.set("view", "all");
       router.replace(`${url.pathname}?${sp.toString()}`.replace(/\?$/, ""), { scroll: false });
     }
   };
@@ -931,48 +932,43 @@ export function useCategoriesView({
     activeUseCaseCategoryIdsRef.current = [];
     setActiveTier("all");
     activeTierRef.current = "all";
-    setActiveBrands((prev) => {
-      const exists = prev.some((b) => String(b.id) === String(brand.id));
-      const next = exists ? prev.filter((b) => String(b.id) !== String(brand.id)) : [...prev, brand];
-      activeBrandsRef.current = next;
-      persistSelection(next.length ? "brand" : null, next.length ? next.map((b) => b.id).join(",") : null, {
-        names: next.map((b) => b.name),
-      });
-      syncQueryString({ brandIds: next.map((b) => String(b.id)), clearSearch: true });
-      return next;
+    const prev = activeBrandsRef.current;
+    const exists = prev.some((b) => String(b.id) === String(brand.id));
+    const next = exists ? prev.filter((b) => String(b.id) !== String(brand.id)) : [...prev, brand];
+    activeBrandsRef.current = next;
+    persistSelection(next.length ? "brand" : null, next.length ? next.map((b) => b.id).join(",") : null, {
+      names: next.map((b) => b.name),
     });
+    syncQueryString({ brandIds: next.map((b) => String(b.id)), clearSearch: true });
+    setActiveBrands(next);
   };
 
   const toggleSize = (size: string) => {
-    setActiveSizes((prev) => {
-      const next = prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size];
-      syncQueryString({ sizes: next, clearSearch: true });
-      return next;
-    });
+    const prev = activeSizes;
+    const next = prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size];
+    syncQueryString({ sizes: next, clearSearch: true });
+    setActiveSizes(next);
   };
 
   const toggleColor = (color: string) => {
-    setActiveColors((prev) => {
-      const next = prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color];
-      syncQueryString({ colors: next, clearSearch: true });
-      return next;
-    });
+    const prev = activeColors;
+    const next = prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color];
+    syncQueryString({ colors: next, clearSearch: true });
+    setActiveColors(next);
   };
 
   const toggleGender = (gender: string) => {
-    setActiveGenders((prev) => {
-      const next = prev.includes(gender) ? prev.filter((g) => g !== gender) : [...prev, gender];
-      syncQueryString({ genders: next, clearSearch: true });
-      return next;
-    });
+    const prev = activeGenders;
+    const next = prev.includes(gender) ? prev.filter((g) => g !== gender) : [...prev, gender];
+    syncQueryString({ genders: next, clearSearch: true });
+    setActiveGenders(next);
   };
 
   const toggleFabric = (fabric: string) => {
-    setActiveFabrics((prev) => {
-      const next = prev.includes(fabric) ? prev.filter((f) => f !== fabric) : [...prev, fabric];
-      syncQueryString({ fabrics: next, clearSearch: true });
-      return next;
-    });
+    const prev = activeFabrics;
+    const next = prev.includes(fabric) ? prev.filter((f) => f !== fabric) : [...prev, fabric];
+    syncQueryString({ fabrics: next, clearSearch: true });
+    setActiveFabrics(next);
   };
 
   const handleTierChange = (tier: string) => {
@@ -987,7 +983,8 @@ export function useCategoriesView({
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
         const sp = url.searchParams;
-        tier && tier !== "all" ? sp.set("tier", tier) : sp.delete("tier");
+        if (tier && tier !== "all") sp.set("tier", tier);
+        else sp.delete("tier");
         router.replace(`${url.pathname}?${sp.toString()}`.replace(/\?$/, ""), { scroll: false });
       }
       return;
@@ -996,11 +993,10 @@ export function useCategoriesView({
   };
 
   const toggleInStock = () => {
-    setInStockOnly((prev) => {
-      const next = !prev;
-      syncQueryString({ inStock: next, clearSearch: true });
-      return next;
-    });
+    const prev = inStockOnly;
+    const next = !prev;
+    syncQueryString({ inStock: next, clearSearch: true });
+    setInStockOnly(next);
   };
 
   const clearSizes = () => { setActiveSizes([]); syncQueryString({ sizes: [], clearSearch: true }); };
@@ -1171,74 +1167,100 @@ export function useCategoriesView({
     : Array.isArray(activeUseCaseId)
       ? activeUseCaseId
       : [activeUseCaseId];
+  // Pills are plain data; removePill (below) clears the filter a pill stands for.
   const pills: Pill[] = [];
-  if (urlSearch) pills.push({ key: "search", label: `"${urlSearch}"`, onRemove: clearHeaderSearch });
+  if (urlSearch) pills.push({ key: "search", label: `"${urlSearch}"`, target: { kind: "search" } });
   if (activeCategory.id !== null && !activeParents.length) {
-    pills.push({ key: "cat", label: activeCategory.name, onRemove: () => handleCategoryTabSelect({ id: null, name: "All", parent_categories: [] }) });
+    pills.push({ key: "cat", label: activeCategory.name, target: { kind: "category" } });
   }
   const seenCategoryPillIds = new Set<number>(); // a category can reach activeParents AND activeIndustryCategories (multiple use cases) — one pill per id
   activeParents.forEach((p) => {
     if (seenCategoryPillIds.has(p.id)) return;
     seenCategoryPillIds.add(p.id);
-    pills.push({
-      key: `parent-${p.grandId}-${p.id}`,
-      label: p.title,
-      onRemove: () => {
-        const next = activeParents.filter((x) => !(x.grandId === p.grandId && x.id === p.id));
-        setActiveParents(next);
-        activeParentsRef.current = next;
-        syncQueryString({
-          categoryIds: [...next.map((x) => String(x.id)), ...activeIndustryCategories.map((c) => String(c.id))],
-        });
-      },
-    });
+    pills.push({ key: `parent-${p.grandId}-${p.id}`, label: p.title, target: { kind: "parent", grandId: p.grandId, id: p.id } });
   });
   if (activeIndustry.id !== null && !activeIndustryCategories.some((c) => c.industryId === activeIndustry.id)) {
-    pills.push({ key: "industry", label: activeIndustry.title, onRemove: () => handleIndustrySelect({ id: null, title: "All", use_cases: [] }) });
+    pills.push({ key: "industry", label: activeIndustry.title, target: { kind: "industry" } });
   }
   activeIndustryCategories.forEach((c) => {
     if (seenCategoryPillIds.has(c.id)) return; // same category can belong to multiple use cases — show one pill
     seenCategoryPillIds.add(c.id);
-    pills.push({
-      key: `indcat-${c.id}`,
-      label: c.title,
-      onRemove: () => {
-        const next = activeIndustryCategories.filter((x) => x.id !== c.id);
-        setActiveIndustryCategories(next);
-        activeIndustryCategoriesRef.current = next;
-        syncQueryString({
-          categoryIds: [...activeParents.map((p) => String(p.id)), ...next.map((x) => String(x.id))],
-        });
-      },
-    });
+    pills.push({ key: `indcat-${c.id}`, label: c.title, target: { kind: "industryCategory", id: c.id } });
   });
   if (activeUseCaseIds.length) {
     industries.forEach((ind) => {
       (ind.use_cases ?? []).forEach((uc) => {
         if (!activeUseCaseIds.some((id) => String(id) === String(uc.id))) return;
-        pills.push({
-          key: `usecase-${uc.id}`,
-          label: uc.title,
-          onRemove: () => toggleUseCaseCategories(ind, uc),
-        });
+        pills.push({ key: `usecase-${uc.id}`, label: uc.title, target: { kind: "useCase", industryId: ind.id, useCaseId: uc.id } });
       });
     });
   }
-  activeBrands.forEach((b) => pills.push({ key: `brand-${b.id}`, label: b.name, onRemove: () => toggleBrand(b) }));
-  activeSizes.forEach((s) => pills.push({ key: `size-${s}`, label: `Size: ${s}`, onRemove: () => toggleSize(s) }));
-  activeColors.forEach((c) => pills.push({ key: `color-${c}`, label: c, onRemove: () => toggleColor(c) }));
-  activeGenders.forEach((g) => pills.push({ key: `gender-${g}`, label: g, onRemove: () => toggleGender(g) }));
-  activeFabrics.forEach((f) => pills.push({ key: `fabric-${f}`, label: f, onRemove: () => toggleFabric(f) }));
+  activeBrands.forEach((b) => pills.push({ key: `brand-${b.id}`, label: b.name, target: { kind: "brand", id: b.id } }));
+  activeSizes.forEach((v) => pills.push({ key: `size-${v}`, label: `Size: ${v}`, target: { kind: "size", value: v } }));
+  activeColors.forEach((v) => pills.push({ key: `color-${v}`, label: v, target: { kind: "color", value: v } }));
+  activeGenders.forEach((v) => pills.push({ key: `gender-${v}`, label: v, target: { kind: "gender", value: v } }));
+  activeFabrics.forEach((v) => pills.push({ key: `fabric-${v}`, label: v, target: { kind: "fabric", value: v } }));
   // Tier is only ever a real filter alongside an active use case.
   const tierActive = activeTier !== "all" && activeUseCaseIds.length > 0;
   if (tierActive) {
     const tierLabel = TIER_OPTIONS.find((o) => o.value === activeTier)?.label ?? activeTier;
-    pills.push({ key: "tier", label: tierLabel, onRemove: clearTier });
+    pills.push({ key: "tier", label: tierLabel, target: { kind: "tier" } });
   }
-  if (inStockOnly) pills.push({ key: "instock", label: "In stock", onRemove: toggleInStock });
+  if (inStockOnly) pills.push({ key: "instock", label: "In stock", target: { kind: "inStock" } });
   if (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX) {
-    pills.push({ key: "price", label: `$${priceRange[0]}–$${priceRange[1]}`, onRemove: () => commitPriceRange([PRICE_MIN, PRICE_MAX]) });
+    pills.push({ key: "price", label: `$${priceRange[0]}–$${priceRange[1]}`, target: { kind: "price" } });
   }
+  const removePill = (target: PillTarget) => {
+    switch (target.kind) {
+      case "search":
+        return clearHeaderSearch();
+      case "category":
+        return handleCategoryTabSelect({ id: null, name: "All", parent_categories: [] });
+      case "parent": {
+        const next = activeParents.filter((x) => !(x.grandId === target.grandId && x.id === target.id));
+        setActiveParents(next);
+        activeParentsRef.current = next;
+        return syncQueryString({
+          categoryIds: [...next.map((x) => String(x.id)), ...activeIndustryCategories.map((c) => String(c.id))],
+        });
+      }
+      case "industry":
+        return handleIndustrySelect({ id: null, title: "All", use_cases: [] });
+      case "industryCategory": {
+        const next = activeIndustryCategories.filter((x) => x.id !== target.id);
+        setActiveIndustryCategories(next);
+        activeIndustryCategoriesRef.current = next;
+        return syncQueryString({
+          categoryIds: [...activeParents.map((p) => String(p.id)), ...next.map((x) => String(x.id))],
+        });
+      }
+      case "useCase": {
+        const ind = industries.find((i) => i.id === target.industryId);
+        const uc = ind?.use_cases?.find((u) => u.id === target.useCaseId);
+        if (ind && uc) toggleUseCaseCategories(ind, uc);
+        return;
+      }
+      case "brand": {
+        const brand = activeBrands.find((b) => String(b.id) === String(target.id));
+        if (brand) toggleBrand(brand);
+        return;
+      }
+      case "size":
+        return toggleSize(target.value);
+      case "color":
+        return toggleColor(target.value);
+      case "gender":
+        return toggleGender(target.value);
+      case "fabric":
+        return toggleFabric(target.value);
+      case "tier":
+        return clearTier();
+      case "inStock":
+        return toggleInStock();
+      case "price":
+        return commitPriceRange([PRICE_MIN, PRICE_MAX]);
+    }
+  };
   const totalFacetCount =
     (activeCategory.id !== null && !activeParents.length ? 1 : 0) + seenCategoryPillIds.size +
     (activeIndustry.id !== null && !activeIndustryCategories.some((c) => c.industryId === activeIndustry.id) ? 1 : 0) +
@@ -1257,7 +1279,7 @@ export function useCategoriesView({
     products, total_products, productLoading, productGridLoading, initialLoading, page,
     categories, industries, industriesLoading, brandList, brandLoading,
     activeCategory, activeParents, expandedCategoryIds,
-    activeIndustry, activeIndustryCategories, activeUseCaseIds, expandedIndustryIds, collapsedUseCaseIds,
+    activeIndustry, activeIndustryCategories, activeUseCaseIds, expandedIndustryIds,
     activeBrands, activeSizes, activeColors, activeGenders, activeFabrics, activeTier,
     inStockOnly, priceRange, sortBy,
     sidebarOpen, setSidebarOpen,
@@ -1269,10 +1291,10 @@ export function useCategoriesView({
     handleSubnavMouseEnter, handleSubnavMouseLeave,
     hoveredCat, hoveredCatParents, subnavVisible,
     searchInput, handleHeaderSearchChange, clearHeaderSearch,
-    headingLabel, pills, totalFacetCount, otherCategoryTabs, isAllActive, currentSortLabel,
+    headingLabel, pills, removePill, totalFacetCount, otherCategoryTabs, isAllActive, currentSortLabel,
     allSortOptions,
     handleCategoryTabSelect, toggleCategoryExpand, toggleSubCategory,
-    handleIndustrySelect, toggleIndustryExpand, toggleUseCaseExpand,
+    handleIndustrySelect, toggleIndustryExpand,
     toggleIndustryCategory, toggleUseCaseCategories,
     toggleBrand, toggleSize, toggleColor, toggleGender, toggleFabric, toggleInStock,
     handleSortChange, handleMinPriceChange, handleMaxPriceChange, commitPriceRange,

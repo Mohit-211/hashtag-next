@@ -6,7 +6,6 @@ interface Order {
   shippingCost?: number | string;
   tax?: number | string;
   total?: number | string;
-  [key: string]: any;
 }
 
 interface OrderPriceSummaryProps {
@@ -15,7 +14,6 @@ interface OrderPriceSummaryProps {
 
 export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
   const subtotal = Number(order?.subtotal || 0);
-  const customizationTotal = Number(order?.customizationTotal || 0);
   const shippingCost = Number(order?.shippingCost || 0);
   const tax = Number(order?.tax || 0);
   const total = Number(order?.total || 0);
@@ -46,7 +44,7 @@ export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
 
         <div className="flex justify-between items-center">
           <span className="text-xs text-muted-foreground">Shipping</span>
-          <span className={`text-xs font-medium tabular-nums ${shippingCost === 0 ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+          <span className={`text-xs font-medium tabular-nums ${shippingCost === 0 ? "text-success" : ""}`}>
             {shippingCost === 0 ? "Free" : `$${shippingCost.toFixed(2)}`}
           </span>
         </div>
@@ -60,7 +58,7 @@ export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
       </div>
 
       {/* Total */}
-      <div className="bg-foreground/[0.03] dark:bg-white/[0.04] border-t border-border/60 px-4 py-3 flex justify-between items-center">
+      <div className="bg-foreground/[0.03] border-t border-border/60 px-4 py-3 flex justify-between items-center">
         <span className="text-sm font-semibold tracking-tight">Total</span>
         <span className="text-base font-bold tabular-nums tracking-tight">
           ${total.toFixed(2)}

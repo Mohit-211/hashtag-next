@@ -37,10 +37,10 @@ const cssColor = (value: string) =>
 
 const buttonClass = (isActive: boolean, available: boolean) =>
   `min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 inline-flex items-center justify-center gap-2 ${isActive
-    ? "bg-[#111111] text-[#E8D03A] border-[#111111]"
+    ? "bg-foreground text-primary border-foreground"
     : available
-      ? "bg-white text-[#111111] border-[#E5E5E5] hover:border-[#E8D03A] hover:bg-[#F8F5E7]"
-      : "bg-[#F5F5F5] text-[#BDBDBD] border-[#E5E5E5] cursor-not-allowed line-through"
+      ? "bg-card text-foreground border-border hover:border-primary hover:bg-primary-soft"
+      : "bg-muted text-muted-foreground border-border cursor-not-allowed line-through"
   }`;
 
 /**
@@ -71,9 +71,9 @@ export default function ProductOptionGroup({
     // Dropdowns sit side by side in the parent grid; wider controls take the full row.
     <div className={style === "dropdown" ? "min-w-0" : "col-span-full"}>
       <div className="flex items-center justify-between gap-3 mb-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6B7280] truncate">{name}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground truncate">{name}</p>
         {style !== "dropdown" && (
-          <p className="text-sm font-semibold text-[#111111] truncate">
+          <p className="text-sm font-semibold text-foreground truncate">
             {selected || `Select ${name.toLowerCase()}`}
           </p>
         )}
@@ -88,7 +88,7 @@ export default function ProductOptionGroup({
               const opt = values.find((v) => v.value === e.target.value);
               if (opt) pick(opt.value, opt.available);
             }}
-            className="w-full h-11 appearance-none truncate rounded-lg border border-[#E5E5E5] bg-white pl-3 sm:pl-4 pr-9 text-sm font-semibold text-[#111111] outline-none transition-colors hover:border-[#E8D03A] focus:border-[#E8D03A] cursor-pointer"
+            className="w-full h-11 appearance-none truncate rounded-lg border border-border bg-card pl-3 sm:pl-4 pr-9 text-sm font-semibold text-foreground outline-none transition-colors hover:border-primary focus:border-primary cursor-pointer"
           >
             {!selected && (
               <option value="" disabled>
@@ -101,7 +101,7 @@ export default function ProductOptionGroup({
               </option>
             ))}
           </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B7280]" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         </div>
       )}
 
@@ -113,10 +113,10 @@ export default function ProductOptionGroup({
               <label
                 key={value}
                 className={`inline-flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border text-sm font-semibold transition-all duration-200 ${isActive
-                  ? "border-[#111111] bg-[#F8F5E7] text-[#111111]"
+                  ? "border-foreground bg-primary-soft text-foreground"
                   : available
-                    ? "border-[#E5E5E5] bg-white text-[#111111] hover:border-[#E8D03A] cursor-pointer"
-                    : "border-[#E5E5E5] bg-[#F5F5F5] text-[#BDBDBD] cursor-not-allowed line-through"
+                    ? "border-border bg-card text-foreground hover:border-primary cursor-pointer"
+                    : "border-border bg-muted text-muted-foreground cursor-not-allowed line-through"
                   }`}
               >
                 <input
@@ -129,14 +129,14 @@ export default function ProductOptionGroup({
                   className="sr-only peer"
                 />
                 <span
-                  className={`flex-shrink-0 w-4 h-4 border-2 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#E8D03A] ${style === "radio" ? "rounded-full" : "rounded"
-                    } ${isActive ? "border-[#111111] bg-[#111111]" : "border-[#BDBDBD] bg-white"}`}
+                  className={`flex-shrink-0 w-4 h-4 border-2 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary ${style === "radio" ? "rounded-full" : "rounded"
+                    } ${isActive ? "border-foreground bg-foreground" : "border-input bg-card"}`}
                 >
                   {isActive &&
                     (style === "radio" ? (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#E8D03A]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                     ) : (
-                      <Check className="w-3 h-3 text-[#E8D03A]" strokeWidth={3} />
+                      <Check className="w-3 h-3 text-primary-ink" strokeWidth={3} />
                     ))}
                 </span>
                 {value}
@@ -193,15 +193,15 @@ export default function ProductOptionGroup({
                 onClick={() => pick(value, available)}
                 disabled={!available}
                 className={`relative w-10 h-10 rounded-full transition-all duration-200 ${isActive
-                  ? "ring-2 ring-offset-2 ring-[#111111] scale-105"
+                  ? "ring-2 ring-offset-2 ring-foreground scale-105"
                   : available
                     ? "hover:scale-110"
                     : "opacity-35 cursor-not-allowed"
                   }`}
-                style={{ backgroundColor: swatch, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)" }}
+                style={{ backgroundColor: swatch, boxShadow: "inset 0 0 0 1px color-mix(in srgb, var(--color-foreground) 12%, transparent)" }}
               >
                 {!available && (
-                  <span className="absolute left-1/2 top-1/2 w-[130%] h-px bg-[#6B7280] -translate-x-1/2 -translate-y-1/2 rotate-45" />
+                  <span className="absolute left-1/2 top-1/2 w-[130%] h-px bg-muted-foreground -translate-x-1/2 -translate-y-1/2 rotate-45" />
                 )}
               </button>
             );

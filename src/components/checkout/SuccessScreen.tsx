@@ -1,11 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { CheckCircle2, Package, ShoppingBag } from "lucide-react";
+import { CheckCircle2, ShoppingBag } from "lucide-react";
 
 export default function SuccessScreen({ orderId }: { orderId: number | null }) {
-  const router = useRouter();
-
   const handleContinueShopping = () => {
     // Full reload — not router.push. This unmounts and remounts
     // CartProvider, which re-runs fetchCart() on mount and pulls the
@@ -32,7 +29,13 @@ export default function SuccessScreen({ orderId }: { orderId: number | null }) {
               Order Confirmed!
             </h1>
 
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            {orderId != null && (
+              <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm font-semibold text-foreground tabular-nums">
+                Order #{orderId}
+              </p>
+            )}
+
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
               Your order has been placed successfully. You&apos;ll receive a confirmation email shortly.
             </p>
 

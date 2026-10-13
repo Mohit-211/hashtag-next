@@ -16,7 +16,7 @@ export default function About() {
           />
 
           <h1 className="text-3xl lg:text-4xl font-heading font-bold text-foreground">
-            About Hashtag<span className="text-primary">Billionaire</span>
+            About Hashtag<span className="text-primary-ink">Billionaire</span>
           </h1>
 
           <p className="text-muted-foreground text-sm leading-relaxed">
@@ -90,7 +90,7 @@ export default function About() {
         {/* Tagline */}
         <div className="text-center py-6">
           <p className="text-lg font-heading font-bold text-foreground">
-            Build your <span className="text-primary">identity.</span>
+            Build your <span className="text-primary-ink">identity.</span>
           </p>
         </div>
       </div>
