@@ -15,7 +15,6 @@ export const TEXT_MAX_LENGTH = 2000;
 export const MOBILE_10_REGEX = /^[0-9]{10}$/;
 export const PHONE_REGEX = /^[0-9+\-\s()]{7,20}$/;
 export const POSTAL_CODE_REGEX = /^[A-Za-z0-9][A-Za-z0-9\s-]{2,11}$/;
-export const OTP_REGEX = /^\d{4,6}$/;
 
 export const emailSchema = z
   .string()
@@ -55,10 +54,6 @@ export const passwordSchema = z
   .regex(/[0-9]/, "Password must include a number.")
   .regex(/[^A-Za-z0-9]/, "Password must include a special character.");
 
-export const otpSchema = z
-  .string()
-  .trim()
-  .regex(OTP_REGEX, "Enter a valid OTP.");
 
 export const urlSchema = z.string().trim().max(2048, "URL is too long.").url("Enter a valid URL.");
 

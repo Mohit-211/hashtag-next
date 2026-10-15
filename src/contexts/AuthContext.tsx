@@ -14,6 +14,7 @@ import { UserProfileApi } from "@/api/users/users.api";
 import { loginApi } from "@/api/auth/auth.api";
 import { clearPendingAuthAction, notifyAuthChanged } from "@/lib/authRedirect";
 
+import { isAxiosError } from "axios";
 import { apiMessage } from "@/lib/errors";
 export interface User {
   id: string | number;
@@ -28,7 +29,7 @@ interface AuthContextType {
   login: (
     email: string,
     password: string
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; error?: string; status?: number }>;
   logout: () => void;
 }
 
@@ -78,45 +79,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [isLoggedIn, logout]);
 
-  // ✅ LOGIN
-  // Retries on a "not verified" response: right after OTP verification the
-  // backend can take a moment to make that write visible to the login read
-  // (replica lag / cache), so the very next login can spuriously see the
-  // account as unverified. A couple of short retries absorb that lag
-  // without masking a genuinely unverified account.
+  // An unverified account answers 403 with a message; the form offers to
+  // resend the verification link.
   const login = useCallback(async (email: string, password: string) => {
-    const MAX_NOT_VERIFIED_RETRIES = 4;
-    const RETRY_DELAY_MS = 900;
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-    for (let attempt = 0; ; attempt++) {
-      try {
-        const res = await loginApi({ email, password, role_id: 6 });
-
-        const token = res?.data?.data?.tokens?.access?.token;
-
-        if (!token) {
-          return { success: false, error: "Invalid response from server" };
-        }
-
-        // ✅ Store token (same key everywhere)
-        localStorage.setItem("hastagBillionaire", token);
-
-        // ✅ Fetch user AFTER login
-        // await fetchUser();
-
-        return { success: true };
-      } catch (err) {
-        const message = apiMessage(err) || "Login failed";
-        const isNotVerified = message.toLowerCase().includes("not verified");
-
-        if (isNotVerified && attempt < MAX_NOT_VERIFIED_RETRIES) {
-          await sleep(RETRY_DELAY_MS);
-          continue;
-        }
-
-        return { success: false, error: message };
-      }
+    try {
+      const res = await loginApi({ email, password, role_id: 6 });
+      const token = res?.data?.data?.tokens?.access?.token;
+      if (!token) return { success: false, error: "Invalid response from server" };
+      localStorage.setItem("hastagBillionaire", token);
+      return { success: true };
+    } catch (err) {
+      return {
+        success: false,
+        error: apiMessage(err) || "We couldn't log you in. Please try again.",
+        status: isAxiosError(err) ? err.response?.status : undefined,
+      };
     }
   }, []);
 

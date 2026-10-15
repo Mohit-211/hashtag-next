@@ -10,13 +10,16 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { emailSchema, PASSWORD_MAX_LENGTH, zodErrors } from "@/lib/validation";
-import { notifyAuthChanged, resolvePostLoginRedirect, withReturnTo } from "@/lib/authRedirect";
+import { notifyAuthChanged, resolvePostLoginRedirect } from "@/lib/authRedirect";
 import { PasswordField, TextField } from "./FormField";
+import ResendVerification from "./ResendVerification";
 
 interface LoginFormProps {
   switchToRegister: () => void;
   /** Sanitized page to return to after login. */
   returnTo?: string | null;
+  /** Prefill, e.g. after verifying an email. */
+  initialEmail?: string;
 }
 
 const loginSchema = z.object({
@@ -27,19 +30,22 @@ const loginSchema = z.object({
     .max(PASSWORD_MAX_LENGTH, `Password must be under ${PASSWORD_MAX_LENGTH} characters.`),
 });
 
-export default function LoginForm({ switchToRegister, returnTo }: LoginFormProps) {
+export default function LoginForm({ switchToRegister, returnTo, initialEmail = "" }: LoginFormProps) {
   const router = useRouter();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Set when the API refuses an unverified account (403).
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError(null);
+    setUnverifiedEmail(null);
 
     const fieldErrors = zodErrors(loginSchema, { email, password });
     setErrors(fieldErrors);
@@ -58,14 +64,7 @@ export default function LoginForm({ switchToRegister, returnTo }: LoginFormProps
       return;
     }
 
-    if (res.error?.toLowerCase().includes("not verified")) {
-      toast.warning("Please verify your email first.");
-      router.push(
-        withReturnTo(`/verify-otp?type=email_varification&email=${encodeURIComponent(email.trim())}`, returnTo)
-      );
-      return;
-    }
-
+    if (res.status === 403) setUnverifiedEmail(email.trim());
     setFormError(res.error || "We couldn't log you in. Please try again.");
     setLoading(false);
   };
@@ -82,6 +81,7 @@ export default function LoginForm({ switchToRegister, returnTo }: LoginFormProps
           {formError}
         </div>
       )}
+      {unverifiedEmail && <ResendVerification email={unverifiedEmail} />}
 
       <form onSubmit={handleLogin} className="space-y-4" noValidate>
         <TextField
@@ -103,7 +103,7 @@ export default function LoginForm({ switchToRegister, returnTo }: LoginFormProps
           error={errors.password}
           onChange={(e) => setPassword(e.target.value)}
           labelAction={
-            <Link href="/send-otp" className="text-xs font-medium text-primary-ink hover:underline">
+            <Link href="/forgot-password" className="text-xs font-medium text-primary-ink hover:underline">
               Forgot password?
             </Link>
           }

@@ -1981,7 +1981,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             <div className="mt-2 mb-1">
                               {mat.id === "screen_print" && (
                                 <div className="rounded-xl border border-border bg-muted p-4">
-                                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Number of Colours</p>
+                                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Number of Colors</p>
                                   <div className="grid grid-cols-3 gap-2">
                                     {SP_COLOR_COUNTS.map(c => (
                                       <button key={c} onClick={() => setSpColorCount(c)}

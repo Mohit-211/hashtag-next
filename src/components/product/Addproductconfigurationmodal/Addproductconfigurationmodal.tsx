@@ -368,7 +368,7 @@ export default function AddProductConfigurationModal({
         <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div className="min-w-0">
             <h2 id="config-modal-title" className="text-lg font-bold text-foreground">
-              {isCustomized ? "Add more colours or sizes?" : "Choose colours & sizes"}
+              {isCustomized ? "Add more colors or sizes?" : "Choose colors & sizes"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {isCustomized
@@ -406,7 +406,7 @@ export default function AddProductConfigurationModal({
           ) : (
             <div className="space-y-3">
               <div className="hidden gap-2 px-0.5 sm:grid" style={{ gridTemplateColumns: gridCols }}>
-                <p className="text-xs font-semibold text-muted-foreground">Colour</p>
+                <p className="text-xs font-semibold text-muted-foreground">Color</p>
                 {productHasSizes && <p className="text-xs font-semibold text-muted-foreground">Size</p>}
                 <p className="text-xs font-semibold text-muted-foreground">
                   Quantity{DEFAULT_MIN_QTY > 1 ? ` (min ${DEFAULT_MIN_QTY})` : ""}
@@ -431,12 +431,12 @@ export default function AddProductConfigurationModal({
                       style={{ "--row-grid-cols": gridCols } as React.CSSProperties}
                     >
                       <select
-                        aria-label="Colour"
+                        aria-label="Color"
                         value={row.color}
                         onChange={(e) => updateRow(row.id, { color: e.target.value })}
                         className={cn(fieldClass, "col-span-2 sm:col-span-1")}
                       >
-                        <option value="">Select colour…</option>
+                        <option value="">Select color…</option>
                         {uniqueColors.map((c) => (
                           <option key={c} value={c}>
                             {c}
@@ -528,7 +528,7 @@ export default function AddProductConfigurationModal({
                 onClick={addRow}
                 className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-input text-sm font-medium text-muted-foreground transition hover:border-foreground hover:text-foreground"
               >
-                <Plus size={15} /> Add another {productHasSizes ? "colour or size" : "colour"}
+                <Plus size={15} /> Add another {productHasSizes ? "color or size" : "color"}
               </button>
             </div>
           )}
@@ -591,9 +591,9 @@ export default function AddProductConfigurationModal({
             ) : hasSelectedSizes ? (
               `Add ${pcs(totalItems)}`
             ) : isCustomized ? (
-              "Pick a colour to add"
+              "Pick a color to add"
             ) : (
-              "Pick a colour & size"
+              "Pick a color & size"
             )}
           </button>
         </div>

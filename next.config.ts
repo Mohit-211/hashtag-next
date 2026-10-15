@@ -26,6 +26,13 @@ const nextConfig = {
   async rewrites() {
     return [{ source: "/favicon.ico", destination: "/favicon.png" }];
   },
+  // The emailed-code pages were replaced by emailed links (backend security update).
+  async redirects() {
+    return [
+      { source: "/send-otp", destination: "/forgot-password", permanent: false },
+      { source: "/verify-otp", destination: "/login", permanent: false },
+    ];
+  },
 };
 
 module.exports = nextConfig;

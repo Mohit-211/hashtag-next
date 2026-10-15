@@ -2,9 +2,14 @@ export const AUTH_ENDPOINTS = {
   LOGIN: "user/auth/login",
   REGISTER: "user/auth/register",
   LOGOUT: "user/auth/logout",
-  SEND_OTP: "user/auth/otp",
-  VERIFY_OTP: "user/auth/verify-otp",
+  /** Emailed verification link → POST { token }. */
+  VERIFY_EMAIL: "user/auth/verify-email",
+  RESEND_VERIFICATION: "user/auth/verify-email/resend",
+  /** Step 1: email a reset link → POST { email }. */
   FORGOT_PASSWORD: "user/auth/forgot-password",
+  /** Step 2: from the emailed link → POST { token, password, confirm_password }. */
+  FORGOT_PASSWORD_RESET: "user/auth/forgot-password/reset",
+  /** Signed-in password change. */
   RESET_PASSWORD: "user/auth/reset-password",
 };
 export const USER_ENDPOINTS = {

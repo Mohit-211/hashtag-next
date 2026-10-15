@@ -10,7 +10,7 @@ const BENEFITS = [
 ];
 
 /**
- * Shared shell for every auth screen (login, sign-up, forgot password, OTP):
+ * Shared shell for every auth screen (login, sign-up, forgot/reset password, email verification):
  * a brand panel on the brand grey beside the form on desktop, form only on
  * mobile.
  */

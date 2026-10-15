@@ -8,6 +8,7 @@ import { inputClass } from "@/data/constants";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { changePasswordApi } from "@/api/auth/auth.api";
+import { AUTH_TOKEN_KEY } from "@/lib/authRedirect";
 
 export default function PasswordSection() {
   const router = useRouter();
@@ -82,17 +83,23 @@ const strength = getStrength();
       const res = await changePasswordApi(payload);
 
       if (res?.data?.success) {
-        toast.success("Password updated. Logging out...");
-
         setCurrentPw("");
         setNewPw("");
         setConfirmPw("");
 
-        // 🔐 Auto logout after success
-        setTimeout(() => {
-          logout();
-          router.push("/login");
-        }, 1500);
+        // The change signs out every other device and replaces this device's
+        // token — store the new one, or the next call would sign us out.
+        const newToken = res?.data?.data?.tokens?.access?.token;
+        if (newToken) {
+          localStorage.setItem(AUTH_TOKEN_KEY, newToken);
+          toast.success("Password updated. You've been signed out on your other devices.");
+        } else {
+          toast.success("Password updated. Please log in again.");
+          setTimeout(() => {
+            logout();
+            router.push("/login");
+          }, 1500);
+        }
       } else {
         toast.error(res?.data?.message || "Something went wrong");
       }

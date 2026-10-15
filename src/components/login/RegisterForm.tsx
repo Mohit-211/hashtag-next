@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,13 +9,11 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { registerApi } from "@/api/auth/auth.api";
 import { emailSchema, mobileSchema, nameSchema, PASSWORD_MAX_LENGTH, passwordSchema, zodErrors } from "@/lib/validation";
-import { withReturnTo } from "@/lib/authRedirect";
 import { PasswordChecklist, PasswordField, TextField } from "./FormField";
+import ResendVerification from "./ResendVerification";
 
 interface RegisterFormProps {
   switchToLogin: () => void;
-  /** Sanitized page to return to once the new account has logged in. */
-  returnTo?: string | null;
 }
 
 // Same rules as change/reset password (all four), so an account can never be
@@ -31,12 +28,13 @@ const registerSchema = z
   })
   .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Passwords do not match." });
 
-export default function RegisterForm({ switchToLogin, returnTo }: RegisterFormProps) {
-  const router = useRouter();
+export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
 
   const [values, setValues] = useState({ name: "", email: "", mobile: "", password: "", confirm: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  // After sign-up the account waits for the emailed verification link.
+  const [registered, setRegistered] = useState<{ email: string; message: string } | null>(null);
 
   const set = (field: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = field === "mobile" ? e.target.value.replace(/\D/g, "").slice(0, 10) : e.target.value;
@@ -62,10 +60,12 @@ export default function RegisterForm({ switchToLogin, returnTo }: RegisterFormPr
 
       const res = await registerApi(formData);
       if (res?.data?.success || res?.data?.status) {
-        toast.success(res?.data?.message || "Account created. Check your email for the verification code.");
-        router.push(
-          withReturnTo(`/verify-otp?type=email_varification&email=${encodeURIComponent(values.email.trim())}`, returnTo)
-        );
+        setRegistered({
+          email: values.email.trim(),
+          message:
+            res?.data?.message ||
+            "Account created. Please check your email and click the verification link within 2 hours.",
+        });
         return;
       }
       toast.error(res?.data?.message || "Registration failed. Please try again.");
@@ -76,6 +76,30 @@ export default function RegisterForm({ switchToLogin, returnTo }: RegisterFormPr
       setLoading(false);
     }
   };
+
+  if (registered) {
+    return (
+      <>
+        <div className="space-y-1.5">
+          <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
+          <p className="text-sm text-muted-foreground">{registered.message}</p>
+          <p className="truncate text-sm font-semibold text-foreground" title={registered.email}>
+            {registered.email}
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Didn&apos;t get it? Check your spam folder, or send it again.
+        </p>
+        <ResendVerification email={registered.email} />
+        <p className="text-center text-sm text-muted-foreground">
+          Already verified?{" "}
+          <button type="button" onClick={switchToLogin} className="font-semibold text-foreground underline-offset-4 hover:underline">
+            Log in
+          </button>
+        </p>
+      </>
+    );
+  }
 
   return (
     <>

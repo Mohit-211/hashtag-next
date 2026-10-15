@@ -23,7 +23,7 @@ const LEGACY_CUSTOMIZATION_KEY = "pendingCustomization";
 const PENDING_TTL_MS = 30 * 60 * 1000;
 const DEFAULT_AFTER_LOGIN = "/categories";
 /** Never bounce back into the auth pages themselves. */
-const AUTH_ROUTES = ["/login", "/send-otp", "/verify-otp", "/forgot-password"];
+const AUTH_ROUTES = ["/login", "/forgot-password", "/reset-password", "/verify-email", "/send-otp", "/verify-otp"];
 
 /** An action a component asks to resume after login. */
 export interface LoginResumeRequest {
@@ -91,13 +91,6 @@ export const currentPath = (params?: Record<string, string | number | null | und
 export const loginUrl = (returnTo: string = currentPath()): string => {
   const safe = sanitizeReturnTo(returnTo);
   return safe ? `/login?returnTo=${encodeURIComponent(safe)}` : "/login";
-};
-
-/** Appends a sanitized `returnTo` to another auth route (register → OTP → login). */
-export const withReturnTo = (path: string, returnTo: string | null | undefined): string => {
-  const safe = sanitizeReturnTo(returnTo);
-  if (!safe) return path;
-  return `${path}${path.includes("?") ? "&" : "?"}returnTo=${encodeURIComponent(safe)}`;
 };
 
 const readPending = (): PendingAuthAction | null => {

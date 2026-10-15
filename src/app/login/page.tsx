@@ -61,9 +61,13 @@ function LoginContent() {
       </div>
 
       {mode === "login" ? (
-        <LoginForm returnTo={returnTo} switchToRegister={() => setMode("register")} />
+        <LoginForm
+          returnTo={returnTo}
+          initialEmail={searchParams.get("email") ?? ""}
+          switchToRegister={() => setMode("register")}
+        />
       ) : (
-        <RegisterForm returnTo={returnTo} switchToLogin={() => setMode("login")} />
+        <RegisterForm switchToLogin={() => setMode("login")} />
       )}
     </AuthLayout>
   );

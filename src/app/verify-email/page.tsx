@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import AuthLayout from "@/components/login/AuthLayout";
-import SendOtpClient from "./SendOtpClient";
+import VerifyEmailClient from "@/components/login/VerifyEmailClient";
 
-export default function SendOtpPage() {
+export default function VerifyEmailPage() {
   return (
     <AuthLayout>
       <Suspense fallback={<p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>}>
-        <SendOtpClient />
+        <VerifyEmailClient />
       </Suspense>
     </AuthLayout>
   );
