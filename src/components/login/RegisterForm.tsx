@@ -8,7 +8,15 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { registerApi } from "@/api/auth/auth.api";
-import { emailSchema, mobileSchema, nameSchema, PASSWORD_MAX_LENGTH, passwordSchema, zodErrors } from "@/lib/validation";
+import {
+  emailSchema,
+  nameSchema,
+  optionalUsPhoneSchema,
+  PASSWORD_MAX_LENGTH,
+  passwordSchema,
+  toUsPhoneDigits,
+  zodErrors,
+} from "@/lib/validation";
 import { PasswordChecklist, PasswordField, TextField } from "./FormField";
 import ResendVerification from "./ResendVerification";
 
@@ -22,7 +30,7 @@ const registerSchema = z
   .object({
     name: nameSchema,
     email: emailSchema,
-    mobile: mobileSchema,
+    mobile: optionalUsPhoneSchema,
     password: passwordSchema,
     confirm: z.string().min(1, "Please confirm your password."),
   })
@@ -37,7 +45,8 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
   const [registered, setRegistered] = useState<{ email: string; message: string } | null>(null);
 
   const set = (field: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = field === "mobile" ? e.target.value.replace(/\D/g, "").slice(0, 10) : e.target.value;
+    // Phone: digits plus the usual formatting, e.g. "+1 (832) 555-0123".
+    const value = field === "mobile" ? e.target.value.replace(/[^\d\s()+.-]/g, "").slice(0, 20) : e.target.value;
     setValues((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
   };
@@ -53,7 +62,9 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
       const formData = new FormData();
       formData.append("name", values.name.trim());
       formData.append("email", values.email.trim());
-      formData.append("mobile", values.mobile);
+      // Optional (Q43): sent as the 10 digits, or not at all.
+      const phone = toUsPhoneDigits(values.mobile);
+      if (phone) formData.append("mobile", phone);
       // Passwords are sent exactly as typed — login doesn't trim either.
       formData.append("password", values.password);
       formData.append("confirm_password", values.confirm);
@@ -129,14 +140,15 @@ export default function RegisterForm({ switchToLogin }: RegisterFormProps) {
           onChange={set("email")}
         />
         <TextField
-          label="Mobile number"
+          label="Phone number (optional)"
           type="tel"
-          inputMode="numeric"
-          autoComplete="tel-national"
-          placeholder="10-digit number"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="(832) 555-0123"
           value={values.mobile}
-          maxLength={10}
+          maxLength={20}
           error={errors.mobile}
+          hint="US numbers only."
           onChange={set("mobile")}
         />
         <PasswordField

@@ -37,6 +37,24 @@ export const mobileSchema = z
   .min(1, "Mobile number is required.")
   .regex(MOBILE_10_REGEX, "Enter a valid 10-digit mobile number.");
 
+/**
+ * "+1 (832) 555-0123" → "8325550123"; null when it isn't a US number. Same rule
+ * as the API: 10 digits after an optional leading 1, and area codes never
+ * start with 0 or 1.
+ */
+export function toUsPhoneDigits(value: string): string | null {
+  let digits = value.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  return /^[2-9]\d{9}$/.test(digits) ? digits : null;
+}
+
+// Sign-up phone (client decision Q43): optional, but a US number when given.
+// The API takes the same input: formatting and a leading +1 are fine.
+export const optionalUsPhoneSchema = z
+  .string()
+  .trim()
+  .refine((v) => v === "" || toUsPhoneDigits(v) !== null, "Enter a valid 10-digit US phone number, or leave it empty.");
+
 // Looser phone format for contact/address forms that may receive numbers
 // with country codes, spaces, or dashes.
 export const phoneSchema = z
