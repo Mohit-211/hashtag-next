@@ -121,6 +121,12 @@ export const EMB_PRICES: Record<string, number[]> = {
   HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
   HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],
 };
+/**
+ * An embroidery location with no row above (hoodie Full Front and Full Back)
+ * is quoted by the team, never sold at $0 (client decision Q5).
+ */
+export const isQuoteOnlyLocation = (material: MaterialId | null, location: string) =>
+  material === "embroidery" && !EMB_PRICES[location];
 export const DTF_TIERS = [1, 12, 24, 36, 72, 96, 144];
 export const DTF_PRICES = [15, 12, 10, 9, 7, 5, 5];
 export const SP_PRICES: Record<string, number[]> = {

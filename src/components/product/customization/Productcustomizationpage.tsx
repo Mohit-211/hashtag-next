@@ -25,8 +25,9 @@ import AddProductConfigurationModal from "../Addproductconfigurationmodal/Addpro
 import {
   calculateVariantTotal, sumVariantTotals, formatMoney,
   EMB_TIERS, EMB_PRICES, DTF_TIERS, DTF_PRICES, SP_PRICES, SP_COLOR_COUNTS, SP_TIERS, DTG_TIERS, DTG_PRICES,
-  getMaterialPrintTotal, getDigitizingFee, getMaterialFloor, type SpColorCount, type MaterialId,
+  getMaterialPrintTotal, getDigitizingFee, getMaterialFloor, isQuoteOnlyLocation, type SpColorCount, type MaterialId,
 } from "./pricing";
+import { CONTACT_EMAIL } from "@/lib/site";
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
 interface VariantImage { id: number; file_name: string; file_uri: string; is_primary: boolean }
@@ -217,10 +218,13 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
   ],
 };
+// Labels only: which spots each garment offers is set in GARMENT_VIEWS
+// (Full Front and Full Back are hoodie spots; tees and polos have no Full Front, Q6).
 const ALL_PRINT_LOCATIONS = [
   { id: "LEFT_CHEST", label: "Left Chest" },
   { id: "RIGHT_CHEST", label: "Right Chest" },
-  // { id: "FULL_FRONT", label: "Full Front" },
+  { id: "FULL_FRONT", label: "Full Front" },
+  { id: "FULL_BACK", label: "Full Back" },
   { id: "FULL_BACK_STANDARD", label: "Full Back (Standard)" },
   { id: "FULL_BACK_LARGE", label: "Full Back (Large)" },
   { id: "SLEEVE_LEFT", label: "Left Sleeve" },
@@ -1046,6 +1050,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         : prev;
       return [...next, id];
     });
+  // Picked locations the chosen method can't price here; these are "contact us".
+  const quoteOnlyLocations = selectedLocations.filter(l => isQuoteOnlyLocation(selectedMaterial, l));
+  const quoteOnlyNames = quoteOnlyLocations
+    .map(id => ALL_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id)
+    .join(" and ");
   const toggleDrinkwareLocation = (id: DrinkwarePrintLocation) =>
     setSelectedPrintLocations(prev =>
       prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
@@ -1526,6 +1535,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (!allMet) {
       const missing = REQUIREMENTS.filter(r => !r.done).map(r => r.label);
       setValidationError(`Please complete: ${missing.join(", ")}.`);
+      setShowValidationShake(true);
+      setTimeout(() => setShowValidationShake(false), 600);
+      return;
+    }
+    if (isApparel && quoteOnlyLocations.length > 0) {
+      setValidationError(
+        `${quoteOnlyNames} embroidery is by quote only. Remove it or choose another method, or email ${CONTACT_EMAIL}.`
+      );
       setShowValidationShake(true);
       setTimeout(() => setShowValidationShake(false), 600);
       return;
@@ -2043,7 +2060,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                               <>
                                                 {selectedLocations.map(key => {
                                                   const prices = EMB_PRICES[key];
-                                                  if (!prices) return null;
+                                                  if (!prices) {
+                                                    return (
+                                                      <tr key={key} className="border-b border-border">
+                                                        <td className="px-3 py-2 font-semibold text-muted-foreground border-r border-border">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
+                                                        <td colSpan={EMB_TIERS.length} className="px-3 py-2 text-center font-semibold text-foreground">
+                                                          Contact us for a quote
+                                                        </td>
+                                                      </tr>
+                                                    );
+                                                  }
                                                   return (
                                                     <tr key={key} className="border-b border-border bg-primary/8">
                                                       <td className="px-3 py-2 font-semibold text-muted-foreground border-r border-border">{ALL_PRINT_LOCATIONS.find(l => l.id === key)?.label ?? key}</td>
@@ -2187,6 +2213,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       );
                     })}
                   </div>
+                  {quoteOnlyLocations.length > 0 && (
+                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-primary bg-primary-soft p-3 text-xs text-primary-ink">
+                      <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
+                      <p>
+                        {quoteOnlyNames} embroidery on this garment is by quote only, so it can&apos;t be added here. Email{" "}
+                        <a href={`mailto:${CONTACT_EMAIL}`} className="font-semibold underline underline-offset-2">{CONTACT_EMAIL}</a>{" "}
+                        for a quote, or choose DTF, screen print or DTG for {quoteOnlyLocations.length > 1 ? "these locations" : "this location"}.
+                      </p>
+                    </div>
+                  )}
                 </SectionCard>
                 <SectionCard
                   step={3}
