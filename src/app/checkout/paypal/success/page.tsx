@@ -5,7 +5,6 @@ import ProcessingScreen from "@/components/checkout/ProcessingScreen";
 export default function PaypalSuccessPage() {
   return (
     <Suspense fallback={<ProcessingScreen />}>
-      page1
       <PaypalReturnStatus landedFrom="success" />
     </Suspense>
   );

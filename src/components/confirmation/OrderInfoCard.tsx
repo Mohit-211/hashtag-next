@@ -1,21 +1,16 @@
-import { Package } from "lucide-react";
-
-const paymentLabels: Record<string, string> = {
-  card: "Credit / Debit Card",
-  upi: "UPI",
-  cod: "Cash on Delivery",
-};
-
 interface Props {
-  orderId: string;
-  orderDate: string;
-  paymentMethod: string;
+  orderNumber: string;
+  /** Null when the API didn't return the order date. */
+  orderDate: string | null;
+  paymentLabel: string;
+  shippingMethod: string | null;
 }
 
 export default function OrderInfoCard({
-  orderId,
+  orderNumber,
   orderDate,
-  paymentMethod,
+  paymentLabel,
+  shippingMethod,
 }: Props) {
   return (
     <div className="bg-card border rounded-xl p-6 space-y-3 mb-8">
@@ -23,27 +18,31 @@ export default function OrderInfoCard({
         Order Details
       </p>
 
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div className="text-sm">
-          <span className="text-muted-foreground">Order ID</span>
-          <p className="font-bold">#{orderId}</p>
+      <dl className="grid sm:grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt className="text-muted-foreground">Order Number</dt>
+          <dd className="font-bold">#{orderNumber}</dd>
         </div>
 
-        <div className="text-sm">
-          <span className="text-muted-foreground">Order Date</span>
-          <p>{orderDate}</p>
+        {orderDate && (
+          <div>
+            <dt className="text-muted-foreground">Order Date</dt>
+            <dd>{orderDate}</dd>
+          </div>
+        )}
+
+        <div>
+          <dt className="text-muted-foreground">Payment</dt>
+          <dd>{paymentLabel}</dd>
         </div>
 
-        <div className="text-sm">
-          <span className="text-muted-foreground">Payment Method</span>
-          <p>{paymentLabels[paymentMethod]}</p>
-        </div>
-
-        <div className="text-sm flex items-center gap-1">
-          <Package className="h-4 w-4" />
-          Processing
-        </div>
-      </div>
+        {shippingMethod && (
+          <div>
+            <dt className="text-muted-foreground">Shipping</dt>
+            <dd>{shippingMethod}</dd>
+          </div>
+        )}
+      </dl>
     </div>
   );
 }

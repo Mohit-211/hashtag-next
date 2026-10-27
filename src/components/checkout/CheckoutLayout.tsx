@@ -14,13 +14,13 @@ import {
 import { GetShippingRatesApi } from "@/api/operations/shipping.api";
 import EmptyCart from "./EmptyCart";
 import ProcessingScreen from "./ProcessingScreen";
-import SuccessScreen from "./SuccessScreen";
 import ProgressRail from "./ProgressRail";
 import ShippingSection from "./ShippingSection";
 import PaymentSection from "./PaymentSection";
 import OrderSummary from "./OrderSummary";
 import AddressSection from "../account/AddressSection";
 import { errorMessage } from "@/lib/errors";
+import { confirmationPath } from "@/lib/orderLinks";
 export type CheckoutStep =
   | "address"
   | "shipping"
@@ -264,9 +264,9 @@ export default function CheckoutLayout() {
       checkoutCompletedRef.current = true;
       setStep("done");
       clearCart();
-      setTimeout(() => {
-       window.location.href = "/categories";
-      }, 3000);
+      // Full page load, so CartProvider refetches the emptied cart; replace()
+      // keeps Back from returning to the payment step.
+      window.location.replace(confirmationPath(createdOrderId));
     } catch (err) {
       console.error(err);
       setOrderError(
@@ -326,7 +326,7 @@ export default function CheckoutLayout() {
     return <ProcessingScreen />;
   }
   if (step === "done") {
-    return <SuccessScreen orderId={createdOrderId} />;
+    return <ProcessingScreen title="Payment confirmed" description="Opening your order confirmation…" />;
   }
   if (items.length === 0) {
     return <EmptyCart />;

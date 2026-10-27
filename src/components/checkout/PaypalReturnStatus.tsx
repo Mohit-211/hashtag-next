@@ -8,9 +8,9 @@ import { CapturePaypalOrderApi } from "@/api/operations/payment.api";
 import { GetOrderDetailApi } from "@/api/operations/order.api";
 import { useCart } from "@/contexts/CartContext";
 import ProcessingScreen from "./ProcessingScreen";
-import SuccessScreen from "./SuccessScreen";
 
 import { errorMessage } from "@/lib/errors";
+import { confirmationPath } from "@/lib/orderLinks";
 // "processing" covers both the initial capture call and the follow-up
 // polling while the backend is still confirming — the UI doesn't need to
 // tell those two apart, it just needs to never show success early.
@@ -60,14 +60,13 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
   }, [clearPollTimer]);
 
   const finishSuccess = useCallback(
-    () => {
+    (paidOrderId: number) => {
       clearPollTimer();
       clearCart();
       toast.success("Payment successful — your order is confirmed!");
       setState("success");
-      setTimeout(() => {
-        window.location.href = "/categories";
-      }, 3000);
+      // Full page load so the cart refetches; replace() keeps Back off this page.
+      window.location.replace(confirmationPath(paidOrderId));
     },
     [clearCart, clearPollTimer]
   );
@@ -95,7 +94,7 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
           if (unmountedRef.current) return;
 
           if (status === "SUCCESS") {
-            finishSuccess();
+            finishSuccess(id);
             return;
           }
           if (status === "FAILED" || status === "REFUNDED") {
@@ -174,7 +173,7 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
         });
         const status = response?.data?.data?.status;
         if (status === "COMPLETED") {
-          finishSuccess();
+          finishSuccess(parsedOrderId);
         } else if (status === "PENDING") {
           toast("Your PayPal payment is still processing.");
           pollAttemptsRef.current = 0;
@@ -206,9 +205,13 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
       />
     );
   }
-  if (state === "success") return <SuccessScreen orderId={orderId} />;
+  if (state === "success") {
+    return <ProcessingScreen title="Payment confirmed" description="Opening your order confirmation…" />;
+  }
 
   const isPending = state === "pending";
+  // A pending order has its own confirmation page, which shows when the payment lands.
+  const actionHref = isPending ? (orderId != null ? confirmationPath(orderId) : "/orders") : "/checkout";
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
@@ -242,10 +245,10 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
 
             <div className="mt-8 space-y-3">
               <a
-                href={isPending ? "/categories" : "/checkout"}
+                href={actionHref}
                 className="w-full inline-flex bg-primary hover:brightness-95 text-primary-foreground py-3.5 rounded-[1rem] font-bold text-sm tracking-wide transition-all duration-200 items-center justify-center gap-2"
               >
-                {isPending ? "Back to Home" : "Return to Checkout"}
+                {isPending ? "View Your Order" : "Return to Checkout"}
               </a>
             </div>
           </div>

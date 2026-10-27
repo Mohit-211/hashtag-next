@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 export default function ConfirmationActions() {
   return (
     <div className="flex flex-col sm:flex-row gap-3 justify-center">
-      
+      <Button asChild variant="hero" size="lg">
+        <Link href="/orders">View My Orders</Link>
+      </Button>
 
-      <Link href="/">
-        <Button variant="outline" size="lg">
-          Continue Shopping
-        </Button>
-      </Link>
+      <Button asChild variant="outline" size="lg">
+        <Link href="/categories?view=all">Continue Shopping</Link>
+      </Button>
     </div>
   );
 }

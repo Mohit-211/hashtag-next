@@ -1,59 +1,17 @@
-"use client";
+import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { useState } from "react";
-// import { useSearchParams } from "next/navigation";
+import OrderConfirmation, { ConfirmationSkeleton } from "@/components/confirmation/OrderConfirmation";
 
-import ConfirmationHeader from "@/components/confirmation/ConfirmationHeader";
-import OrderInfoCard from "@/components/confirmation/OrderInfoCard";
-import PriceSummary from "@/components/confirmation/PriceSummary";
-import NextSteps from "@/components/confirmation/NextSteps";
-import ConfirmationActions from "@/components/confirmation/ConfirmationActions";
+export const metadata: Metadata = {
+  title: "Order Confirmation",
+  robots: { index: false, follow: false },
+};
 
-import type { CartItem } from "@/contexts/CartContext";
-
-interface OrderState {
-  orderId: string;
-  items: CartItem[];
-  subtotal: number;
-  customizationTotal: number;
-  shippingCost: number;
-  tax: number;
-  total: number;
-  paymentMethod: string;
-  shippingMethod: string;
-  date: string;
-}
-
-export default function Confirmation() {
-  // const searchParams = useSearchParams();
-
-  // const orderId = searchParams.get("orderId") || "HB00000001";
-const orderId="HB00000001"
-  const [order] = useState<OrderState | null>(null);
-
-  const orderDate = new Date().toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
+export default function ConfirmationPage() {
   return (
-    <section className="py-10 lg:py-16">
-      <div className="container max-w-3xl">
-        <ConfirmationHeader />
-
-        <OrderInfoCard
-          orderId={orderId}
-          orderDate={orderDate}
-          paymentMethod={order?.paymentMethod ?? "card"}
-        />
-
-        {order && <PriceSummary order={order} />}
-
-        <NextSteps />
-
-        <ConfirmationActions />
-      </div>
-    </section>
+    <Suspense fallback={<ConfirmationSkeleton />}>
+      <OrderConfirmation />
+    </Suspense>
   );
 }

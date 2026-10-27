@@ -9,18 +9,24 @@ export const CreateOrderApi = (payload: {
 }) => {
   return client.post(ORDER.CREATE, payload);
 };
+// Pass { skipErrorToast: true } when the screen shows the error itself.
+type RequestOptions = { skipErrorToast?: boolean };
+
 export const GetAllOrderApi =
-  () => {
+  (options?: RequestOptions) => {
     return client.get(
-      ORDER.GET_ALL
+      ORDER.GET_ALL,
+      options
     );
   };
 
 export const GetOrderDetailApi = (
-  id: string | number
+  id: string | number,
+  options?: RequestOptions
 ) => {
   return client.get(
-    ORDER.GET_DETAIL(id)
+    ORDER.GET_DETAIL(id),
+    options
   );
 };
 
