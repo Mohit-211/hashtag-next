@@ -1,6 +1,13 @@
 // app/shippingreturns/ShippingReturns.tsx
 
 import { CONTACT_EMAIL } from "@/lib/site";
+import { publicPage } from "@/lib/seo";
+
+export const metadata = publicPage({
+  title: "Shipping & Returns",
+  description: "Processing times, shipping options, returns and refunds at HashtagBillionaire.",
+  path: "/shippingreturns",
+});
 
 const shippingSections = [
   {

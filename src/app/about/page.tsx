@@ -1,4 +1,11 @@
 import Image from "next/image";
+import { publicPage } from "@/lib/seo";
+
+export const metadata = publicPage({
+  title: "About Us",
+  description: "Who HashtagBillionaire is: a store built around putting your own images and designs on apparel and products.",
+  path: "/about",
+});
 
 export default function About() {
   return (

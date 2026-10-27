@@ -1,6 +1,13 @@
 // app/privacy-policy/PrivacyPolicy.tsx
 
 import { CONTACT_EMAIL } from "@/lib/site";
+import { publicPage } from "@/lib/seo";
+
+export const metadata = publicPage({
+  title: "Privacy Policy",
+  description: "How HashtagBillionaire collects, uses and protects your personal information.",
+  path: "/privacy-policy",
+});
 
 const sections = [
   {

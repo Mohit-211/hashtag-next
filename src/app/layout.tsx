@@ -11,6 +11,8 @@ import Footer from "@/components/layout/Footer";
 
 import "./globals.css";
 import HistoryManager from "@/components/history/HistoryManager";
+import { baseOpenGraph } from "@/lib/seo";
+import { ALLOW_INDEXING, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // The site's single font family. Exposed as --font-inter on <html>; every
 // font token in globals.css (sans/body/heading/mono) resolves to it.
@@ -21,15 +23,14 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://hashtagbillionaire.com"),
+  metadataBase: new URL(SITE_URL),
 
   title: {
-    default: "HashtagBillionaire",
-    template: "%s | HashtagBillionaire",
+    default: SITE_NAME,
+    template: `%s | ${SITE_NAME}`,
   },
 
-  description:
-    "A platform for identity, customization, and self-expression through personalized products.",
+  description: SITE_DESCRIPTION,
 
   keywords: [
     "custom apparel",
@@ -40,43 +41,28 @@ export const metadata: Metadata = {
     "custom fashion",
   ],
 
-  authors: [{ name: "HashtagBillionaire" }],
+  authors: [{ name: SITE_NAME }],
 
-  creator: "HashtagBillionaire",
-  publisher: "HashtagBillionaire",
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
 
-  robots: {
-    index: true,
-    follow: true,
-  },
+  // Staging and previews set NEXT_PUBLIC_NOINDEX=true (see robots.ts).
+  robots: ALLOW_INDEXING ? { index: true, follow: true } : { index: false, follow: false },
 
   icons: {
     icon: "/favicon.png",
   },
 
   openGraph: {
-    title: "HashtagBillionaire",
-    description:
-      "Express your identity through customizable apparel and lifestyle products.",
-    url: "https://hashtagbillionaire.com",
-    siteName: "HashtagBillionaire",
-    images: [
-      {
-        url: "/assets/hero-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "HashtagBillionaire",
-      },
-    ],
-    locale: "en_US",
-    type: "website",
+    ...baseOpenGraph,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: "/",
   },
 
+  // No title or description here, so cards use each page's Open Graph text.
   twitter: {
     card: "summary_large_image",
-    title: "HashtagBillionaire",
-    description:
-      "Express your identity through customizable apparel and lifestyle products.",
     images: ["/assets/hero-image.jpg"],
   },
 };

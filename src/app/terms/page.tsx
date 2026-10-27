@@ -1,6 +1,13 @@
 // app/terms/Terms.tsx
 
 import { CONTACT_EMAIL } from "@/lib/site";
+import { publicPage } from "@/lib/seo";
+
+export const metadata = publicPage({
+  title: "Terms & Conditions",
+  description: "The terms for using the HashtagBillionaire website and placing an order.",
+  path: "/terms",
+});
 
 const sections = [
   {
