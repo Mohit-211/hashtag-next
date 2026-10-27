@@ -1,5 +1,7 @@
 // app/shippingreturns/ShippingReturns.tsx
 
+import { CONTACT_EMAIL } from "@/lib/site";
+
 const shippingSections = [
   {
     title: "Processing Time",
@@ -52,7 +54,7 @@ const returnsSections = [
   {
     title: "Contact for Support",
     content:
-      "For any questions or concerns regarding shipping, returns, or refunds, please reach out to our support team at support@hashtagbillionaire.com. You can also visit our Support & Help Center for answers to common questions. We are committed to resolving every inquiry promptly and fairly.",
+      `For any questions or concerns regarding shipping, returns, or refunds, please reach out to our support team at ${CONTACT_EMAIL}. You can also visit our Support & Help Center for answers to common questions. We are committed to resolving every inquiry promptly and fairly.`,
   },
 ];
 

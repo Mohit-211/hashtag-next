@@ -1,5 +1,7 @@
 // app/terms/Terms.tsx
 
+import { CONTACT_EMAIL } from "@/lib/site";
+
 const sections = [
   {
     title: "Introduction",
@@ -54,7 +56,7 @@ const sections = [
   {
     title: "Contact",
     content:
-      "If you have any questions or concerns about these Terms and Conditions, please contact us at legal@hashtagbillionaire.com. Our team is available to clarify any aspect of these terms and will respond to inquiries as promptly as possible.",
+      `If you have any questions or concerns about these Terms and Conditions, please contact us at ${CONTACT_EMAIL}. Our team is available to clarify any aspect of these terms and will respond to inquiries as promptly as possible.`,
   },
 ];
 

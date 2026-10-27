@@ -1,6 +1,7 @@
 // components/support/SupportInfo.tsx
 
 import { Mail, Clock } from "lucide-react";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 export default function SupportInfo() {
   return (
@@ -12,9 +13,12 @@ export default function SupportInfo() {
           <div>
             <p className="font-semibold">Email Support</p>
 
-            <p className="text-muted-foreground text-sm">
-              support@hashtagbillionaire.com
-            </p>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="text-muted-foreground text-sm hover:underline underline-offset-4"
+            >
+              {CONTACT_EMAIL}
+            </a>
           </div>
         </div>
 

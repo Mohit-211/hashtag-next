@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 export default function Footer() {
   return (
@@ -89,9 +90,12 @@ export default function Footer() {
               Contact
             </h4>
 
-            <p className="text-sm text-secondary-ink">
-              patrick@hashtagbillioniare.net
-            </p>
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="text-sm text-secondary-ink hover:underline underline-offset-4"
+            >
+              {CONTACT_EMAIL}
+            </a>
           </div>
         </div>
 

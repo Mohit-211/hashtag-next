@@ -1,5 +1,7 @@
 // app/privacy-policy/PrivacyPolicy.tsx
 
+import { CONTACT_EMAIL } from "@/lib/site";
+
 const sections = [
   {
     title: "Introduction",
@@ -44,7 +46,7 @@ const sections = [
   {
     title: "Contact Information",
     content:
-      "If you have any questions, concerns, or requests regarding this Privacy Policy or the way we handle your personal information, please reach out to us at privacy@hashtagbillionaire.com. Our team is available to assist you and will respond to all inquiries as promptly as possible.",
+      `If you have any questions, concerns, or requests regarding this Privacy Policy or the way we handle your personal information, please reach out to us at ${CONTACT_EMAIL}. Our team is available to assist you and will respond to all inquiries as promptly as possible.`,
   },
 ];
 
