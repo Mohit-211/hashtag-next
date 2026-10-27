@@ -19,6 +19,9 @@ export interface ProductAddon {
   sort_order?: number;
 }
 
+/** One unit of the add-on with this product; the cart charges it × the add-on quantity. */
+export const addonUnitPrice = (a: ProductAddon) => Number(a.addon_price ?? a.price ?? 0) || 0;
+
 const parseFeatures = (raw?: string | null): string[] => {
   if (!raw) return [];
   try {
@@ -100,7 +103,7 @@ export default function AddOnSuggestions({
               </div>
             ))
           : addons.map((a) => {
-              const price = Number(a.addon_price ?? a.price ?? 0);
+              const price = addonUnitPrice(a);
               const original = Number(a.price ?? 0);
               const features = parseFeatures(a.features);
               const checked = isSelected(a);
@@ -146,6 +149,7 @@ export default function AddOnSuggestions({
                     <div className="flex items-baseline gap-1.5 mt-auto pt-1.5">
                       <span className="text-sm font-bold text-foreground">
                         ${formatMoney(price)}
+                        <span className="text-[11px] font-normal text-muted-foreground"> each</span>
                       </span>
                       {original > price && (
                         <span className="text-[11px] line-through text-muted-foreground">

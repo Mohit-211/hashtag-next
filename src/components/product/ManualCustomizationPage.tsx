@@ -15,8 +15,8 @@ import { cn } from "@/lib/utils";
 import { ProductAddonsApi, ProductCustomizationsApi } from "@/api/operations/product.api";
 import { ManualAddToCartApi } from "@/api/operations/cart.api";
 import { buildManualCartRequest, MANUAL_CART_TYPE } from "@/components/product/manualCartPayload";
-import { type ProductAddon } from "@/components/product/AddOnSuggestions";
-import AddOnModal from "@/components/product/AddOnModal";
+import { addonUnitPrice, type ProductAddon } from "@/components/product/AddOnSuggestions";
+import AddOnModal, { addonQuantity, toSelectedAddon, type SelectedAddon } from "@/components/product/AddOnModal";
 import {
   findManualTier,
   getManualUnitPrice,
@@ -115,7 +115,7 @@ interface ManualResumePayload {
     /** Files are in IndexedDB under "<customizationId>:<id>:original|file". */
     images: { id: string; cropped: boolean }[];
   }[];
-  addons?: ProductAddon[];
+  addons?: SelectedAddon[];
 }
 
 const TEXT_MAX = 100;
@@ -173,7 +173,7 @@ export default function ManualCustomizationPage({
   const [selections, setSelections] = useState<Record<number, Selection>>({});
   const [submitting, setSubmitting] = useState(false);
   // Picked in the add-on modal that Add to Cart opens, and sent in the same request.
-  const [selectedAddons, setSelectedAddons] = useState<ProductAddon[]>([]);
+  const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
   // null until loaded; products without add-ons skip the modal.
   const [availableAddons, setAvailableAddons] = useState<ProductAddon[] | null>(null);
   const [addonModalOpen, setAddonModalOpen] = useState(false);
@@ -287,9 +287,8 @@ export default function ManualCustomizationPage({
     decorationPrice: qty > 0 ? customizationTotal / qty : 0,
     quantity: qty,
   });
-  // Add-on cards show one price per add-on, so it counts once per order.
-  const addonPrice = (a: ProductAddon) => Number(a.addon_price ?? a.price ?? 0) || 0;
-  const addonsTotal = selectedAddons.reduce((sum, a) => sum + addonPrice(a), 0);
+  // The cart charges each add-on per unit, at the quantity the customer chose (Q25).
+  const addonsTotal = selectedAddons.reduce((sum, a) => sum + addonUnitPrice(a) * addonQuantity(a, qty), 0);
   const grandTotal = totals.total + addonsTotal;
 
   const updateSelection = (id: number, patch: Partial<Selection>) =>
@@ -369,7 +368,7 @@ export default function ManualCustomizationPage({
   };
 
   /* ── login round trip: save everything, restore it, finish the add ── */
-  const buildResumeRequest = (addons: ProductAddon[]): LoginResumeRequest => {
+  const buildResumeRequest = (addons: SelectedAddon[]): LoginResumeRequest => {
     const files: PendingFileEntry[] = [];
     const saved = Object.entries(selections).map(([cid, sel]) => ({
       customizationId: Number(cid),
@@ -437,7 +436,7 @@ export default function ManualCustomizationPage({
       if (lostImages) toast.warning("Some uploaded images couldn't be restored. Please add them again.");
       autoSubmitRef.current = loggedIn && !lostImages;
       setSelections(restored);
-      if (Array.isArray(pending.payload.addons)) setSelectedAddons(pending.payload.addons);
+      if (Array.isArray(pending.payload.addons)) setSelectedAddons(pending.payload.addons.map(toSelectedAddon));
       if (pending.payload.qty > 0) setQty(pending.payload.qty);
     })();
   }, [loading, productId, variant.id, groups]);
@@ -458,7 +457,7 @@ export default function ManualCustomizationPage({
     setSelectedAddons([]);
   };
 
-  const submitAddToCart = async (addons: ProductAddon[]) => {
+  const submitAddToCart = async (addons: SelectedAddon[]) => {
     // Validate first so a login round trip only ever saves a complete order.
     if (!validate()) return;
     setSelectedAddons(addons);
@@ -480,8 +479,8 @@ export default function ManualCustomizationPage({
             valueId: l.value.id,
             images: l.group.option.allow_image_upload ? l.sel.images.map((img) => img.file) : [],
           })),
-          // Each picked add-on goes with the product quantity.
-          addons: addons.map((a) => ({ productAddonId: a.id, quantity: qty })),
+          // The customer's own quantity, or one per item when they chose that.
+          addons: addons.map((a) => ({ productAddonId: a.id, quantity: addonQuantity(a, qty) })),
         },
       ],
     });
@@ -816,8 +815,10 @@ export default function ManualCustomizationPage({
         ))}
         {selectedAddons.map((a) => (
           <div key={`addon-${a.id}`} className="flex justify-between gap-3 py-1 text-foreground">
-            <span className="min-w-0 truncate">Add-on: {a.name}</span>
-            <span className="font-medium text-foreground flex-shrink-0">${formatMoney(addonPrice(a))}</span>
+            <span className="min-w-0 truncate">Add-on: {a.name} × {addonQuantity(a, qty)}</span>
+            <span className="font-medium text-foreground flex-shrink-0">
+              ${formatMoney(addonUnitPrice(a) * addonQuantity(a, qty))}
+            </span>
           </div>
         ))}
         <div className="h-px bg-muted my-2" />
@@ -866,6 +867,7 @@ export default function ManualCustomizationPage({
         onClose={closeAddonModal}
         productId={productId}
         name={variantLabel}
+        productQty={qty}
         addons={availableAddons ?? undefined}
         selected={selectedAddons}
         onSelectionChange={setSelectedAddons}
