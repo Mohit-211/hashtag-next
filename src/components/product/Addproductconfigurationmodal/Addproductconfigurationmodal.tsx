@@ -517,7 +517,7 @@ export default function AddProductConfigurationModal({
                     )}
                     {rowVariant && maxStock > 0 && maxStock < rowMin && (
                       <p className="mt-1 text-xs text-destructive">
-                        Only {maxStock} in stock, below the {rowMin}-piece minimum, so this row can&apos;t be added.
+                        Not enough in stock to meet the {rowMin}-piece minimum, so this row can&apos;t be added.
                       </p>
                     )}
                   </div>

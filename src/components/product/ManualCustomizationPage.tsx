@@ -353,7 +353,11 @@ export default function ManualCustomizationPage({
       return false;
     }
     if (maxQty != null && qty > maxQty) {
-      toast.error(stockMax != null && qty > stockMax ? `Only ${stockMax} in stock.` : `Maximum order quantity is ${maxQty}.`);
+      toast.error(
+        stockMax != null && qty > stockMax
+          ? "We don't have that many in stock. Please choose a smaller quantity."
+          : `Maximum order quantity is ${maxQty}.`
+      );
       return false;
     }
     const unpriced = selectedLines.find((l) => !l.price.available);
@@ -660,7 +664,8 @@ export default function ManualCustomizationPage({
           {manualMeta?.pricing_mode !== "quantity_fixed" && (
             <p className="text-xs text-muted-foreground">
               Min. {minQty}
-              {maxQty != null ? ` · Max. ${maxQty}` : ""} pcs
+              {/* Only the price list's cap is shown; stock limits the stepper silently (Q49). */}
+              {tierMax != null ? ` · Max. ${tierMax}` : ""} pcs
             </p>
           )}
         </div>

@@ -2243,9 +2243,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           disabled={!row.color}
                           className="h-10 rounded-xl border-2 border-border px-2 text-xs font-semibold text-foreground bg-card focus:border-primary outline-none disabled:opacity-40">
                           <option value="">Size…</option>
-                          {sizesForColor.map(v => (
-                            <option key={v.id} value={v.id}>{v.size_details?.name || v.size} (stock: {v.stock})</option>
-                          ))}
+                          {sizesForColor.map(v => {
+                            // Shoppers never see a stock count (Q49), only whether a size is sold out.
+                            const soldOut = v.stock != null && Number(v.stock) <= 0;
+                            return (
+                              <option key={v.id} value={v.id} disabled={soldOut}>
+                                {v.size_details?.name || v.size}{soldOut ? " (out of stock)" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
                         <button onClick={() => removeOrderRow(row.id)} disabled={orderRows.length === 1}
                           className="w-9 h-9 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:bg-destructive-soft hover:text-destructive hover:border-destructive/30 disabled:opacity-30">

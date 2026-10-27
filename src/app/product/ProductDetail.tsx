@@ -666,7 +666,6 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const isDirectAdd = isPreMade || isManualSupplier;
   const isApparel = isGrandCategory(grandCategory?.title, "apparel");
   const isPromo = isGrandCategory(grandCategory?.title, "promo");
-  const isLowStock = variantData?.stock != null && variantData.stock > 0 && variantData.stock <= 5;
 
   const configModalVariants = product.variants.map((v) => ({
     ...v,
@@ -754,15 +753,6 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
               onOptionChange={handleOptionChange}
               manualPricing={manualPricing}
             />
-
-            {isLowStock && (
-              <div className="flex items-center gap-2 rounded-lg border border-primary bg-primary-soft px-4 py-3">
-                <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-primary-ink" />
-                <p className="text-xs font-bold text-primary-ink">
-                  Only {variantData?.stock} left in stock — order soon
-                </p>
-              </div>
-            )}
 
             {/* MANUAL-supplier products customize and add to cart inline. */}
             {isManualSupplier && variantData && (
