@@ -18,7 +18,6 @@ export interface PriceTier {
 export interface SageMeta {
   netTiers: PriceTier[];
   qtyTiers: number[];
-  setupFee?: number;
   currency?: string;
   productName?: string;
   sku?: string;
@@ -129,7 +128,6 @@ export function parseSageMeta(
   return {
     netTiers,
     qtyTiers: netTiers.map(t => t.minQty),
-    setupFee: typeof obj.setupFee === "number" ? obj.setupFee : undefined,
     currency: "USD",
     productName: obj.productName as string | undefined,
     sku: obj.sku as string | undefined,
@@ -352,7 +350,6 @@ interface PriceBarProps {
   qty: number;
   unitPrice: number;
   total: number;
-  setupFee?: number;
   saving: number;
   activeTier: PriceTier | null;
 }
@@ -361,7 +358,6 @@ const PriceBar = React.memo(function PriceBar({
   qty,
   unitPrice,
   total,
-  setupFee,
   saving,
   activeTier,
 }: PriceBarProps) {
@@ -389,12 +385,6 @@ const PriceBar = React.memo(function PriceBar({
           <span className="text-muted-foreground">Unit price</span>
           <span className="font-semibold text-background tabular-nums">{fmt(unitPrice)}</span>
         </div>
-        {setupFee ? (
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Setup fee</span>
-            <span className="font-semibold text-background tabular-nums">{fmt(setupFee)}</span>
-          </div>
-        ) : null}
         {saving > 0 && (
           <div className="flex justify-between text-xs">
             <span className="text-success flex items-center gap-1"><TrendingDown size={11} /> You save</span>
@@ -491,9 +481,11 @@ export default function SageQuantityPricing({
     [activeTier]
   );
 
+  // SAGE products carry no setup charge (client decision Q12), so this is
+  // exactly what the cart charges: units × unit price.
   const total = useMemo(
-    () => unitPrice * qty + (meta?.setupFee ?? 0),
-    [unitPrice, qty, meta?.setupFee]
+    () => unitPrice * qty,
+    [unitPrice, qty]
   );
 
   const baseTierPrice = useMemo(
@@ -668,7 +660,6 @@ export default function SageQuantityPricing({
           qty={qty}
           unitPrice={unitPrice}
           total={total}
-          setupFee={meta.setupFee}
           saving={saving}
           activeTier={activeTier}
         />
@@ -711,7 +702,6 @@ export default function SageQuantityPricing({
             qty={qty}
             unitPrice={unitPrice}
             total={total}
-            setupFee={meta.setupFee}
             saving={saving}
             activeTier={activeTier}
           />
