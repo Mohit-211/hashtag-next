@@ -567,6 +567,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [loadedProductImg, setProductImg] = useState<HTMLImageElement | null>(null);
+  // The base image that wouldn't load, so nothing keeps waiting for it.
+  const [failedBaseImageSrc, setFailedBaseImageSrc] = useState<string | null>(null);
   const [loadedLogoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
   const [logoSrc, setLogoSrc] = useState<string | null>(null);
   const [isRemovingLogoBg, setIsRemovingLogoBg] = useState(false);
@@ -1176,7 +1178,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         if (cancelled) return;
         const img = await loadImage(src);
         if (!cancelled) setProductImg(img);
-      } catch (err) { console?.error("Failed to load product image:", err); }
+      } catch (err) {
+        console?.error("Failed to load product image:", err);
+        if (!cancelled) setFailedBaseImageSrc(canvasBaseImageSrc);
+      }
     })();
     return () => { cancelled = true; };
   }, [canvasBaseImageSrc, useMockupOnCanvas]);
@@ -1893,7 +1898,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   useEffect(() => {
     const action = resumeAfterRestoreRef.current;
     if (!action || loading || restorePending || !product) return;
-    if (canvasBaseImageSrc && !productImg) return;
+    if (canvasBaseImageSrc && !productImg && failedBaseImageSrc !== canvasBaseImageSrc) return;
     if (graphicRestorePending) return;
     if (logoSrc && !logoImg && !logoFailed) return;
     if (action === "wishlist" && wishlistSyncing) return;
@@ -1905,7 +1910,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     else if (!inWishlist) handleWishlist(); // add only, never toggle off
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, restorePending, product, productImg, logoImg, logoSrc, logoFailed, graphicRestorePending, canvasBaseImageSrc, wishlistSyncing]);
+  }, [loading, restorePending, product, productImg, failedBaseImageSrc, logoImg, logoSrc, logoFailed, graphicRestorePending, canvasBaseImageSrc, wishlistSyncing]);
 
   if (loading || restorePending) {
     return (
