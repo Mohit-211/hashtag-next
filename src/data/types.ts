@@ -5,6 +5,7 @@ import type { SortOption } from "@/data/typesproduct";
 export type Section =
   | "profile"
   | "addresses"
+  | "graphics"
   | "password"
   | "orders"
   | "saved"

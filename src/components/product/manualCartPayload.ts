@@ -18,7 +18,8 @@
  * Files are the original File objects (never base64/JSON). A customization
  * entry with an upload carries `image_index` = its file's position in
  * `customization_images` (counted across all variants); entries without an
- * upload omit it. Several files on one option → one entry per file.
+ * upload omit it. Several files on one option → one entry per file. A saved
+ * graphic goes the same way, as `graphic_id` in place of `image_index`.
  */
 
 export const MANUAL_CART_TYPE = "MANUAL";
@@ -28,6 +29,8 @@ export interface ManualCartLine {
   valueId: number;
   /** Upload order = image_index order. */
   images?: File[];
+  /** The customer's saved graphics, sent by id with nothing uploaded again. */
+  graphicIds?: number[];
 }
 
 export interface ManualCartAddon {
@@ -47,6 +50,7 @@ interface ManualCartCustomizationPayload {
   customization_option_id: number;
   customization_option_value_id: number;
   image_index?: number;
+  graphic_id?: number;
 }
 
 interface ManualCartVariantPayload {
@@ -75,12 +79,16 @@ export function buildManualCartRequest({
     customization: v.lines.flatMap((line) => {
       const base = { customization_option_id: line.optionId, customization_option_value_id: line.valueId };
       const images = line.images ?? [];
-      if (images.length === 0) return [base];
-      return images.map((file) => {
-        const entry = { ...base, image_index: files.length };
-        files.push(file);
-        return entry;
-      });
+      const graphicIds = line.graphicIds ?? [];
+      if (images.length === 0 && graphicIds.length === 0) return [base];
+      return [
+        ...images.map((file) => {
+          const entry = { ...base, image_index: files.length };
+          files.push(file);
+          return entry;
+        }),
+        ...graphicIds.map((graphic_id) => ({ ...base, graphic_id })),
+      ];
     }),
     addons: (v.addons ?? []).map((a) => ({ product_addon_id: a.productAddonId, quantity: a.quantity })),
   }));

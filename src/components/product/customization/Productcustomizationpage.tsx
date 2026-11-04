@@ -12,7 +12,7 @@ import {
   Upload, RotateCw, RotateCcw, Download, Sparkles, Eye, ImageDown,
   AlertCircle, Loader2, Plus, Minus, Type, Image as ImageIcon,
   Trash2, ShoppingCart, Heart, Zap, Package,
-  CheckCircle2,
+  CheckCircle2, FileImage,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductVariantByIdApi, ProductDetailApi, ProductDetailGuestApi } from "@/api/operations/product.api";
@@ -28,6 +28,14 @@ import {
   getMaterialPrintTotal, getDigitizingFee, getMaterialFloor, isQuoteOnlyLocation, type SpColorCount, type MaterialId,
 } from "./pricing";
 import { CONTACT_EMAIL } from "@/lib/site";
+import { errorMessage } from "@/lib/errors";
+import { NOV4_RELEASE } from "@/lib/features";
+import { clearPendingFiles, loadPendingFiles, savePendingFiles } from "@/lib/pendingAuthFiles";
+import { UploadGraphicApi, type SavedGraphic } from "@/api/operations/graphics.api";
+import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
+import {
+  GRAPHIC_FEE_WAIVED_FROM, GRAPHIC_MAX_BYTES, GRAPHIC_MAX_MB, GRAPHIC_SETUP_FEE, canDrawGraphic,
+} from "@/components/graphics/graphicFiles";
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
 interface VariantImage { id: number; file_name: string; file_uri: string; is_primary: boolean }
@@ -284,8 +292,8 @@ const loadImage = (src: string): Promise<HTMLImageElement> =>
     img.onload = () => res(img);
     img.onerror = rej;
     // Cache-busting query params only make sense for real URLs — appending
-    // one to a data: URI corrupts the base64 payload and breaks decoding.
-    img.src = src.startsWith("data:")
+    // one to a data: or blob: URI breaks it.
+    img.src = src.startsWith("data:") || src.startsWith("blob:")
       ? src
       : src.includes("?") ? `${src}&_cb=${Date.now()}` : `${src}?_cb=${Date.now()}`;
   });
@@ -442,7 +450,12 @@ function drawCanvas({
     const cy = logoPos.y + logoSize / 2;
     ctx.translate(cx, cy);
     ctx.rotate((logoRotation * Math.PI) / 180);
-    ctx.drawImage(logo, -logoSize / 2, -logoSize / 2, logoSize, logoSize);
+    // Logos come in any shape: fit inside the square, keeping their proportions.
+    // An SVG with no size of its own reports 0, and fills the square.
+    const aspect = logo.naturalWidth > 0 && logo.naturalHeight > 0 ? logo.naturalWidth / logo.naturalHeight : 1;
+    const logoW = aspect >= 1 ? logoSize : logoSize * aspect;
+    const logoH = aspect >= 1 ? logoSize / aspect : logoSize;
+    ctx.drawImage(logo, -logoW / 2, -logoH / 2, logoW, logoH);
     ctx.restore();
   }
   if (text?.trim()) {
@@ -516,6 +529,9 @@ function Slider({ label, value, min, max, step = 1, unit = "", onChange }: {
 /* ─────────────────────────────────────────── Main Component ── */
 interface Props { productDataId: number; variantDataId: number }
 const CUSTOMIZATION_SESSION_KEY = "pendingCustomization";
+/** A guest's chosen file waits in IndexedDB under this id: it's too big for sessionStorage. */
+const GRAPHIC_PENDING_ID = "customization-graphic";
+const GRAPHIC_FILE_KEY = "graphic";
 const RESUME_ACTIONS = ["addToCart", "wishlist", "preview"] as const;
 type ResumeAction = (typeof RESUME_ACTIONS)[number];
 export default function ProductCustomizationPage({ productDataId, variantDataId }: Props) {
@@ -556,6 +572,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [isRemovingLogoBg, setIsRemovingLogoBg] = useState(false);
   const [autoRemoveBg, setAutoRemoveBg] = useState(false);
   const [bgRemoved, setBgRemoved] = useState(false);
+  // The browser couldn't draw the chosen file (AI, EPS, PSD, CDR…).
+  const [logoFailed, setLogoFailed] = useState(false);
+  // The customer's real file: this is what production gets, while the canvas
+  // stays a preview. A guest's file waits in graphicFile until they've signed in.
+  const [graphicFile, setGraphicFile] = useState<File | null>(null);
+  const [savedGraphic, setSavedGraphic] = useState<SavedGraphic | null>(null);
+  const savedGraphicRef = useRef<SavedGraphic | null>(null);
+  const graphicUploadRef = useRef<Promise<SavedGraphic | null> | null>(null);
+  const [graphicUploading, setGraphicUploading] = useState(false);
+  const [graphicError, setGraphicError] = useState<string | null>(null);
+  const [showGraphicPicker, setShowGraphicPicker] = useState(false);
+  const [graphicRestorePending, setGraphicRestorePending] = useState(false);
   const [logoSize, setLogoSize] = useState(120);
   const [logoRotation, setLogoRotation] = useState(0);
   const [logoOpacity, setLogoOpacity] = useState(1);
@@ -595,6 +623,49 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     { id: Date.now(), color: "", qty: 1, variantId: "" }
   ]);
   const orderRowsRef = useRef(orderRows);
+  const applySavedGraphic = (graphic: SavedGraphic | null) => {
+    savedGraphicRef.current = graphic;
+    setSavedGraphic(graphic);
+  };
+  /** Saves the file to the customer's graphics. Null, with the reason on screen, if that failed. */
+  const uploadGraphic = (file: File): Promise<SavedGraphic | null> => {
+    setGraphicUploading(true);
+    setGraphicError(null);
+    const upload: Promise<SavedGraphic | null> = UploadGraphicApi(file)
+      .then((res) => {
+        // A newer file was chosen while this one was uploading.
+        if (graphicUploadRef.current !== upload) return null;
+        const graphic: SavedGraphic = res?.data?.data;
+        applySavedGraphic(graphic);
+        return graphic;
+      })
+      .catch((err) => {
+        if (graphicUploadRef.current === upload) {
+          setGraphicError(errorMessage(err, "We couldn't upload your file. Please try again."));
+        }
+        return null;
+      })
+      .finally(() => {
+        if (graphicUploadRef.current !== upload) return;
+        graphicUploadRef.current = null;
+        setGraphicUploading(false);
+      });
+    graphicUploadRef.current = upload;
+    return upload;
+  };
+  /** Takes the customer's file exactly as it is, and uploads it unless they're a guest. */
+  const showGraphicFile = (file: File) => {
+    const preview = URL.createObjectURL(file);
+    setGraphicFile(file);
+    applySavedGraphic(null);
+    setGraphicError(null);
+    setBgRemoved(false);
+    setLogoFailed(false);
+    setLogoImg(null);
+    setLogoSrc(preview);
+    if (hasAuthToken()) uploadGraphic(file);
+    return preview;
+  };
   // ── Data loading, restore & derived values ──
   const isLoggedIn = useIsLoggedIn();
   useEffect(() => {
@@ -701,7 +772,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         textShadow,
         textOpacity,
         textPos,
-        logoSrc,
+        // A file comes back from IndexedDB, so its preview isn't stored here.
+        logoSrc: graphicFile ? null : logoSrc,
+        savedGraphic,
+        hasGraphicFile: !!graphicFile,
         logoSize,
         logoRotation,
         logoOpacity,
@@ -713,6 +787,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         savedAt: Date.now(),
       };
       sessionStorage.setItem(CUSTOMIZATION_SESSION_KEY, JSON.stringify(snapshot));
+      if (graphicFile) savePendingFiles(GRAPHIC_PENDING_ID, [{ key: GRAPHIC_FILE_KEY, file: graphicFile }]);
     } catch (e) {
       console?.error("Failed to save customization to session:", e);
     }
@@ -800,6 +875,20 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       if (saved.textOpacity !== undefined) setTextOpacity(saved.textOpacity);
       if (saved.textPos) setTextPos(saved.textPos);
       if (saved.logoSrc) setLogoSrc(saved.logoSrc);
+      if (saved.savedGraphic) {
+        applySavedGraphic(saved.savedGraphic);
+        if (!canDrawGraphic(saved.savedGraphic)) setLogoFailed(true);
+      }
+      if (saved.hasGraphicFile) {
+        setGraphicRestorePending(true);
+        loadPendingFiles(GRAPHIC_PENDING_ID)
+          .then((entries) => {
+            const file = entries.find((entry) => entry.key === GRAPHIC_FILE_KEY)?.file;
+            if (file) showGraphicFile(file);
+            if (isLoggedIn) clearPendingFiles();
+          })
+          .finally(() => setGraphicRestorePending(false));
+      }
       if (saved.logoSize) setLogoSize(saved.logoSize);
       if (saved.logoRotation !== undefined) setLogoRotation(saved.logoRotation);
       if (saved.logoOpacity !== undefined) setLogoOpacity(saved.logoOpacity);
@@ -1068,7 +1157,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     });
     lastMaterialFloorRef.current = floor;
   };
-  const { refreshCart } = useCart();
+  const { items: cartItems, refreshCart } = useCart();
   const { wishlist, loading: wishlistSyncing, addToWishlist, removeItem, fetchWishlist } = useWishlist();
   const wishlistItem = wishlist.find(i => i.product_id === variantDataId);
   const inWishlist = !!wishlistItem;
@@ -1095,8 +1184,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   useEffect(() => {
     if (!logoSrc) return;
     let cancelled = false;
-    loadImage(logoSrc).then(img => { if (!cancelled) setLogoImg(img); });
+    loadImage(logoSrc)
+      .then(img => { if (!cancelled) setLogoImg(img); })
+      .catch(() => { if (!cancelled) setLogoFailed(true); });
     return () => { cancelled = true; };
+  }, [logoSrc]);
+  useEffect(() => {
+    if (!logoSrc?.startsWith("blob:")) return;
+    return () => URL.revokeObjectURL(logoSrc);
   }, [logoSrc]);
   /** Makes the logo transparent by cutting out its background, entirely in
    *  the browser (no upload to a third-party API — @imgly/background-removal
@@ -1121,6 +1216,44 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setIsRemovingLogoBg(false);
     }
   }, [logoSrc, isRemovingLogoBg]);
+  const resetLogoPlacement = () => {
+    const defaultSize = 120;
+    setLogoRotation(0);
+    setLogoSize(defaultSize);
+    setLogoPos({ x: (CANVAS_SIZE - defaultSize) / 2, y: (CANVAS_SIZE - defaultSize) / 2 });
+  };
+  const handleGraphicFile = (file: File) => {
+    if (file.size > GRAPHIC_MAX_BYTES) {
+      setGraphicError(`That file is larger than ${GRAPHIC_MAX_MB} MB. Please choose a smaller one.`);
+      return;
+    }
+    resetLogoPlacement();
+    const preview = showGraphicFile(file);
+    if (autoRemoveBg && file.type.startsWith("image/")) handleRemoveLogoBackground(preview);
+  };
+  /** A saved graphic needs no upload: its id goes with the customization. */
+  const handlePickSavedGraphic = (graphic: SavedGraphic) => {
+    graphicUploadRef.current = null;
+    setGraphicUploading(false);
+    setShowGraphicPicker(false);
+    setGraphicFile(null);
+    applySavedGraphic(graphic);
+    setGraphicError(null);
+    setBgRemoved(false);
+    setLogoImg(null);
+    resetLogoPlacement();
+    const drawable = canDrawGraphic(graphic);
+    setLogoFailed(!drawable);
+    setLogoSrc(drawable ? graphic.file_url : null);
+  };
+  const handleRemoveGraphic = () => {
+    graphicUploadRef.current = null;
+    setGraphicUploading(false);
+    setGraphicFile(null);
+    applySavedGraphic(null);
+    setGraphicError(null);
+    setLogoFailed(false);
+  };
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1449,6 +1582,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return 0;
   }, [currentVariantAlreadyConfigured, isApparel, isPreMade, isPromo, currentQty, totalQty, estimatedTotal, preMadeSelectionPricing, promoUnitPrice, promoTotal]);
   const displayTotal = grandConfiguredPrice + currentSelectionTotal;
+  // The API charges a new graphic on clothing once, when fewer than 12 pieces in
+  // the order carry it. This only warns: the cart's figure is the final one.
+  const newGraphicPiecesInCart = isApparel && savedGraphic?.is_new
+    ? cartItems
+      .filter((item) => (item.graphics as { id: number }[] | undefined)?.some((g) => g.id === savedGraphic.id))
+      .reduce((sum, item) => sum + item.quantity, 0)
+    : null;
+  const piecesWithGraphic = grandConfiguredQty + (currentVariantAlreadyConfigured ? 0 : currentQty);
+  const showGraphicFeeNotice =
+    newGraphicPiecesInCart !== null && piecesWithGraphic + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
 
   const buildPayload = (variantList: ConfiguredVariant[]) => {
     const customizations = variantList.flatMap(cv =>
@@ -1465,7 +1608,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           quantity: s.quantity,
           product_price: s.unit_price,
           decoration_price: s.decoration_unit_price ?? 0,
-          digitizing_fee: s.digitizing_fee ?? 0,
           // ★ digitizing fee added ONCE, flat — never multiplied by qty
           total_price: linePricing.total + (s.digitizing_fee ?? 0),
         };
@@ -1478,6 +1620,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       print_method?: string | null;
       locations?: { location: string }[];
       second_location_fee?: number;
+      graphic_id?: number;
     } = {
       product_id: productDataId,
       customizations,
@@ -1503,6 +1646,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       base.locations = selectedPrintLocations.map(loc => ({ location: loc }));
       base.second_location_fee = drinkwareLocationFee;
     }
+    if (savedGraphicRef.current) base.graphic_id = savedGraphicRef.current.id;
     return base;
   };
   const getBlob = (): Promise<Blob | null> =>
@@ -1589,6 +1733,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         setValidationError(
           `Minimum order quantity for ${tooLow.variantName} is ${min} (currently ${tooLow.totalQty}).`
         );
+        setShowValidationShake(true);
+        setTimeout(() => setShowValidationShake(false), 600);
+        return;
+      }
+    }
+    // Production works from the real file, so it has to be saved first.
+    if (graphicFile && !savedGraphicRef.current) {
+      const graphic = await (graphicUploadRef.current ?? uploadGraphic(graphicFile));
+      if (!graphic) {
+        setValidationError("We couldn't upload your file. Please try again, or choose another one.");
         setShowValidationShake(true);
         setTimeout(() => setShowValidationShake(false), 600);
         return;
@@ -1692,6 +1846,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     lastMaterialFloorRef.current = 1;
     setLogoSrc(null);
     setLogoImg(null);
+    handleRemoveGraphic();
     setLogoSize(120);
     setLogoRotation(0);
     setLogoOpacity(1);
@@ -1739,7 +1894,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     const action = resumeAfterRestoreRef.current;
     if (!action || loading || restorePending || !product) return;
     if (canvasBaseImageSrc && !productImg) return;
-    if (logoSrc && !logoImg) return;
+    if (graphicRestorePending) return;
+    if (logoSrc && !logoImg && !logoFailed) return;
     if (action === "wishlist" && wishlistSyncing) return;
     resumeAfterRestoreRef.current = null;
     // Replays the user's click once after login, so these handlers' own state updates are intended.
@@ -1749,7 +1905,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     else if (!inWishlist) handleWishlist(); // add only, never toggle off
     /* eslint-enable react-hooks/set-state-in-effect */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, restorePending, product, productImg, logoImg, logoSrc, canvasBaseImageSrc, wishlistSyncing]);
+  }, [loading, restorePending, product, productImg, logoImg, logoSrc, logoFailed, graphicRestorePending, canvasBaseImageSrc, wishlistSyncing]);
 
   if (loading || restorePending) {
     return (
@@ -2764,6 +2920,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   </div>
                 )}
+                {showGraphicFeeNotice && (
+                  <div className="flex items-start gap-2 rounded-xl border border-primary bg-primary-soft px-3 py-2.5 text-xs text-primary-ink">
+                    <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
+                    <p>
+                      A one-time ${GRAPHIC_SETUP_FEE} graphic setup fee applies: this is a new graphic on fewer than{" "}
+                      {GRAPHIC_FEE_WAIVED_FROM} pieces. Your cart shows the final amount.
+                    </p>
+                  </div>
+                )}
                 <div className="rounded-xl bg-foreground text-background p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-bold opacity-70">Estimated Total</span>
@@ -2802,7 +2967,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     <p className="text-xs text-destructive leading-relaxed">{validationError}</p>
                   </div>
                 )}
-                <button onClick={handleAddToCart}
+                <button onClick={handleAddToCart} disabled={graphicUploading}
                   className={cn(
                     "w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all duration-200",
                     showValidationShake ? "animate-[shake_0.4s_ease-in-out]" : "",
@@ -2810,8 +2975,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       inCart ? "bg-primary/10 text-primary-ink border-2 border-primary/40" :
                         "bg-primary text-foreground hover:bg-primary-hover shadow-md"
                   )}>
-                  <ShoppingCart size={16} />
-                  {inCart ? "Added to Cart ✓" : "Add to Cart"}
+                  {graphicUploading ? <Loader2 size={16} className="animate-spin" /> : <ShoppingCart size={16} />}
+                  {graphicUploading ? "Uploading your file…" : inCart ? "Added to Cart ✓" : "Add to Cart"}
                 </button>
                 <button onClick={handleWishlist} disabled={wishlistLoading}
                   className={cn(
@@ -2872,6 +3037,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               : undefined
           }
           isApparel={isApparel}
+          newGraphicPiecesInCart={newGraphicPiecesInCart}
           onSuccess={() => {
             refreshCart();
             setInCart(true);
@@ -2879,6 +3045,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
             resetCustomizationState();
           }}
         />
+      )}
+      {showGraphicPicker && (
+        <SavedGraphicsPicker onPick={handlePickSavedGraphic} onClose={() => setShowGraphicPicker(false)} />
       )}
       <style>{`
         @keyframes shake {
@@ -2906,6 +3075,11 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       garmentViews, activeViewIdx, setActiveViewIdx, isApparel,
       handleRemoveLogoBackground, isRemovingLogoBg,
       autoRemoveBg, setAutoRemoveBg, bgRemoved, setBgRemoved,
+      graphicName: graphicFile?.name ?? savedGraphic?.original_name ?? null,
+      graphicUploading, graphicError, logoFailed,
+      onGraphicFile: handleGraphicFile,
+      onRemoveGraphic: handleRemoveGraphic,
+      onOpenGraphicPicker: isLoggedIn ? () => setShowGraphicPicker(true) : null,
     };
   }
 }
@@ -2962,6 +3136,15 @@ interface LogoCanvasSectionProps {
   setAutoRemoveBg: Setter<boolean>;
   bgRemoved: boolean;
   setBgRemoved: Setter<boolean>;
+  /** The customer's real file, once they've chosen one. */
+  graphicName: string | null;
+  graphicUploading: boolean;
+  graphicError: string | null;
+  logoFailed: boolean;
+  onGraphicFile: (file: File) => void;
+  onRemoveGraphic: () => void;
+  /** Null for guests, who have no saved graphics. */
+  onOpenGraphicPicker: (() => void) | null;
 }
 function LogoCanvasSection({
   canvasRef, fileRef, logoImg, logoSrc, logoSize, logoRotation,
@@ -2977,7 +3160,18 @@ function LogoCanvasSection({
   garmentViews, activeViewIdx, setActiveViewIdx, isApparel,
   handleRemoveLogoBackground, isRemovingLogoBg,
   autoRemoveBg, setAutoRemoveBg, bgRemoved, setBgRemoved,
+  graphicName, graphicUploading, graphicError, logoFailed,
+  onGraphicFile, onRemoveGraphic, onOpenGraphicPicker,
 }: LogoCanvasSectionProps) {
+  const savedGraphicsButton = NOV4_RELEASE && onOpenGraphicPicker && (
+    <button
+      type="button"
+      onClick={onOpenGraphicPicker}
+      className="w-full h-10 rounded-xl border border-border flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground hover:bg-muted"
+    >
+      <ImageIcon size={14} /> Choose from saved graphics
+    </button>
+  );
   return (
     <div className="flex flex-col xl:flex-row gap-5 xl:items-start">
       <div className="w-full xl:w-[380px] flex-shrink-0">
@@ -3014,7 +3208,7 @@ function LogoCanvasSection({
               ))}
             </div>
           )}
-          <div className="p-3 bg-muted">
+          <div className="relative p-3 bg-muted">
             <canvas
               ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE}
               onMouseDown={handleCanvasMouseDown} onMouseMove={handleCanvasMouseMove}
@@ -3022,6 +3216,15 @@ function LogoCanvasSection({
               className="w-full h-auto rounded-xl block border border-border"
               style={{ cursor: getCursor() }}
             />
+            {logoFailed && graphicName && !customText.trim() && (
+              <div className="absolute inset-3 flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-muted px-6 text-center">
+                <FileImage size={32} className="text-muted-foreground" />
+                <p className="text-sm font-semibold text-foreground break-all">{graphicName}</p>
+                <p className="text-xs text-muted-foreground">
+                  This file type can&apos;t be shown here. We&apos;ll work from your original file.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -3042,10 +3245,15 @@ function LogoCanvasSection({
           <div className="p-5 space-y-4">
             {activeTab === "image" && (
               <>
-                <input ref={fileRef} type="file" accept="image/*"
+                <input ref={fileRef} type="file" accept={NOV4_RELEASE ? undefined : "image/*"}
                   onChange={e => {
                     const file = e.target.files?.[0];
+                    e.target.value = "";
                     if (!file) return;
+                    if (NOV4_RELEASE) {
+                      onGraphicFile(file);
+                      return;
+                    }
                     const r = new FileReader();
                     r.onloadend = () => {
                       const dataUrl = r.result as string;
@@ -3079,7 +3287,11 @@ function LogoCanvasSection({
                     )} />
                   </button>
                 </div>
-                {!logoImg ? (
+                {graphicError && (
+                  <p role="alert" className="text-xs font-medium text-destructive">{graphicError}</p>
+                )}
+                {!logoImg && !graphicName ? (
+                  <div className="space-y-2.5">
                   <div onClick={() => fileRef.current?.click()}
                     className="flex flex-col items-center justify-center gap-3 p-8 rounded-2xl border-2 border-dashed border-border cursor-pointer hover:border-primary/60 hover:bg-primary-soft transition-all group">
                     <div className="w-12 h-12 rounded-2xl bg-muted border border-border flex items-center justify-center group-hover:border-primary/40 group-hover:bg-primary/10 transition-all">
@@ -3087,43 +3299,62 @@ function LogoCanvasSection({
                     </div>
                     <div className="text-center">
                       <p className="font-bold text-foreground text-sm">Click to upload logo</p>
-                      <p className="text-xs text-muted-foreground mt-1">PNG, JPG, SVG — max 10MB</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {NOV4_RELEASE ? `Any file type — up to ${GRAPHIC_MAX_MB} MB` : "PNG, JPG, SVG — max 10MB"}
+                      </p>
                     </div>
+                  </div>
+                  {savedGraphicsButton}
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center gap-3 p-3 bg-muted rounded-xl border border-border">
-                      <div className="w-12 h-12 rounded-xl border border-border bg-card overflow-hidden flex-shrink-0">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- uploaded logo data URL */}
-                        <img src={logoSrc!} alt="Logo" className="w-full h-full object-contain" />
+                      <div className="w-12 h-12 rounded-xl border border-border bg-card overflow-hidden flex-shrink-0 flex items-center justify-center">
+                        {logoImg ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- uploaded logo preview
+                          <img src={logoSrc!} alt="Logo" className="w-full h-full object-contain" />
+                        ) : (
+                          <FileImage size={20} className="text-muted-foreground" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-foreground">Logo uploaded</p>
+                        <p className="text-xs font-bold text-foreground truncate" title={graphicName ?? undefined}>{graphicName ?? "Logo uploaded"}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {isRemovingLogoBg
-                            ? "Removing background…"
-                            : bgRemoved
-                              ? "Background removed — drag on canvas to reposition"
-                              : "Drag on canvas to reposition"}
+                          {graphicUploading
+                            ? "Uploading…"
+                            : isRemovingLogoBg
+                              ? "Removing background…"
+                              : logoFailed
+                                ? "We'll work from your original file"
+                                : bgRemoved
+                                  ? "Background removed — drag on canvas to reposition"
+                                  : "Drag on canvas to reposition"}
                         </p>
                       </div>
                       <div className="flex gap-1.5 flex-shrink-0">
-                        <button onClick={() => handleRemoveLogoBackground()} disabled={isRemovingLogoBg}
-                          title={isRemovingLogoBg ? "Removing background…" : "Remove Background"}
-                          className="w-8 h-8 rounded-lg border border-primary/60 bg-primary-soft flex items-center justify-center hover:bg-primary/20 text-primary-ink disabled:opacity-60 disabled:cursor-not-allowed">
-                          {isRemovingLogoBg ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                        </button>
+                        {logoImg && (
+                          <button onClick={() => handleRemoveLogoBackground()} disabled={isRemovingLogoBg}
+                            title={isRemovingLogoBg ? "Removing background…" : "Remove Background"}
+                            className="w-8 h-8 rounded-lg border border-primary/60 bg-primary-soft flex items-center justify-center hover:bg-primary/20 text-primary-ink disabled:opacity-60 disabled:cursor-not-allowed">
+                            {isRemovingLogoBg ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                          </button>
+                        )}
                         <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted text-muted-foreground"><Upload size={13} /></button>
-                        <button onClick={() => { setLogoSrc(null); setLogoImg(null); setBgRemoved(false); }} className="w-8 h-8 rounded-lg border border-destructive/30 flex items-center justify-center hover:bg-destructive-soft text-destructive"><Trash2 size={13} /></button>
+                        <button onClick={() => { setLogoSrc(null); setLogoImg(null); setBgRemoved(false); onRemoveGraphic(); }} className="w-8 h-8 rounded-lg border border-destructive/30 flex items-center justify-center hover:bg-destructive-soft text-destructive"><Trash2 size={13} /></button>
                       </div>
                     </div>
-                    <Slider label="Size" value={logoSize} min={40} max={280} unit="px" onChange={setLogoSize} />
-                    <Slider label="Rotation" value={logoRotation} min={0} max={360} unit="°" onChange={setLogoRotation} />
-                    <Slider label="Opacity" value={Math.round(logoOpacity * 100)} min={10} max={100} unit="%" onChange={(v: number) => setLogoOpacity(v / 100)} />
-                    <div className="flex gap-2">
-                      <button onClick={() => setLogoRotation((p: number) => (p - 15 + 360) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCcw size={13} /> Left</button>
-                      <button onClick={() => setLogoRotation((p: number) => (p + 15) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCw size={13} /> Right</button>
-                    </div>
+                    {savedGraphicsButton}
+                    {logoImg && (
+                      <>
+                        <Slider label="Size" value={logoSize} min={40} max={280} unit="px" onChange={setLogoSize} />
+                        <Slider label="Rotation" value={logoRotation} min={0} max={360} unit="°" onChange={setLogoRotation} />
+                        <Slider label="Opacity" value={Math.round(logoOpacity * 100)} min={10} max={100} unit="%" onChange={(v: number) => setLogoOpacity(v / 100)} />
+                        <div className="flex gap-2">
+                          <button onClick={() => setLogoRotation((p: number) => (p - 15 + 360) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCcw size={13} /> Left</button>
+                          <button onClick={() => setLogoRotation((p: number) => (p + 15) % 360)} className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"><RotateCw size={13} /> Right</button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </>

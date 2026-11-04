@@ -85,8 +85,8 @@ export default function TurnstileWidget({ onToken, resetKey }: Props) {
 
   useEffect(() => {
     if (resetKey === 0 || !widgetIdRef.current) return;
-    window.turnstile?.reset(widgetIdRef.current);
     onTokenRef.current(null);
+    window.turnstile?.reset(widgetIdRef.current);
   }, [resetKey]);
 
   if (!TURNSTILE_SITE_KEY) return null;

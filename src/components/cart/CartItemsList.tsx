@@ -63,6 +63,9 @@ export type CartItemType = {
     locations: CustomizationLocation[];
   };
 
+  /** The customer's real files on this line, which production works from. */
+  graphics?: { id: number; original_name: string; file_url: string }[];
+
   // ★ NEW — was being read via optional-chaining in a console.log with
   // no type backing it. Added properly so handling_charge (and anything
   // else in the snapshot) is type-safe wherever it's read.

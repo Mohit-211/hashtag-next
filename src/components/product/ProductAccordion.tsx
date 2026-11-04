@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Truck, FileText, Palette } from "lucide-react";
 import DOMPurify from "dompurify";
+import { NOV4_RELEASE } from "@/lib/features";
 
 // `description` is rich text authored in the backend/admin product editor
 // and rendered as HTML here — untrusted from the frontend's perspective
@@ -75,7 +76,7 @@ export default function ProductAccordion({
           {[
             {
               title: "File format",
-              detail: "PNG or JPG, maximum 5MB",
+              detail: NOV4_RELEASE ? "Any format, up to 100 MB" : "PNG or JPG, maximum 5MB",
             },
             {
               title: "Resolution",

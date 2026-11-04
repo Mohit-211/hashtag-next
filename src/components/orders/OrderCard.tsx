@@ -89,6 +89,7 @@ export interface OrderDetail {
     price: number;
     quantity: number;
     total: number;
+    graphics?: { id: number; original_name: string; file_url: string }[];
     customization_config?: {
       print_method: string;
       locations: Array<{ id: string }>;
@@ -456,6 +457,11 @@ export default function OrderCard({
                                 </span>
                               </div>
                             )}
+                            {item.graphics?.map((graphic) => (
+                              <p key={graphic.id} className="mt-1 truncate text-[11px] text-muted-foreground" title={graphic.original_name}>
+                                {graphic.original_name}
+                              </p>
+                            ))}
                           </div>
                           <div className="shrink-0 flex flex-col items-end">
                             <span className="text-sm font-bold text-foreground">

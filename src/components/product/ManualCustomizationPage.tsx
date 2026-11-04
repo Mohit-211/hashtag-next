@@ -11,6 +11,12 @@ import {
   type LoginResumeRequest,
 } from "@/lib/authRedirect";
 import { clearPendingFiles, loadPendingFiles, type PendingFileEntry } from "@/lib/pendingAuthFiles";
+import { NOV4_RELEASE } from "@/lib/features";
+import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
+import type { SavedGraphic } from "@/api/operations/graphics.api";
+import GraphicThumb from "@/components/graphics/GraphicThumb";
+import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
+import { GRAPHIC_MAX_BYTES, GRAPHIC_MAX_MB, formatBytes } from "@/components/graphics/graphicFiles";
 import { cn } from "@/lib/utils";
 import { ProductAddonsApi, ProductCustomizationsApi } from "@/api/operations/product.api";
 import { ManualAddToCartApi } from "@/api/operations/cart.api";
@@ -82,6 +88,8 @@ interface Selection {
   valueId: number | null;
   text: string;
   images: UploadedImage[];
+  /** Chosen from the customer's saved graphics: sent by id, nothing uploaded. */
+  graphics?: SavedGraphic[];
 }
 
 interface UploadedImage {
@@ -114,6 +122,7 @@ interface ManualResumePayload {
     text: string;
     /** Files are in IndexedDB under "<customizationId>:<id>:original|file". */
     images: { id: string; cropped: boolean }[];
+    graphics?: SavedGraphic[];
   }[];
   addons?: SelectedAddon[];
 }
@@ -122,7 +131,7 @@ const TEXT_MAX = 100;
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_MAX_COUNT = 5;
 
-/* ── accepted uploads: SVG, AI only ──
+/* ── accepted uploads: SVG, AI only, until the 4 November release takes any file ──
    A file is accepted when either its extension or its MIME type matches:
    browsers often report SVG/AI with an empty or generic type
    (AI is usually "application/postscript", "application/pdf" or ""). */
@@ -301,17 +310,17 @@ export default function ManualCustomizationPage({
     if (picked.length === 0) return;
     const current = selections[id]?.images ?? [];
     const valid = picked.filter((file) => {
-      if (!isAcceptedUpload(file)) {
+      if (!NOV4_RELEASE && !isAcceptedUpload(file)) {
         toast.error(`${file.name} isn't supported. Upload an SVG or AI file.`);
         return false;
       }
-      if (file.size > IMAGE_MAX_BYTES) {
-        toast.error(`${file.name} is larger than 5 MB.`);
+      if (file.size > (NOV4_RELEASE ? GRAPHIC_MAX_BYTES : IMAGE_MAX_BYTES)) {
+        toast.error(`${file.name} is larger than ${NOV4_RELEASE ? GRAPHIC_MAX_MB : 5} MB.`);
         return false;
       }
       return true;
     });
-    const room = IMAGE_MAX_COUNT - current.length;
+    const room = IMAGE_MAX_COUNT - current.length - (selections[id]?.graphics?.length ?? 0);
     if (valid.length > room) toast.error(`You can upload up to ${IMAGE_MAX_COUNT} images.`);
     if (room <= 0 || valid.length === 0) return;
     const added = valid
@@ -322,6 +331,24 @@ export default function ManualCustomizationPage({
 
   const removeImage = (id: number, imageId: string) =>
     updateSelection(id, { images: (selections[id]?.images ?? []).filter((img) => img.id !== imageId) });
+
+  /* ── saved graphics ── */
+  const loggedIn = useIsLoggedIn();
+  const [graphicPickerFor, setGraphicPickerFor] = useState<number | null>(null);
+  const addSavedGraphic = (graphic: SavedGraphic) => {
+    const id = graphicPickerFor;
+    setGraphicPickerFor(null);
+    if (id === null) return;
+    const graphics = selections[id]?.graphics ?? [];
+    if (graphics.some((g) => g.id === graphic.id)) return;
+    if ((selections[id]?.images.length ?? 0) + graphics.length >= IMAGE_MAX_COUNT) {
+      toast.error(`You can upload up to ${IMAGE_MAX_COUNT} images.`);
+      return;
+    }
+    updateSelection(id, { graphics: [...graphics, graphic] });
+  };
+  const removeSavedGraphic = (id: number, graphicId: number) =>
+    updateSelection(id, { graphics: (selections[id]?.graphics ?? []).filter((g) => g.id !== graphicId) });
 
   /* ── crop ── */
   const [cropTarget, setCropTarget] = useState<{ groupId: number; image: UploadedImage } | null>(null);
@@ -380,6 +407,7 @@ export default function ManualCustomizationPage({
         if (cropped) files.push({ key: `${cid}:${img.id}:file`, file: img.file });
         return { id: img.id, cropped };
       }),
+      graphics: sel.graphics,
     }));
     const payload: ManualResumePayload = {
       productId: String(productId),
@@ -431,6 +459,7 @@ export default function ManualCustomizationPage({
           valueId: group.values.some((v) => v.id === s.valueId) ? s.valueId : null,
           text: s.text ?? "",
           images,
+          graphics: s.graphics,
         };
       });
       if (lostImages) toast.warning("Some uploaded images couldn't be restored. Please add them again.");
@@ -478,6 +507,7 @@ export default function ManualCustomizationPage({
             optionId: l.group.option.id,
             valueId: l.value.id,
             images: l.group.option.allow_image_upload ? l.sel.images.map((img) => img.file) : [],
+            graphicIds: l.group.option.allow_image_upload ? (l.sel.graphics ?? []).map((g) => g.id) : [],
           })),
           // The customer's own quantity, or one per item when they chose that.
           addons: addons.map((a) => ({ productAddonId: a.id, quantity: addonQuantity(a, qty) })),
@@ -642,6 +672,9 @@ export default function ManualCustomizationPage({
                             onRemove={(imageId) => removeImage(g.customization.id, imageId)}
                             onCrop={(image) => setCropTarget({ groupId: g.customization.id, image })}
                             onReset={(imageId) => resetImage(g.customization.id, imageId)}
+                            savedGraphics={sel?.graphics ?? []}
+                            onRemoveSavedGraphic={(graphicId) => removeSavedGraphic(g.customization.id, graphicId)}
+                            onChooseSaved={NOV4_RELEASE && loggedIn ? () => setGraphicPickerFor(g.customization.id) : null}
                           />
                         )}
                       </div>
@@ -856,6 +889,10 @@ export default function ManualCustomizationPage({
         )}
       </button>
 
+      {graphicPickerFor !== null && (
+        <SavedGraphicsPicker onPick={addSavedGraphic} onClose={() => setGraphicPickerFor(null)} />
+      )}
+
       <ImageCropDialog
         file={cropTarget?.image.original ?? null}
         onCancel={() => setCropTarget(null)}
@@ -910,9 +947,6 @@ function CustomizationPriceTable({ value, qty }: { value: CustomizationOptionVal
   );
 }
 
-const formatBytes = (n: number) =>
-  n >= 1024 * 1024 ? `${(n / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
-
 // Checkerboard so transparent PNG/SVG logos stay visible.
 const CHECKER_BG = {
   backgroundColor: "var(--color-card)",
@@ -928,16 +962,24 @@ function FilePicker({
   onRemove,
   onCrop,
   onReset,
+  savedGraphics,
+  onRemoveSavedGraphic,
+  onChooseSaved,
 }: {
   images: UploadedImage[];
   onPick: (files: File[]) => void;
   onRemove: (imageId: string) => void;
   onCrop: (image: UploadedImage) => void;
   onReset: (imageId: string) => void;
+  savedGraphics: SavedGraphic[];
+  onRemoveSavedGraphic: (graphicId: number) => void;
+  /** Null when there's nothing to choose from: guests, or before the 4 November release. */
+  onChooseSaved: (() => void) | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const full = images.length >= IMAGE_MAX_COUNT;
+  const count = images.length + savedGraphics.length;
+  const full = count >= IMAGE_MAX_COUNT;
   const browse = () => inputRef.current?.click();
 
   const dropProps = {
@@ -963,13 +1005,13 @@ function FilePicker({
           Artwork / logo
         </span>
         <span className="text-muted-foreground tabular-nums">
-          {images.length}/{IMAGE_MAX_COUNT}
+          {count}/{IMAGE_MAX_COUNT}
         </span>
       </div>
       <input
         ref={inputRef}
         type="file"
-        accept={UPLOAD_ACCEPT}
+        accept={NOV4_RELEASE ? undefined : UPLOAD_ACCEPT}
         multiple
         className="hidden"
         onChange={(e) => {
@@ -978,7 +1020,7 @@ function FilePicker({
         }}
       />
 
-      {images.length === 0 ? (
+      {count === 0 ? (
         <button
           type="button"
           onClick={browse}
@@ -1011,7 +1053,7 @@ function FilePicker({
             )}
           </span>
           <span className="text-xs text-muted-foreground">
-            SVG or AI · up to 5 MB each · max {IMAGE_MAX_COUNT} files
+            {NOV4_RELEASE ? `Any file type · up to ${GRAPHIC_MAX_MB} MB each` : "SVG or AI · up to 5 MB each"} · max {IMAGE_MAX_COUNT} files
           </span>
         </button>
       ) : (
@@ -1032,6 +1074,9 @@ function FilePicker({
               onReset={() => onReset(img.id)}
             />
           ))}
+          {savedGraphics.map((graphic) => (
+            <SavedGraphicTile key={graphic.id} graphic={graphic} onRemove={() => onRemoveSavedGraphic(graphic.id)} />
+          ))}
           {!full && (
             <button
               type="button"
@@ -1044,7 +1089,42 @@ function FilePicker({
           )}
         </div>
       )}
+
+      {onChooseSaved && !full && (
+        <button
+          type="button"
+          onClick={onChooseSaved}
+          className="mt-2 w-full rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+        >
+          Choose from saved graphics
+        </button>
+      )}
     </div>
+  );
+}
+
+function SavedGraphicTile({ graphic, onRemove }: { graphic: SavedGraphic; onRemove: () => void }) {
+  return (
+    <figure className="min-w-0">
+      <div className="relative aspect-square overflow-hidden rounded-xl border border-border shadow-xs" style={CHECKER_BG}>
+        <GraphicThumb graphic={graphic} />
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${graphic.original_name}`}
+          title="Remove"
+          className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm transition-transform hover:scale-110 hover:bg-destructive hover:text-background"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+      <figcaption className="mt-1 px-0.5">
+        <p className="truncate text-[11px] font-medium text-foreground" title={graphic.original_name}>
+          {graphic.original_name}
+        </p>
+        <p className="text-[10px] text-muted-foreground">Saved graphic</p>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -1076,8 +1156,10 @@ function ImageThumb({
     [image.file]
   );
   const cropped = image.file !== image.original;
-  const previewable = canPreview(image.file);
-  const croppable = isRaster(image.original);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const previewable = canPreview(image.file) && !previewFailed;
+  // Production gets the customer's file as it is, once the API takes any file.
+  const croppable = !NOV4_RELEASE && isRaster(image.original);
   const actionBtn =
     "flex h-8 w-8 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -1089,7 +1171,12 @@ function ImageThumb({
       >
         {previewable ? (
           // eslint-disable-next-line @next/next/no-img-element -- local blob preview
-          <img ref={previewRef} alt={image.original.name} className="h-full w-full object-contain p-1.5" />
+          <img
+            ref={previewRef}
+            alt={image.original.name}
+            onError={() => setPreviewFailed(true)}
+            className="h-full w-full object-contain p-1.5"
+          />
         ) : (
           // e.g. Adobe Illustrator — browsers can't draw it, so show a file badge.
           <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-muted">

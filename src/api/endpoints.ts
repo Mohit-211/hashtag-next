@@ -71,6 +71,9 @@ export const PAYMENT_ENDPOINTS = {
   PAYPAL_CREATE_ORDER: "/payment/paypal/create-order",
   PAYPAL_CAPTURE_ORDER: "/payment/paypal/capture-order",
 };
+export const GRAPHICS_ENDPOINTS = {
+  BASE: "graphics",
+};
 export const GALLERY_ENDPOINTS = {
   GET: "gallery",
 };

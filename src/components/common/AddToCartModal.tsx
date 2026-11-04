@@ -14,6 +14,7 @@ import { getTierUnitPrice, type PriceTier } from "../product/customization/Sageq
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../product/customization/pricing";
 
 import { errorMessage } from "@/lib/errors";
+import { GRAPHIC_FEE_WAIVED_FROM, GRAPHIC_SETUP_FEE } from "../graphics/graphicFiles";
 /* ── Mirrors ConfiguredVariant from the customization page ── */
 export interface ConfiguredSize {
   variant_id: number;
@@ -70,7 +71,6 @@ export const buildConfiguredCustomizationPayload = (
           quantity: s.quantity,
           product_price: s.unit_price,
           decoration_price: s.decoration_unit_price ?? 0,
-          digitizing_fee: fee,
           total_price: linePricing.total + fee,
         };
       })
@@ -101,6 +101,8 @@ interface AddToCartModalProps {
   priceTiers?: PriceTier[];
   configuredVariants?: ConfiguredVariant[];
   isApparel?: boolean;
+  /** Set when this order carries a new graphic: the pieces in the cart that already have it. */
+  newGraphicPiecesInCart?: number | null;
 }
 
 export default function AddToCartModal({
@@ -119,6 +121,7 @@ export default function AddToCartModal({
   priceTiers = [],
   configuredVariants,
   isApparel,
+  newGraphicPiecesInCart = null,
 }: AddToCartModalProps) {
   const quantity = initialQuantity;
   const [loading, setLoading] = useState(false);
@@ -263,6 +266,9 @@ export default function AddToCartModal({
           ...(customizationObj?.locations !== undefined
             ? { locations: customizationObj.locations }
             : {}),
+          ...(customizationObj?.graphic_id !== undefined
+            ? { graphic_id: customizationObj.graphic_id }
+            : {}),
         });
       } else if (customizationObj?.customizations || customizationObj?.variants) {
         customizationPayload = customizationObj;
@@ -313,6 +319,8 @@ export default function AddToCartModal({
   if (!open) return null;
 
   const pcs = (n: number) => `${n} ${n === 1 ? "pc" : "pcs"}`;
+  const showGraphicFee =
+    newGraphicPiecesInCart !== null && grandQty + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
 
   return (
     <div
@@ -448,6 +456,13 @@ export default function AddToCartModal({
             <span className="font-semibold text-foreground">Total · {pcs(grandQty)}</span>
             <span className="text-2xl font-bold tabular-nums text-foreground">${formatMoney(grandTotal)}</span>
           </div>
+
+          {showGraphicFee && (
+            <p className="rounded-lg border border-primary bg-primary-soft px-3.5 py-3 text-xs text-primary-ink">
+              A one-time ${GRAPHIC_SETUP_FEE} graphic setup fee applies: this is a new graphic on fewer than{" "}
+              {GRAPHIC_FEE_WAIVED_FROM} pieces. Your cart shows the final amount.
+            </p>
+          )}
 
           {error && (
             <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-3 text-destructive">

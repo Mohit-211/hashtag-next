@@ -133,7 +133,8 @@ export default function CartItem({ item, onRefresh }: Props) {
   };
 
   // ★ FIXED — breakdown removed from the check, see note above.
-  const hasSpecs = printMethod || locations.length > 0 || uploadedImage;
+  const graphics = item.graphics ?? [];
+  const hasSpecs = printMethod || locations.length > 0 || uploadedImage || graphics.length > 0;
 
   return (
     <div className="relative overflow-visible rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -279,6 +280,11 @@ export default function CartItem({ item, onRefresh }: Props) {
               <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                 Artwork
               </p>
+              {graphics.map((graphic) => (
+                <p key={graphic.id} className="mt-0.5 truncate text-xs text-foreground" title={graphic.original_name}>
+                  {graphic.original_name}
+                </p>
+              ))}
             </div>
           </div>
         </div>
@@ -296,11 +302,11 @@ export default function CartItem({ item, onRefresh }: Props) {
         </div>
       )}
 
-      {/* Design fee, if applicable */}
+      {/* Graphic setup fee, if applicable: on the first line with a new graphic */}
       {showDesignFee && (
         <div className="flex items-center justify-between px-0.5 pt-3 mt-1">
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Design Fee
+            One-time graphic setup fee
           </span>
           <span className="font-mono text-xs font-semibold text-muted-foreground">
             +${designFee!.toFixed(2)}

@@ -9,6 +9,7 @@ import AccountSidebar from "@/components/account/AccountSidebar";
 import ProfileSection from "@/components/account/ProfileSection";
 import AddressSection from "@/components/account/AddressSection";
 import PasswordSection from "@/components/account/PasswordSection";
+import SavedGraphicsSection from "@/components/account/SavedGraphicsSection";
 import { Section } from "@/data/types";
 
 
@@ -57,6 +58,8 @@ export default function Account() {
           {active === "profile" && <ProfileSection user={user} />}
 
           {active === "addresses" && <AddressSection mode="manage" />}
+
+          {active === "graphics" && <SavedGraphicsSection />}
 
           {active === "password" && <PasswordSection />}
         </div>
