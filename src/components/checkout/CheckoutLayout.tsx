@@ -8,10 +8,7 @@ import {
   CreatePaypalOrderApi,
   GetSquarePaymentStatusApi,
 } from "@/api/operations/payment.api";
-import {
-  CreateOrderApi,
-  CreateShipmentLabelApi,
-} from "@/api/operations/order.api";
+import { CreateOrderApi } from "@/api/operations/order.api";
 import { GetShippingRatesApi } from "@/api/operations/shipping.api";
 import EmptyCart from "./EmptyCart";
 import ProcessingScreen from "./ProcessingScreen";
@@ -21,7 +18,6 @@ import PaymentSection from "./PaymentSection";
 import OrderSummary from "./OrderSummary";
 import AddressSection from "../account/AddressSection";
 import { errorMessage } from "@/lib/errors";
-import { NOV4_RELEASE } from "@/lib/features";
 import { confirmationPath } from "@/lib/orderLinks";
 export type CheckoutStep =
   | "address"
@@ -146,34 +142,20 @@ export default function CheckoutLayout() {
       const orderResponse = await CreateOrderApi({
         address_id: selectedAddressId,
         selected_service_code: selectedRate.service_code,
-        ...(NOV4_RELEASE
-          ? {}
-          : {
-              selected_carrier_code: selectedRate.carrier_code,
-              shipping_amount: selectedRate.price ?? 0,
-            }),
       });
       const orderData = orderResponse?.data?.data;
       const orderId = orderData?.id;
       if (!orderId) throw new Error("Order creation failed");
       setCreatedOrderId(orderId);
 
-      // Nothing is bought here once the 4 November release is live: the
-      // backend creates the label itself after payment.
-      const shipmentResponse = NOV4_RELEASE
-        ? null
-        : await CreateShipmentLabelApi({ order_id: orderId });
-      // Today's API can change the price when the label is bought, so its
-      // figures replace the order's own.
-      const pricing = shipmentResponse?.data?.data?.pricing_breakdown;
-
+      // These are what the customer pays. The backend asks ShipStation again
+      // here, so shipping can differ a little from the option they picked.
       setOrderTotals({
-        subtotal: toNumber(pricing?.subtotal ?? orderData?.subtotal_amount) ?? subtotal,
-        taxAmount: toNumber(pricing?.tax ?? orderData?.tax_amount) ?? 0,
+        subtotal: toNumber(orderData?.subtotal_amount) ?? subtotal,
+        taxAmount: toNumber(orderData?.tax_amount) ?? 0,
         taxRate: toNumber(orderData?.tax_rate),
-        shippingAmount:
-          toNumber(pricing?.actual_shipping ?? orderData?.shipping_amount) ?? selectedRate.price ?? 0,
-        totalAmount: toNumber(pricing?.final_total ?? orderData?.total_amount) ?? 0,
+        shippingAmount: toNumber(orderData?.shipping_amount) ?? selectedRate.price ?? 0,
+        totalAmount: toNumber(orderData?.total_amount) ?? 0,
       });
 
       await refreshCart();

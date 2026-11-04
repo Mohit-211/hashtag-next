@@ -60,7 +60,6 @@ export const ORDER = {
   CREATE: "/order",
   GET_ALL: "/order",
   GET_DETAIL: (id: string | number) => `/order/${id}`,
-  CREATE_SHIPMENT_LABEL: "/order/create-shipment-label",
   CANCEL: (id: string | number) => `/order/${id}`,
 };
 export const PAYMENT_ENDPOINTS = {

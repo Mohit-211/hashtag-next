@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, Crop, FileImage, ImagePlus, Loader2, Minus, Plus, ShoppingCart, Sparkles, Trash2, Type, Undo2, UploadCloud } from "lucide-react";
-import ImageCropDialog from "@/components/product/ImageCropDialog";
+import { AlertCircle, CheckCircle2, FileImage, ImagePlus, Loader2, Minus, Plus, ShoppingCart, Sparkles, Trash2, Type, UploadCloud } from "lucide-react";
 import {
   hasAuthToken,
   peekPendingAuthAction,
@@ -11,12 +10,11 @@ import {
   type LoginResumeRequest,
 } from "@/lib/authRedirect";
 import { clearPendingFiles, loadPendingFiles, type PendingFileEntry } from "@/lib/pendingAuthFiles";
-import { NOV4_RELEASE } from "@/lib/features";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 import type { SavedGraphic } from "@/api/operations/graphics.api";
 import GraphicThumb from "@/components/graphics/GraphicThumb";
 import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
-import { GRAPHIC_MAX_BYTES, GRAPHIC_MAX_MB, formatBytes } from "@/components/graphics/graphicFiles";
+import { GRAPHIC_MAX_BYTES, GRAPHIC_MAX_MB, canDrawGraphic, fileExtension, formatBytes } from "@/components/graphics/graphicFiles";
 import { cn } from "@/lib/utils";
 import { ProductAddonsApi, ProductCustomizationsApi } from "@/api/operations/product.api";
 import { ManualAddToCartApi } from "@/api/operations/cart.api";
@@ -94,10 +92,8 @@ interface Selection {
 
 interface UploadedImage {
   id: string;
-  /** What gets uploaded — the cropped version once the image has been cropped. */
+  /** Exactly what the customer picked: production gets it as it is. */
   file: File;
-  /** The file as picked; crops always start from this. */
-  original: File;
 }
 
 export interface ManualCustomizationVariant {
@@ -120,33 +116,20 @@ interface ManualResumePayload {
     customizationId: number;
     valueId: number | null;
     text: string;
-    /** Files are in IndexedDB under "<customizationId>:<id>:original|file". */
-    images: { id: string; cropped: boolean }[];
+    /** Files are in IndexedDB under "<customizationId>:<id>". */
+    images: { id: string }[];
     graphics?: SavedGraphic[];
   }[];
   addons?: SelectedAddon[];
 }
 
 const TEXT_MAX = 100;
-const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_MAX_COUNT = 5;
 
-/* ── accepted uploads: SVG, AI only, until the 4 November release takes any file ──
-   A file is accepted when either its extension or its MIME type matches:
-   browsers often report SVG/AI with an empty or generic type
-   (AI is usually "application/postscript", "application/pdf" or ""). */
-const RASTER_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
-const RASTER_MIME = ["image/jpeg", "image/png", "image/webp"];
-const UPLOAD_EXTENSIONS = ["svg", "ai"];
-const UPLOAD_MIME = ["image/svg+xml", "application/postscript", "application/illustrator"];
-const UPLOAD_ACCEPT = [...UPLOAD_EXTENSIONS.map((e) => `.${e}`), ...UPLOAD_MIME].join(",");
-const fileExt = (f: File) => (f.name.includes(".") ? f.name.split(".").pop()!.toLowerCase() : "");
-const isAcceptedUpload = (f: File) => UPLOAD_EXTENSIONS.includes(fileExt(f)) || UPLOAD_MIME.includes(f.type);
+const fileExt = (f: File) => fileExtension(f.name);
 const isSvg = (f: File) => fileExt(f) === "svg" || f.type === "image/svg+xml";
-/** Croppable: re-encoding is fine for bitmaps; vectors (SVG/AI) are kept as uploaded. */
-const isRaster = (f: File) => RASTER_EXTENSIONS.includes(fileExt(f)) || RASTER_MIME.includes(f.type);
-/** Browsers can draw bitmaps and SVG, not AI. */
-const canPreview = (f: File) => isRaster(f) || isSvg(f);
+/** Customers can upload anything, and browsers can't draw all of it (AI, EPS, PSD, CDR…). */
+const canPreview = (f: File) => canDrawGraphic({ original_name: f.name, mime_type: f.type });
 
 /** Short price label for a value at the current quantity. */
 const priceLabel = (p: CustomizationPrice, qty: number): string => {
@@ -310,12 +293,8 @@ export default function ManualCustomizationPage({
     if (picked.length === 0) return;
     const current = selections[id]?.images ?? [];
     const valid = picked.filter((file) => {
-      if (!NOV4_RELEASE && !isAcceptedUpload(file)) {
-        toast.error(`${file.name} isn't supported. Upload an SVG or AI file.`);
-        return false;
-      }
-      if (file.size > (NOV4_RELEASE ? GRAPHIC_MAX_BYTES : IMAGE_MAX_BYTES)) {
-        toast.error(`${file.name} is larger than ${NOV4_RELEASE ? GRAPHIC_MAX_MB : 5} MB.`);
+      if (file.size > GRAPHIC_MAX_BYTES) {
+        toast.error(`${file.name} is larger than ${GRAPHIC_MAX_MB} MB.`);
         return false;
       }
       return true;
@@ -325,7 +304,7 @@ export default function ManualCustomizationPage({
     if (room <= 0 || valid.length === 0) return;
     const added = valid
       .slice(0, room)
-      .map((file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file, original: file }));
+      .map((file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file }));
     updateSelection(id, { images: [...current, ...added] });
   };
 
@@ -349,21 +328,6 @@ export default function ManualCustomizationPage({
   };
   const removeSavedGraphic = (id: number, graphicId: number) =>
     updateSelection(id, { graphics: (selections[id]?.graphics ?? []).filter((g) => g.id !== graphicId) });
-
-  /* ── crop ── */
-  const [cropTarget, setCropTarget] = useState<{ groupId: number; image: UploadedImage } | null>(null);
-  const applyCrop = (cropped: File) => {
-    if (!cropTarget) return;
-    const { groupId, image } = cropTarget;
-    updateSelection(groupId, {
-      images: (selections[groupId]?.images ?? []).map((img) => (img.id === image.id ? { ...img, file: cropped } : img)),
-    });
-    setCropTarget(null);
-  };
-  const resetImage = (id: number, imageId: string) =>
-    updateSelection(id, {
-      images: (selections[id]?.images ?? []).map((img) => (img.id === imageId ? { ...img, file: img.original } : img)),
-    });
 
   const validate = (): boolean => {
     if (manualMeta?.pricing_mode === "quantity_fixed" && !manualMeta.quantity_pricing.some((p) => p.quantity === qty)) {
@@ -402,10 +366,8 @@ export default function ManualCustomizationPage({
       valueId: sel.valueId,
       text: sel.text,
       images: sel.images.map((img) => {
-        files.push({ key: `${cid}:${img.id}:original`, file: img.original });
-        const cropped = img.file !== img.original;
-        if (cropped) files.push({ key: `${cid}:${img.id}:file`, file: img.file });
-        return { id: img.id, cropped };
+        files.push({ key: `${cid}:${img.id}`, file: img.file });
+        return { id: img.id };
       }),
       graphics: sel.graphics,
     }));
@@ -447,13 +409,12 @@ export default function ManualCustomizationPage({
         const group = groups.find((g) => g.customization.id === s.customizationId);
         if (!group) return;
         const images = s.images.flatMap((img) => {
-          const original = files.get(`${s.customizationId}:${img.id}:original`);
-          if (!original) {
+          const file = files.get(`${s.customizationId}:${img.id}`);
+          if (!file) {
             lostImages = true;
             return [];
           }
-          const file = (img.cropped && files.get(`${s.customizationId}:${img.id}:file`)) || original;
-          return [{ id: img.id, original, file }];
+          return [{ id: img.id, file }];
         });
         restored[s.customizationId] = {
           valueId: group.values.some((v) => v.id === s.valueId) ? s.valueId : null,
@@ -670,11 +631,9 @@ export default function ManualCustomizationPage({
                             images={sel?.images ?? []}
                             onPick={(f) => handleFiles(g.customization.id, f)}
                             onRemove={(imageId) => removeImage(g.customization.id, imageId)}
-                            onCrop={(image) => setCropTarget({ groupId: g.customization.id, image })}
-                            onReset={(imageId) => resetImage(g.customization.id, imageId)}
                             savedGraphics={sel?.graphics ?? []}
                             onRemoveSavedGraphic={(graphicId) => removeSavedGraphic(g.customization.id, graphicId)}
-                            onChooseSaved={NOV4_RELEASE && loggedIn ? () => setGraphicPickerFor(g.customization.id) : null}
+                            onChooseSaved={loggedIn ? () => setGraphicPickerFor(g.customization.id) : null}
                           />
                         )}
                       </div>
@@ -893,11 +852,6 @@ export default function ManualCustomizationPage({
         <SavedGraphicsPicker onPick={addSavedGraphic} onClose={() => setGraphicPickerFor(null)} />
       )}
 
-      <ImageCropDialog
-        file={cropTarget?.image.original ?? null}
-        onCancel={() => setCropTarget(null)}
-        onDone={applyCrop}
-      />
 
       <AddOnModal
         open={addonModalOpen}
@@ -960,8 +914,6 @@ function FilePicker({
   images,
   onPick,
   onRemove,
-  onCrop,
-  onReset,
   savedGraphics,
   onRemoveSavedGraphic,
   onChooseSaved,
@@ -969,11 +921,9 @@ function FilePicker({
   images: UploadedImage[];
   onPick: (files: File[]) => void;
   onRemove: (imageId: string) => void;
-  onCrop: (image: UploadedImage) => void;
-  onReset: (imageId: string) => void;
   savedGraphics: SavedGraphic[];
   onRemoveSavedGraphic: (graphicId: number) => void;
-  /** Null when there's nothing to choose from: guests, or before the 4 November release. */
+  /** Null for guests, who have no saved graphics. */
   onChooseSaved: (() => void) | null;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1011,7 +961,6 @@ function FilePicker({
       <input
         ref={inputRef}
         type="file"
-        accept={NOV4_RELEASE ? undefined : UPLOAD_ACCEPT}
         multiple
         className="hidden"
         onChange={(e) => {
@@ -1053,7 +1002,7 @@ function FilePicker({
             )}
           </span>
           <span className="text-xs text-muted-foreground">
-            {NOV4_RELEASE ? `Any file type · up to ${GRAPHIC_MAX_MB} MB each` : "SVG or AI · up to 5 MB each"} · max {IMAGE_MAX_COUNT} files
+            Any file type · up to {GRAPHIC_MAX_MB} MB each · max {IMAGE_MAX_COUNT} files
           </span>
         </button>
       ) : (
@@ -1069,9 +1018,7 @@ function FilePicker({
               key={img.id}
               index={i + 1}
               image={img}
-              onCrop={() => onCrop(img)}
               onRemove={() => onRemove(img.id)}
-              onReset={() => onReset(img.id)}
             />
           ))}
           {savedGraphics.map((graphic) => (
@@ -1131,15 +1078,11 @@ function SavedGraphicTile({ graphic, onRemove }: { graphic: SavedGraphic; onRemo
 function ImageThumb({
   index,
   image,
-  onCrop,
   onRemove,
-  onReset,
 }: {
   index: number;
   image: UploadedImage;
-  onCrop: () => void;
   onRemove: () => void;
-  onReset: () => void;
 }) {
   // Blob URL lives exactly as long as the <img> shows this file.
   const previewRef = useCallback(
@@ -1155,11 +1098,8 @@ function ImageThumb({
     },
     [image.file]
   );
-  const cropped = image.file !== image.original;
   const [previewFailed, setPreviewFailed] = useState(false);
   const previewable = canPreview(image.file) && !previewFailed;
-  // Production gets the customer's file as it is, once the API takes any file.
-  const croppable = !NOV4_RELEASE && isRaster(image.original);
   const actionBtn =
     "flex h-8 w-8 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -1173,7 +1113,7 @@ function ImageThumb({
           // eslint-disable-next-line @next/next/no-img-element -- local blob preview
           <img
             ref={previewRef}
-            alt={image.original.name}
+            alt={image.file.name}
             onError={() => setPreviewFailed(true)}
             className="h-full w-full object-contain p-1.5"
           />
@@ -1190,35 +1130,12 @@ function ImageThumb({
         <span className="absolute left-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-[10px] font-bold text-primary">
           {index}
         </span>
-        {cropped && (
-          <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-foreground">
-            <Crop size={10} />
-            Cropped
-          </span>
-        )}
-
         {/* Actions: always shown on touch screens, on hover / keyboard focus with a mouse */}
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-linear-to-t from-foreground/60 to-transparent pb-2 pt-6 transition-opacity duration-200 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100">
-          {croppable && (
-            <button type="button" onClick={onCrop} aria-label={`Crop ${image.original.name}`} title="Crop" className={actionBtn}>
-              <Crop size={14} />
-            </button>
-          )}
-          {cropped && (
-            <button
-              type="button"
-              onClick={onReset}
-              aria-label={`Undo crop on ${image.original.name}`}
-              title="Undo crop"
-              className={actionBtn}
-            >
-              <Undo2 size={14} />
-            </button>
-          )}
           <button
             type="button"
             onClick={onRemove}
-            aria-label={`Remove ${image.original.name}`}
+            aria-label={`Remove ${image.file.name}`}
             title="Remove"
             className={cn(actionBtn, "hover:bg-destructive hover:text-background")}
           >
@@ -1227,8 +1144,8 @@ function ImageThumb({
         </div>
       </div>
       <figcaption className="mt-1 px-0.5">
-        <p className="truncate text-[11px] font-medium text-foreground" title={image.original.name}>
-          {image.original.name}
+        <p className="truncate text-[11px] font-medium text-foreground" title={image.file.name}>
+          {image.file.name}
         </p>
         <p className="text-[10px] text-muted-foreground">{formatBytes(image.file.size)}</p>
       </figcaption>

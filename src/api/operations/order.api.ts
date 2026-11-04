@@ -1,14 +1,11 @@
 import client from "../client";
 import { ORDER } from "../endpoints";
 
-// Checkout shows the error itself. The API prices shipping from
-// selected_service_code once the 4 November release is live; until then it
-// needs the carrier and the amount as well.
+// Checkout shows the error itself. The API prices the chosen service itself
+// and answers with the final figures.
 export const CreateOrderApi = (payload: {
   address_id: number;
   selected_service_code: string;
-  selected_carrier_code?: string;
-  shipping_amount?: number;
 }) => {
   return client.post(ORDER.CREATE, payload, { skipErrorToast: true });
 };
@@ -33,9 +30,6 @@ export const GetOrderDetailApi = (
   );
 };
 
-export const CreateShipmentLabelApi = (payload: { order_id: number }) => {
-  return client.post(ORDER.CREATE_SHIPMENT_LABEL, payload);
-};
 export const CancelOrderApi = (id: string | number) => {
   return client.patch(ORDER.CANCEL(id));
 }

@@ -25,11 +25,10 @@ import AddProductConfigurationModal from "../Addproductconfigurationmodal/Addpro
 import {
   calculateVariantTotal, sumVariantTotals, formatMoney,
   EMB_TIERS, EMB_PRICES, DTF_TIERS, DTF_PRICES, SP_PRICES, SP_COLOR_COUNTS, SP_TIERS, DTG_TIERS, DTG_PRICES,
-  getMaterialPrintTotal, getDigitizingFee, getMaterialFloor, isQuoteOnlyLocation, type SpColorCount, type MaterialId,
+  getMaterialPrintTotal, getMaterialFloor, isQuoteOnlyLocation, type SpColorCount, type MaterialId,
 } from "./pricing";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { errorMessage } from "@/lib/errors";
-import { NOV4_RELEASE } from "@/lib/features";
 import { clearPendingFiles, loadPendingFiles, savePendingFiles } from "@/lib/pendingAuthFiles";
 import { UploadGraphicApi, type SavedGraphic } from "@/api/operations/graphics.api";
 import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
@@ -92,20 +91,11 @@ export interface ConfiguredSize {
   quantity: number;
   /** Product/variant price ONLY — decoration is never folded in here. */
   unit_price: number;
-  /** Decoration price per unit for THIS size/variant — NEVER includes the
-   *  flat digitizing fee. 0 when no decoration was selected or the
-   *  configuration step was skipped. Captured once, at the moment the
-   *  line is created, and travels with the line — never re-derived later
-   *  from live page-level state. */
+  /** Decoration price per unit for THIS size/variant. 0 when no decoration
+   *  was selected or the configuration step was skipped. Captured once, at
+   *  the moment the line is created, and travels with the line — never
+   *  re-derived later from live page-level state. */
   decoration_unit_price: number;
-  /** ★ NEW — flat, one-time fee (e.g. embroidery digitizing fee at
-   *  qty <= 11). Always a flat dollar amount, NEVER multiplied by
-   *  quantity and NEVER folded into decoration_unit_price. This was
-   *  previously smeared into decoration_unit_price on one code path and
-   *  silently dropped on another, causing the total shown on the
-   *  customization page to disagree with the total shown in the
-   *  Add-to-Cart modal for the exact same order. */
-  digitizing_fee: number;
 }
 export interface ConfiguredVariant {
   variantId: number;
@@ -115,17 +105,13 @@ export interface ConfiguredVariant {
   images: VariantImage[];
   sizes: ConfiguredSize[];
   totalQty: number;
-  /** productTotal + decorationTotal + digitizingFeeTotal, computed via
-   *  calculateVariantTotal/sumVariantTotals + a flat fee sum — never
-   *  derived ad hoc. */
+  /** productTotal + decorationTotal, computed via
+   *  calculateVariantTotal/sumVariantTotals — never derived ad hoc. */
   totalPrice: number;
   /** Σ(unit_price × quantity) across this variant's sizes. */
   productTotal: number;
   /** Σ(decoration_unit_price × quantity) across this variant's sizes. */
   decorationTotal: number;
-  /** ★ NEW — Σ(digitizing_fee) across this variant's sizes. Flat sum,
-   *  NOT multiplied by quantity. */
-  digitizingFeeTotal: number;
 }
 /* ─────────────────────────────────────────── Constants ── */
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -1354,15 +1340,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     return getMaterialPrintTotal(selectedMaterial, selectedLocations, currentQty, spColorCount, dtgStyle);
   };
   const printPrice = getPrintPrice();
-  const digitizingFee = getDigitizingFee(selectedMaterial, currentQty);
   const basePrice = activeVariant ? getVariantPrice(activeVariant) : (product?.price ?? 0);
-  // ★ FIX — decoration price now EXCLUDES the flat digitizing fee before
-  // dividing by quantity. Previously printPrice (which already includes
-  // the $35 fee at qty<=11) was divided by qty directly, smearing the
-  // flat fee across every unit instead of charging it once. This kept
-  // decorationUnitPrice as a genuine per-unit rate.
   const decorationUnitPrice = isApparel && currentQty > 0
-    ? ((printPrice ?? 0) - digitizingFee) / currentQty
+    ? (printPrice ?? 0) / currentQty
     : 0;
   const currentSelectionPricing = calculateVariantTotal({
     productPrice: basePrice,
@@ -1371,9 +1351,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   });
   const productTotal = currentSelectionPricing.productTotal;
   const decorationTotal = currentSelectionPricing.decorationTotal;
-  // ★ FIX — estimatedTotal now explicitly adds the flat digitizing fee
-  // back in ONCE, since it's no longer folded into decorationTotal.
-  const estimatedTotal = currentSelectionPricing.total + digitizingFee;
+  const estimatedTotal = currentSelectionPricing.total;
   const promoUnitPrice: number | null = useMemo(() => {
     if (!isPromo) return null;
     const base = manualMeta
@@ -1456,24 +1434,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           quantity: s.quantity,
           unit_price: getVariantPrice(v) || basePrice,
           decoration_unit_price: 0,
-          digitizing_fee: 0,
         };
       });
     }
     const v = activeVariant;
     if (!v || currentQty <= 0) return [];
-    // ★ FIX — fee pulled out explicitly, decoration_unit_price is a pure
-    // per-unit rate (never includes the flat fee).
-    const fee = isApparel ? getDigitizingFee(selectedMaterial, currentQty) : 0;
-    const pureDecorationTotal = isApparel ? (printPrice ?? 0) - fee : 0;
     return [{
       variant_id: v.id,
       size_id: v.size_id ?? null,
       size: v.size_details?.name || v.size || "—",
       quantity: currentQty,
       unit_price: isPromo ? (promoUnitPrice ?? basePrice) : basePrice,
-      decoration_unit_price: isApparel ? pureDecorationTotal / currentQty : 0,
-      digitizing_fee: fee,
+      decoration_unit_price: isApparel ? (printPrice ?? 0) / currentQty : 0,
     }];
   };
   const mergeVariantIntoList = (
@@ -1494,8 +1466,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           quantity: s.quantity,
         }))
       );
-      // ★ digitizing fees summed FLAT — never scaled by quantity.
-      const digitizingFeeTotal = newSizes.reduce((sum, s) => sum + (s.digitizing_fee ?? 0), 0);
       const totalQty = newSizes.reduce((sum, s) => sum + s.quantity, 0);
       return [
         ...list,
@@ -1507,10 +1477,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           images,
           sizes: newSizes,
           totalQty,
-          totalPrice: pricing.total + digitizingFeeTotal,
+          totalPrice: pricing.total,
           productTotal: pricing.productTotal,
           decorationTotal: pricing.decorationTotal,
-          digitizingFeeTotal,
         },
       ];
     }
@@ -1527,7 +1496,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
             quantity: newSize.quantity,
             unit_price: newSize.unit_price,
             decoration_unit_price: newSize.decoration_unit_price,
-            digitizing_fee: newSize.digitizing_fee,
           };
         } else {
           mergedSizes.push(newSize);
@@ -1540,16 +1508,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           quantity: s.quantity,
         }))
       );
-      const digitizingFeeTotal = mergedSizes.reduce((sum, s) => sum + (s.digitizing_fee ?? 0), 0);
       const totalQty = mergedSizes.reduce((sum, s) => sum + s.quantity, 0);
       return {
         ...item,
         sizes: mergedSizes,
         totalQty,
-        totalPrice: pricing.total + digitizingFeeTotal,
+        totalPrice: pricing.total,
         productTotal: pricing.productTotal,
         decorationTotal: pricing.decorationTotal,
-        digitizingFeeTotal,
       };
     });
   };
@@ -1613,8 +1579,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           quantity: s.quantity,
           product_price: s.unit_price,
           decoration_price: s.decoration_unit_price ?? 0,
-          // ★ digitizing fee added ONCE, flat — never multiplied by qty
-          total_price: linePricing.total + (s.digitizing_fee ?? 0),
+          total_price: linePricing.total,
         };
       })
     );
@@ -1769,7 +1734,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       size_name: string;
       unit_price: number;
       decoration_price: number;
-      digitizing_fee: number;
     }[];
     addAlso: boolean;
   }) => {
@@ -1795,8 +1759,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
             quantity: s.quantity,
             unit_price: s.unit_price,
             decoration_unit_price: s.decoration_price ?? 0,
-            // ★ FIX — was silently dropped before; now carried through
-            digitizing_fee: s.digitizing_fee ?? 0,
           };
           mergedList = mergeVariantIntoList(
             mergedList,
@@ -2735,12 +2697,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                               <span>${formatMoney(cv.decorationTotal)}</span>
                             </div>
                           )}
-                          {cv.digitizingFeeTotal > 0 && (
-                            <div className="flex items-center justify-between text-[10px] text-primary-ink font-semibold">
-                              <span>Digitizing Fee</span>
-                              <span>${formatMoney(cv.digitizingFeeTotal)}</span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}
@@ -2909,19 +2865,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           </span>
                         </div>
                       )}
-                      {digitizingFee > 0 && (
-                        <div className="flex items-center justify-between gap-2 bg-primary-soft -mx-3 px-3 py-1.5 border-t border-primary/20">
-                          <span className="text-xs text-primary-ink font-semibold">
-                            Digitizing Fee{" "}
-                            <span className="text-[10px] font-normal text-primary-ink">
-                              (Free on 12+ pieces)
-                            </span>
-                          </span>
-                          <span className="text-xs font-black text-primary-ink">
-                            ${formatMoney(digitizingFee)}
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -3035,7 +2978,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           customization={customizationJson}
           canvasBlob={canvasBlob}
           printPricePerPiece={(printPrice ?? 0) / Math.max(currentQty, 1)}
-          digitizingFee={digitizingFee}
           configuredVariants={
             (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants).length > 0
               ? (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants)
@@ -3071,7 +3013,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       logoOpacity, logoPos, customText, textSize, textColor, textRotation,
       fontFamily, textBold, textItalic, textShadow, textOpacity, textPos,
       activeTab, dragging,
-      setLogoSrc, setLogoSize, setLogoRotation, setLogoOpacity, setLogoPos,
+      setLogoSrc, setLogoSize, setLogoRotation, setLogoOpacity,
       setCustomText, setTextSize, setTextColor, setTextRotation, setFontFamily,
       setTextBold, setTextItalic, setTextShadow, setTextOpacity, setActiveTab,
       handleCanvasMouseDown, handleCanvasMouseMove, stopDrag, getCursor,
@@ -3111,7 +3053,6 @@ interface LogoCanvasSectionProps {
   setLogoSize: Setter<number>;
   setLogoRotation: Setter<number>;
   setLogoOpacity: Setter<number>;
-  setLogoPos: Setter<Point>;
   setCustomText: Setter<string>;
   setTextSize: Setter<number>;
   setTextColor: Setter<string>;
@@ -3156,7 +3097,7 @@ function LogoCanvasSection({
   logoOpacity, customText, textSize, textColor, textRotation,
   fontFamily, textBold, textItalic, textShadow, textOpacity,
   activeTab,
-  setLogoSrc, setLogoSize, setLogoRotation, setLogoOpacity, setLogoPos,
+  setLogoSrc, setLogoSize, setLogoRotation, setLogoOpacity,
   setCustomText, setTextSize, setTextColor, setTextRotation, setFontFamily,
   setTextBold, setTextItalic, setTextShadow, setTextOpacity, setActiveTab,
   handleCanvasMouseDown, handleCanvasMouseMove, stopDrag, getCursor,
@@ -3168,7 +3109,7 @@ function LogoCanvasSection({
   graphicName, graphicUploading, graphicError, logoFailed,
   onGraphicFile, onRemoveGraphic, onOpenGraphicPicker,
 }: LogoCanvasSectionProps) {
-  const savedGraphicsButton = NOV4_RELEASE && onOpenGraphicPicker && (
+  const savedGraphicsButton = onOpenGraphicPicker && (
     <button
       type="button"
       onClick={onOpenGraphicPicker}
@@ -3250,27 +3191,11 @@ function LogoCanvasSection({
           <div className="p-5 space-y-4">
             {activeTab === "image" && (
               <>
-                <input ref={fileRef} type="file" accept={NOV4_RELEASE ? undefined : "image/*"}
+                <input ref={fileRef} type="file"
                   onChange={e => {
                     const file = e.target.files?.[0];
                     e.target.value = "";
-                    if (!file) return;
-                    if (NOV4_RELEASE) {
-                      onGraphicFile(file);
-                      return;
-                    }
-                    const r = new FileReader();
-                    r.onloadend = () => {
-                      const dataUrl = r.result as string;
-                      setBgRemoved(false);
-                      setLogoSrc(dataUrl);
-                      setLogoRotation(0);
-                      const defaultSize = 120;
-                      setLogoSize(defaultSize);
-                      setLogoPos({ x: (CANVAS_SIZE - defaultSize) / 2, y: (CANVAS_SIZE - defaultSize) / 2 });
-                      if (autoRemoveBg) handleRemoveLogoBackground(dataUrl);
-                    };
-                    r.readAsDataURL(file);
+                    if (file) onGraphicFile(file);
                   }}
                   className="hidden"
                 />
@@ -3304,9 +3229,7 @@ function LogoCanvasSection({
                     </div>
                     <div className="text-center">
                       <p className="font-bold text-foreground text-sm">Click to upload logo</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {NOV4_RELEASE ? `Any file type — up to ${GRAPHIC_MAX_MB} MB` : "PNG, JPG, SVG — max 10MB"}
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Any file type — up to {GRAPHIC_MAX_MB} MB</p>
                     </div>
                   </div>
                   {savedGraphicsButton}

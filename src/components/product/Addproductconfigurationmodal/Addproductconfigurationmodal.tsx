@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { getPriceTiers, getTierUnitPrice, type PriceTier } from "../customization/Sagequantitypricing";
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../customization/pricing";
 import { getPromoMinQty } from "../customization/Productcustomizationpage";
-import { getMaterialPrintTotal, getDigitizingFee, type MaterialId, type SpColorCount } from "../customization/pricing";
+import { getMaterialPrintTotal, type MaterialId, type SpColorCount } from "../customization/pricing";
 import { isInStock, stockCeiling } from "@/lib/stock";
 
 /* ─────────────────────────────────────────── Types ── */
@@ -39,18 +39,14 @@ interface Variant {
   meta?: string | null;
 }
 
-/** Per-row price breakdown. `decoration_price` and `digitizing_fee` are
- *  ALWAYS kept separate: decoration_price is a genuine per-unit price
- *  (tier-based, scales with quantity), while digitizing_fee is a flat,
- *  one-time charge (embroidery only, qty <= 11) that must never be
- *  divided by / multiplied by quantity. */
+/** Per-row price breakdown. `decoration_price` is a genuine per-unit price
+ *  (tier-based, scales with quantity). */
 interface SelectedSize {
   variant_id: number;
   quantity: number;
   size_name: string;
   unit_price: number;
   decoration_price: number;
-  digitizing_fee: number;
   line_total: number;
 }
 interface Props {
@@ -83,11 +79,9 @@ interface ConfigurationData {
   totalQuantity: number;
   /** Σ(unit_price × quantity) across all valid rows. */
   totalProductPrice: number;
-  /** Σ(decoration_price × quantity) across all valid rows — excludes digitizing fees. */
+  /** Σ(decoration_price × quantity) across all valid rows. */
   totalDecoration: number;
-  /** Σ(digitizing_fee) across all valid rows — flat, not quantity-scaled. */
-  totalDigitizingFee: number;
-  /** totalProductPrice + totalDecoration + totalDigitizingFee. */
+  /** totalProductPrice + totalDecoration. */
   totalPrice: number;
 }
 interface ConfigRow {
@@ -239,16 +233,10 @@ export default function AddProductConfigurationModal({
 
   /** Decoration is recalculated PER ROW at that row's own quantity, since
    *  Embroidery/DTF/Screen Print/DTG are all tiered by qty. Delegates to
-   *  the same getMaterialPrintTotal + getDigitizingFee the main
-   *  customization page uses, so the two screens can never drift apart.
-   *
-   *  The one-time digitizing fee is subtracted out BEFORE dividing by
-   *  quantity, and returned separately — never folded into the per-unit
-   *  decoration price. */
-  const rowDecoration = (qty: number): { perUnit: number; digitizingFee: number } => {
-    if (!isApparel || !selectedMaterial || selectedLocations.length === 0) {
-      return { perUnit: 0, digitizingFee: 0 };
-    }
+   *  the same getMaterialPrintTotal the main customization page uses, so
+   *  the two screens can never drift apart. */
+  const rowDecoration = (qty: number): number => {
+    if (!isApparel || !selectedMaterial || selectedLocations.length === 0) return 0;
     const total = getMaterialPrintTotal(
       selectedMaterial,
       selectedLocations,
@@ -256,10 +244,7 @@ export default function AddProductConfigurationModal({
       spColorCount,
       dtgStyle
     );
-    if (total === null || qty <= 0) return { perUnit: 0, digitizingFee: 0 };
-    const fee = getDigitizingFee(selectedMaterial, qty);
-    const decorationOnly = total - fee;
-    return { perUnit: decorationOnly / qty, digitizingFee: fee };
+    return total === null || qty <= 0 ? 0 : total / qty;
   };
 
   const selectedSizesData: SelectedSize[] = useMemo(
@@ -268,7 +253,7 @@ export default function AddProductConfigurationModal({
         const v = getVariantForRow(r)!;
         const sizeObj = productHasSizes ? sizes.find((s) => s.id === r.sizeId) : null;
         const unitPrice = unitPriceFor(v, r.qty);
-        const { perUnit: decorationPrice, digitizingFee } = rowDecoration(r.qty);
+        const decorationPrice = rowDecoration(r.qty);
         const pricing = calculateVariantTotal({
           productPrice: unitPrice,
           decorationPrice,
@@ -280,9 +265,7 @@ export default function AddProductConfigurationModal({
           size_name: sizeObj?.name ?? "",
           unit_price: unitPrice,
           decoration_price: decorationPrice,
-          digitizing_fee: digitizingFee,
-          // digitizing fee is flat — added once, never multiplied by qty
-          line_total: pricing.total + digitizingFee,
+          line_total: pricing.total,
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -301,12 +284,10 @@ export default function AddProductConfigurationModal({
         quantity: s.quantity,
       }))
     );
-    const digitizingFeeTotal = selectedSizesData.reduce((sum, s) => sum + s.digitizing_fee, 0);
     return {
       productTotal: base.productTotal,
       decorationTotal: base.decorationTotal,
-      digitizingFeeTotal,
-      grandTotal: base.total + digitizingFeeTotal,
+      grandTotal: base.total,
     };
   }, [selectedSizesData]);
 
@@ -323,7 +304,6 @@ export default function AddProductConfigurationModal({
       totalQuantity: 0,
       totalProductPrice: 0,
       totalDecoration: 0,
-      totalDigitizingFee: 0,
       totalPrice: 0,
     });
   };
@@ -337,7 +317,6 @@ export default function AddProductConfigurationModal({
       totalQuantity: totalItems,
       totalProductPrice: totals.productTotal,
       totalDecoration: totals.decorationTotal,
-      totalDigitizingFee: totals.digitizingFeeTotal,
       totalPrice: totals.grandTotal,
     });
   };
@@ -550,12 +529,6 @@ export default function AddProductConfigurationModal({
                   </div>
                 );
               })}
-              {totals.digitizingFeeTotal > 0 && (
-                <div className="flex items-center justify-between gap-3 text-muted-foreground">
-                  <span>Digitizing fee (waived from 12 pcs)</span>
-                  <span className="shrink-0 tabular-nums">${formatMoney(totals.digitizingFeeTotal)}</span>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-3 pt-1 font-semibold text-foreground">
                 <span>{isCustomized && previousQty > 0 ? `Order total · ${pcs(orderQty)}` : `Total · ${pcs(orderQty)}`}</span>
                 <span className="shrink-0 text-base tabular-nums">${formatMoney(orderTotal)}</span>

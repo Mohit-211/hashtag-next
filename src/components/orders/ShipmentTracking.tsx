@@ -21,9 +21,9 @@ const PREPARING = "Preparing your shipment";
 const upper = (v?: string) => (v ?? "").toUpperCase();
 
 /**
- * Paid, with no carrier scan yet: the label exists (SUCCESS is what today's API
- * writes at payment for a label bought first), or it needs the team's attention
- * (FAILED, which the customer never needs to hear about).
+ * Paid, with no carrier scan yet: the label exists (SUCCESS on orders from before
+ * labels moved after payment), or it needs the team's attention (FAILED, which
+ * the customer never needs to hear about).
  */
 export const isPreparingShipment = (o: TrackableOrder) =>
   ["SUCCESS", "LABEL_CREATED", "FAILED"].includes(upper(o.shipment_status));
@@ -36,7 +36,7 @@ export function orderStage(o: TrackableOrder): number {
   if (status === "CANCELLED" || payment === "FAILED") return -1;
   if (shipment === "DELIVERED" || status === "DELIVERED") return 3;
   // A tracking number proves nothing: every paid order gets one before it
-  // leaves, and today's API also marks the order SHIPPED once it's paid.
+  // leaves. GET order has no `status`, so a carrier scan counts too.
   if (
     !isPreparingShipment(o) &&
     (["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment) ||

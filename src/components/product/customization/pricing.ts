@@ -21,8 +21,6 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-import { NOV4_RELEASE } from "@/lib/features";
-
 export interface VariantLineInput {
   /** Product/variant unit price ONLY — never includes decoration. */
   productPrice: number;
@@ -181,7 +179,7 @@ export function getMaterialPrintTotal(
         if (!row) return;
         total += row[tierIndex] * qty;
       });
-      return total + getDigitizingFee(material, qty);
+      return total;
     }
     case "dtf": {
       const tier =
@@ -214,15 +212,6 @@ export function getMaterialPrintTotal(
 /** Minimum apparel quantity for a decoration method (screen print has a run minimum). */
 export function getMaterialFloor(material: MaterialId | null): number {
   return material === "screen_print" ? SP_MIN_QTY : 1;
-}
-/**
- * One-time embroidery digitizing fee — applies to runs of 11 pieces or fewer.
- * The 4 November release replaces it with the API's fee per new graphic, which
- * depends on the whole cart, so the shop stops working one out.
- */
-export function getDigitizingFee(material: MaterialId | null, qty: number): number {
-  if (NOV4_RELEASE) return 0;
-  return material === "embroidery" && qty > 0 && qty <= 11 ? 35 : 0;
 }
 /**
  * ─────────────────────────────────────────────────────────────────────────

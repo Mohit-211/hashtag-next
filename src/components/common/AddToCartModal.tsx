@@ -22,13 +22,9 @@ export interface ConfiguredSize {
   size: string;
   quantity: number;
   unit_price: number;
-  /** Decoration price per unit, captured on the size line itself — NEVER
-   *  includes the flat digitizing fee. 0 when none was selected or the
-   *  config step was skipped. */
+  /** Decoration price per unit, captured on the size line itself. 0 when
+   *  none was selected or the config step was skipped. */
   decoration_unit_price?: number;
-  /** ★ Flat, one-time fee (e.g. embroidery digitizing at qty<=11). Never
-   *  multiplied by quantity, never folded into decoration_unit_price. */
-  digitizing_fee?: number;
 }
 export interface ConfiguredVariant {
   variantId: number;
@@ -41,8 +37,6 @@ export interface ConfiguredVariant {
   totalPrice: number;
   productTotal?: number;
   decorationTotal?: number;
-  /** ★ Σ(digitizing_fee) across this variant's sizes — flat, not qty-scaled. */
-  digitizingFeeTotal?: number;
 }
 
 /** Cart `customization` payload for configured variants — one line per
@@ -63,7 +57,6 @@ export const buildConfiguredCustomizationPayload = (
           decorationPrice: s.decoration_unit_price ?? 0,
           quantity: s.quantity,
         });
-        const fee = s.digitizing_fee ?? 0;
         return {
           variant_id: s.variant_id,
           color: cv.color,
@@ -71,7 +64,7 @@ export const buildConfiguredCustomizationPayload = (
           quantity: s.quantity,
           product_price: s.unit_price,
           decoration_price: s.decoration_unit_price ?? 0,
-          total_price: linePricing.total + fee,
+          total_price: linePricing.total,
         };
       })
     ),
@@ -94,7 +87,6 @@ interface AddToCartModalProps {
   name: string;
   initialQuantity?: number;
   printPricePerPiece?: number;
-  digitizingFee?: number;
   onSuccess?: () => void;
   customization?: string;
   canvasBlob?: Blob | null;
@@ -114,7 +106,6 @@ export default function AddToCartModal({
   name,
   initialQuantity = 1,
   printPricePerPiece = 0,
-  digitizingFee = 0,
   onSuccess,
   customization,
   canvasBlob,
@@ -166,10 +157,8 @@ export default function AddToCartModal({
 
   /* ── Grand totals — SINGLE SOURCE OF TRUTH for the configured-variants
      path. Every size line's own productPrice/decorationPrice/quantity is
-     fed through sumVariantTotals, and digitizing fees are summed
-     separately as FLAT amounts (never multiplied by quantity, never run
-     through sumVariantTotals). This is what closes the gap with the
-     customization page's own displayTotal, which does the same split. ── */
+     fed through sumVariantTotals, which is what closes the gap with the
+     customization page's own displayTotal. ── */
   const configuredPricing = useMemo(() => {
     if (!hasConfigured) return null;
     const lines = configuredVariants!.flatMap((cv) =>
@@ -179,14 +168,7 @@ export default function AddToCartModal({
         quantity: s.quantity,
       }))
     );
-    const base = sumVariantTotals(lines);
-    const digitizingFeeTotal = configuredVariants!.reduce(
-      (sum, cv) =>
-        sum +
-        cv.sizes.reduce((s2, s) => s2 + (s.digitizing_fee ?? 0), 0),
-      0
-    );
-    return { ...base, digitizingFeeTotal };
+    return sumVariantTotals(lines);
   }, [hasConfigured, configuredVariants]);
 
   const grandQty = hasConfigured
@@ -195,14 +177,8 @@ export default function AddToCartModal({
 
   const garmentConfiguredTotal = hasConfigured ? configuredPricing!.productTotal : garmentTotal;
   const configuredDecorationTotal = hasConfigured ? configuredPricing!.decorationTotal : decorationTotal;
-  const configuredDigitizingFeeTotal = hasConfigured ? configuredPricing!.digitizingFeeTotal : digitizingFee;
 
-  // ★ FIX — digitizing fee is now sourced from the actual configured
-  // lines (summed flat) when configuredVariants exist, instead of always
-  // trusting whatever flat `digitizingFee` prop the parent passed in
-  // (which was previously hardcoded to 0 on the configured-variants path,
-  // silently dropping the fee from the modal's total).
-  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + configuredDigitizingFeeTotal;
+  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal;
 
   /* ✅ Parse customization JSON safely (legacy single-payload shape) */
   const parsedCustomization = useMemo(() => {
@@ -257,8 +233,7 @@ export default function AddToCartModal({
 
       if (hasConfigured) {
         // Every selected variant/size line becomes one customization
-        // object carrying its own product_price / decoration_price /
-        // digitizing_fee / total_price, with the flat fee added once.
+        // object carrying its own product_price / decoration_price / total_price.
         customizationPayload = buildConfiguredCustomizationPayload(productId, configuredVariants!, {
           ...(customizationObj?.print_method !== undefined
             ? { print_method: customizationObj.print_method }
@@ -389,7 +364,6 @@ export default function AddToCartModal({
           {hasConfigured ? (
             <div className="space-y-4">
               {configuredVariants!.map((cv) => {
-                const cvDigitizingFeeTotal = cv.sizes.reduce((sum, s) => sum + (s.digitizing_fee ?? 0), 0);
                 return (
                   <div key={`${cv.variantId}-${cv.variantName}`} className="space-y-1.5">
                     <p className="font-semibold text-foreground">
@@ -413,12 +387,6 @@ export default function AddToCartModal({
                         </div>
                       );
                     })}
-                    {cvDigitizingFeeTotal > 0 && (
-                      <div className="flex items-center justify-between gap-3 text-muted-foreground">
-                        <span>Digitizing fee (one-time)</span>
-                        <span className="tabular-nums">${formatMoney(cvDigitizingFeeTotal)}</span>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -438,12 +406,6 @@ export default function AddToCartModal({
                     Decoration · {quantity} × ${formatMoney(printPricePerPiece)}
                   </span>
                   <span className="tabular-nums">${formatMoney(decorationTotal)}</span>
-                </div>
-              )}
-              {digitizingFee > 0 && (
-                <div className="flex items-center justify-between gap-3 text-muted-foreground">
-                  <span>Digitizing fee (one-time)</span>
-                  <span className="tabular-nums">${formatMoney(digitizingFee)}</span>
                 </div>
               )}
               {priceTiers.length > 0 && (

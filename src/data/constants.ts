@@ -1,5 +1,4 @@
 import { User, MapPin, Images, Lock, ShoppingBag, Heart, LogOut, type LucideIcon } from "lucide-react";
-import { NOV4_RELEASE } from "@/lib/features";
 import { Section } from "./types";
 
 export const LOAD_MORE_LIMIT = 16;
@@ -13,7 +12,7 @@ export const inputClass =
 export const NAV_ITEMS: { key: Section; label: string; icon: LucideIcon }[] = [
   { key: "profile", label: "Profile Information", icon: User },
   { key: "addresses", label: "Saved Addresses", icon: MapPin },
-  ...(NOV4_RELEASE ? [{ key: "graphics" as const, label: "Saved Graphics", icon: Images }] : []),
+  { key: "graphics", label: "Saved Graphics", icon: Images },
   { key: "password", label: "Change Password", icon: Lock },
   { key: "orders", label: "My Orders", icon: ShoppingBag },
   { key: "saved", label: "Saved Items", icon: Heart },

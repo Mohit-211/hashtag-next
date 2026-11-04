@@ -13,7 +13,7 @@
  *       ],
  *       "addons": [{ "product_addon_id": 20, "quantity": 50 }]
  *     }]
- *   customization_images  binary File (SVG/AI/…), repeated
+ *   customization_images  binary File (any format), repeated
  *
  * Files are the original File objects (never base64/JSON). A customization
  * entry with an upload carries `image_index` = its file's position in

@@ -855,7 +855,6 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
           customization={customizationJson}
           canvasBlob={null}
           printPricePerPiece={0}
-          digitizingFee={0}
           configuredVariants={configuredVariants.length > 0 ? configuredVariants : undefined}
           isApparel={isApparel}
           onSuccess={() => {
