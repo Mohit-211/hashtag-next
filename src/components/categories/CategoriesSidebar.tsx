@@ -9,7 +9,6 @@ import ColorFacet from "./ColorFacet";
 import GenderFacet from "./GenderFacet";
 import FabricFacet from "./FabricFacet";
 import TierFacet from "./TierFacet";
-import AvailabilityFacet from "./AvailabilityFacet";
 import type {
   Brand,
   GrandCategory,
@@ -103,12 +102,6 @@ interface CategoriesSidebarProps {
   onToggleTierSection: () => void;
   onSelectTier: (tier: string) => void;
   onClearTier: () => void;
-
-  // Availability
-  inStockOnly: boolean;
-  stockOpen: boolean;
-  onToggleStockSection: () => void;
-  onToggleInStock: () => void;
 }
 
 /** Sidebar shell: reset/close controls, "All Products" row, and every facet
@@ -234,13 +227,6 @@ export default function CategoriesSidebar(props: CategoriesSidebarProps) {
           onClear={props.onClearTier}
         />
       )}
-
-      <AvailabilityFacet
-        inStockOnly={props.inStockOnly}
-        open={props.stockOpen}
-        onToggleSection={props.onToggleStockSection}
-        onToggleInStock={props.onToggleInStock}
-      />
     </aside>
   );
 }

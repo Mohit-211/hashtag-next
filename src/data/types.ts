@@ -108,7 +108,6 @@ export type PillTarget =
   | { kind: "brand"; id: number | string }
   | { kind: "size" | "color" | "gender" | "fabric"; value: string }
   | { kind: "tier" }
-  | { kind: "inStock" }
   | { kind: "price" };
 
 export interface Pill {
@@ -169,7 +168,6 @@ export interface FilterParams {
   brands: Brand[];
   sizes: string[];
   colors: string[];
-  inStock: boolean;
   priceRange: [number, number];
   genders: string[];
   fabrics: string[];

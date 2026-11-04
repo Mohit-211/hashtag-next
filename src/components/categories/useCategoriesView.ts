@@ -31,7 +31,7 @@ import type {
 /** Query params that represent an active product filter. */
 const FILTER_PARAMS = [
   "category_id", "industry_id", "search", "brand_id", "use_case_id",
-  "size", "color", "gender", "fabric", "tier", "in_stock", "min_price", "max_price",
+  "size", "color", "gender", "fabric", "tier", "min_price", "max_price",
 ] as const;
 const hasFilterParams = (params: { get(key: string): string | null }) =>
   FILTER_PARAMS.some((key) => !!params.get(key));
@@ -82,11 +82,10 @@ export function useCategoriesView({
   const [activeGenders, setActiveGenders] = useState<string[]>([]);
   const [activeFabrics, setActiveFabrics] = useState<string[]>([]);
   const [activeTier, setActiveTier] = useState<string>("all");
-  const [inStockOnly, setInStockOnly] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    category: true, industry: false, brand: false, price: false, size: false, color: false, gender: false, fabric: false, tier: false, stock: false,
+    category: true, industry: false, brand: false, price: false, size: false, color: false, gender: false, fabric: false, tier: false,
   });
   const toggleSection = (key: string) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   const [sortBy, setSortBy] = useState<SortOption["value"]>("" as SortOption["value"]);
@@ -155,7 +154,6 @@ export function useCategoriesView({
   const activeGendersRef = useRef<string[]>([]);
   const activeFabricsRef = useRef<string[]>([]);
   const activeTierRef = useRef<string>("all");
-  const inStockOnlyRef = useRef(false);
   const priceRangeRef = useRef<[number, number]>([PRICE_MIN, PRICE_MAX]);
   const sortByRef = useRef<SortOption["value"]>(sortBy);
   useEffect(() => { activeCategoryRef.current = activeCategory; }, [activeCategory]);
@@ -168,7 +166,6 @@ export function useCategoriesView({
   useEffect(() => { activeGendersRef.current = activeGenders; }, [activeGenders]);
   useEffect(() => { activeFabricsRef.current = activeFabrics; }, [activeFabrics]);
   useEffect(() => { activeTierRef.current = activeTier; }, [activeTier]);
-  useEffect(() => { inStockOnlyRef.current = inStockOnly; }, [inStockOnly]);
   useEffect(() => { priceRangeRef.current = priceRange; }, [priceRange]);
   useEffect(() => { sortByRef.current = sortBy; }, [sortBy]);
   useEffect(() => { activeUseCaseIdRef.current = activeUseCaseId; }, [activeUseCaseId]);
@@ -254,8 +251,6 @@ export function useCategoriesView({
       setActiveTier(qTier);
       activeTierRef.current = qTier;
     }
-    const qStock = searchParams.get("in_stock");
-    if (qStock === "true") setInStockOnly(true);
     const qSort = searchParams.get("sort");
     if (qSort && allSortOptions.some((o) => o.value === qSort)) {
       setSortBy(qSort as SortOption["value"]);
@@ -395,7 +390,6 @@ export function useCategoriesView({
       activeGendersRef.current.length > 0 ||
       activeFabricsRef.current.length > 0 ||
       activeTierRef.current !== "all" ||
-      inStockOnlyRef.current ||
       priceRangeRef.current[0] > PRICE_MIN ||
       priceRangeRef.current[1] < PRICE_MAX ||
       activeUseCaseIdRef.current !== null;
@@ -424,7 +418,6 @@ export function useCategoriesView({
     setActiveFabrics([]);
     setActiveTier("all");
     activeTierRef.current = "all";
-    setInStockOnly(false);
     setPriceRange([PRICE_MIN, PRICE_MAX]);
     persistSelection(null, null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -455,7 +448,6 @@ export function useCategoriesView({
     setActiveFabrics([]);
     setActiveTier("all");
     activeTierRef.current = "all";
-    setInStockOnly(false);
     setPriceRange([PRICE_MIN, PRICE_MAX]);
     setSortBy("" as SortOption["value"]);
     setActiveUseCaseId(null);
@@ -545,7 +537,6 @@ export function useCategoriesView({
       genders?: string[];
       fabrics?: string[];
       tier?: string;
-      inStock?: boolean;
       sort?: SortOption["value"];
       priceRange?: [number, number];
       clearSearch?: boolean;
@@ -577,7 +568,6 @@ export function useCategoriesView({
       const genders = next.genders ?? activeGendersRef.current;
       const fabrics = next.fabrics ?? activeFabricsRef.current;
       const tier = next.tier ?? activeTierRef.current;
-      const inStock = next.inStock ?? inStockOnlyRef.current;
       const sort = next.sort ?? sortByRef.current;
       const [min, max] = next.priceRange ?? priceRangeRef.current;
       if (categoryIds.length) sp.set("category_id", categoryIds.join(","));
@@ -595,8 +585,6 @@ export function useCategoriesView({
       else sp.delete("fabric");
       if (tier && tier !== "all") sp.set("tier", tier);
       else sp.delete("tier");
-      if (inStock) sp.set("in_stock", "true");
-      else sp.delete("in_stock");
       if (sort) sp.set("sort", sort);
       else sp.delete("sort");
       if (min > PRICE_MIN) sp.set("min_price", String(min));
@@ -614,7 +602,7 @@ export function useCategoriesView({
       // for a fresh nav and bounces the user back to the picker gate.
       const stillHasFilter =
         categoryIds.length || brandIds.length || sizes.length || colors.length ||
-        genders.length || fabrics.length || (tier && tier !== "all") || inStock ||
+        genders.length || fabrics.length || (tier && tier !== "all") ||
         min > PRICE_MIN || max < PRICE_MAX || sp.has("search");
       if (stillHasFilter) sp.delete("view");
       else sp.set("view", "all");
@@ -722,7 +710,6 @@ export function useCategoriesView({
       brands: activeBrands,
       sizes: activeSizes,
       colors: activeColors,
-      inStock: inStockOnly,
       priceRange,
       genders: activeGenders,
       fabrics: activeFabrics,
@@ -733,7 +720,7 @@ export function useCategoriesView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     categories.length, activeCategory, activeParents, activeIndustry, activeIndustryCategories, activeBrands, activeSizes, activeColors,
-    activeGenders, activeFabrics, activeTier, inStockOnly, priceRange, sortBy, fetchProducts, urlRestoreAttempted, urlSearch, activeUseCaseId,
+    activeGenders, activeFabrics, activeTier, priceRange, sortBy, fetchProducts, urlRestoreAttempted, urlSearch, activeUseCaseId,
     activeUseCaseCategoryIds, fetchProductsByUseCase,
   ]);
 
@@ -761,7 +748,6 @@ export function useCategoriesView({
             brands: activeBrandsRef.current,
             sizes: activeSizesRef.current,
             colors: activeColorsRef.current,
-            inStock: inStockOnlyRef.current,
             priceRange: priceRangeRef.current,
             genders: activeGendersRef.current,
             fabrics: activeFabricsRef.current,
@@ -996,13 +982,6 @@ export function useCategoriesView({
     syncQueryString({ tier, clearSearch: true });
   };
 
-  const toggleInStock = () => {
-    const prev = inStockOnly;
-    const next = !prev;
-    syncQueryString({ inStock: next, clearSearch: true });
-    setInStockOnly(next);
-  };
-
   const clearSizes = () => { setActiveSizes([]); syncQueryString({ sizes: [], clearSearch: true }); };
   const clearColors = () => { setActiveColors([]); syncQueryString({ colors: [], clearSearch: true }); };
   const clearGenders = () => { setActiveGenders([]); syncQueryString({ genders: [], clearSearch: true }); };
@@ -1100,8 +1079,7 @@ export function useCategoriesView({
         setActiveFabrics([]);
         setActiveTier("all");
         activeTierRef.current = "all";
-        setInStockOnly(false);
-        setPriceRange([PRICE_MIN, PRICE_MAX]);
+            setPriceRange([PRICE_MIN, PRICE_MAX]);
         persistSelection(null, null);
         setViewMode("products"); // <-- FIX
         const sp = new URLSearchParams();
@@ -1210,7 +1188,6 @@ export function useCategoriesView({
     const tierLabel = TIER_OPTIONS.find((o) => o.value === activeTier)?.label ?? activeTier;
     pills.push({ key: "tier", label: tierLabel, target: { kind: "tier" } });
   }
-  if (inStockOnly) pills.push({ key: "instock", label: "In stock", target: { kind: "inStock" } });
   if (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX) {
     pills.push({ key: "price", label: `$${priceRange[0]}–$${priceRange[1]}`, target: { kind: "price" } });
   }
@@ -1259,8 +1236,6 @@ export function useCategoriesView({
         return toggleFabric(target.value);
       case "tier":
         return clearTier();
-      case "inStock":
-        return toggleInStock();
       case "price":
         return commitPriceRange([PRICE_MIN, PRICE_MAX]);
     }
@@ -1270,7 +1245,7 @@ export function useCategoriesView({
     (activeIndustry.id !== null && !activeIndustryCategories.some((c) => c.industryId === activeIndustry.id) ? 1 : 0) +
     activeUseCaseIds.length +
     activeBrands.length + activeSizes.length +
-    activeColors.length + activeGenders.length + activeFabrics.length + (tierActive ? 1 : 0) + (inStockOnly ? 1 : 0) +
+    activeColors.length + activeGenders.length + activeFabrics.length + (tierActive ? 1 : 0) +
     (priceRange[0] > PRICE_MIN || priceRange[1] < PRICE_MAX ? 1 : 0);
   const otherCategoryTabs = categories.filter((c) => c.id !== null);
   const isAllActive = activeCategory.id === null && !activeParents.length;
@@ -1285,7 +1260,7 @@ export function useCategoriesView({
     activeCategory, activeParents, expandedCategoryIds,
     activeIndustry, activeIndustryCategories, activeUseCaseIds, expandedIndustryIds,
     activeBrands, activeSizes, activeColors, activeGenders, activeFabrics, activeTier,
-    inStockOnly, priceRange, sortBy,
+    priceRange, sortBy,
     sidebarOpen, setSidebarOpen,
     openSections, toggleSection,
     viewMode, pickerIndustryId, setPickerIndustryId, selectedUseCase, cameFromGate,
@@ -1300,7 +1275,7 @@ export function useCategoriesView({
     handleCategoryTabSelect, toggleCategoryExpand, toggleSubCategory,
     handleIndustrySelect, toggleIndustryExpand,
     toggleIndustryCategory, toggleUseCaseCategories,
-    toggleBrand, toggleSize, toggleColor, toggleGender, toggleFabric, toggleInStock,
+    toggleBrand, toggleSize, toggleColor, toggleGender, toggleFabric,
     handleSortChange, handleMinPriceChange, handleMaxPriceChange, commitPriceRange,
     handleTierChange, clearTier,
     handleClearFilter,

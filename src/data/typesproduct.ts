@@ -38,6 +38,8 @@ export interface Product {
   id: number;
   name: string;
   price: number | string;
+  /** SAGE cards: `price` is the lowest tier, shown as "$X+". */
+  price_from?: boolean;
   image?: string;
   category_id?: number;
   description?: string;

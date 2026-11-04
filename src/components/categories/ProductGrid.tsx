@@ -433,7 +433,12 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
         {/* Price */}
         <div className="pg-price-row">
-          {original && <span className="pg-price">{original}</span>}
+          {original && (
+            <span className="pg-price">
+              {original}
+              {product.price_from ? "+" : ""}
+            </span>
+          )}
           {/* {original && <span className="pg-original">{original}</span>} */}
           {discount && <span className="pg-discount-pct">{discount}</span>}
         </div>

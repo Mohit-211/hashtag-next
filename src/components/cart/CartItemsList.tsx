@@ -46,6 +46,12 @@ export type CartItemType = {
 
   can_increase?: boolean;
   can_decrease?: boolean;
+  /** The lowest quantity this line can go to. */
+  min_quantity?: number;
+
+  stock_status?: "AVAILABLE" | "OUT_OF_STOCK" | "NOT_ENOUGH_STOCK";
+  stock_message?: string;
+  is_purchasable?: boolean;
 
   // ★ FIXED — this is the single source of truth for print method /
   // locations now (CartItem.tsx reads item.customization_config

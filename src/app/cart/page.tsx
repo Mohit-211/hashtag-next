@@ -94,6 +94,7 @@ export default function Cart() {
           itemsTotal={summary?.items_total ?? 0}
           shippingCost={summary?.shipping_cost ?? 0}
           grandTotal={summary?.grand_total ?? 0}
+          hasUnavailableItems={items.some((item) => item.is_purchasable === false)}
         />
       </div>
     </section>

@@ -84,7 +84,6 @@ export function buildFilterParams(opts: {
   brands: Brand[];
   sizes: string[];
   colors: string[];
-  inStock: boolean;
   priceRange: [number, number];
   genders: string[];
   fabrics: string[];
@@ -130,7 +129,6 @@ export function buildFilterParams(opts: {
   }
   if (opts.sizes.length) params.size = opts.sizes.join(",");
   if (opts.colors.length) params.color = opts.colors.join(",");
-  if (opts.inStock) params.in_stock = true;
   if (opts.priceRange[0] > PRICE_MIN) params.min_price = opts.priceRange[0];
   if (opts.priceRange[1] < PRICE_MAX) params.max_price = opts.priceRange[1];
   if (opts.genders.length) params.gender = opts.genders.join(",");

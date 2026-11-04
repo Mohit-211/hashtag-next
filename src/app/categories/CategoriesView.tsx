@@ -153,10 +153,6 @@ export default function CategoriesView({
           onToggleTierSection={() => v.toggleSection("tier")}
           onSelectTier={v.handleTierChange}
           onClearTier={v.clearTier}
-          inStockOnly={v.inStockOnly}
-          stockOpen={v.openSections.stock}
-          onToggleStockSection={() => v.toggleSection("stock")}
-          onToggleInStock={v.toggleInStock}
         />
 
         {v.sidebarOpen && <div className="sidebar-backdrop" onClick={() => v.setSidebarOpen(false)} />}

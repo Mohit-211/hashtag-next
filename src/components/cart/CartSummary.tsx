@@ -11,12 +11,15 @@ interface Props {
   itemsTotal: number;
   shippingCost: number;
   grandTotal: number;
+  /** A line is out of stock or short of stock; checkout would refuse it. */
+  hasUnavailableItems?: boolean;
 }
 
 export default function CartSummary({
   itemsTotal,
   shippingCost,
   grandTotal,
+  hasUnavailableItems = false,
 }: Props) {
   const router = useRouter();
 
@@ -54,10 +57,16 @@ export default function CartSummary({
 
         {/* CTAs */}
         <div className="space-y-2 pt-1">
+          {hasUnavailableItems && (
+            <p className="text-xs text-destructive">
+              Remove or change the items marked above to continue.
+            </p>
+          )}
           <Button
             variant="hero"
             size="lg"
             className="w-full"
+            disabled={hasUnavailableItems}
             onClick={() => router.push("/checkout")}
           >
             Proceed to Checkout →

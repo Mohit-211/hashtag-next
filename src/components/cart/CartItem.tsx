@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Minus, Plus, Trash2, UploadCloud, Stamp, Loader2 } from "lucide-react";
+import { AlertCircle, Minus, Plus, Trash2, UploadCloud, Stamp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   IncrementCartItemApi,
   DecrementCartItemApi,
   RemoveFromCartApi,
+  UpdateCartQuantityApi,
 } from "@/api/operations/cart.api";
 
 import ProxyImage from "../ProxyImage";
@@ -24,15 +25,14 @@ export default function CartItem({ item, onRefresh }: Props) {
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
   /* ── Typeable quantity ──
-     There's no "set quantity to X" endpoint — only +1 / -1 (Increment /
-     DecrementCartItemApi). So `qtyDraft` is a local string buffer the user
-     can freely type/clear into (null when not editing — the box then shows
-     `item.quantity`), and on blur/Enter we reconcile it against
-     the server's current `item.quantity` by firing however many
-     increment/decrement calls are needed to land on the typed value —
-     functionally identical to clicking +/- that many times. */
+     `qtyDraft` is a local string buffer the user can freely type/clear into
+     (null when not editing — the box then shows `item.quantity`). On
+     blur/Enter the value goes to the API in one call. */
   const [qtyDraft, setQtyDraft] = useState<string | null>(null);
   const qtyInput = qtyDraft ?? String(item.quantity);
+
+  // The API refuses less than this rather than removing the line (Q36).
+  const minQuantity = item.min_quantity ?? 1;
 
   // ★ FIXED — the API nests print method / locations under
   // `customization_config`, not `customization`, and does not include a
@@ -60,7 +60,7 @@ export default function CartItem({ item, onRefresh }: Props) {
 
   const handleDecrease = async () => {
     // ★ FIXED — was item.canDecrease, API sends can_decrease.
-    if (item.quantity <= 1 || loading || item.can_decrease === false) return;
+    if (item.quantity <= minQuantity || loading || item.can_decrease === false) return;
     try {
       setLoading(true);
       await DecrementCartItemApi({ cart_id: item.cart_id });
@@ -90,38 +90,23 @@ export default function CartItem({ item, onRefresh }: Props) {
     }
   };
 
-  /* ── Reconcile a manually-typed quantity ──
-     Clamps to a 1-piece floor, does nothing if the value is unchanged or
-     invalid, then walks the gap one call at a time (respecting
-     can_increase/can_decrease the same way the +/- buttons do) so any
-     stock-ceiling or floor enforced by those flags is still honored. */
+  /* ── Commit a manually-typed quantity ──
+     Does nothing if the box was left empty or unchanged, and never goes below
+     the line's minimum: removing a line stays on the Remove button. */
   const commitTypedQty = async (raw: string) => {
-    const parsed = Number(raw);
-    const target = Number.isFinite(parsed) ? Math.floor(parsed) : item.quantity;
-    const safeTarget = Math.max(1, target);
-
     if (loading) return;
     setQtyDraft(null);
-    if (safeTarget === item.quantity) return;
+
+    const typed = Math.floor(Number(raw));
+    if (raw.trim() === "" || !Number.isFinite(typed)) return;
+    if (typed < minQuantity) toast.error(`The minimum for this item is ${minQuantity}.`);
+
+    const target = Math.max(minQuantity, typed);
+    if (target === item.quantity) return;
 
     setLoading(true);
     try {
-      let current = item.quantity;
-      if (safeTarget > current) {
-        while (current < safeTarget) {
-          // ★ FIXED — was item.canIncrease.
-          if (item.can_increase === false) break;
-          await IncrementCartItemApi({ cart_id: item.cart_id });
-          current += 1;
-        }
-      } else {
-        while (current > safeTarget) {
-          // ★ FIXED — was item.canDecrease.
-          if (current <= 1 || item.can_decrease === false) break;
-          await DecrementCartItemApi({ cart_id: item.cart_id });
-          current -= 1;
-        }
-      }
+      await UpdateCartQuantityApi({ cart_id: item.cart_id, quantity: target });
       toast.success("Quantity updated");
       onRefresh();
     } catch (err) {
@@ -223,6 +208,14 @@ export default function CartItem({ item, onRefresh }: Props) {
         </div>
       </div>
 
+      {/* Shoppers see whether the line can be filled, never a stock number (Q49) */}
+      {item.stock_status && item.stock_status !== "AVAILABLE" && item.stock_message && (
+        <p className="mt-4 flex items-center gap-1.5 text-sm font-medium text-destructive">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {item.stock_message}
+        </p>
+      )}
+
       {/* Production ticket: print method, locations, artwork proof */}
       {hasSpecs && (
         <div className="space-y-3">
@@ -320,7 +313,7 @@ export default function CartItem({ item, onRefresh }: Props) {
         <div className="flex items-center rounded-full border border-border overflow-hidden bg-background">
           <button
             onClick={handleDecrease}
-            disabled={loading || item.quantity <= 1 || item.can_decrease === false}
+            disabled={loading || item.quantity <= minQuantity || item.can_decrease === false}
             className="p-2 hover:bg-muted disabled:opacity-40 transition-colors"
             aria-label="Decrease quantity"
           >
@@ -331,10 +324,9 @@ export default function CartItem({ item, onRefresh }: Props) {
               changeable via the +/- buttons. Now a typeable <input>.
               `qtyInput` is a local string buffer so typing/clearing digits
               doesn't fight the server-driven `item.quantity` on every
-              keystroke; the value is only reconciled against the backend
-              (via commitTypedQty, walking Increment/DecrementCartItemApi
-              the needed number of times) on blur or Enter. While that
-              reconciliation is in flight, `loading` disables the field
+              keystroke; the value only goes to the backend (commitTypedQty)
+              on blur or Enter. While that
+              request is in flight, `loading` disables the field
               and shows a small spinner instead of the +/- buttons area
               being separately clickable, avoiding overlapping requests. */}
           <div className="relative w-12 flex items-center justify-center">
@@ -345,7 +337,7 @@ export default function CartItem({ item, onRefresh }: Props) {
                 type="number"
                 inputMode="numeric"
                 value={qtyInput}
-                min={1}
+                min={minQuantity}
                 disabled={loading}
                 onChange={(e) => setQtyDraft(e.target.value)}
                 onBlur={(e) => commitTypedQty(e.target.value)}
