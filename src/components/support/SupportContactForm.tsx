@@ -4,7 +4,9 @@
 
 import { inputClass } from "@/data/constants";
 import { useState, FormEvent } from "react";
+import { AddToContactApi } from "@/api/operations/contact.api";
 import { Button } from "@/components/ui/button";
+import TurnstileWidget, { TURNSTILE_FIELD, TURNSTILE_SITE_KEY } from "@/components/common/TurnstileWidget";
 import { SUBJECTS } from "@/data/supportData";
 import { CheckCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -27,6 +29,9 @@ const supportFormSchema = z.object({
 
 export default function SupportContactForm() {
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [sending, setSending] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
 
   const [form, setForm] = useState<SupportFormState>({
     name: "",
@@ -41,14 +46,36 @@ export default function SupportContactForm() {
 
   // Validation feedback is surfaced via toast only (one message at a time)
   // rather than inline per-field errors.
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const result = supportFormSchema.safeParse(form);
     if (!result.success) {
       toast.error(result.error.issues[0]?.message ?? "Please check the form and try again.");
       return;
     }
-    setSubmitted(true);
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("Please complete the check above the button.");
+      return;
+    }
+
+    setSending(true);
+    try {
+      const formData = new FormData();
+      formData.append("name", form.name);
+      formData.append("email", form.email);
+      formData.append("reason", form.subject);
+      formData.append("message", form.message);
+      if (turnstileToken) formData.append(TURNSTILE_FIELD, turnstileToken);
+
+      await AddToContactApi(formData);
+      setSubmitted(true);
+    } catch (err) {
+      // The axios response interceptor already toasts the failure.
+      console.error(err);
+      setTurnstileReset((n) => n + 1);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -106,8 +133,10 @@ export default function SupportContactForm() {
               onChange={(e) => setField("message", e.target.value)}
             />
 
-            <Button type="submit" variant="hero">
-              Send Message
+            <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileReset} />
+
+            <Button type="submit" variant="hero" disabled={sending}>
+              {sending ? "Sending..." : "Send Message"}
             </Button>
           </form>
         )}

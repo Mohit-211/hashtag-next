@@ -6,6 +6,7 @@ import { Upload, X, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { emailSchema, nameSchema, textSchema } from "@/lib/validation";
+import TurnstileWidget, { TURNSTILE_FIELD, TURNSTILE_SITE_KEY } from "@/components/common/TurnstileWidget";
 
 /**
  * ConciergeSourcingSection
@@ -54,6 +55,8 @@ export default function ConciergeSourcingSection() {
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -111,6 +114,10 @@ export default function ConciergeSourcingSection() {
       toast.error(result.error.issues[0]?.message ?? "Please check the form and try again.");
       return;
     }
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("Please complete the check above the button.");
+      return;
+    }
 
     setStatus("submitting");
 
@@ -121,6 +128,7 @@ export default function ConciergeSourcingSection() {
       formData.append("company", form.company);
       formData.append("requested_name", form.requested_name);
       formData.append("details", form.details);
+      if (turnstileToken) formData.append(TURNSTILE_FIELD, turnstileToken);
       files.forEach((file) => formData.append("images", file));
 
       await AddToSourcingRequestApi(formData);
@@ -129,6 +137,9 @@ export default function ConciergeSourcingSection() {
       // The axios response interceptor already toasts the failure.
       console.error(err);
       setStatus("error");
+      setTurnstileReset((n) => n + 1);
+    } finally {
+      setTurnstileToken(null);
     }
   };
 
@@ -350,6 +361,8 @@ export default function ConciergeSourcingSection() {
               </div>
 
               <div className="mt-2 flex flex-col gap-3 border-t border-border pt-5">
+                <TurnstileWidget onToken={setTurnstileToken} resetKey={turnstileReset} />
+
                 <button
                   type="submit"
                   disabled={status === "submitting"}
