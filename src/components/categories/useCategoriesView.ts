@@ -57,6 +57,7 @@ export function useCategoriesView({
     productGridLoading,
     initialLoading,
     hasMoreRef,
+    isFetchingRef,
     categories,
     industries,
     industriesLoading,
@@ -475,7 +476,7 @@ export function useCategoriesView({
   }, [clearAllFilterState]);
 
   // Whenever the pathname becomes exactly bare "/categories" (e.g.
-  // Header's "All Products" plain link, browser back/forward, or any other
+  // Header's "Use Cases" plain link, browser back/forward, or any other
   // navigation that lands on /categories with no filter/search param),
   // reset everything back to the initial picker flow. We track pathname
   // changes (not just query-string-empty) so this is reliable across every
@@ -737,8 +738,11 @@ export function useCategoriesView({
   ]);
 
   useEffect(() => {
+    if (viewMode !== "products") return;
     const handleScroll = async () => {
-      if (fetchingRef.current || !hasMoreRef.current || productLoading) return;
+      // A load-more started during a page-1 fetch would supersede it (fetchIdRef)
+      // and append onto the previous filter's products.
+      if (fetchingRef.current || !hasMoreRef.current || isFetchingRef.current) return;
       const { scrollY, innerHeight } = window;
       const fullHeight = document.documentElement.scrollHeight;
       if (scrollY + innerHeight >= fullHeight - 200) {
@@ -771,7 +775,7 @@ export function useCategoriesView({
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [fetchProducts, fetchProductsByUseCase, productLoading, hasMoreRef]);
+  }, [fetchProducts, fetchProductsByUseCase, viewMode, hasMoreRef, isFetchingRef]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

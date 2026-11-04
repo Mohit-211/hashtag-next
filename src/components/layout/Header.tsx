@@ -39,7 +39,7 @@ function CountBadge({ count }: { count: number }) {
 
 const navLinks = [
   { label: "Home", href: "/" },
-  { label: "All Products", href: "/categories" },
+  { label: "Use Cases", href: "/categories" },
   { label: "Orders", href: "/orders" },
   { label: "Saved", href: "/saved" },
   { label: "Gallery", href: "/gallery" },
@@ -89,7 +89,7 @@ export default function Header() {
   }, []);
 
   // ✅ Close menu on route change — also clears any stale, un-submitted
-  // search text so navigating to a different nav link (Home, All Products,
+  // search text so navigating to a different nav link (Home, Use Cases,
   // Orders, Saved, Gallery, Contact) never leaves an old search query
   // sitting in the box. Without this, the header persists across routes
   // and a typed-but-not-submitted query would silently survive navigation.

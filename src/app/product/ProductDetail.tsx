@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isGrandCategory } from "@/lib/productFamily";
+import { getGalleryAssets } from "@/lib/images";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 import type { ProductCategoryRef } from "@/data/typesproduct";
 import ProductGallery from "@/components/product/ProductGallery";
@@ -656,6 +657,9 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
         url: img.file_name?.startsWith("http") ? img.file_name : `${BASE_URL}${img.file_uri}`,
       }))
       : product?.attachments || [];
+  // Gallery images come from the selected variant's own supplier meta (S&S or SanMar),
+  // so they follow every variant change; without any, the stored images are shown.
+  const galleryAssets = getGalleryAssets(variantData?.meta, product?.meta, variantData?.color);
   const category = product?.categories?.[0]?.parent_categories?.[0];
   // Grand category tells us the product family (e.g. "Pre-Made products" vs customizable apparel)
   const grandCategory = category?.grand_categories?.[0];
@@ -726,7 +730,10 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] xl:gap-14">
           {/* ── GALLERY ── */}
           <div className="self-start lg:sticky lg:top-24">
-            <ProductGallery attachments={displayAttachments} />
+            <ProductGallery
+              attachments={displayAttachments}
+              assets={galleryAssets?.length ? galleryAssets : null}
+            />
           </div>
 
           {/* ── DETAILS & PURCHASE ── */}

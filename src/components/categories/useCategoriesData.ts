@@ -27,6 +27,9 @@ export function useCategoriesData() {
 
   const hasMoreRef = useRef(true);
   const fetchIdRef = useRef(0);
+  // Set synchronously when a fetch starts — productLoading state lags a render,
+  // too late for the scroll handler to see a new page-1 fetch in flight.
+  const isFetchingRef = useRef(false);
 
   const fetchBrands = useCallback(async () => {
     try {
@@ -132,6 +135,7 @@ export function useCategoriesData() {
     async (pageNumber: number, isLoadMore: boolean, filters: Omit<FilterParams, "page" | "limit">) => {
       const thisFetchId = ++fetchIdRef.current;
       try {
+        isFetchingRef.current = true;
         setProductLoading(true);
         const params = buildFilterParams({ page: pageNumber, limit: LOAD_MORE_LIMIT, ...filters });
         const res: ProductApiResponse = await AllProductsApi(params);
@@ -146,6 +150,7 @@ export function useCategoriesData() {
         console.error("Error fetching products:", err);
       } finally {
         if (thisFetchId === fetchIdRef.current) {
+          isFetchingRef.current = false;
           setProductLoading(false);
           setProductGridLoading(false);
           setInitialLoading(false);
@@ -173,6 +178,7 @@ export function useCategoriesData() {
     ) => {
       const thisFetchId = ++fetchIdRef.current;
       try {
+        isFetchingRef.current = true;
         setProductLoading(true);
         const res: ProductApiResponse = await ProductsByUseCaseApi(useCaseId, {
           page: pageNumber,
@@ -191,6 +197,7 @@ export function useCategoriesData() {
         console.error("Error fetching products by use case:", err);
       } finally {
         if (thisFetchId === fetchIdRef.current) {
+          isFetchingRef.current = false;
           setProductLoading(false);
           setProductGridLoading(false);
           setInitialLoading(false);
@@ -208,6 +215,7 @@ export function useCategoriesData() {
     initialLoading,
     hasMore,
     hasMoreRef,
+    isFetchingRef,
     categories,
     industries,
     industriesLoading,
