@@ -22,7 +22,7 @@ interface Variant {
   size: string;
   size_id: number;
   price: string;
-  stock: number;
+  stock: number | null;
   images: VariantImage[];
 }
 

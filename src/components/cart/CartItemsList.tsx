@@ -40,7 +40,6 @@ export type CartItemType = {
   color?: string;
   color_code?: string | null;
 
-  base_price: number;
   price?: number;
   total_price?: number;
   quantity: number;

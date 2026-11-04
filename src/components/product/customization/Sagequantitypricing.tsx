@@ -8,186 +8,59 @@ import { ChevronDown, ChevronUp, Zap, Package, Tag, TrendingDown, Check } from "
    TYPES
 ════════════════════════════════════════════════════════════════ */
 
+/** One quantity break from a variant's `price_tiers`: the selling price, exactly what the cart charges. */
 export interface PriceTier {
-  minQty: number;
-  maxQty: number | null;   // null = unlimited (last tier)
-  price: number;           // retail unit price
-  netPrice?: number;       // net cost (optional display)
-}
-
-export interface SageMeta {
-  netTiers: PriceTier[];
-  qtyTiers: number[];
-  currency?: string;
-  productName?: string;
-  sku?: string;
-  productionTime?: string;
-  themes?: string;
-  dimensions?: string;
-  raw?: Record<string, unknown>;
+  min_qty: number;
+  max_qty: number | null;  // null = unlimited (last tier)
+  unit_price: number;
 }
 
 export interface SageQuantityChangeState {
-  sku?: string;
-  productName?: string;
   quantity: number;
   unitPrice: number;
   total: number;
 }
 
 export interface SageQuantityPricingProps {
-  metaStr: string | Record<string, unknown> | null | undefined;
+  tiers: PriceTier[];
   minOrderQuantity?: number;
   stock?: number | null;
   variant?: "compact" | "full";
-  /** Identifier for the line item this instance represents — passed through to onChange so a parent rendering multiple instances (e.g. an order summary) can tell them apart. Falls back to meta.sku if not provided. */
+  /** Identifier for the line item this instance represents — passed through to onChange so a parent rendering multiple instances (e.g. an order summary) can tell them apart. */
   itemId?: string;
   onChange?: (state: SageQuantityChangeState & { itemId?: string }) => void;
   initialQty?: number;
 }
 
 /* ════════════════════════════════════════════════════════════════
-   PARSER — handles the actual SAGE parallel-array format
-════════════════════════════════════════════════════════════════ */
-
-export function parseSageMeta(
-  raw: string | Record<string, unknown> | null | undefined
-): SageMeta | null {
-  if (!raw) return null;
-
-  let obj: Record<string, unknown> | null = null;
-
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (!trimmed || trimmed === "null" || trimmed === "{}") return null;
-    try {
-      obj = JSON.parse(trimmed);
-      // double-encoded
-      if (typeof obj === "string") obj = JSON.parse(obj as string);
-    } catch {
-      return null;
-    }
-  } else if (typeof raw === "object" && raw !== null) {
-    obj = raw as Record<string, unknown>;
-  }
-
-  if (!obj || typeof obj !== "object") return null;
-
-  /* ── Extract parallel arrays ── */
-  const rawNetTiers = obj.netTiers;
-  const rawQtyTiers = obj.qtyTiers;
-
-  if (!Array.isArray(rawNetTiers) || !Array.isArray(rawQtyTiers)) return null;
-  if (rawNetTiers.length === 0 || rawQtyTiers.length === 0) return null;
-
-  const count = Math.min(rawNetTiers.length, rawQtyTiers.length);
-
-  const rows: { minQty: number; price: number; netPrice?: number }[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const minQty = Number(rawQtyTiers[i]);
-    const price = Number(rawNetTiers[i]);
-
-    const netPrice =
-      Array.isArray(rawNetTiers) && rawNetTiers[i] != null
-        ? Number(rawNetTiers[i])
-        : undefined;
-
-    // Skip invalid / empty / zero tiers
-    if (
-      !Number.isFinite(minQty) ||
-      minQty <= 0 ||
-      !Number.isFinite(price) ||
-      price <= 0
-    ) {
-      continue;
-    }
-
-    rows.push({
-      minQty,
-      price,
-      netPrice: Number.isFinite(netPrice) ? netPrice : undefined,
-    });
-  }
-
-  if (rows.length === 0) return null;
-
-  // IMPORTANT: sort ascending by minQty before deriving maxQty bands.
-  // SAGE doesn't guarantee the incoming arrays are already in qty order,
-  // and everything downstream (effectiveMin, "BEST" badge, base-tier
-  // savings comparison) assumes netTiers[0] is the lowest tier.
-  rows.sort((a, b) => a.minQty - b.minQty);
-
-  const netTiers: PriceTier[] = rows.map((row, i) => ({
-    minQty: row.minQty,
-    price: row.price,
-    netPrice: row.netPrice,
-    maxQty: i < rows.length - 1 ? rows[i + 1].minQty - 1 : null,
-  }));
-
-  return {
-    netTiers,
-    qtyTiers: netTiers.map(t => t.minQty),
-    currency: "USD",
-    productName: obj.productName as string | undefined,
-    sku: obj.sku as string | undefined,
-    productionTime: obj.productionTime as string | undefined,
-    themes: obj.themes as string | undefined,
-    dimensions: obj.dimensions as string | undefined,
-    raw: obj,
-  };
-}
-
-/* ════════════════════════════════════════════════════════════════
-   getSageUnitPrice — finds the retail price for a given qty
+   PRICE TIERS — straight from the API, markup already included
 ════════════════════════════════════════════════════════════════ */
 
 /**
- * The retail markup applied on top of the raw SAGE tier price for display
- * and for the actual price charged. Exported so any other component
- * (e.g. the parent product page's Order Summary) computes the *same*
- * number shown in this component's price table — otherwise the two
- * will silently diverge.
+ * A variant's usable tiers, lowest quantity first. Every supplier but SAGE
+ * sends an empty list. The sort matters: everything downstream (minimum,
+ * "BEST" badge, base-tier savings) assumes tiers[0] is the lowest tier.
  */
-export const SAGE_PRICE_MARKUP = 1.4925;
-
-export function applySageMarkup(price: number): number {
-  return +(price * SAGE_PRICE_MARKUP).toFixed(2);
+export function getPriceTiers(variant?: { price_tiers?: PriceTier[] | null } | null): PriceTier[] {
+  const tiers = variant?.price_tiers;
+  if (!Array.isArray(tiers)) return [];
+  return tiers
+    .filter((t) => Number(t?.min_qty) > 0 && Number(t?.unit_price) > 0)
+    .sort((a, b) => a.min_qty - b.min_qty);
 }
 
-/** Raw SAGE tier price, with no markup applied. */
-export function getSageUnitPrice(
-  raw: string | Record<string, unknown> | null | undefined,
-  qty: number
-): number | null {
-  const meta = parseSageMeta(raw);
-  if (!meta) return null;
-  return findActiveTier(meta.netTiers, qty)?.price ?? null;
-}
-
-/**
- * Marked-up SAGE tier price — this is the number that actually gets
- * displayed in <SageQuantityPricing>'s table and price bar. Use this
- * (not getSageUnitPrice) anywhere you need to show or charge the same
- * price the customer sees in that component.
- */
-export function getSageUnitPriceWithMarkup(
-  raw: string | Record<string, unknown> | null | undefined,
-  qty: number
-): number | null {
-  const rawPrice = getSageUnitPrice(raw, qty);
-  return rawPrice == null ? null : applySageMarkup(rawPrice);
+/** The unit price at `qty`, or null when there are no tiers. */
+export function getTierUnitPrice(tiers: PriceTier[], qty: number): number | null {
+  return findActiveTier(tiers, qty)?.unit_price ?? null;
 }
 
 function findActiveTier(tiers: PriceTier[], qty: number): PriceTier | null {
   if (tiers.length === 0) return null;
-  // tiers are already sorted ascending by minQty (parseSageMeta guarantees this).
-  // Walk from highest minQty downward — first tier whose minQty ≤ qty wins.
+  // Walk from highest min_qty downward — first tier whose min_qty ≤ qty wins.
   for (let i = tiers.length - 1; i >= 0; i--) {
-    if (qty >= tiers[i].minQty) return tiers[i];
+    if (qty >= tiers[i].min_qty) return tiers[i];
   }
-  // qty is below every tier's minQty — fall back to the lowest tier (index 0,
-  // guaranteed lowest because tiers are sorted ascending).
+  // qty is below every tier — fall back to the lowest tier.
   return tiers[0];
 }
 
@@ -214,36 +87,35 @@ function cn(...classes: (string | boolean | undefined | null)[]) {
 ════════════════════════════════════════════════════════════════ */
 
 interface TierTableProps {
-  netTiers: PriceTier[];
+  tiers: PriceTier[];
   activeTier: PriceTier | null;
   baseTierPrice: number;
   onJumpToTier: (tier: PriceTier) => void;
 }
 
 const TierTable = React.memo(function TierTable({
-  netTiers,
+  tiers,
   activeTier,
   baseTierPrice,
   onJumpToTier,
 }: TierTableProps) {
   const cheapestPrice = useMemo(
-    () => applySageMarkup(netTiers.reduce((min, t) => Math.min(min, t.price), Infinity)),
-    [netTiers]
+    () => tiers.reduce((min, t) => Math.min(min, t.unit_price), Infinity),
+    [tiers]
   );
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-      {netTiers.map((tier) => {
-        const active = activeTier?.minQty === tier.minQty;
-        const markedPrice = applySageMarkup(tier.price);
-        const isBestValue = markedPrice === cheapestPrice && tier.maxQty === null;
+      {tiers.map((tier) => {
+        const active = activeTier?.min_qty === tier.min_qty;
+        const isBestValue = tier.unit_price === cheapestPrice && tier.max_qty === null;
         const pctOff = baseTierPrice > 0
-          ? Math.round((1 - markedPrice / baseTierPrice) * 100)
+          ? Math.round((1 - tier.unit_price / baseTierPrice) * 100)
           : 0;
 
         return (
           <button
-            key={tier.minQty}
+            key={tier.min_qty}
             onClick={() => onJumpToTier(tier)}
             className={cn(
               "group relative rounded-2xl border p-3.5 text-left transition-all duration-150",
@@ -263,13 +135,13 @@ const TierTable = React.memo(function TierTable({
                 "text-[11px] font-bold tracking-tight",
                 active ? "text-primary-ink" : "text-muted-foreground group-hover:text-muted-foreground"
               )}>
-                {tier.minQty.toLocaleString()}{tier.maxQty != null ? `–${tier.maxQty.toLocaleString()}` : "+"}
+                {tier.min_qty.toLocaleString()}{tier.max_qty != null ? `–${tier.max_qty.toLocaleString()}` : "+"}
               </span>
               {active && <Check size={13} strokeWidth={3} className="text-primary-ink flex-shrink-0" />}
             </div>
 
             <div className="mt-2 text-xl font-black leading-none tabular-nums text-foreground">
-              {fmt(markedPrice)}
+              {fmt(tier.unit_price)}
             </div>
             <p className="text-[10px] text-muted-foreground mt-0.5">per piece</p>
 
@@ -375,7 +247,7 @@ const PriceBar = React.memo(function PriceBar({
         {activeTier && (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card/10 border border-card/15 text-[10px] font-bold text-muted-foreground flex-shrink-0">
             <Package size={10} />
-            Tier {activeTier.minQty.toLocaleString()}{activeTier.maxQty != null ? `–${activeTier.maxQty.toLocaleString()}` : "+"}
+            Tier {activeTier.min_qty.toLocaleString()}{activeTier.max_qty != null ? `–${activeTier.max_qty.toLocaleString()}` : "+"}
           </span>
         )}
       </div>
@@ -410,11 +282,8 @@ const NextTierNudge = React.memo(function NextTierNudge({
   onJumpToTier,
 }: NextTierNudgeProps) {
   if (!nextTier || !activeTier) return null;
-  const needed = nextTier.minQty - qty;
-  const savingPerPc = (
-    applySageMarkup(activeTier.price) -
-    applySageMarkup(nextTier.price)
-  ).toFixed(2);
+  const needed = nextTier.min_qty - qty;
+  const savingPerPc = (activeTier.unit_price - nextTier.unit_price).toFixed(2);
   return (
     <div className="flex items-center gap-3 bg-primary-soft border border-primary rounded-xl px-4 py-3">
       <span className="relative flex-shrink-0">
@@ -423,17 +292,17 @@ const NextTierNudge = React.memo(function NextTierNudge({
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-bold text-primary-ink">
-          {needed.toLocaleString()} more unlocks {fmt(applySageMarkup(nextTier.price))}/pc
+          {needed.toLocaleString()} more unlocks {fmt(nextTier.unit_price)}/pc
         </p>
         <p className="text-[11px] text-primary-ink mt-0.5">
-          Save ${savingPerPc}/pc at {nextTier.minQty.toLocaleString()}+ units
+          Save ${savingPerPc}/pc at {nextTier.min_qty.toLocaleString()}+ units
         </p>
       </div>
       <button
         onClick={() => onJumpToTier(nextTier)}
         className="text-[10px] font-black text-primary-ink bg-primary-soft border border-primary px-2.5 py-1.5 rounded-full hover:bg-primary transition-colors flex-shrink-0"
       >
-        Jump to {nextTier.minQty.toLocaleString()}
+        Jump to {nextTier.min_qty.toLocaleString()}
       </button>
     </div>
   );
@@ -444,7 +313,7 @@ const NextTierNudge = React.memo(function NextTierNudge({
 ════════════════════════════════════════════════════════════════ */
 
 export default function SageQuantityPricing({
-  metaStr,
+  tiers,
   minOrderQuantity = 1,
   stock,
   variant = "compact",
@@ -452,32 +321,30 @@ export default function SageQuantityPricing({
   onChange,
   initialQty,
 }: SageQuantityPricingProps) {
-  const meta = useMemo(() => parseSageMeta(metaStr), [metaStr]);
-
-  // Effective minimum = max(variant minOrderQty, first tier's minQty)
+  // Effective minimum = max(variant minOrderQty, first tier's min_qty)
   const effectiveMin = useMemo(() => {
-    const tierMin = meta?.netTiers[0]?.minQty ?? 1;
+    const tierMin = tiers[0]?.min_qty ?? 1;
     return Math.max(minOrderQuantity, tierMin);
-  }, [meta, minOrderQuantity]);
+  }, [tiers, minOrderQuantity]);
 
   const [qty, setQty] = useState<number>(() => {
     const start = initialQty ?? effectiveMin;
     return Math.max(start, effectiveMin);
   });
 
-  // A higher minimum (new variant/meta) lifts the quantity to it — adjusted
+  // A higher minimum (new variant) lifts the quantity to it — adjusted
   // during render so the clamped value is what gets painted.
   if (qty < effectiveMin) setQty(effectiveMin);
 
   const [showTable, setShowTable] = useState(true);
 
   const activeTier = useMemo(
-    () => meta ? findActiveTier(meta.netTiers, qty) : null,
-    [meta, qty]
+    () => findActiveTier(tiers, qty),
+    [tiers, qty]
   );
 
   const unitPrice = useMemo(
-    () => activeTier ? applySageMarkup(activeTier.price) : 0,
+    () => activeTier?.unit_price ?? 0,
     [activeTier]
   );
 
@@ -488,10 +355,7 @@ export default function SageQuantityPricing({
     [unitPrice, qty]
   );
 
-  const baseTierPrice = useMemo(
-    () => applySageMarkup(meta?.netTiers?.[0]?.price ?? 0),
-    [meta]
-  );
+  const baseTierPrice = tiers[0]?.unit_price ?? 0;
 
   const saving = useMemo(
     () => Math.max(0, (baseTierPrice - unitPrice) * qty),
@@ -506,18 +370,9 @@ export default function SageQuantityPricing({
     onChangeRef.current = onChange;
   }, [onChange]);
 
-  const resolvedItemId = itemId ?? meta?.sku;
-
   useEffect(() => {
-    onChangeRef.current?.({
-      itemId: resolvedItemId,
-      sku: meta?.sku,
-      productName: meta?.productName,
-      quantity: qty,
-      unitPrice,
-      total,
-    });
-  }, [qty, unitPrice, total, resolvedItemId, meta?.sku, meta?.productName]);
+    onChangeRef.current?.({ itemId, quantity: qty, unitPrice, total });
+  }, [qty, unitPrice, total, itemId]);
 
   // A supplier feed can report stock as null/undefined (unknown/untracked),
   // 0, or even negative (e.g. backordered/oversold). Only a genuinely
@@ -531,14 +386,12 @@ export default function SageQuantityPricing({
     setQty(clamped);
   }, [effectiveMin, stockLimit]);
 
-  const jumpToTier = useCallback((tier: PriceTier) => changeQty(tier.minQty), [changeQty]);
+  const jumpToTier = useCallback((tier: PriceTier) => changeQty(tier.min_qty), [changeQty]);
 
-  const nextTier = useMemo(() => {
-    if (!meta) return null;
-    return meta.netTiers
-      .filter(t => t.minQty > qty)
-      .sort((a, b) => a.minQty - b.minQty)[0] ?? null;
-  }, [meta, qty]);
+  const nextTier = useMemo(
+    () => tiers.find(t => t.min_qty > qty) ?? null,
+    [tiers, qty]
+  );
 
   /* ── Shared "typeable" quantity input logic ──
      A number input bound directly to a clamped `qty` state has a nasty
@@ -577,8 +430,8 @@ export default function SageQuantityPricing({
   const handleDecrease = useCallback(() => changeQty(qty - 1), [changeQty, qty]);
   const handleIncrease = useCallback(() => changeQty(qty + 1), [changeQty, qty]);
 
-  /* ── No meta: simple fallback stepper ── */
-  if (!meta) {
+  /* ── No tiers: simple fallback stepper ── */
+  if (tiers.length === 0) {
     return (
       <div className="flex items-center justify-center gap-4 py-4">
         <button
@@ -625,7 +478,7 @@ export default function SageQuantityPricing({
             </span>
             Volume Pricing
             <span className="text-muted-foreground font-medium">
-              · {meta.netTiers.length} tiers · {fmt(applySageMarkup(meta.netTiers[meta.netTiers.length - 1]?.price ?? 0))}–{fmt(applySageMarkup(meta.netTiers[0]?.price ?? 0))}/pc
+              · {tiers.length} tiers · {fmt(tiers[tiers.length - 1].unit_price)}–{fmt(tiers[0].unit_price)}/pc
             </span>
           </div>
           {showTable ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
@@ -633,7 +486,7 @@ export default function SageQuantityPricing({
 
         {showTable && (
           <TierTable
-            netTiers={meta.netTiers}
+            tiers={tiers}
             activeTier={activeTier}
             baseTierPrice={baseTierPrice}
             onJumpToTier={jumpToTier}
@@ -676,7 +529,7 @@ export default function SageQuantityPricing({
             <Tag size={12} className="text-primary-ink" /> Quantity Breaks
           </p>
           <TierTable
-            netTiers={meta.netTiers}
+            tiers={tiers}
             activeTier={activeTier}
             baseTierPrice={baseTierPrice}
             onJumpToTier={jumpToTier}

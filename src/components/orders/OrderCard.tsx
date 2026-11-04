@@ -96,8 +96,6 @@ export interface OrderDetail {
       custom_text: string;
     };
     pricing_breakdown?: {
-      actual_product_price: number;
-      supplier_markup: number;
       final_product_price: number;
       customization_price: number;
       setup_fee: number;

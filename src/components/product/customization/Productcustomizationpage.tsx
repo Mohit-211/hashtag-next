@@ -20,7 +20,7 @@ import AddToCartModal from "@/components/common/AddToCartModal";
 import LoginPromptModal from "@/components/auth/LoginPromptModal";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
-import SageQuantityPricing, { getSageUnitPriceWithMarkup, parseSageMeta } from "./Sagequantitypricing";
+import SageQuantityPricing, { getPriceTiers, getTierUnitPrice, type PriceTier } from "./Sagequantitypricing";
 import AddProductConfigurationModal from "../Addproductconfigurationmodal/Addproductconfigurationmodal";
 import {
   calculateVariantTotal, sumVariantTotals, formatMoney,
@@ -40,9 +40,9 @@ interface Variant {
   size: string | null;
   size_id: number | null;
   price: number;
-  case_price: string;
-  original_price?: number | string;
-  stock: number;
+  price_tiers?: PriceTier[];
+  stock: number | null;
+  track_inventory?: boolean;
   min_order_quantity: number;
   max_order_quantity: number | null;
   is_active: boolean;
@@ -123,10 +123,9 @@ export interface ConfiguredVariant {
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const CANVAS_SIZE = 500;
 const PROMO_MIN_QTY = 100; // ← DEFAULT fallback floor, only used when a
-// Promo product supplies NEITHER a usable qtyTiers[0] in its SAGE meta NOR
-// its own min_order_quantity. Per-product minimum should come from the
+// Promo product supplies NEITHER a price tier NOR its own min_order_quantity. Per-product minimum should come from the
 // product's own data (see getPromoMinQty below) — this is not a global
-// floor applied to every Promo product regardless of its actual meta.
+// floor applied to every Promo product regardless of its own tiers.
 const MATERIALS = [
   { id: "embroidery" as MaterialId, label: "Embroidery", desc: "Premium thread-stitched branding", bestFor: "Polos, jackets, uniforms", badge: "All Fabrics", emoji: "🧵" },
   { id: "dtf" as MaterialId, label: "DTF Print", desc: "Full-color Direct-to-Film transfers", bestFor: "Small runs, multi-color logos", badge: "No Minimum", emoji: "🖨️" },
@@ -382,30 +381,20 @@ export const getManualUnitPrice = (meta: ManualMeta | null, qty: number, basePri
   }
   return basePrice;
 };
-export const getPromoMinQty = (
-  metaStr?: string | null,
-  minOrderQuantity?: number | null
-): number => {
-  const manual = parseManualMeta(metaStr);
+export const getPromoMinQty = (variant?: {
+  meta?: string | null;
+  min_order_quantity?: number | null;
+  price_tiers?: PriceTier[] | null;
+} | null): number => {
+  const minOrderQuantity = variant?.min_order_quantity;
+  const manual = parseManualMeta(variant?.meta);
   if (manual) {
     if (manual.pricing_mode === "tiered") return manual.bulk_pricing[0].min_qty;
     if (manual.pricing_mode === "quantity_fixed") return manual.quantity_pricing[0].quantity;
     return minOrderQuantity && minOrderQuantity > 0 ? minOrderQuantity : 1;
   }
-  const meta = parseSageMeta(metaStr ?? null);
-  // Defensive: admin-entered tiers can contain blanks or numeric strings.
-  const qtyTiers = ((meta?.qtyTiers ?? []) as unknown[])
-    .filter(
-      (qty) =>
-        qty !== null &&
-        qty !== undefined &&
-        qty !== "" &&
-        Number(qty) > 0
-    )
-    .map((qty) => Number(qty));
-  if (qtyTiers.length > 0) {
-    return qtyTiers[0];
-  }
+  const firstTier = getPriceTiers(variant)[0];
+  if (firstTier) return firstTier.min_qty;
   if (minOrderQuantity && minOrderQuantity > 0) {
     return minOrderQuantity;
   }
@@ -965,19 +954,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     [variantQty]
   );
   const promoMetaStr = activeVariant?.meta ?? variantData?.meta ?? null;
-  const parsedPromoMeta = useMemo(() => parseSageMeta(promoMetaStr), [promoMetaStr]);
+  const promoTiers = useMemo(() => {
+    const tiers = getPriceTiers(activeVariant);
+    return tiers.length > 0 ? tiers : getPriceTiers(variantData);
+  }, [activeVariant, variantData]);
   const manualMeta = useMemo(() => {
     const supplier = (activeVariant?.supplier ?? variantData?.supplier ?? "").toUpperCase();
     return supplier === "MANUAL" ? parseManualMeta(promoMetaStr) : null;
   }, [activeVariant?.supplier, variantData?.supplier, promoMetaStr]);
-  const hasTierPricing = !manualMeta && !!(
-    parsedPromoMeta &&
-    Array.isArray(parsedPromoMeta.netTiers) &&
-    parsedPromoMeta.netTiers.length > 0
-  );
+  const hasTierPricing = !manualMeta && promoTiers.length > 0;
   const promoMinQty = useMemo(
-    () => getPromoMinQty(promoMetaStr, activeVariant?.min_order_quantity),
-    [promoMetaStr, activeVariant]
+    () => getPromoMinQty(activeVariant ?? variantData),
+    [activeVariant, variantData]
   );
   useEffect(() => {
     if (isRestoringSessionRef.current) {
@@ -1253,10 +1241,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     const base = manualMeta
       ? (getManualUnitPrice(manualMeta, currentQty, basePrice) ?? basePrice)
       : hasTierPricing
-        ? (getSageUnitPriceWithMarkup(promoMetaStr, currentQty) ?? basePrice)
+        ? (getTierUnitPrice(promoTiers, currentQty) ?? basePrice)
         : basePrice;
     return base + drinkwareLocationFee;
-  }, [isPromo, manualMeta, hasTierPricing, promoMetaStr, currentQty, basePrice, drinkwareLocationFee]);
+  }, [isPromo, manualMeta, hasTierPricing, promoTiers, currentQty, basePrice, drinkwareLocationFee]);
   const promoTotal = (promoUnitPrice ?? 0) * currentQty;
   const REQUIREMENTS = [
     ...((isApparel || isPreMade) ? [{ key: "color", label: "Color", done: !!selectedColor }] : []),
@@ -1592,12 +1580,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       const variantsSource = allProductVariants.length > 0 ? allProductVariants : (product?.variants ?? []);
       const tooLow = updatedVariantList.find(cv => {
         const v = variantsSource.find(vv => vv.id === cv.variantId);
-        const min = getPromoMinQty(v?.meta ?? promoMetaStr, v?.min_order_quantity);
+        const min = getPromoMinQty(v ?? activeVariant);
         return cv.totalQty < min;
       });
       if (tooLow) {
         const v = variantsSource.find(vv => vv.id === tooLow.variantId);
-        const min = getPromoMinQty(v?.meta ?? promoMetaStr, v?.min_order_quantity);
+        const min = getPromoMinQty(v ?? activeVariant);
         setValidationError(
           `Minimum order quantity for ${tooLow.variantName} is ${min} (currently ${tooLow.totalQty}).`
         );
@@ -2362,7 +2350,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   ) : hasTierPricing ? (
                     <SageQuantityPricing
                       key={`${activeVariant?.id ?? "none"}-${sageRemountKey}`}
-                      metaStr={promoMetaStr}
+                      tiers={promoTiers}
                       minOrderQuantity={promoMinQty}
                       stock={activeVariant?.stock}
                       variant="compact"
@@ -2873,7 +2861,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           name={product.name}
           price={promoUnitPrice ?? basePrice}
           initialQuantity={totalQty}
-          sageMetaStr={promoMetaStr}
+          priceTiers={promoTiers}
           customization={customizationJson}
           canvasBlob={canvasBlob}
           printPricePerPiece={(printPrice ?? 0) / Math.max(currentQty, 1)}

@@ -42,6 +42,7 @@ import AddToCartModal, { type ConfiguredVariant } from "@/components/common/AddT
 import ManualCustomizationPage from "@/components/product/ManualCustomizationPage";
 import { useCart } from "@/contexts/CartContext";
 import { parseManualMeta, parseManualOptionValues } from "@/components/product/customization/Productcustomizationpage";
+import { getPriceTiers, type PriceTier } from "@/components/product/customization/Sagequantitypricing";
 /* ───────────────────────────────────────────────── types */
 interface Size {
   id: number;
@@ -58,8 +59,8 @@ interface VariantImage {
   is_primary: boolean;
 }
 interface Variant {
-  /** SAGE pricing tiers; `net` is the customer price for that tier. */
-  pricing_tiers_customer?: { net?: number }[] | null;
+  /** Selling price per quantity break; only SAGE variants have any. */
+  price_tiers?: PriceTier[];
   id: number;
   product_id: number;
   sku: string;
@@ -68,7 +69,8 @@ interface Variant {
   size: string;
   size_id: number;
   price: string;
-  stock: number;
+  stock: number | null;
+  track_inventory?: boolean;
   min_order_quantity: number;
   max_order_quantity: number | null;
   is_active: boolean;
@@ -640,12 +642,12 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     );
   }
 
-  const sageNetPrice =
+  const sageFirstTierPrice =
     variantData?.supplier === "SAGE"
-      ? product?.variants[0]?.pricing_tiers_customer?.[0]?.net
+      ? getPriceTiers(variantData)[0]?.unit_price
       : undefined;
-  const displayPrice = sageNetPrice != null
-    ? sageNetPrice
+  const displayPrice = sageFirstTierPrice != null
+    ? sageFirstTierPrice
     : variantData?.price != null
       ? Number(variantData.price)
       : Number(product?.price ?? 0);
@@ -849,7 +851,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
               ? configuredVariants.reduce((sum, cv) => sum + cv.totalQty, 0)
               : quantity
           }
-          sageMetaStr={variantData.meta ?? null}
+          priceTiers={getPriceTiers(variantData)}
           customization={customizationJson}
           canvasBlob={null}
           printPricePerPiece={0}

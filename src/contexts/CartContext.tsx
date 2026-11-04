@@ -25,7 +25,6 @@ export interface CartItem {
   color?: string;
   color_code?: string;
 
-  base_price: number;
   price?: number;
   total_price?: number;
 

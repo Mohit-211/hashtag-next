@@ -45,12 +45,10 @@ export default function CartItem({ item, onRefresh }: Props) {
   const uploadedImage = item.logo_image ?? null;
   const colorCode = item.color_code ?? null;
 
-  // ★ FIXED — was item.basePrice / item.totalPrice, neither of which
-  // exist on the API response (base_price / total_price).
   const itemTotal =
     item.total_price && item.total_price > 0
       ? item.total_price
-      : item.base_price * item.quantity;
+      : (item.price ?? 0) * item.quantity;
 
   // ★ NEW — per-item handling charge from pricing_snapshot. Only shown
   // when > 1 so negligible/zero fees don't clutter the card.

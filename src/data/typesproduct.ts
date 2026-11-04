@@ -38,7 +38,6 @@ export interface Product {
   id: number;
   name: string;
   price: number | string;
-  original_price?: number | string;
   image?: string;
   category_id?: number;
   description?: string;

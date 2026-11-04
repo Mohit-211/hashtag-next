@@ -3,10 +3,11 @@
 import React, { useState, useMemo } from "react";
 import { X, Plus, Minus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSageUnitPriceWithMarkup, parseSageMeta } from "../customization/Sagequantitypricing";
+import { getPriceTiers, getTierUnitPrice, type PriceTier } from "../customization/Sagequantitypricing";
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../customization/pricing";
 import { getPromoMinQty } from "../customization/Productcustomizationpage";
 import { getMaterialPrintTotal, getDigitizingFee, type MaterialId, type SpColorCount } from "../customization/pricing";
+import { isInStock, stockCeiling } from "@/lib/stock";
 
 /* ─────────────────────────────────────────── Types ── */
 interface Size {
@@ -29,8 +30,9 @@ interface Variant {
   size: string | null;
   size_id: number | null;
   price: number;
-  original_price?: number | string;
-  stock: number;
+  price_tiers?: PriceTier[];
+  stock: number | null;
+  track_inventory?: boolean;
   min_order_quantity: number;
   images: VariantImage[];
   size_details: Size | null;
@@ -131,8 +133,8 @@ export default function AddProductConfigurationModal({
   const variants = useMemo(() => variantsProp ?? [], [variantsProp]);
   const sizes = useMemo(() => sizesProp ?? [], [sizesProp]);
 
-  const PROMO_MIN_QTY = selectedVariant?.meta
-    ? getPromoMinQty(selectedVariant.meta, selectedVariant.min_order_quantity)
+  const PROMO_MIN_QTY = selectedVariant?.meta || getPriceTiers(selectedVariant).length > 0
+    ? getPromoMinQty(selectedVariant)
     : (selectedVariant?.min_order_quantity ?? 1);
 
   const DEFAULT_MIN_QTY = isPromo ? PROMO_MIN_QTY : (selectedVariant?.min_order_quantity ?? 1);
@@ -184,7 +186,7 @@ export default function AddProductConfigurationModal({
   const sizesForColor = (color: string) =>
     allSizesSorted.map((size) => {
       const v = variants.find((vv) => vv.color === color && vv.size_id === size.id);
-      return { size, variant: v, available: (v?.stock ?? 0) > 0 };
+      return { size, variant: v, available: isInStock(v) };
     });
 
   const addRow = () =>
@@ -218,7 +220,7 @@ export default function AddProductConfigurationModal({
         if (!r.color || r.qty <= 0) return false;
         if (productHasSizes && r.sizeId === "") return false;
         const v = getVariantForRow(r);
-        if (!v || v.stock <= 0) return false;
+        if (!v || !isInStock(v)) return false;
         const min = effectiveMinFor(v);
         if (r.qty < min) return false;
         return true;
@@ -228,14 +230,11 @@ export default function AddProductConfigurationModal({
   );
 
   /** Promo tiered pricing (per unit), falls back to the flat variant price
-   *  when the variant has no SAGE tier meta. */
+   *  when the variant has no price tiers. */
   const unitPriceFor = (v: Variant, qty: number): number => {
     const flat = getVariantPrice(v);
     if (!isPromo) return flat;
-    const parsed = parseSageMeta(v.meta ?? null);
-    const hasTiers = Array.isArray(parsed?.netTiers) && parsed.netTiers.length > 0;
-    if (!hasTiers) return flat;
-    return getSageUnitPriceWithMarkup(v.meta, qty) ?? flat;
+    return getTierUnitPrice(getPriceTiers(v), qty) ?? flat;
   };
 
   /** Decoration is recalculated PER ROW at that row's own quantity, since
@@ -417,7 +416,7 @@ export default function AddProductConfigurationModal({
               {rows.map((row) => {
                 const rowSizes = row.color ? sizesForColor(row.color) : [];
                 const rowVariant = getVariantForRow(row);
-                const maxStock = rowVariant?.stock ?? 0;
+                const maxStock = stockCeiling(rowVariant);
                 const rowMin = effectiveMinFor(rowVariant);
                 const rowInvalid = row.color && (productHasSizes ? row.sizeId !== "" : true) && maxStock <= 0;
                 const belowMin = !!rowVariant && row.qty < rowMin;

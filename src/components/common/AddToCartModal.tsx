@@ -10,7 +10,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
-import { getSageUnitPriceWithMarkup } from "../product/customization/Sagequantitypricing";
+import { getTierUnitPrice, type PriceTier } from "../product/customization/Sagequantitypricing";
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../product/customization/pricing";
 
 import { errorMessage } from "@/lib/errors";
@@ -98,7 +98,7 @@ interface AddToCartModalProps {
   onSuccess?: () => void;
   customization?: string;
   canvasBlob?: Blob | null;
-  sageMetaStr?: string | Record<string, unknown> | null;
+  priceTiers?: PriceTier[];
   configuredVariants?: ConfiguredVariant[];
   isApparel?: boolean;
 }
@@ -116,7 +116,7 @@ export default function AddToCartModal({
   onSuccess,
   customization,
   canvasBlob,
-  sageMetaStr,
+  priceTiers = [],
   configuredVariants,
   isApparel,
 }: AddToCartModalProps) {
@@ -148,10 +148,10 @@ export default function AddToCartModal({
   const hasConfigured = !!configuredVariants && configuredVariants.length > 0;
 
   /* ── Fallback single-variant pricing (legacy path / no configuredVariants) ── */
-  const effectiveUnitPrice = useMemo(() => {
-    if (!sageMetaStr) return price;
-    return getSageUnitPriceWithMarkup(sageMetaStr, quantity) ?? price;
-  }, [sageMetaStr, quantity, price]);
+  const effectiveUnitPrice = useMemo(
+    () => getTierUnitPrice(priceTiers, quantity) ?? price,
+    [priceTiers, quantity, price]
+  );
 
   const legacyPricing = calculateVariantTotal({
     productPrice: effectiveUnitPrice,
@@ -438,7 +438,7 @@ export default function AddToCartModal({
                   <span className="tabular-nums">${formatMoney(digitizingFee)}</span>
                 </div>
               )}
-              {sageMetaStr && (
+              {priceTiers.length > 0 && (
                 <p className="pt-1 text-xs text-muted-foreground">Unit price depends on the quantity ordered.</p>
               )}
             </div>

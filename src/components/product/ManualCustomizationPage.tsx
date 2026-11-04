@@ -242,7 +242,7 @@ export default function ManualCustomizationPage({
 
   /* ── quantity (same rules as the full customizer's MANUAL flow) ── */
   const manualMeta = useMemo(() => parseManualMeta(variant.meta), [variant.meta]);
-  const minQty = getPromoMinQty(variant.meta, variant.min_order_quantity);
+  const minQty = getPromoMinQty(variant);
   // Tiered: capped at the last range's max_qty (unless open-ended) and stock.
   const tiers = manualMeta?.pricing_mode === "tiered" ? manualMeta.bulk_pricing : [];
   const tierMax = tiers.length > 0 ? tiers[tiers.length - 1].max_qty : null;
