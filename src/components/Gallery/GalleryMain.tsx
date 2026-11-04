@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { GalleryApi, type GalleryPhoto } from "@/api/operations/gallery.api";
 import { useIsClient } from "@/hooks/useIsClient";
 // ─── DATA ────────────────────────────────────────────────────────────────────
 interface Photo { id: number; name: string; src: string; }
@@ -34,7 +35,8 @@ function sku(id: number) {
   return `HB${String(id).padStart(4, "0")}`;
 }
 
-const PHOTOS: Photo[] = [
+// Shown until the team has added photos on the admin's Gallery screen.
+const BUILT_IN_PHOTOS: Photo[] = [
   { id: 1, name: "bags", src: "/assets/GalleryImage/bags.jpg" },
   { id: 2, name: "IMG_0357", src: "/assets/GalleryImage/IMG_0357.jpg" },
   { id: 3, name: "IMG_0395", src: "/assets/GalleryImage/IMG_0395.jpg" },
@@ -168,8 +170,8 @@ function useCountUp(target: number, active: boolean, duration = 900) {
   return value;
 }
 
-function HeroSection({ loaded }: { loaded: boolean }) {
-  const count = useCountUp(PHOTOS.length, loaded);
+function HeroSection({ loaded, photos }: { loaded: boolean; photos: Photo[] }) {
+  const count = useCountUp(photos.length, loaded);
 
   return (
     <section className="relative bg-background">
@@ -219,7 +221,7 @@ function HeroSection({ loaded }: { loaded: boolean }) {
               </p>
               <Perforation className="my-4" />
               <p className="text-center text-xs font-mono text-muted-foreground">
-                {sku(PHOTOS.length)}
+                {sku(photos.length)}
               </p>
             </div>
           </div>
@@ -366,15 +368,15 @@ function Toolbar({
 }
 
 // ─── GALLERY GRID ─────────────────────────────────────────────────────────────
-function GalleryGrid({ onOpen }: { onOpen: (p: Photo) => void }) {
+function GalleryGrid({ photos, onOpen }: { photos: Photo[]; onOpen: (p: Photo) => void }) {
   const [query, setQuery] = useState("");
   const [compact, setCompact] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return PHOTOS;
-    return PHOTOS.filter((p) => p.name.toLowerCase().includes(q) || sku(p.id).toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return photos;
+    return photos.filter((p) => p.name.toLowerCase().includes(q) || sku(p.id).toLowerCase().includes(q));
+  }, [query, photos]);
 
   return (
     <section id="archive" className="container py-14 bg-background">
@@ -397,7 +399,7 @@ function GalleryGrid({ onOpen }: { onOpen: (p: Photo) => void }) {
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
-function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => void }) {
+function GalleryModal({ photos, photo, onClose }: { photos: Photo[]; photo: Photo | null; onClose: () => void }) {
   const [current, setCurrent] = useState<Photo | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -411,9 +413,9 @@ function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => 
   }
   const navigate = (dir: number) => {
     if (!current) return;
-    const idx = PHOTOS.findIndex((p) => p.id === current.id);
+    const idx = photos.findIndex((p) => p.id === current.id);
     setZoomed(false);
-    setCurrent(PHOTOS[(idx + dir + PHOTOS.length) % PHOTOS.length]);
+    setCurrent(photos[(idx + dir + photos.length) % photos.length]);
   };
   useEffect(() => {
     document.body.style.overflow = photo ? "hidden" : "";
@@ -431,7 +433,7 @@ function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current]);
 
-  const currentIndex = current ? PHOTOS.findIndex((p) => p.id === current.id) : -1;
+  const currentIndex = current ? photos.findIndex((p) => p.id === current.id) : -1;
 
   return (
     <AnimatePresence>
@@ -486,14 +488,14 @@ function GalleryModal({ photo, onClose }: { photo: Photo | null; onClose: () => 
                 <div className="flex items-baseline justify-between gap-2">
                   <h2 className="font-heading font-bold text-lg truncate text-foreground">{current.name}</h2>
                   <span className="text-sm font-mono tabular-nums shrink-0 text-muted-foreground">
-                    {String(currentIndex + 1).padStart(2, "0")}/{String(PHOTOS.length).padStart(2, "0")}
+                    {String(currentIndex + 1).padStart(2, "0")}/{String(photos.length).padStart(2, "0")}
                   </span>
                 </div>
                 <p className="mt-1 text-xs font-mono text-primary-ink">{sku(current.id)}</p>
                 <p className="mt-2 text-xs text-muted-foreground">Use ← → to browse, click the image to zoom, or press Esc to close.</p>
               </div>
               <div className="flex-1 overflow-y-auto p-3 grid grid-cols-4 md:grid-cols-3 gap-2 content-start">
-                {PHOTOS.map((p) => (
+                {photos.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => { setCurrent(p); setZoomed(false); }}
@@ -554,6 +556,21 @@ function Footer() {
 export default function GalleryMain() {
   const [loaded, setLoaded] = useState(false);
   const [modal, setModal] = useState<Photo | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>(BUILT_IN_PHOTOS);
+
+  useEffect(() => {
+    let cancelled = false;
+    GalleryApi()
+      .then((res) => {
+        const rows: GalleryPhoto[] = res?.data?.data ?? [];
+        if (cancelled || rows.length === 0) return;
+        setPhotos(rows.map((r) => ({ id: r.id, name: r.caption || sku(r.id), src: r.image_url })));
+      })
+      .catch(console.error);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -562,11 +579,11 @@ export default function GalleryMain() {
 
       {loaded && (
         <motion.main className="min-h-screen bg-background" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
-          <HeroSection loaded={loaded} />
+          <HeroSection loaded={loaded} photos={photos} />
           <MarqueeSection />
-          <GalleryGrid onOpen={setModal} />
+          <GalleryGrid photos={photos} onOpen={setModal} />
           <Footer />
-          <GalleryModal photo={modal} onClose={() => setModal(null)} />
+          <GalleryModal photos={photos} photo={modal} onClose={() => setModal(null)} />
           <BackToTop />
         </motion.main>
       )}

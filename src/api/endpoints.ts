@@ -14,6 +14,7 @@ export const AUTH_ENDPOINTS = {
 };
 export const USER_ENDPOINTS = {
   PROFILE: "user/profile",
+  DEACTIVATE: "user/deactivate",
 };
 export const CONTACT_ENDPOINTS = {
   ADD: "contactUs",
@@ -69,6 +70,9 @@ export const PAYMENT_ENDPOINTS = {
   PAYMENT_HISTORY: "/payment/history",
   PAYPAL_CREATE_ORDER: "/payment/paypal/create-order",
   PAYPAL_CAPTURE_ORDER: "/payment/paypal/capture-order",
+};
+export const GALLERY_ENDPOINTS = {
+  GET: "gallery",
 };
 export const BRAND_ENDPOINTS = {
   GET_ALL: "/brand/website-brands",
