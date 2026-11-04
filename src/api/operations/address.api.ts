@@ -14,9 +14,12 @@ export interface AddressPayload {
   is_default: 0 | 1;
 }
 
+// Pass { skipErrorToast: true } when the screen shows the error itself.
+type RequestOptions = { skipErrorToast?: boolean };
+
 // ➕ Add Address
-export const AddAddressApi = (payload: AddressPayload) =>
-  client.post(ADDRESS_ENDPOINTS.ADD, payload);
+export const AddAddressApi = (payload: AddressPayload, options?: RequestOptions) =>
+  client.post(ADDRESS_ENDPOINTS.ADD, payload, options);
 
 // 📥 Get All Addresses
 export const GetAddressApi = () =>
@@ -24,8 +27,8 @@ export const GetAddressApi = () =>
 
 // ✏️ Update Address
 // 
-export const UpdateAddressApi = (payload: AddressPayload & { id: number }) =>
-  client.put(ADDRESS_ENDPOINTS.UPDATE, payload);
+export const UpdateAddressApi = (payload: AddressPayload & { id: number }, options?: RequestOptions) =>
+  client.put(ADDRESS_ENDPOINTS.UPDATE, payload, options);
 
 // ❌ Delete (ID inside payload)
 export const DeleteAddressApi = (id: number) =>

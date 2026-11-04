@@ -34,6 +34,8 @@ interface AddressSectionProps {
   setSelectedAddressId?: (id: number | null) => void;
   onContinue?: () => void;
   continueLoading?: boolean;
+  /** Why the chosen address can't be used, from the shipping rates. */
+  addressError?: string | null;
 }
 
 export default function AddressSection({
@@ -42,6 +44,7 @@ export default function AddressSection({
   setSelectedAddressId,
   onContinue,
   continueLoading = false,
+  addressError = null,
 }: AddressSectionProps) {
   const {
     addresses,
@@ -57,13 +60,15 @@ export default function AddressSection({
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<AddressFormData>(emptyAddress);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchAddresses().then((list) => {
       if (mode === "select" && list.length > 0 && !selectedAddressId) {
-        const def = list.find((a) => a.isDefault) ?? list[0];
-        setSelectedAddressId?.(def.id);
+        const usable = list.filter((a) => a.shippable);
+        const def = usable.find((a) => a.isDefault) ?? usable[0];
+        if (def) setSelectedAddressId?.(def.id);
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,12 +77,14 @@ export default function AddressSection({
   const openAdd = () => {
     setEditingAddress(null);
     setFormData(emptyAddress);
+    setFormError(null);
     setShowForm(true);
   };
 
   const openEdit = (addr: Address) => {
     setEditingAddress(addr);
     setFormData({ ...addr });
+    setFormError(null);
     setShowForm(true);
   };
 
@@ -85,10 +92,12 @@ export default function AddressSection({
     setShowForm(false);
     setEditingAddress(null);
     setFormData(emptyAddress);
+    setFormError(null);
   };
 
   const handleSaveAddress = async (data: AddressFormData) => {
-    const { success, list } = await saveAddress(data, editingAddress?.id);
+    setFormError(null);
+    const { success, list, message } = await saveAddress(data, editingAddress?.id);
     if (success) {
       if (mode === "manage") {
         toast.success(editingAddress ? "Address updated" : "Address added");
@@ -97,9 +106,9 @@ export default function AddressSection({
         if (target) setSelectedAddressId?.(target);
       }
       closeForm();
+    } else {
+      setFormError(message ?? null);
     }
-    // On failure, the axios response interceptor already toasted the
-    // reason — nothing more to show here.
   };
 
   const requestDelete = (id: number) => {
@@ -188,6 +197,7 @@ export default function AddressSection({
             onCancel={closeForm}
             editing={!!editingAddress}
             saving={savingId !== null}
+            error={formError}
           />
         </div>
       )}
@@ -233,9 +243,9 @@ export default function AddressSection({
           addresses.map((addr) => (
             <div
               key={addr.id}
-              onClick={isSelect ? () => setSelectedAddressId?.(addr.id) : undefined}
+              onClick={isSelect && addr.shippable ? () => setSelectedAddressId?.(addr.id) : undefined}
               className={`relative rounded-lg border bg-card px-4 py-3.5 transition-all duration-200 ${
-                isSelect ? "cursor-pointer" : ""
+                isSelect && addr.shippable ? "cursor-pointer" : ""
               } ${
                 (isSelect ? selectedAddressId === addr.id : addr.isDefault)
                   ? "border-foreground ring-1 ring-foreground"
@@ -254,6 +264,11 @@ export default function AddressSection({
                     {addr.isDefault && (
                       <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-foreground border border-input leading-tight">
                         Default
+                      </span>
+                    )}
+                    {!addr.shippable && (
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-destructive-soft text-destructive border border-destructive/30 leading-tight">
+                        Outside delivery area
                       </span>
                     )}
                   </div>
@@ -284,6 +299,11 @@ export default function AddressSection({
                     {addr.city}, {addr.state} &mdash; {addr.postalCode}
                   </span>
                 </div>
+                {!addr.shippable && (
+                  <p className="text-xs text-destructive">
+                    We only ship to the 48 contiguous US states and Washington DC.
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 mt-3 pt-3 border-t flex-wrap">
@@ -298,7 +318,7 @@ export default function AddressSection({
                   Edit
                 </button>
 
-                {!addr.isDefault && (
+                {!addr.isDefault && addr.shippable && (
                   <button
                     onClick={(e) => handleSetDefault(e, addr)}
                     disabled={savingId === addr.id}
@@ -326,6 +346,12 @@ export default function AddressSection({
 
         {/* ---------- Continue button (select mode only) ---------- */}
      
+        {isSelect && addressError && (
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-3 text-sm text-destructive">
+            {addressError}
+          </p>
+        )}
+
         {isSelect && (
   <div className="mt-2 flex flex-col sm:flex-row gap-3">
     <button
@@ -377,6 +403,7 @@ export default function AddressSection({
                 onCancel={closeForm}
                 editing={!!editingAddress}
                 saving={savingId !== null}
+                error={formError}
               />
             </div>
           </div>

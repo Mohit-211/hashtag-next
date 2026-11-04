@@ -1,13 +1,16 @@
 import client from "../client";
 import { ORDER } from "../endpoints";
 
+// Checkout shows the error itself. The API prices shipping from
+// selected_service_code once the 4 November release is live; until then it
+// needs the carrier and the amount as well.
 export const CreateOrderApi = (payload: {
   address_id: number;
   selected_service_code: string;
-  selected_carrier_code: string;
-  shipping_amount: number;
+  selected_carrier_code?: string;
+  shipping_amount?: number;
 }) => {
-  return client.post(ORDER.CREATE, payload);
+  return client.post(ORDER.CREATE, payload, { skipErrorToast: true });
 };
 // Pass { skipErrorToast: true } when the screen shows the error itself.
 type RequestOptions = { skipErrorToast?: boolean };

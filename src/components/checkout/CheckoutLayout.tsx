@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { isAxiosError } from "axios";
 import { useCart } from "@/contexts/CartContext";
 import {
   CreatePaymentApi,
@@ -20,6 +21,7 @@ import PaymentSection from "./PaymentSection";
 import OrderSummary from "./OrderSummary";
 import AddressSection from "../account/AddressSection";
 import { errorMessage } from "@/lib/errors";
+import { NOV4_RELEASE } from "@/lib/features";
 import { confirmationPath } from "@/lib/orderLinks";
 export type CheckoutStep =
   | "address"
@@ -33,6 +35,7 @@ export interface ShippingRate {
   carrier_code: string;
   carrier_name?: string;
   service_name?: string;
+  carrier_id?: string;
   price: number;
   delivery_days?: number;
   delivery_text?: string;
@@ -44,8 +47,20 @@ export type SquareMethod =
   | "PAYPAL"
   | "CASH_APP"
   | "BANK_ACCOUNT";
-// Tax is applied to (subtotal + customization), never to shipping.
-const TAX_RATE = 8.25;
+/** What the order will cost, as the API worked it out. Unknown until the order exists. */
+interface OrderTotals {
+  subtotal: number;
+  taxAmount: number;
+  taxRate?: number;
+  shippingAmount: number;
+  totalAmount: number;
+}
+const toNumber = (v: unknown): number | undefined => {
+  const n = parseFloat(String(v));
+  return Number.isNaN(n) ? undefined : n;
+};
+/** A bad address is fixed on the address step; a shipping outage can be retried. */
+const canRetryRates = (status?: number) => status === 502 || status === 503;
 export default function CheckoutLayout() {
   const {
     items,
@@ -62,38 +77,13 @@ export default function CheckoutLayout() {
   const [selectedRate, setSelectedRate] = useState<ShippingRate | null>(null);
   const [processing, setProcessing] = useState(false);
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
+  const [ratesError, setRatesError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
   const [hasPendingOrder, setHasPendingOrder] = useState(false);
   const paypalSubmittingRef = useRef(false);
-  const [orderTax, setOrderTax] = useState<{
-    subtotal: number;
-    taxAmount: number;
-    taxRate: number;
-    totalAmount: number;
-  } | null>(null);
-  // ★ ADDED — the shipping rate the user picked at checkout is only an
-  // estimate. CreateShipmentLabelApi actually buys the label with the
-  // carrier and can return a different (often higher) real price — see
-  // pricing_breakdown.actual_shipping vs .estimated_shipping in that
-  // response. This tracks the post-label authoritative numbers once
-  // they're known, so the UI reflects what the order actually costs.
-  const [shipmentPricing, setShipmentPricing] = useState<{
-    estimatedShipping: number;
-    actualShipping: number;
-    shippingDifference: number;
-    explanation: string | null;
-    trackingNumber: string | null;
-    trackingUrl: string | null;
-    labelUrl: string | null;
-    carrier: string | null;
-  } | null>(null);
-  // ★ FIXED — was always `selectedRate?.price` (the pre-label estimate),
-  // even after the label was created with a different actual price.
-  const shippingAmount = shipmentPricing?.actualShipping ?? selectedRate?.price ?? 0;
-  const estimatedTaxableBase = subtotal || 0;
-  const estimatedTaxAmount = +(estimatedTaxableBase * (TAX_RATE / 100)).toFixed(2);
-  const taxAmount = orderTax ? orderTax.taxAmount : estimatedTaxAmount;
-  const taxRate = orderTax ? orderTax.taxRate : TAX_RATE;
+  const [orderTotals, setOrderTotals] = useState<OrderTotals | null>(null);
+  const shippingAmount = orderTotals?.shippingAmount ?? selectedRate?.price ?? 0;
   const checkoutCompletedRef = useRef(false);
   useEffect(() => {
     if (checkoutCompletedRef.current) return;
@@ -116,9 +106,12 @@ export default function CheckoutLayout() {
       setStep("payment");
     }
   }, [pending_order, step]);
+  /** Loads the rates; false when the customer has to go back and fix the address. */
   const fetchRates = useCallback(async (addressId: number) => {
     try {
       setProcessing(true);
+      setAddressError(null);
+      setRatesError(null);
       const response = await GetShippingRatesApi({
         address_id: addressId,
       });
@@ -128,8 +121,18 @@ export default function CheckoutLayout() {
       if (rates.length > 0) {
         setSelectedRate(rates[0]);
       }
+      return true;
     } catch (err) {
       console.error("❌ Shipping fetch failed:", err);
+      setShippingRates([]);
+      setSelectedRate(null);
+      const message = errorMessage(err, "We couldn't load shipping options. Please try again.");
+      if (canRetryRates(isAxiosError(err) ? err.response?.status : undefined)) {
+        setRatesError(message);
+        return true;
+      }
+      setAddressError(message);
+      return false;
     } finally {
       setProcessing(false);
     }
@@ -143,59 +146,35 @@ export default function CheckoutLayout() {
       const orderResponse = await CreateOrderApi({
         address_id: selectedAddressId,
         selected_service_code: selectedRate.service_code,
-        selected_carrier_code: selectedRate.carrier_code,
-        shipping_amount: selectedRate.price ?? 0,
+        ...(NOV4_RELEASE
+          ? {}
+          : {
+              selected_carrier_code: selectedRate.carrier_code,
+              shipping_amount: selectedRate.price ?? 0,
+            }),
       });
       const orderData = orderResponse?.data?.data;
       const orderId = orderData?.id;
       if (!orderId) throw new Error("Order creation failed");
       setCreatedOrderId(orderId);
 
-      // ★ FIXED — response was discarded (`await CreateShipmentLabelApi(...)`
-      // with no assignment). This is where the carrier locks in the real
-      // shipping price via pricing_breakdown, which supersedes the
-      // estimate used above and the order-creation response's own
-      // tax/subtotal numbers.
-      const shipmentResponse = await CreateShipmentLabelApi({ order_id: orderId });
-      const shipmentData = shipmentResponse?.data?.data;
-      const pricing = shipmentData?.pricing_breakdown;
+      // Nothing is bought here once the 4 November release is live: the
+      // backend creates the label itself after payment.
+      const shipmentResponse = NOV4_RELEASE
+        ? null
+        : await CreateShipmentLabelApi({ order_id: orderId });
+      // Today's API can change the price when the label is bought, so its
+      // figures replace the order's own.
+      const pricing = shipmentResponse?.data?.data?.pricing_breakdown;
 
-      if (pricing) {
-        setShipmentPricing({
-          estimatedShipping: pricing.estimated_shipping ?? selectedRate.price ?? 0,
-          actualShipping: pricing.actual_shipping ?? selectedRate.price ?? 0,
-          shippingDifference: pricing.shipping_difference ?? 0,
-          explanation: shipmentData?.explanation ?? null,
-          trackingNumber: shipmentData?.tracking_number ?? null,
-          trackingUrl: shipmentData?.tracking_url ?? null,
-          labelUrl: shipmentData?.label_url ?? null,
-          carrier: shipmentData?.carrier ?? null,
-        });
-
-        setOrderTax({
-          subtotal: pricing.subtotal ?? estimatedTaxableBase,
-          taxAmount: pricing.tax ?? estimatedTaxAmount,
-          // pricing_breakdown doesn't echo a tax_rate, so fall back to the
-          // order-creation response's rate, then the flat TAX_RATE const.
-          taxRate: parseFloat(orderData?.tax_rate) || TAX_RATE,
-          totalAmount: pricing.final_total ?? subtotal + estimatedTaxAmount + (pricing.actual_shipping ?? 0),
-        });
-      } else {
-        // Fallback: no pricing_breakdown came back — use whatever the
-        // order-creation response provided, same as before.
-        const parsedTaxAmount = parseFloat(orderData?.tax_amount);
-        const parsedTaxRate = parseFloat(orderData?.tax_rate);
-        const parsedSubtotal = parseFloat(orderData?.subtotal_amount);
-        const parsedTotal = parseFloat(orderData?.total_amount);
-        if (!isNaN(parsedTaxAmount) && !isNaN(parsedTotal)) {
-          setOrderTax({
-            subtotal: isNaN(parsedSubtotal) ? estimatedTaxableBase : parsedSubtotal,
-            taxAmount: parsedTaxAmount,
-            taxRate: isNaN(parsedTaxRate) ? TAX_RATE : parsedTaxRate,
-            totalAmount: parsedTotal,
-          });
-        }
-      }
+      setOrderTotals({
+        subtotal: toNumber(pricing?.subtotal ?? orderData?.subtotal_amount) ?? subtotal,
+        taxAmount: toNumber(pricing?.tax ?? orderData?.tax_amount) ?? 0,
+        taxRate: toNumber(orderData?.tax_rate),
+        shippingAmount:
+          toNumber(pricing?.actual_shipping ?? orderData?.shipping_amount) ?? selectedRate.price ?? 0,
+        totalAmount: toNumber(pricing?.final_total ?? orderData?.total_amount) ?? 0,
+      });
 
       await refreshCart();
       setStep("payment");
@@ -204,10 +183,16 @@ export default function CheckoutLayout() {
       setOrderError(
         errorMessage(err, "Something went wrong")
       );
+      // The chosen option has gone: load the current ones and let the
+      // customer pick again.
+      if (isAxiosError(err) && err.response?.status === 409 && selectedAddressId) {
+        if (await fetchRates(selectedAddressId)) setSelectedRate(null);
+        else setStep("address");
+      }
     } finally {
       setProcessing(false);
     }
-  }, [selectedAddressId, selectedRate, refreshCart, estimatedTaxableBase, estimatedTaxAmount, subtotal]);
+  }, [selectedAddressId, selectedRate, refreshCart, subtotal, fetchRates]);
   // Square's create-payment call kicks off processing on the gateway side
   // but doesn't always settle synchronously (Cash App / Google Pay in
   // particular can stay PENDING briefly), so the order's real status is
@@ -336,16 +321,6 @@ export default function CheckoutLayout() {
       <div className="container max-w-5xl">
         <ProgressRail current={step} />
 
-        {/* ★ ADDED — surface it when the carrier's actual label price
-            differs from the estimate the user picked, instead of
-            silently swapping the total on the payment step. */}
-        {/* {shipmentPricing && shipmentPricing.shippingDifference !== 0 && (
-          <div className="mt-4 rounded-lg border border-primary bg-primary-soft px-4 py-3 text-sm text-primary-ink">
-            {shipmentPricing.explanation ??
-              `Shipping was updated to $${shipmentPricing.actualShipping.toFixed(2)} based on the carrier's final rate.`}
-          </div>
-        )} */}
-
         <div className="flex flex-col lg:grid lg:grid-cols-5 gap-6 lg:gap-8 items-stretch lg:items-start">
           <div className="lg:col-span-3">
             {step === "address" && !hasPendingOrder && (
@@ -355,10 +330,10 @@ export default function CheckoutLayout() {
                 setSelectedAddressId={setSelectedAddressId}
                 onContinue={async () => {
                   if (!selectedAddressId) return;
-                  await fetchRates(selectedAddressId);
-                  setStep("shipping");
+                  if (await fetchRates(selectedAddressId)) setStep("shipping");
                 }}
                 continueLoading={processing}
+                addressError={addressError}
               />
             )}
             {step === "shipping" && !hasPendingOrder && (
@@ -370,6 +345,10 @@ export default function CheckoutLayout() {
                 shippingAmount={shippingAmount}
                 processing={processing}
                 orderError={orderError}
+                ratesError={ratesError}
+                onRetryRates={async () => {
+                  if (selectedAddressId && !(await fetchRates(selectedAddressId))) setStep("address");
+                }}
                 onContinue={handleConfirmShipping}
                 onBack={() => setStep("address")}
               />
@@ -378,7 +357,11 @@ export default function CheckoutLayout() {
               <PaymentSection
                 onPlaceOrder={handlePlaceOrder}
                 onPayPalPay={handlePayPalPay}
-                onBack={() => setStep("shipping")}
+                onBack={() => {
+                  // A new choice makes a new order, with its own totals.
+                  setOrderTotals(null);
+                  setStep("shipping");
+                }}
                 processing={processing}
                 orderError={orderError}
               />
@@ -387,15 +370,11 @@ export default function CheckoutLayout() {
           <div className="lg:col-span-2">
             <OrderSummary
               items={items}
-              subtotal={subtotal}
-              taxAmount={taxAmount}
-              taxRate={taxRate}
+              subtotal={orderTotals?.subtotal ?? subtotal}
+              taxAmount={orderTotals?.taxAmount ?? null}
+              taxRate={orderTotals?.taxRate}
               shippingAmount={shippingAmount}
-              total={
-                orderTax
-                  ? orderTax.totalAmount
-                  : subtotal + taxAmount + shippingAmount
-              }
+              total={orderTotals?.totalAmount ?? subtotal + shippingAmount}
               selectedRate={selectedRate}
             />
           </div>

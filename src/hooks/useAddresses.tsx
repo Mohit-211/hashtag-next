@@ -6,6 +6,7 @@ import {
   DeleteAddressApi,
   type AddressPayload,
 } from "@/api/operations/address.api";
+import { errorMessage } from "@/lib/errors";
 
 export type Address = {
   id: number;
@@ -19,9 +20,11 @@ export type Address = {
   state_id?: number;
   city_id?: number;
   isDefault?: boolean;
+  /** False for an older address outside the 48 states and DC: checkout can't use it. */
+  shippable: boolean;
 };
 
-export type AddressFormData = Omit<Address, "id">;
+export type AddressFormData = Omit<Address, "id" | "shippable">;
 
 /** Address row as the API returns it. */
 interface RawAddress {
@@ -36,6 +39,7 @@ interface RawAddress {
   state_id?: number;
   city_id?: number;
   is_default?: boolean | 0 | 1;
+  shippable?: boolean;
 }
 
 const normalize = (item: RawAddress): Address => ({
@@ -50,6 +54,7 @@ const normalize = (item: RawAddress): Address => ({
   state_id: item.state_id,
   city_id: item.city_id,
   isDefault: Boolean(item.is_default),
+  shippable: item.shippable !== false,
 });
 
 const toPayload = (data: AddressFormData): AddressPayload => ({
@@ -93,16 +98,19 @@ export function useAddresses(autoLoad = true) {
       setError(null);
       try {
         const payload = toPayload(data);
+        // The form shows why an address was refused, beside the fields.
+        const inline = { skipErrorToast: true };
         if (editingId) {
-          await UpdateAddressApi({ ...payload, id: editingId });
+          await UpdateAddressApi({ ...payload, id: editingId }, inline);
         } else {
-          await AddAddressApi(payload);
+          await AddAddressApi(payload, inline);
         }
         const list = await fetchAddresses();
         return { success: true, list };
-      } catch {
-        setError("Something went wrong while saving the address");
-        return { success: false, list: addresses };
+      } catch (err) {
+        const message = errorMessage(err, "Something went wrong while saving the address");
+        setError(message);
+        return { success: false, list: addresses, message };
       } finally {
         setSavingId(null);
       }

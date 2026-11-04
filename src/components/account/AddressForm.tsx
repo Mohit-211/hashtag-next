@@ -23,6 +23,8 @@ interface AddressFormProps {
   editing: boolean;
   /** True while the save request is in flight — blocks double submits. */
   saving?: boolean;
+  /** Why the API refused the last save. */
+  error?: string | null;
   /** Inside a dialog that supplies its own frame and title. */
   bare?: boolean;
 }
@@ -44,6 +46,7 @@ export default function AddressForm({
   onCancel,
   editing,
   saving = false,
+  error = null,
   bare = false,
 }: AddressFormProps) {
   const [states, setStates] = useState<LocationOption[]>([]);
@@ -247,6 +250,12 @@ export default function AddressForm({
           />
         )}
       </div>
+
+      {error && (
+        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive-soft px-3.5 py-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={saving}>

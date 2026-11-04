@@ -21,8 +21,9 @@ export default function OrderSummary({
 }: {
   items: CartItem[];
   subtotal: number;
-  taxAmount: number;
-  taxRate: number;
+  /** The API's tax; null until the order exists, as the shop never estimates it. */
+  taxAmount: number | null;
+  taxRate?: number;
   shippingAmount: number;
   total: number;
   selectedRate: ShippingRate | null;
@@ -95,15 +96,11 @@ export default function OrderSummary({
         <div className="flex flex-col gap-2">
           {[
             { icon: Receipt, label: "Subtotal", value: `$${fmt(subtotal)}` },
-            ...(taxAmount !== undefined && taxAmount !== null
-              ? [
-                  {
-                    icon: Percent,
-                    label: `Tax${taxRate ? ` (${fmt(taxRate)}%)` : ""}`,
-                    value: `$${fmt(taxAmount)}`,
-                  },
-                ]
-              : []),
+            {
+              icon: Percent,
+              label: `Tax${taxRate ? ` (${fmt(taxRate)}%)` : ""}`,
+              value: taxAmount === null ? "Calculated at payment" : `$${fmt(taxAmount)}`,
+            },
             ...(Number(shippingAmount) !== 0
               ? [{ icon: Truck, label: selectedRate?.label || "Shipping", value: `$${fmt(shippingAmount)}` }]
               : []),
@@ -128,7 +125,7 @@ export default function OrderSummary({
               ${fmt(total)}
             </p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
-              USD incl. tax
+              {taxAmount === null ? "USD before tax" : "USD incl. tax"}
             </p>
           </div>
         </div>

@@ -25,6 +25,9 @@ interface Props {
   processing: boolean;
   loading?: boolean;
   orderError?: string | null;
+  /** Why the rates couldn't load, when trying again might work. */
+  ratesError?: string | null;
+  onRetryRates?: () => void;
 
   onContinue: () => Promise<void> | void;
   onBack: () => void;
@@ -37,6 +40,8 @@ export default function ShippingSection({
   processing,
   loading = false,
   orderError,
+  ratesError,
+  onRetryRates,
   onContinue,
   onBack,
 }: Props) {
@@ -85,6 +90,17 @@ export default function ShippingSection({
               onSelect={() => setSelectedRate(rate)}
             />
           ))}
+        </div>
+      ) : ratesError ? (
+        /* ShipStation down or not set up: nothing the customer can fix */
+        <div className="text-center py-10 text-muted-foreground">
+          <AlertCircle className="h-10 w-10 mx-auto mb-3 text-destructive" strokeWidth={1.5} />
+
+          <p className="font-medium text-sm text-foreground">{ratesError}</p>
+
+          <Button variant="outline" className="mt-4" onClick={onRetryRates} disabled={processing}>
+            {processing ? "Trying again..." : "Try again"}
+          </Button>
         </div>
       ) : (
         /* Empty State */
