@@ -16,8 +16,17 @@ export interface TrackableOrder {
 }
 
 const STAGES = ["Order placed", "Payment confirmed", "Shipped", "Delivered"] as const;
+const PREPARING = "Preparing your shipment";
 
 const upper = (v?: string) => (v ?? "").toUpperCase();
+
+/**
+ * Paid, with no carrier scan yet: the label exists (SUCCESS is what today's API
+ * writes at payment for a label bought first), or it needs the team's attention
+ * (FAILED, which the customer never needs to hear about).
+ */
+export const isPreparingShipment = (o: TrackableOrder) =>
+  ["SUCCESS", "LABEL_CREATED", "FAILED"].includes(upper(o.shipment_status));
 
 /** Index into STAGES, or -1 when the order was cancelled / payment failed. */
 export function orderStage(o: TrackableOrder): number {
@@ -26,10 +35,12 @@ export function orderStage(o: TrackableOrder): number {
   const shipment = upper(o.shipment_status);
   if (status === "CANCELLED" || payment === "FAILED") return -1;
   if (shipment === "DELIVERED" || status === "DELIVERED") return 3;
+  // A tracking number proves nothing: every paid order gets one before it
+  // leaves, and today's API also marks the order SHIPPED once it's paid.
   if (
-    ["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment) ||
-    ["SHIPPED", "OUT_FOR_DELIVERY"].includes(status) ||
-    !!o.tracking_number
+    !isPreparingShipment(o) &&
+    (["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment) ||
+      ["SHIPPED", "OUT_FOR_DELIVERY"].includes(status))
   ) {
     return 2;
   }
@@ -39,6 +50,7 @@ export function orderStage(o: TrackableOrder): number {
 
 export const orderStageLabel = (o: TrackableOrder) => {
   const stage = orderStage(o);
+  if (stage === 1 && isPreparingShipment(o)) return PREPARING;
   return stage < 0 ? "Cancelled" : STAGES[stage];
 };
 
@@ -93,12 +105,16 @@ export default function ShipmentTracking({ order }: { order: TrackableOrder }) {
         })}
       </ol>
 
+      {stage === 1 && order.tracking_number && isPreparingShipment(order) && (
+        <p className="text-sm text-muted-foreground">{PREPARING}.</p>
+      )}
+
       {order.tracking_number ? (
         <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-sm">
             <p className="text-xs text-muted-foreground">
               {order.carrier ? `${order.carrier.toUpperCase()} tracking number` : "Tracking number"}
-              {order.shipped_at ? ` · shipped ${formatOrderDate(order.shipped_at)}` : ""}
+              {stage >= 2 && order.shipped_at ? ` · shipped ${formatOrderDate(order.shipped_at)}` : ""}
             </p>
             <button
               type="button"
@@ -125,7 +141,9 @@ export default function ShipmentTracking({ order }: { order: TrackableOrder }) {
         <p className="text-sm text-muted-foreground">
           {stage >= 2
             ? "Your order has shipped. Tracking details will appear here shortly."
-            : "You'll get a tracking number here as soon as your order ships."}
+            : isPreparingShipment(order)
+              ? `${PREPARING}. Tracking details will appear here shortly.`
+              : "You'll get a tracking number here as soon as your order ships."}
         </p>
       )}
     </div>

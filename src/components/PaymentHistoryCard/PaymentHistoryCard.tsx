@@ -74,7 +74,7 @@ export interface PaymentOrder {
   total_amount: number;
   pricing_breakdown?: PaymentPricingBreakdown | null;
   payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
-  shipment_status: "SUCCESS" | "FAILED" | "PENDING" | "IN_TRANSIT";
+  shipment_status: "SUCCESS" | "FAILED" | "PENDING" | "IN_TRANSIT" | "LABEL_CREATED" | "DELIVERED";
   tracking_number: string | null;
   tracking_url: string | null;
   preview?: PaymentPreview | null;
@@ -102,10 +102,19 @@ const statusConfig: Record<string, { label: string; dot: string }> = {
   PENDING: { label: "Pending", dot: "bg-primary" },
   REFUNDED: { label: "Refunded", dot: "bg-muted-foreground" },
   IN_TRANSIT: { label: "In Transit", dot: "bg-foreground" },
+  DELIVERED: { label: "Delivered", dot: "bg-success" },
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = statusConfig[status] ?? { label: status, dot: "bg-muted-foreground" };
+// A label that failed needs the team's attention, not the customer's: the
+// order is paid and stands.
+const shipmentBadges: Record<string, { label: string; dot: string }> = {
+  SUCCESS: { label: "Preparing your shipment", dot: "bg-primary" },
+  FAILED: { label: "Preparing your shipment", dot: "bg-primary" },
+  LABEL_CREATED: { label: "Preparing your shipment", dot: "bg-primary" },
+};
+
+function StatusBadge({ status, overrides }: { status: string; overrides?: typeof statusConfig }) {
+  const cfg = overrides?.[status] ?? statusConfig[status] ?? { label: status, dot: "bg-muted-foreground" };
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-muted text-foreground border border-border">
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -355,7 +364,7 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
           <span className="text-border text-xs">|</span>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground font-medium">Shipment:</span>
-            <StatusBadge status={order.shipment_status} />
+            <StatusBadge status={order.shipment_status} overrides={shipmentBadges} />
           </div>
         </div>
 
