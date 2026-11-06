@@ -132,9 +132,10 @@ const isSvg = (f: File) => fileExt(f) === "svg" || f.type === "image/svg+xml";
 const canPreview = (f: File) => canDrawGraphic({ original_name: f.name, mime_type: f.type });
 
 /** Short price label for a value at the current quantity. */
-const priceLabel = (p: CustomizationPrice, qty: number): string => {
+const priceLabel = (p: CustomizationPrice, qty: number, pricingType?: string): string => {
   if (!p.available) return `N/A for ${qty} pcs`;
   if (p.price <= 0) return "Free";
+  if (pricingType === "FIXED_QUANTITY") return `+$${formatMoney(p.price)} total`;
   return p.perPiece ? `+$${formatMoney(p.price)}/pc` : `+$${formatMoney(p.price)}`;
 };
 
@@ -271,7 +272,7 @@ export default function ManualCustomizationPage({
       return value ? { group: g, value, sel: sel!, price: getCustomizationPrice(value, qty) } : null;
     })
     .filter((l): l is NonNullable<typeof l> => !!l);
-  // Flat (QUANTITY_BASED) charges are spread per piece so the shared
+  // Flat (QUANTITY_BASED and FIXED_QUANTITY) charges are spread per piece so the shared
   // formula still gives decorationTotal = sum of each value's charge.
   const customizationTotal = selectedLines.reduce((sum, l) => sum + l.price.total, 0);
   const totals = calculateVariantTotal({
@@ -576,7 +577,7 @@ export default function ManualCustomizationPage({
                               !price.available ? "text-destructive" : isActive ? "text-background/70" : "text-muted-foreground"
                             )}
                           >
-                            {priceLabel(price, qty)}
+                            {priceLabel(price, qty, v.pricing_type)}
                           </span>
                         </button>
                       );

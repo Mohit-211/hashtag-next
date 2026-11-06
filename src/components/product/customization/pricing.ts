@@ -225,13 +225,14 @@ export function getMaterialFloor(material: MaterialId | null): number {
  *                    qty; that price is charged PER PIECE (total = price × qty)
  *   QUANTITY_BASED → pricing[] row whose `quantity` equals qty; that price is
  *                    the charge for the whole quantity (like a qty pack)
+ *   FIXED_QUANTITY → fixed_price, charged ONCE for the cart line, whatever the qty
  *
  * When no rule covers qty the value is `available: false` with a 0 charge —
  * we never fall back to a neighbouring tier's price.
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-export type CustomizationPricingType = "FIXED" | "TIERED" | "QUANTITY_BASED";
+export type CustomizationPricingType = "FIXED" | "TIERED" | "QUANTITY_BASED" | "FIXED_QUANTITY";
 
 export interface CustomizationPriceRule {
   min_quantity?: number | null;
@@ -257,7 +258,7 @@ export interface CustomizationPriceRow {
 export interface CustomizationPrice {
   /** false when no pricing rule covers the quantity (or the type is unknown). */
   available: boolean;
-  /** FIXED / TIERED are charged per piece; QUANTITY_BASED once for the quantity. */
+  /** FIXED / TIERED are charged per piece; QUANTITY_BASED and FIXED_QUANTITY once for the quantity. */
   perPiece: boolean;
   /** The price as the API defines it (per piece for FIXED / TIERED). */
   price: number;
@@ -271,7 +272,7 @@ const toNumber = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-/** The value's pricing rules as display rows (empty for FIXED), active only. */
+/** The value's pricing rules as display rows (empty for FIXED and FIXED_QUANTITY), active only. */
 export function getCustomizationPriceRows(value: CustomizationPricedValue): CustomizationPriceRow[] {
   const active = (value.pricing ?? []).filter((r) => r.is_active !== false);
   if (value.pricing_type === "TIERED") {
@@ -306,6 +307,10 @@ export function getCustomizationPrice(value: CustomizationPricedValue, qty: numb
   if (value.pricing_type === "FIXED") {
     const price = toNumber(value.fixed_price) ?? 0;
     return { available: true, perPiece: true, price, total: price * safeQty };
+  }
+  if (value.pricing_type === "FIXED_QUANTITY") {
+    const price = toNumber(value.fixed_price) ?? 0;
+    return { available: true, perPiece: false, price, total: price };
   }
   if (value.pricing_type === "TIERED" || value.pricing_type === "QUANTITY_BASED") {
     const row = safeQty > 0 ? getCustomizationPriceRows(value).find((r) => r.matches(safeQty)) : undefined;
