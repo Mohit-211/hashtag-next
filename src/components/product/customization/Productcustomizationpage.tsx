@@ -150,11 +150,11 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
     },
     {
       key: "LEFT_SLEEVE", label: "Left Sleeve", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1793778163979-f5dde64a57ad.png",
-      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "33%", left: "31%" }]
+      hotspots: [{ id: "SLEEVE_LEFT", label: "L. Sleeve", top: "34%", left: "64%" }]
     },
     {
       key: "RIGHT_SLEEVE", label: "Right Sleeve", mockup: "https://node.hashtagbillionaire.com/images/variant_images-1793778163990-6f3562a6f216.png",
-      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "33%", left: "65%" }]
+      hotspots: [{ id: "SLEEVE_RIGHT", label: "R. Sleeve", top: "34%", left: "30%" }]
     },
   ],
   hoodie: [
@@ -945,6 +945,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const activeViewIdx = viewSelection?.garment === garmentType ? viewSelection.idx : 0;
   const setActiveViewIdx = (idx: number) => setViewSelection({ garment: garmentType, idx });
   const activeView = garmentViews[activeViewIdx] ?? garmentViews[0];
+  // Preload every view's mockup so switching Front/Back/Sleeve is instant instead of waiting on the network.
+  useEffect(() => {
+    garmentViews.forEach(v => { const img = new window.Image(); img.src = v.mockup; });
+  }, [garmentViews]);
   const colors = useMemo(() => {
     if (!product) return [];
     const map = new Map<string, string>();
@@ -2025,8 +2029,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     ))}
                   </div>
                   <div className="relative mx-auto mb-4" style={{ maxWidth: 300 }}>
-                    <div className="relative rounded-2xl overflow-hidden bg-muted border border-border">
-                      <NextImage src={activeView.mockup} alt={activeView.label} width={600} height={600} unoptimized className="w-full h-auto object-contain" />
+                    <div className="flex items-center justify-center aspect-[4/5] rounded-2xl overflow-hidden bg-card border border-border">
+                      {/* Wrapper shrinks to the image so % hotspots stay aligned whatever its aspect ratio */}
+                      <div className="relative inline-flex max-w-full max-h-full">
+                      <NextImage src={activeView.mockup} alt={activeView.label} width={600} height={600} unoptimized className="block w-auto h-auto max-w-full max-h-[340px] object-contain" />
                       <div className="absolute inset-0">
                         {activeView.hotspots.map(h => (
                           <button key={h.id} onClick={() => toggleLocation(h.id)}
@@ -2049,6 +2055,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                             )}
                           </button>
                         ))}
+                      </div>
                       </div>
                     </div>
                     <p className="text-center text-[11px] text-muted-foreground mt-2">Tap a hotspot to select a print location</p>
