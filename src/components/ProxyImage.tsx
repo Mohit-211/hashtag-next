@@ -13,6 +13,8 @@ interface ProxyImageProps {
   sizes?: string;
   priority?: boolean;
   objectFit?: "cover" | "contain" | "fill" | "none";
+  /** Called once the image has loaded, or has finally failed — i.e. when a loading placeholder can go. */
+  onSettled?: () => void;
 }
 
 // Domains that are known to block hotlinks — always proxy these
@@ -54,6 +56,11 @@ function buildProxyUrl(src: string): string {
   return `/api/proxy-image?url=${encodeURIComponent(src)}`;
 }
 
+/** The URL ProxyImage first requests for `src` (proxied unless on a CDN). */
+export function resolveProxiedSrc(src: string): string {
+  return shouldProxy(src) ? buildProxyUrl(src) : src;
+}
+
 export default function ProxyImage({
   src,
   alt,
@@ -64,6 +71,7 @@ export default function ProxyImage({
   sizes,
   priority = false,
   objectFit = "contain",
+  onSettled,
 }: ProxyImageProps) {
   const [triedProxy, setTriedProxy] = useState(false);
 
@@ -77,6 +85,8 @@ export default function ProxyImage({
     if (!triedProxy && shouldProxy(src)) {
       // If proxy fails, try original URL
       setTriedProxy(true);
+    } else {
+      onSettled?.();
     }
   };
 
@@ -95,6 +105,7 @@ export default function ProxyImage({
         className={className}
         style={{ objectFit, ...imageStyle }}
         onError={handleError}
+        onLoad={onSettled}
         priority={priority}
         unoptimized
       />
@@ -110,6 +121,7 @@ export default function ProxyImage({
       className={className}
       style={imageStyle}
       onError={handleError}
+      onLoad={onSettled}
       priority={priority}
       unoptimized
     />

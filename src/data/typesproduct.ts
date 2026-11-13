@@ -50,7 +50,18 @@ export interface Product {
   is_hot_deal?: boolean;
   variant_label?: string;
   attachments?: { file_uri: string }[];
+  /** One entry per colour, as the list endpoints send it. */
+  variants?: ProductListVariant[];
+  /** Smallest to largest size, e.g. "XS - 4XL"; null for sizeless products. */
+  size_range?: string | null;
   [key: string]: unknown;
+}
+
+export interface ProductListVariant {
+  variant_id: number;
+  color_name: string;
+  color_code: string;
+  image: string | null;
 }
 
 export interface ProductApiResponse {

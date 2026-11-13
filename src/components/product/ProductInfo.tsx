@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useMemo } from "react";
 import type { ManualMeta } from "@/components/product/customization/Productcustomizationpage";
 import { formatMoney } from "@/components/product/customization/pricing";
+import { ColorSwatchList } from "@/components/common/ColorSwatch";
 import ProductOptionGroup, { resolveDisplayStyle, type OptionGroupValue } from "@/components/product/ProductOptionGroup";
 
 interface VariantImage {
@@ -199,48 +200,13 @@ const colors = useMemo(() => {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            {colors.map((item) => {
-              const colorCodes = item.color_code
-                ?.split(",")
-                .map((c) => c.trim())
-                .filter(Boolean);
-
-              const background =
-                colorCodes?.length > 1
-                  ? `linear-gradient(135deg, ${colorCodes.join(",")})`
-                  : colorCodes?.[0] || "var(--color-muted)";
-
-              return (
-                <button
-                  key={item.color}
-                  title={item.color}
-                  onClick={() => onColorChange(item.color)}
-                  type="button"
-                  aria-label={item.color}
-                  aria-pressed={selectedColor === item.color}
-                  className={`relative h-10 w-10 rounded-full transition-all duration-200 hover:scale-110 ${
-                    selectedColor === item.color ? "scale-105" : ""
-                  }`}
-                  style={{
-                    background:
-                      colorCodes?.length > 1 ? background : undefined,
-                    backgroundColor:
-                      colorCodes?.length === 1 ? colorCodes[0] : undefined,
-                    // Hairline keeps white swatches visible; the selected one also gets an offset ring
-                    // (done here because an inline box-shadow would override Tailwind's ring utilities).
-                    boxShadow: [
-                      "inset 0 0 0 1px color-mix(in srgb, var(--color-foreground) 12%, transparent)",
-                      selectedColor === item.color &&
-                        "0 0 0 2px var(--color-background), 0 0 0 4px var(--color-foreground)",
-                    ]
-                      .filter(Boolean)
-                      .join(", "),
-                  }}
-                />
-              );
-            })}
-          </div>
+          <ColorSwatchList
+            label="Color"
+            size={32}
+            variants={colors.map((c) => ({ id: c.color, name: c.color, hex: c.color_code, image: "" }))}
+            selectedId={selectedColor}
+            onSelect={(c) => onColorChange(c.id)}
+          />
         </div>
       )}
 

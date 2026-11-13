@@ -88,6 +88,10 @@ export default function ProductGallery({
     activeIndex < finalImages.length ? activeIndex : 0;
   const imageCount = finalImages.length;
 
+  // The URL whose image has finished loading; until the active one has, a skeleton covers it.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const galleryLoading = !!finalImages[active] && loadedSrc !== finalImages[active];
+
   // Notify parent
   useEffect(() => {
     onActiveChange?.(active);
@@ -217,13 +221,22 @@ console.log(finalImages,"finalImages")
               `}
               onClick={() => setZoomed((z) => !z)}
             >
+              {galleryLoading && (
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-3 z-[1] animate-pulse rounded-xl bg-muted pointer-events-none"
+                />
+              )}
               <ProxyImage
+                onSettled={() => setLoadedSrc(finalImages[active] ?? null)}
+                // Keyed by URL so a colour change fades the new image in.
+                key={finalImages[active]}
                 src={finalImages[active]}
                 alt="Product"
                 fill
                 priority
                 className={`
-                  object-contain transition-transform duration-500
+                  ${galleryLoading ? "opacity-0" : "animate-image-fade"} object-contain transition-transform duration-500
                   ease-out p-3
                   ${
                     zoomed

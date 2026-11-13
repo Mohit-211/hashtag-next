@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { isGrandCategory } from "@/lib/productFamily";
 import { getGalleryAssets } from "@/lib/images";
+import { preloadImages } from "@/lib/preloadImages";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 import type { ProductCategoryRef } from "@/data/typesproduct";
 import ProductGallery from "@/components/product/ProductGallery";
@@ -272,8 +273,11 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
         if (cancelled || !data) return;
         setProduct(data);
         if (!data.variants?.length) return;
-        // Start on the variant from the URL, else the first one.
-        const preselected = variantId ? data.variants.find((v) => v.id === Number(variantId)) : undefined;
+        // Start on the variant from the URL (?variant_id=, else ?color=<name>), else the first one.
+        const colorParam = new URLSearchParams(window.location.search).get("color")?.trim().toLowerCase();
+        const preselected =
+          (variantId ? data.variants.find((v) => v.id === Number(variantId)) : undefined) ??
+          (colorParam ? data.variants.find((v) => v.color?.trim().toLowerCase() === colorParam) : undefined);
         const initial = preselected || data.variants[0];
         const isManual = data.variants.some((v) => (v.supplier ?? "").toUpperCase() === "MANUAL");
         setSelectedColor(initial.color);
@@ -291,6 +295,42 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
       cancelled = true;
     };
   }, [id, variantId]);
+
+  // Keep ?variant_id= on the selected variant so the link can be shared or
+  // reloaded. history.replaceState updates the address bar without a
+  // navigation, so the page isn't re-rendered or re-fetched. A ?color= that
+  // came in is dropped, because variant_id now says the same thing.
+  useEffect(() => {
+    if (!variantData) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("variant_id") === String(variantData.id) && !url.searchParams.has("color")) return;
+    url.searchParams.set("variant_id", String(variantData.id));
+    url.searchParams.delete("color");
+    window.history.replaceState(window.history.state, "", url);
+  }, [variantData]);
+
+  // Once the page is up, warm the cache with the first gallery image of every
+  // other colour (picked the same way the gallery picks it), so switching
+  // colour shows its image straight away.
+  useEffect(() => {
+    if (!product?.variants?.length) return;
+    const seen = new Set<string>();
+    const urls: Array<string | undefined> = [];
+    for (const v of product.variants) {
+      if (!v.color || seen.has(v.color)) continue;
+      seen.add(v.color);
+      const assets = getGalleryAssets(v.meta, product.meta, v.color);
+      const main = assets?.find((a) => a.assetType !== "Front" && a.assetType !== "Back") ?? assets?.[0];
+      urls.push(
+        main?.image ??
+          (v.images?.[0]
+            ? v.images[0].file_name?.startsWith("http") ? v.images[0].file_name : `${BASE_URL}${v.images[0].file_uri}`
+            : undefined)
+      );
+    }
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 300));
+    idle(() => preloadImages(urls));
+  }, [product]);
 
   /** Re-fetch after adding to cart (fresh `is_in_cart` flags) without the
    *  loading skeleton and without touching the shopper's selection. */

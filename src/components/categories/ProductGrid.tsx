@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import ProxyImage from "../ProxyImage";
+import { ColorSwatchList, type ColorVariant } from "../common/ColorSwatch";
+import { preloadImages } from "@/lib/preloadImages";
 import type { Product } from "@/data/typesproduct";
+
+/** Cards show this many swatches before collapsing the rest into "+N". */
+const CARD_SWATCH_MAX = 4;
 
 interface ProductGridProps {
   products: Product[];
@@ -75,6 +81,38 @@ const styles = `
     position: relative;
     padding-bottom: 100%;
   }
+  .pg-img-skeleton {
+    position: absolute;
+    inset: 12px;
+    border-radius: 10px;
+    z-index: 1;
+    background: linear-gradient(90deg, var(--color-muted) 25%, color-mix(in srgb, var(--color-muted) 55%, var(--color-card)) 50%, var(--color-muted) 75%);
+    background-size: 200% 100%;
+    animation: pgShimmer 1.1s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes pgShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  .pg-img-fade.is-loading { opacity: 0; }
+  .pg-img-fade {
+    position: absolute;
+    inset: 0;
+    animation: pgFade 0.2s ease both;
+  }
+  @keyframes pgFade { from { opacity: 0; } to { opacity: 1; } }
+  .pg-swatch-slot { height: 28px; display: flex; align-items: center; }
+  .pg-swatches { flex-wrap: nowrap !important; gap: 6px !important; padding: 0 3px; overflow: visible; }
+  .pg-sizes {
+    margin: 0;
+    height: 16px;
+    line-height: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11.5px;
+    color: var(--pg-ink-soft);
+  }
+  .pg-sizes b { font-weight: 600; color: var(--pg-ink); }
+
   .pg-img {
     object-fit: contain !important;
     padding: 16px !important;
@@ -185,6 +223,7 @@ const styles = `
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    min-height: calc(13px * 1.45 * 2);
   }
   .pg-variant {
     font-size: 11.5px;
@@ -238,6 +277,7 @@ const styles = `
 
   /* ── Price row ── */
   .pg-price-row {
+    margin-top: auto;
     display: flex;
     align-items: baseline;
     gap: 6px;
@@ -327,12 +367,42 @@ function getDiscount(price: number | string, original: number | string) {
 }
 
 function ProductCard({ product, index }: { product: Product; index: number }) {
-  const imageUrl =
+  const defaultImage =
     Array.isArray(product.attachments) &&
     product.attachments.length > 0 &&
     product.attachments[0]?.file_uri
       ? product.attachments[0].file_uri
       : null;
+
+  const colors = useMemo<ColorVariant[]>(
+    () =>
+      (Array.isArray(product.variants) ? product.variants : [])
+        .filter((v) => v?.color_name)
+        .map((v) => ({
+          id: String(v.variant_id),
+          name: v.color_name,
+          hex: v.color_code ?? "",
+          image: v.image || defaultImage || "",
+        })),
+    [product.variants, defaultImage]
+  );
+  // Nothing picked yet: show the product's own image, not the first colour's.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = colors.find((c) => c.id === selectedId) ?? null;
+  const imageUrl = selected?.image || defaultImage;
+  // The URL whose image has finished loading; anything else shows the skeleton.
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  const imageLoading = !!imageUrl && loadedUrl !== imageUrl;
+  // Fetch every colour's image once the shopper shows interest in the card,
+  // so clicking a swatch swaps instantly from cache.
+  const warmColors = () => preloadImages(colors.map((c) => c.image));
+  const sizeRange =
+    typeof product.size_range === "string" && product.size_range.trim()
+      ? product.size_range.trim().replace(/s*-s*/, " – ")
+      : null;
+  const href = selected
+    ? `/product/${product.id}?variant_id=${encodeURIComponent(selected.id)}`
+    : `/product/${product.id}`;
 
   const original = product.price ? formatINR(product.price) : null;
   const discount = product.price
@@ -344,8 +414,10 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
   return (
     <Link
-      href={`/product/${product.id}`}
+      href={href}
       className="pg-card"
+      onPointerEnter={warmColors}
+      onFocus={warmColors}
       style={{ animationDelay: `${Math.min(index, 10) * 40}ms` }}
     >
       {/* ── Image ── */}
@@ -378,13 +450,22 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
         </button> */}
 
         <div className="pg-img-aspect">
-          <ProxyImage
-            src={imageUrl}
-            alt={product.name || "Product"}
-            fill
-            className="pg-img"
-            sizes="(max-width: 640px) 50vw, 25vw"
-          />
+          {/* Keyed by URL so each colour change fades the new image in. */}
+          {imageLoading && <div className="pg-img-skeleton" aria-hidden="true" />}
+          <div
+            key={imageUrl ?? "none"}
+            className={`pg-img-fade${imageLoading ? " is-loading" : ""}`}
+            aria-busy={imageLoading}
+          >
+            <ProxyImage
+              onSettled={() => setLoadedUrl(imageUrl)}
+              src={imageUrl}
+              alt={selected ? `${product.name} in ${selected.name}` : product.name || "Product"}
+              fill
+              className="pg-img"
+              sizes="(max-width: 640px) 50vw, 25vw"
+            />
+          </div>
         </div>
 
         {/* Discount ribbon at bottom of image */}
@@ -399,6 +480,31 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
         {product.variant_label && (
           <p className="pg-variant">{product.variant_label}</p>
+        )}
+
+        {/* Fixed-height swatch slot keeps cards' lines aligned; the size line
+            only appears when there is a size range. */}
+        {(colors.length > 1 || sizeRange) && (
+          <>
+            <div className="pg-swatch-slot">
+              {colors.length > 1 && (
+                <ColorSwatchList
+                  variants={colors}
+                  selectedId={selectedId}
+                  onSelect={(c) => setSelectedId(c.id)}
+                  size={22}
+                  max={CARD_SWATCH_MAX}
+                  label={`${product.name} colors`}
+                  className="pg-swatches"
+                />
+              )}
+            </div>
+            {sizeRange && (
+              <p className="pg-sizes">
+                Sizes: <b>{sizeRange}</b>
+              </p>
+            )}
+          </>
         )}
 
         {/* Rating */}
