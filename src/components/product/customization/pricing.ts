@@ -154,6 +154,7 @@ export const SP_TIERS = [
 ];
 export const SP_MIN_QTY = SP_TIERS[0].min;
 export const DTG_TIERS = [{ min: 1 }, { min: 24 }, { min: 48 }, { min: 100 }];
+/** DTG price per piece per print location (client decision Q8). */
 export const DTG_PRICES: Record<string, number[]> = {
   "Front Regular": [15, 12, 11, 9],
   "Oversized": [20, 17, 16, 14],
@@ -203,11 +204,112 @@ export function getMaterialPrintTotal(
         qty >= 100 ? 3 :
           qty >= 48 ? 2 :
             qty >= 24 ? 1 : 0;
-      return DTG_PRICES[dtgStyle][tier] * qty;
+      const price = DTG_PRICES[dtgStyle]?.[tier];
+      if (price == null) return null;
+      // Charged per location, like DTF and screen print (client decision Q8).
+      return price * qty * locations.length;
     }
     default:
       return null;
   }
+}
+/** A DTG print area, as the page names it ("Front Regular" …). */
+export type DtgStyle = keyof typeof DTG_PRICES;
+/** The backend's key for each DTG print area (its DTG_PRICING table). */
+export const DTG_STYLE_KEYS: Record<string, string> = {
+  "Front Regular": "FRONT_REGULAR",
+  "Oversized": "OVERSIZED",
+  "Front & Back Regular": "FRONT_AND_BACK_REGULAR",
+  "Front & Back Oversized": "FRONT_AND_BACK_OVERSIZED",
+};
+/** "3 Color" → 3: the screen-print colour count the backend reads as `colors`. */
+export const spColorNumber = (count: SpColorCount): number => {
+  const n = Number.parseInt(count, 10);
+  return Number.isInteger(n) && n > 0 ? n : 1;
+};
+/** Drinkware: per-product surcharge for each print location beyond the first (first is free). */
+export const DRINKWARE_SECOND_LOCATION_FEE = 8;
+/**
+ * ─────────────────────────────────────────────────────────────────────────
+ * DECORATION PER CONFIGURED COLOUR
+ *
+ * Each colour set up on the customization page keeps the decoration it was
+ * set up (and priced) with, so changing the method or locations afterwards
+ * never changes what an earlier colour is charged or made with. The cart
+ * request has one `customization` element per distinct decoration.
+ * ─────────────────────────────────────────────────────────────────────────
+ */
+export type ColorDecoration =
+  | {
+      kind: "apparel";
+      material: MaterialId;
+      /** The page's location ids (SLEEVE_LEFT …). */
+      locations: string[];
+      /** Screen print only. */
+      spColorCount?: SpColorCount;
+      /** DTG only. */
+      dtgStyle?: DtgStyle;
+      /** How the page described it, e.g. "DTG Print (Front Regular) · Left Chest". */
+      label: string;
+    }
+  | {
+      kind: "drinkware";
+      /** COLOR_IMPRINT or LASER_ENGRAVING. */
+      printType: string;
+      /** FRONT and/or BACK. */
+      locations: string[];
+      label: string;
+    };
+/** The decoration fields of one add-to-cart `customization` element. */
+export interface DecorationRequestFields {
+  print_method: string;
+  locations: { location: string }[];
+  /** Screen print: 1–6. */
+  colors?: number;
+  /** DTG: FRONT_REGULAR … */
+  dtg_style?: string;
+  /** Drinkware, browser-side only (the backend prices from its own table). */
+  second_location_fee?: number;
+}
+export function decorationRequestFields(decoration: ColorDecoration): DecorationRequestFields {
+  if (decoration.kind === "drinkware") {
+    return {
+      print_method: decoration.printType,
+      locations: decoration.locations.map(location => ({ location })),
+      second_location_fee: Math.max(0, decoration.locations.length - 1) * DRINKWARE_SECOND_LOCATION_FEE,
+    };
+  }
+  const { material } = decoration;
+  return {
+    print_method: material.toUpperCase(),
+    // Backend only has a single "SLEEVE" location/table — SLEEVE_LEFT and
+    // SLEEVE_RIGHT are separate hotspots/buttons in the UI only.
+    locations: decoration.locations.map(loc => ({
+      location: loc === "SLEEVE_LEFT" || loc === "SLEEVE_RIGHT" ? "SLEEVE" : loc,
+    })),
+    ...(material === "screen_print" ? { colors: spColorNumber(decoration.spColorCount ?? "1 Color") } : {}),
+    ...(material === "dtg" ? { dtg_style: DTG_STYLE_KEYS[decoration.dtgStyle ?? "Front Regular"] } : {}),
+  };
+}
+/** Same text for the same decoration (whatever order its locations were picked in). */
+export const decorationKey = (fields: DecorationRequestFields | null): string =>
+  fields ? JSON.stringify({ ...fields, locations: fields.locations.map(l => l.location).sort() }) : "";
+/**
+ * GET product/:id's `order_handling_fee`: charged once per order that has
+ * this product (it isn't in any price on the page).
+ */
+export interface OrderHandlingFee {
+  amount: number | string;
+  label?: string | null;
+}
+/** "A $35.00 handling fee is added once to any order with this product.", or null without a fee. */
+export function handlingFeeNote(fee: OrderHandlingFee | null | undefined): string | null {
+  const amount = Number(fee?.amount);
+  if (!fee || !Number.isFinite(amount) || amount <= 0) return null;
+  const label = fee.label?.trim() || "Handling fee";
+  // "Handling fee" → "handling fee" mid-sentence; a leading acronym ("SAGE fee") keeps its case.
+  const name = /^[A-Z][a-z]/.test(label) ? label[0].toLowerCase() + label.slice(1) : label;
+  return `A $${formatMoney(amount)} ${name} is added once to any order with this product.`;
 }
 /** Minimum apparel quantity for a decoration method (screen print has a run minimum). */
 export function getMaterialFloor(material: MaterialId | null): number {

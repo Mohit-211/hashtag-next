@@ -22,6 +22,7 @@ import {
   Loader2,
   CheckCircle2,
   ChevronRight,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isGrandCategory } from "@/lib/productFamily";
@@ -44,6 +45,7 @@ import ManualCustomizationPage from "@/components/product/ManualCustomizationPag
 import { useCart } from "@/contexts/CartContext";
 import { parseManualMeta, parseManualOptionValues } from "@/components/product/customization/Productcustomizationpage";
 import { getPriceTiers, type PriceTier } from "@/components/product/customization/Sagequantitypricing";
+import { handlingFeeNote, type OrderHandlingFee } from "@/components/product/customization/pricing";
 /* ───────────────────────────────────────────────── types */
 interface Size {
   id: number;
@@ -95,6 +97,8 @@ interface Product {
   categories: ProductCategoryRef[];
   variants: Variant[];
   meta?: string | null;
+  /** Set when this product triggers the order handling fee (charged once per order). */
+  order_handling_fee?: OrderHandlingFee | null;
 }
 
 /* MANUAL-supplier products describe their options (Pages / Size / Color …)
@@ -737,6 +741,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const manualPricing = isManualSupplier ? parseManualMeta(variantData?.meta) : null;
   const manualVariantLabel =
     manualOptionGroups.map((g) => selectedOptions[g.name]).filter(Boolean).join(" / ") || variantData?.sku || "";
+  const handlingFeeText = handlingFeeNote(product.order_handling_fee);
 
   /* ───────────────────────────────────────────────── render */
   return (
@@ -802,6 +807,14 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
               onOptionChange={handleOptionChange}
               manualPricing={manualPricing}
             />
+
+            {/* Charged once per order, on top of the prices shown. */}
+            {handlingFeeText && (
+              <p className="flex items-start gap-2 rounded-lg border border-border bg-muted px-3.5 py-3 text-xs text-muted-foreground">
+                <Info size={14} className="mt-0.5 shrink-0" />
+                {handlingFeeText}
+              </p>
+            )}
 
             {/* MANUAL-supplier products customize and add to cart inline. */}
             {isManualSupplier && variantData && (

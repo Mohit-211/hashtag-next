@@ -11,7 +11,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { AddToCartApi } from "@/api/operations/cart.api";
 import { getTierUnitPrice, type PriceTier } from "../product/customization/Sagequantitypricing";
-import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../product/customization/pricing";
+import {
+  calculateVariantTotal, sumVariantTotals, formatMoney,
+  decorationRequestFields, decorationKey, type ColorDecoration, type DecorationRequestFields,
+} from "../product/customization/pricing";
 
 import { errorMessage } from "@/lib/errors";
 import { GRAPHIC_FEE_WAIVED_FROM, GRAPHIC_SETUP_FEE } from "../graphics/graphicFiles";
@@ -37,20 +40,33 @@ export interface ConfiguredVariant {
   totalPrice: number;
   productTotal?: number;
   decorationTotal?: number;
+  /** The decoration this colour was set up (and priced) with. None on
+   *  undecorated products. */
+  decoration?: ColorDecoration;
 }
 
-/** Cart `customization` payload for configured variants — one line per
- * variant/size, priced through calculateVariantTotal. `extras` carries
- * flow-specific fields (print_method, locations, customization_options). */
+/** Cart `customization` payload for configured variants: one element per
+ * distinct decoration, holding the colours that share it, with one line per
+ * variant/size priced through calculateVariantTotal. `extras` carries fields
+ * every element gets (graphic_id). */
 export const buildConfiguredCustomizationPayload = (
   productId: number,
   configuredVariants: ConfiguredVariant[],
   extras: Record<string, unknown> = {}
-) => [
-  {
+) => {
+  const groups = new Map<string, { decoration: DecorationRequestFields | null; variants: ConfiguredVariant[] }>();
+  configuredVariants.forEach((cv) => {
+    const decoration = cv.decoration ? decorationRequestFields(cv.decoration) : null;
+    const key = decorationKey(decoration);
+    const group = groups.get(key);
+    if (group) group.variants.push(cv);
+    else groups.set(key, { decoration, variants: [cv] });
+  });
+  return Array.from(groups.values()).map(({ decoration, variants }) => ({
     product_id: productId,
     ...extras,
-    customizations: configuredVariants.flatMap((cv) =>
+    ...decoration,
+    customizations: variants.flatMap((cv) =>
       cv.sizes.map((s) => {
         const linePricing = calculateVariantTotal({
           productPrice: s.unit_price,
@@ -68,15 +84,15 @@ export const buildConfiguredCustomizationPayload = (
         };
       })
     ),
-    sizes: configuredVariants.flatMap((cv) =>
+    sizes: variants.flatMap((cv) =>
       cv.sizes.map((s) => ({
         variant_id: s.variant_id,
         size_id: s.size_id,
         quantity: s.quantity,
       }))
     ),
-  },
-];
+  }));
+};
 
 interface AddToCartModalProps {
   open: boolean;
@@ -211,9 +227,19 @@ export default function AddToCartModal({
       ? rawMethod.toUpperCase()
       : rawMethod.charAt(0).toUpperCase() + rawMethod.slice(1).toLowerCase().replace(/_/g, " ");
 
-  const customizationDetail =
-    [methodLabel, locationLabel].filter(Boolean).join(" · ") ||
-    "Customized product";
+  // Each colour's own decoration, as the customization page saved it with the colour.
+  const decorationLabels = hasConfigured
+    ? [...new Set(configuredVariants!.flatMap((cv) => (cv.decoration ? [cv.decoration.label] : [])))]
+    : [];
+  const decorationPerColor = decorationLabels.length > 1;
+
+  const customizationDetail = decorationPerColor
+    ? "A different decoration per color, shown below"
+    : decorationLabels[0] ||
+      [methodLabel, locationLabel].filter(Boolean).join(" · ") ||
+      "Customized product";
+  const showCustomizationDetail =
+    decorationLabels.length > 0 || (!!customizationObj && !!(methodLabel || locationLabel));
 
   /* ── Submit ── */
   const handleAddToCart = async () => {
@@ -232,19 +258,16 @@ export default function AddToCartModal({
       let customizationPayload: unknown;
 
       if (hasConfigured) {
-        // Every selected variant/size line becomes one customization
-        // object carrying its own product_price / decoration_price / total_price.
+        // One customization element per distinct decoration (each colour
+        // keeps its own); every variant/size line carries its own
+        // product_price / decoration_price / total_price.
         customizationPayload = buildConfiguredCustomizationPayload(productId, configuredVariants!, {
-          ...(customizationObj?.print_method !== undefined
-            ? { print_method: customizationObj.print_method }
-            : {}),
-          ...(customizationObj?.locations !== undefined
-            ? { locations: customizationObj.locations }
-            : {}),
           ...(customizationObj?.graphic_id !== undefined
             ? { graphic_id: customizationObj.graphic_id }
             : {}),
         });
+      } else if (Array.isArray(parsedCustomization)) {
+        customizationPayload = parsedCustomization;
       } else if (customizationObj?.customizations || customizationObj?.variants) {
         customizationPayload = customizationObj;
       } else {
@@ -348,7 +371,7 @@ export default function AddToCartModal({
 
         {/* Body */}
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5 text-sm">
-          {customizationObj && (methodLabel || locationLabel) && (
+          {showCustomizationDetail && (
             <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3">
               <Sparkles size={16} className="shrink-0 text-primary-ink" />
               <div className="min-w-0 flex-1">
@@ -369,6 +392,9 @@ export default function AddToCartModal({
                     <p className="font-semibold text-foreground">
                       {cv.variantName || cv.color || `Variant #${cv.variantId}`}
                     </p>
+                    {decorationPerColor && cv.decoration && (
+                      <p className="text-xs text-muted-foreground">{cv.decoration.label}</p>
+                    )}
                     {cv.sizes.map((s) => {
                       const linePricing = calculateVariantTotal({
                         productPrice: s.unit_price,

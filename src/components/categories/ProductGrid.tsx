@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import ProxyImage from "../ProxyImage";
 import { ColorSwatchList, type ColorVariant } from "../common/ColorSwatch";
 import { preloadImages } from "@/lib/preloadImages";
+import { formatMoney } from "@/components/product/customization/pricing";
 import type { Product } from "@/data/typesproduct";
 
 /** Cards show this many swatches before collapsing the rest into "+N". */
@@ -353,10 +354,11 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-function formatINR(val: number | string) {
+/** US dollars with 2 decimals: $11.50, $1,234.00. */
+function formatPrice(val: number | string) {
   const n = Number(val);
   if (!n) return null;
-  return "$" + n.toLocaleString("en-IN");
+  return "$" + formatMoney(n);
 }
 
 function getDiscount(price: number | string, original: number | string) {
@@ -404,7 +406,7 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
     ? `/product/${product.id}?variant_id=${encodeURIComponent(selected.id)}`
     : `/product/${product.id}`;
 
-  const original = product.price ? formatINR(product.price) : null;
+  const original = product.price ? formatPrice(product.price) : null;
   const discount = product.price
     ? getDiscount(product.price, product.price)
     : null;

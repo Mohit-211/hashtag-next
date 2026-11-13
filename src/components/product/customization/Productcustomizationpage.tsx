@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProductVariantByIdApi, ProductDetailApi, ProductDetailGuestApi } from "@/api/operations/product.api";
-import AddToCartModal from "@/components/common/AddToCartModal";
+import AddToCartModal, { buildConfiguredCustomizationPayload } from "@/components/common/AddToCartModal";
 import LoginPromptModal from "@/components/auth/LoginPromptModal";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
@@ -26,6 +26,8 @@ import {
   calculateVariantTotal, sumVariantTotals, formatMoney,
   EMB_TIERS, EMB_PRICES, DTF_TIERS, DTF_PRICES, SP_PRICES, SP_COLOR_COUNTS, SP_TIERS, DTG_TIERS, DTG_PRICES,
   getMaterialPrintTotal, getMaterialFloor, isQuoteOnlyLocation, type SpColorCount, type MaterialId,
+  DRINKWARE_SECOND_LOCATION_FEE, handlingFeeNote,
+  type ColorDecoration, type DtgStyle, type OrderHandlingFee,
 } from "./pricing";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { errorMessage } from "@/lib/errors";
@@ -112,6 +114,10 @@ export interface ConfiguredVariant {
   productTotal: number;
   /** Σ(decoration_unit_price × quantity) across this variant's sizes. */
   decorationTotal: number;
+  /** The decoration this colour was set up (and priced) with: changing the
+   *  page's selections later doesn't change it. None on undecorated products
+   *  and in drafts saved before it was kept per colour. */
+  decoration?: ColorDecoration;
 }
 /* ─────────────────────────────────────────── Constants ── */
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
@@ -237,8 +243,43 @@ const DRINKWARE_PRINT_LOCATIONS = [
   { id: "BACK", label: "Back" },
 ] as const;
 type DrinkwarePrintLocation = typeof DRINKWARE_PRINT_LOCATIONS[number]["id"];
-/** Per-product surcharge for each print location beyond the first (first is free). */
-const DRINKWARE_SECOND_LOCATION_FEE = 8;
+/** The page's decoration selections. */
+interface DecorationSelection {
+  material: MaterialId | null;
+  locations: string[];
+  spColorCount: SpColorCount;
+  dtgStyle: DtgStyle;
+  printType: DrinkwarePrintType | null;
+  printLocations: DrinkwarePrintLocation[];
+}
+/** The decoration these selections describe, saved with each colour set up with them. */
+const decorationFrom = (
+  kind: ColorDecoration["kind"] | null,
+  s: DecorationSelection
+): ColorDecoration | undefined => {
+  if (kind === "apparel" && s.material && s.locations.length > 0) {
+    const method = MATERIALS.find(m => m.id === s.material)?.label ?? s.material;
+    const option = s.material === "screen_print" ? s.spColorCount : s.material === "dtg" ? s.dtgStyle : null;
+    const places = s.locations.map(id => ALL_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id).join(", ");
+    return {
+      kind,
+      material: s.material,
+      locations: s.locations,
+      ...(s.material === "screen_print" ? { spColorCount: s.spColorCount } : {}),
+      ...(s.material === "dtg" ? { dtgStyle: s.dtgStyle } : {}),
+      label: `${option ? `${method} (${option})` : method} · ${places}`,
+    };
+  }
+  if (kind === "drinkware" && s.printType && s.printLocations.length > 0) {
+    const type = DRINKWARE_PRINT_TYPES.find(t => t.id === s.printType)?.label ?? s.printType;
+    const places = s.printLocations.map(id => DRINKWARE_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id).join(", ");
+    return { kind, printType: s.printType, locations: s.printLocations, label: `${type} · ${places}` };
+  }
+  return undefined;
+};
+/** Colours with no saved decoration (drafts saved before it was kept per colour) take `fallback`. */
+const withDecoration = (list: ConfiguredVariant[], fallback: ColorDecoration | undefined) =>
+  fallback ? list.map(cv => (cv.decoration ? cv : { ...cv, decoration: fallback })) : list;
 const FONTS = [
   { label: "Georgia", value: "Georgia, serif" },
   { label: "Montserrat", value: "'Montserrat', sans-serif" },
@@ -527,6 +568,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [allProductVariants, setAllProductVariants] = useState<Variant[]>([]);
   const [allSizes, setAllSizes] = useState<Size[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
+  // The order handling fee this product triggers (charged once per order), from the product detail.
+  const [handlingFee, setHandlingFee] = useState<OrderHandlingFee | null>(null);
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const canvasBlobRef = useRef<Blob | null>(null);
@@ -707,6 +750,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           ? await ProductDetailApi(String(productDataId))
           : await ProductDetailGuestApi(String(productDataId));
         if (cancelled) return;
+        setHandlingFee(res?.data?.data?.order_handling_fee ?? null);
         const variants: Variant[] = res?.data?.data?.variants || [];
         setAllProductVariants(variants);
         const sizes = variants
@@ -736,6 +780,18 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const isApparel = isGrandCategory(grandCategoryTitle, "apparel");
   const isPreMade = isGrandCategory(grandCategoryTitle, "preMade");
   const isPromo = !isApparel && !isPreMade;
+  const parentCategory = useMemo((): string => {
+    if (!product) return "";
+    return (
+      (product.product?.categories ?? [])
+        .flatMap((c) => c.parent_categories ?? [])
+        .map((p) => p.title?.toLowerCase().trim())
+        .find(Boolean) ?? ""
+    );
+  }, [product]);
+  const isDrinkware = isPromo && parentCategory.includes("drinkware");
+  // Which decoration a colour set up here carries (none on other products).
+  const decorationKind = isApparel ? "apparel" : isDrinkware ? "drinkware" : null;
   const saveCustomizationToSession = () => {
     if (typeof window === "undefined") return;
     try {
@@ -881,7 +937,19 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       if (saved.logoRotation !== undefined) setLogoRotation(saved.logoRotation);
       if (saved.logoOpacity !== undefined) setLogoOpacity(saved.logoOpacity);
       if (saved.logoPos) setLogoPos(saved.logoPos);
-      if (Array.isArray(saved.configuredVariants)) setConfiguredVariants(saved.configuredVariants);
+      if (Array.isArray(saved.configuredVariants)) {
+        // Drafts saved before each colour kept its own decoration: those
+        // colours take the draft's selections, restored above.
+        const draftDecoration = decorationFrom(decorationKind, {
+          material: saved.selectedMaterial || selectedMaterial,
+          locations: Array.isArray(saved.selectedLocations) ? saved.selectedLocations : selectedLocations,
+          spColorCount: saved.spColorCount || spColorCount,
+          dtgStyle: saved.dtgStyle || dtgStyle,
+          printType: saved.selectedPrintType || selectedPrintType,
+          printLocations: Array.isArray(saved.selectedPrintLocations) ? saved.selectedPrintLocations : selectedPrintLocations,
+        });
+        setConfiguredVariants(withDecoration(saved.configuredVariants, draftDecoration));
+      }
       if (Array.isArray(saved.orderRows) && saved.orderRows.length > 0) {
         const variantsSource = allProductVariants.length > 0 ? allProductVariants : product.variants;
         const revalidated = saved.orderRows
@@ -919,16 +987,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         .find(Boolean) ?? ""
     );
   }, [product]);
-  const parentCategory = useMemo((): string => {
-    if (!product) return "";
-    return (
-      (product.product?.categories ?? [])
-        .flatMap((c) => c.parent_categories ?? [])
-        .map((p) => p.title?.toLowerCase().trim())
-        .find(Boolean) ?? ""
-    );
-  }, [product]);
-  const isDrinkware = isPromo && parentCategory.includes("drinkware");
   const garmentType = useMemo<GarmentType>(() => {
     const cat = grandCategory.toLowerCase();
     if (cat.includes("apparel") || cat.includes("uniform") || cat === "clothing") {
@@ -1132,6 +1190,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const drinkwareLocationFee = isDrinkware
     ? Math.max(0, selectedPrintLocations.length - 1) * DRINKWARE_SECOND_LOCATION_FEE
     : 0;
+  // The colour being configured right now uses the current selections.
+  const currentDecoration = decorationFrom(decorationKind, {
+    material: selectedMaterial,
+    locations: selectedLocations,
+    spColorCount,
+    dtgStyle,
+    printType: selectedPrintType,
+    printLocations: selectedPrintLocations,
+  });
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
@@ -1452,12 +1519,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       decoration_unit_price: isApparel ? (printPrice ?? 0) / currentQty : 0,
     }];
   };
+  /** `decoration` is what newSizes' decoration prices were worked out for; it
+   *  replaces the colour's own, along with those size lines. */
   const mergeVariantIntoList = (
     list: ConfiguredVariant[],
     colorKey: string,
     newSizes: ConfiguredSize[],
     variant: Variant,
-    images: VariantImage[]
+    images: VariantImage[],
+    decoration: ColorDecoration | undefined
   ): ConfiguredVariant[] => {
     const existingIdx = list.findIndex(
       (v) => v.variantId === variant.id
@@ -1484,6 +1554,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           totalPrice: pricing.total,
           productTotal: pricing.productTotal,
           decorationTotal: pricing.decorationTotal,
+          decoration,
         },
       ];
     }
@@ -1520,6 +1591,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         totalPrice: pricing.total,
         productTotal: pricing.productTotal,
         decorationTotal: pricing.decorationTotal,
+        decoration,
       };
     });
   };
@@ -1567,62 +1639,17 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const piecesWithGraphic = grandConfiguredQty + (currentVariantAlreadyConfigured ? 0 : currentQty);
   const showGraphicFeeNotice =
     newGraphicPiecesInCart !== null && piecesWithGraphic + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
+  // Added once per order by the cart, so it isn't in any total on this page.
+  const handlingFeeText = handlingFeeNote(handlingFee);
 
-  const buildPayload = (variantList: ConfiguredVariant[]) => {
-    const customizations = variantList.flatMap(cv =>
-      cv.sizes.map(s => {
-        const linePricing = calculateVariantTotal({
-          productPrice: s.unit_price,
-          decorationPrice: s.decoration_unit_price ?? 0,
-          quantity: s.quantity,
-        });
-        return {
-          variant_id: s.variant_id,
-          color: cv.color,
-          size: s.size,
-          quantity: s.quantity,
-          product_price: s.unit_price,
-          decoration_price: s.decoration_unit_price ?? 0,
-          total_price: linePricing.total,
-        };
-      })
+  /** The cart request: one element per distinct decoration, each with the
+   *  colours that were set up with it (see buildConfiguredCustomizationPayload). */
+  const buildPayload = (variantList: ConfiguredVariant[]) =>
+    buildConfiguredCustomizationPayload(
+      productDataId,
+      variantList,
+      savedGraphicRef.current ? { graphic_id: savedGraphicRef.current.id } : {}
     );
-    const base: {
-      product_id: number;
-      customizations: typeof customizations;
-      variants: { variant_id: number; sizes: { size_id: number | null; variant_id: number; quantity: number }[] }[];
-      print_method?: string | null;
-      locations?: { location: string }[];
-      second_location_fee?: number;
-      graphic_id?: number;
-    } = {
-      product_id: productDataId,
-      customizations,
-      variants: variantList.map(cv => ({
-        variant_id: cv.variantId,
-        sizes: cv.sizes.map(s => ({
-          size_id: s.size_id,
-          variant_id: s.variant_id,
-          quantity: s.quantity,
-        })),
-      })),
-    };
-    if (isApparel) {
-      base.print_method = selectedMaterial?.toUpperCase() ?? null;
-      // Backend only has a single "SLEEVE" location/table — LEFT_SLEEVE and
-      // RIGHT_SLEEVE are separate hotspots/buttons in the UI only.
-      base.locations = selectedLocations.map(loc => ({
-        location: loc === "SLEEVE_LEFT" || loc === "SLEEVE_RIGHT" ? "SLEEVE" : loc,
-      }));
-    }
-    if (isDrinkware) {
-      base.print_method = selectedPrintType ?? null;
-      base.locations = selectedPrintLocations.map(loc => ({ location: loc }));
-      base.second_location_fee = drinkwareLocationFee;
-    }
-    if (savedGraphicRef.current) base.graphic_id = savedGraphicRef.current.id;
-    return base;
-  };
   const getBlob = (): Promise<Blob | null> =>
     new Promise((res) => {
       const canvas = canvasRef.current;
@@ -1684,12 +1711,17 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       return;
     }
     const safeColorKey = selectedColor || activeVariant.color || "Selected Variant";
-    const updatedVariantList = mergeVariantIntoList(
-      configuredVariants,
-      safeColorKey,
-      newSizes,
-      activeVariant,
-      product?.images ?? []
+    // Any colour still without a decoration (old draft) takes the current selections.
+    const updatedVariantList = withDecoration(
+      mergeVariantIntoList(
+        configuredVariants,
+        safeColorKey,
+        newSizes,
+        activeVariant,
+        product?.images ?? [],
+        currentDecoration
+      ),
+      currentDecoration
     );
     setConfiguredVariants(updatedVariantList);
     setPendingVariantList(updatedVariantList);
@@ -1764,12 +1796,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
             unit_price: s.unit_price,
             decoration_unit_price: s.decoration_price ?? 0,
           };
+          // The modal priced these rows with the current selections.
           mergedList = mergeVariantIntoList(
             mergedList,
             colorKey,
             [newSize],
             variant,
-            []
+            [],
+            currentDecoration
           );
         });
       }
@@ -2140,6 +2174,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                       </button>
                                     ))}
                                   </div>
+                                  <p className="text-[11px] text-muted-foreground mt-3">
+                                    DTG is charged per print location: the print area&apos;s price for each location you pick.
+                                  </p>
                                 </div>
                               )}
                               <div className="mt-3">
@@ -2310,7 +2347,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                           <tbody>
                                             {Object.entries(DTG_PRICES).map(([k, p], i) => (
                                               <tr key={k} className={cn("border-b border-border", k === dtgStyle ? "bg-primary/5" : i % 2 === 0 ? "bg-card" : "bg-muted/50")}>
-                                                <td className="px-3 py-2.5 font-semibold text-muted-foreground border-r border-border">{k}</td>
+                                                <td className="px-3 py-2.5 font-semibold text-muted-foreground border-r border-border">
+                                                  {k} <span className="text-[10px] font-normal text-muted-foreground">(per location)</span>
+                                                </td>
                                                 {p.map((vv, j) => (
                                                   <td key={j} className="px-2 py-2.5 text-center border-r border-border text-muted-foreground">
                                                     ${formatMoney(basePrice + vv)}
@@ -2686,6 +2725,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           </div>
                         </div>
                         <div className="mt-1 pl-0.5 space-y-0.5">
+                          {cv.decoration && (
+                            <p className="text-[10px] text-muted-foreground">{cv.decoration.label}</p>
+                          )}
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <span>
                               Item ({cv.totalQty} × $
@@ -2882,6 +2924,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       A one-time ${GRAPHIC_SETUP_FEE} graphic setup fee applies: this is a new graphic on fewer than{" "}
                       {GRAPHIC_FEE_WAIVED_FROM} pieces. Your cart shows the final amount.
                     </p>
+                  </div>
+                )}
+                {handlingFeeText && (
+                  <div className="flex items-start gap-2 rounded-xl border border-primary bg-primary-soft px-3 py-2.5 text-xs text-primary-ink">
+                    <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
+                    <p>{handlingFeeText}</p>
                   </div>
                 )}
                 <div className="rounded-xl bg-foreground text-background p-4">
