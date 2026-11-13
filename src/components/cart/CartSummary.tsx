@@ -4,11 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-// The cart API's `summary` is { items_total, shipping_cost, grand_total }.
+// The cart API's `summary` is { items_total, handling_fee, handling_fee_label,
+// shipping_cost, grand_total }, with grand_total = items + handling fee.
 // Shipping is only known once an address is chosen, so 0 reads as
 // "Calculated at checkout" rather than "Free".
 interface Props {
   itemsTotal: number;
+  /** Once per order; 0 when nothing in the cart triggers it. */
+  handlingFee: number;
+  handlingFeeLabel?: string;
   shippingCost: number;
   grandTotal: number;
   /** A line is out of stock or short of stock; checkout would refuse it. */
@@ -17,6 +21,8 @@ interface Props {
 
 export default function CartSummary({
   itemsTotal,
+  handlingFee,
+  handlingFeeLabel,
   shippingCost,
   grandTotal,
   hasUnavailableItems = false,
@@ -37,6 +43,12 @@ export default function CartSummary({
             <span>Subtotal</span>
             <span>${itemsTotal.toFixed(2)}</span>
           </div>
+          {handlingFee > 0 && (
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>{handlingFeeLabel || "Handling fee"}</span>
+              <span>${handlingFee.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Shipping</span>
             <span>{shippingCost > 0 ? `$${shippingCost.toFixed(2)}` : "Calculated at checkout"}</span>

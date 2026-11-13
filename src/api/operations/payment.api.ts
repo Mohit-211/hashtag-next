@@ -1,6 +1,20 @@
 import client from "../client";
 import { PAYMENT_ENDPOINTS } from "../endpoints";
 
+/** Every API response wraps its payload as { success, status, message, data }. */
+interface ApiResponse<T> {
+  success: boolean;
+  status: number;
+  message: string;
+  data: T;
+}
+
+/**
+ * An order's payment_status: SUCCESS is paid, PENDING is not paid yet (or a
+ * payment is in progress), REJECTED means the last attempt failed.
+ */
+export type PaymentStatus = "SUCCESS" | "PENDING" | "REJECTED";
+
 // ─────────────────────────────────────────────────────────────
 // Square Config
 // ─────────────────────────────────────────────────────────────
@@ -28,39 +42,31 @@ export const GetSquareConfigApi = async (): Promise<SquareConfig> => {
 export interface CreatePaymentPayload {
   order_id: number;
 
-  // REQUIRED BY BACKEND
-  sourceId?: string;
+  /** The token from Square's card, Google Pay or Cash App widget. */
+  sourceId: string;
 
-  // CARD | GOOGLE_PAY | APPLE_PAY | BANK_ACCOUNT
+  // CARD | GOOGLE_PAY | CASH_APP. Square charges the order's total_amount.
   payment_mode?: string;
-
-  // Optional
-  amount?: number;
 }
 
-export const CreatePaymentApi = async (
-  payload: CreatePaymentPayload
-) => {
-  
+export interface CreatePaymentResponseData {
+  order_id: number;
+  order_number: string;
+  payment_id: string | number;
+  /** SUCCESS: paid. PENDING: Square is still processing, poll payment-status. REJECTED: failed. */
+  payment_status: PaymentStatus;
+  payment_mode: string;
+  total: number;
+}
 
-  if (
-    payload.payment_mode !== "BANK_ACCOUNT" &&
-    !payload.sourceId
-  ) {
-    console.error(
-      "❌ sourceId missing for Square payment"
-    );
-  }
-
-  const response = await client.post(
+// Checkout shows the error itself: Square's reason for a decline, or why the
+// order can't be paid (already paid, payment in progress, cancelled).
+export const CreatePaymentApi = (payload: CreatePaymentPayload) =>
+  client.post<ApiResponse<CreatePaymentResponseData>>(
     PAYMENT_ENDPOINTS.CREATE_PAYMENT,
-    payload
+    payload,
+    { skipErrorToast: true }
   );
-
-
-
-  return response;
-};
 
 // ─────────────────────────────────────────────────────────────
 // Square Payment Status
@@ -71,19 +77,21 @@ export interface SquarePaymentStatusPayload {
 }
 
 export interface SquarePaymentStatusResponseData {
-  payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
+  order_id: number;
+  order_number: string;
+  payment_status: PaymentStatus;
+  order_status: string;
+  payment_method: string | null;
+  payment: Record<string, unknown> | null;
 }
 
-export const GetSquarePaymentStatusApi = async (
-  payload: SquarePaymentStatusPayload
-) => {
-  const response = await client.post(
+// Checkout polls this and keeps going when one check fails, so no toast.
+export const GetSquarePaymentStatusApi = (payload: SquarePaymentStatusPayload) =>
+  client.post<ApiResponse<SquarePaymentStatusResponseData>>(
     PAYMENT_ENDPOINTS.PAYMENT_STATUS,
-    payload
+    payload,
+    { skipErrorToast: true }
   );
-
-  return response;
-};
 
 // ─────────────────────────────────────────────────────────────
 // PayPal
@@ -93,23 +101,18 @@ export interface CreatePaypalOrderPayload {
   order_id: number;
 }
 
-// Unlike the Square endpoints above, this one is not double-wrapped —
-// the fields sit directly on response.data (response.data.approve_url).
 export interface CreatePaypalOrderResponseData {
+  order_id: number;
   paypal_order_id: string;
-  approve_url: string;
+  approval_url: string | null;
+  status: string;
 }
 
-export const CreatePaypalOrderApi = async (
-  payload: CreatePaypalOrderPayload
-) => {
-  const response = await client.post(
+export const CreatePaypalOrderApi = (payload: CreatePaypalOrderPayload) =>
+  client.post<ApiResponse<CreatePaypalOrderResponseData>>(
     PAYMENT_ENDPOINTS.PAYPAL_CREATE_ORDER,
     payload
   );
-
-  return response;
-};
 
 export interface CapturePaypalOrderPayload {
   order_id: number;
@@ -117,19 +120,20 @@ export interface CapturePaypalOrderPayload {
 }
 
 export interface CapturePaypalOrderResponseData {
-  payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
+  order_id: number;
+  order_number: string;
+  paypal_order_id: string;
+  /** SUCCESS: paid. PENDING: PayPal is still processing, poll GET order/:id. */
+  payment_status: Exclude<PaymentStatus, "REJECTED">;
 }
 
-export const CapturePaypalOrderApi = async (
-  payload: CapturePaypalOrderPayload
-) => {
-  const response = await client.post(
+// The return page shows the error itself.
+export const CapturePaypalOrderApi = (payload: CapturePaypalOrderPayload) =>
+  client.post<ApiResponse<CapturePaypalOrderResponseData>>(
     PAYMENT_ENDPOINTS.PAYPAL_CAPTURE_ORDER,
-    payload
+    payload,
+    { skipErrorToast: true }
   );
-
-  return response;
-};
 
 // ─────────────────────────────────────────────────────────────
 // Payment History

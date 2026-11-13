@@ -1,5 +1,5 @@
 "use client";
-import { ShoppingBag, Truck, Receipt, Percent } from "lucide-react";
+import { ShoppingBag, Truck, Receipt, Percent, Package } from "lucide-react";
 import ProxyImage from "../ProxyImage";
 import type { CartItem } from "@/contexts/CartContext";
 import type { ShippingRate } from "./CheckoutLayout";
@@ -13,6 +13,8 @@ function fmt(n: number | string | null | undefined): string {
 export default function OrderSummary({
   items,
   subtotal,
+  handlingAmount,
+  handlingLabel,
   taxAmount,
   taxRate,
   shippingAmount,
@@ -21,6 +23,9 @@ export default function OrderSummary({
 }: {
   items: CartItem[];
   subtotal: number;
+  /** The order handling fee: the cart's until the order exists, then the order's. */
+  handlingAmount: number;
+  handlingLabel?: string;
   /** The API's tax; null until the order exists, as the shop never estimates it. */
   taxAmount: number | null;
   taxRate?: number;
@@ -96,6 +101,9 @@ export default function OrderSummary({
         <div className="flex flex-col gap-2">
           {[
             { icon: Receipt, label: "Subtotal", value: `$${fmt(subtotal)}` },
+            ...(handlingAmount > 0
+              ? [{ icon: Package, label: handlingLabel || "Handling fee", value: `$${fmt(handlingAmount)}` }]
+              : []),
             {
               icon: Percent,
               label: `Tax${taxRate ? ` (${fmt(taxRate)}%)` : ""}`,

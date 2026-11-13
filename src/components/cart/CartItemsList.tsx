@@ -16,10 +16,6 @@ export type CustomizationBreakdownItem = {
 };
 
 export type PricingSnapshot = {
-  handling_charge?: {
-    amount: number;
-    label?: string;
-  };
   customization_price?: {
     total_customization_price: number;
     setup_fee: number;
@@ -67,7 +63,7 @@ export type CartItemType = {
   graphics?: { id: number; original_name: string; file_url: string }[];
 
   // ★ NEW — was being read via optional-chaining in a console.log with
-  // no type backing it. Added properly so handling_charge (and anything
+  // no type backing it. Added properly so the setup fee (and anything
   // else in the snapshot) is type-safe wherever it's read.
   pricing_snapshot?: PricingSnapshot;
 };

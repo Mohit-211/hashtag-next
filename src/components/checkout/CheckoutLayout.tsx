@@ -8,7 +8,7 @@ import {
   CreatePaypalOrderApi,
   GetSquarePaymentStatusApi,
 } from "@/api/operations/payment.api";
-import { CreateOrderApi } from "@/api/operations/order.api";
+import { CreateOrderApi, GetOrderDetailApi } from "@/api/operations/order.api";
 import { GetShippingRatesApi } from "@/api/operations/shipping.api";
 import EmptyCart from "./EmptyCart";
 import ProcessingScreen from "./ProcessingScreen";
@@ -17,6 +17,7 @@ import ShippingSection from "./ShippingSection";
 import PaymentSection from "./PaymentSection";
 import OrderSummary from "./OrderSummary";
 import AddressSection from "../account/AddressSection";
+import { forgetCashAppOrder, readCashAppOrder } from "./cashAppPending";
 import { errorMessage } from "@/lib/errors";
 import { confirmationPath } from "@/lib/orderLinks";
 export type CheckoutStep =
@@ -41,20 +42,46 @@ export type SquareMethod =
   | "CARD"
   | "GOOGLE_PAY"
   | "PAYPAL"
-  | "CASH_APP"
-  | "BANK_ACCOUNT";
+  | "CASH_APP";
 /** What the order will cost, as the API worked it out. Unknown until the order exists. */
 interface OrderTotals {
   subtotal: number;
+  handlingAmount: number;
   taxAmount: number;
   taxRate?: number;
   shippingAmount: number;
   totalAmount: number;
 }
+/** The order fields checkout reads from POST order and GET order/:id. */
+interface ApiOrder {
+  id?: number;
+  order_number?: string;
+  status?: string;
+  payment_status?: string;
+  subtotal_amount?: number | string;
+  handling_amount?: number | string;
+  tax_rate?: number | string;
+  tax_amount?: number | string;
+  shipping_amount?: number | string;
+  total_amount?: number | string;
+}
 const toNumber = (v: unknown): number | undefined => {
   const n = parseFloat(String(v));
   return Number.isNaN(n) ? undefined : n;
 };
+/** The order's own figures; `fallback` only covers fields the API left out. */
+const orderTotalsFrom = (
+  order: ApiOrder | undefined,
+  fallback = { subtotal: 0, shipping: 0 }
+): OrderTotals => ({
+  subtotal: toNumber(order?.subtotal_amount) ?? fallback.subtotal,
+  handlingAmount: toNumber(order?.handling_amount) ?? 0,
+  taxAmount: toNumber(order?.tax_amount) ?? 0,
+  taxRate: toNumber(order?.tax_rate),
+  shippingAmount: toNumber(order?.shipping_amount) ?? fallback.shipping,
+  totalAmount: toNumber(order?.total_amount) ?? 0,
+});
+const PAYMENT_REJECTED = "Your payment didn't go through. Please try again or use another payment method.";
 /** A bad address is fixed on the address step; a shipping outage can be retried. */
 const canRetryRates = (status?: number) => status === 502 || status === 503;
 export default function CheckoutLayout() {
@@ -76,11 +103,51 @@ export default function CheckoutLayout() {
   const [addressError, setAddressError] = useState<string | null>(null);
   const [ratesError, setRatesError] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<number | null>(null);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
   const [hasPendingOrder, setHasPendingOrder] = useState(false);
   const paypalSubmittingRef = useRef(false);
   const [orderTotals, setOrderTotals] = useState<OrderTotals | null>(null);
   const shippingAmount = orderTotals?.shippingAmount ?? selectedRate?.price ?? 0;
   const checkoutCompletedRef = useRef(false);
+  // Set when the shopper comes back from the Cash App app (see below).
+  const [initialMethod, setInitialMethod] = useState<SquareMethod | undefined>(undefined);
+  const [resumingCashApp, setResumingCashApp] = useState(false);
+
+  // Cash App on a phone: Square sends the shopper to the Cash App app and back
+  // to this page, which starts again at the address step. Reopen that order's
+  // payment step with Cash App selected, so the widget mounts again and Square
+  // can finish the payment (its `ontokenization` event).
+  useEffect(() => {
+    const pending = readCashAppOrder();
+    if (!pending) return;
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResumingCashApp(true);
+    GetOrderDetailApi(pending.order_id, { skipErrorToast: true })
+      .then((res) => {
+        if (cancelled) return;
+        const order: ApiOrder | undefined = res?.data?.data;
+        if (!order?.id || order.payment_status === "SUCCESS" || order.status === "CANCELLED") {
+          forgetCashAppOrder();
+          return;
+        }
+        setCreatedOrderId(order.id);
+        setOrderNumber(order.order_number ?? pending.order_number);
+        setOrderTotals(orderTotalsFrom(order));
+        setInitialMethod("CASH_APP");
+        setStep("payment");
+      })
+      .catch((err) => {
+        console.error(err);
+        if (!cancelled) forgetCashAppOrder();
+      })
+      .finally(() => {
+        if (!cancelled) setResumingCashApp(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   useEffect(() => {
     if (checkoutCompletedRef.current) return;
     if (step === "processing" || step === "done") return;
@@ -143,20 +210,15 @@ export default function CheckoutLayout() {
         address_id: selectedAddressId,
         selected_service_code: selectedRate.service_code,
       });
-      const orderData = orderResponse?.data?.data;
+      const orderData: ApiOrder | undefined = orderResponse?.data?.data;
       const orderId = orderData?.id;
       if (!orderId) throw new Error("Order creation failed");
       setCreatedOrderId(orderId);
+      setOrderNumber(orderData?.order_number ?? null);
 
       // These are what the customer pays. The backend asks ShipStation again
       // here, so shipping can differ a little from the option they picked.
-      setOrderTotals({
-        subtotal: toNumber(orderData?.subtotal_amount) ?? subtotal,
-        taxAmount: toNumber(orderData?.tax_amount) ?? 0,
-        taxRate: toNumber(orderData?.tax_rate),
-        shippingAmount: toNumber(orderData?.shipping_amount) ?? selectedRate.price ?? 0,
-        totalAmount: toNumber(orderData?.total_amount) ?? 0,
-      });
+      setOrderTotals(orderTotalsFrom(orderData, { subtotal, shipping: selectedRate.price ?? 0 }));
 
       await refreshCart();
       setStep("payment");
@@ -175,23 +237,25 @@ export default function CheckoutLayout() {
       setProcessing(false);
     }
   }, [selectedAddressId, selectedRate, refreshCart, subtotal, fetchRates]);
-  // Square's create-payment call kicks off processing on the gateway side
-  // but doesn't always settle synchronously (Cash App / Google Pay in
-  // particular can stay PENDING briefly), so the order's real status is
-  // confirmed against payment/square/payment-status (POST { order_id })
-  // rather than trusted from the create-payment response alone.
+  // create-payment answers SUCCESS (paid), REJECTED (failed) or PENDING
+  // (Square is still processing, e.g. Cash App / Google Pay). A PENDING
+  // payment is followed on payment/square/payment-status (POST { order_id }).
   const POLL_INTERVAL_MS = 3000;
   const MAX_POLL_ATTEMPTS = 10; // ~30s before giving up and surfacing "still processing"
 
   const waitForSquarePaymentStatus = async (orderId: number) => {
     for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-      const statusResponse = await GetSquarePaymentStatusApi({ order_id: orderId });
-      const status = statusResponse?.data?.data?.payment_status;
-      if (status === "SUCCESS") return true;
-      if (status === "FAILED" || status === "REFUNDED") return false;
+      try {
+        const statusResponse = await GetSquarePaymentStatusApi({ order_id: orderId });
+        const status = statusResponse?.data?.data?.payment_status;
+        if (status === "SUCCESS" || status === "REJECTED") return status;
+      } catch (err) {
+        // One failed check says nothing about the payment: keep checking.
+        console.error(err);
+      }
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
-    return false;
+    return "TIMEOUT" as const;
   };
 
   const handlePlaceOrder = async (
@@ -205,7 +269,7 @@ export default function CheckoutLayout() {
       if (!createdOrderId) {
         throw new Error("No order found");
       }
-      if (method !== "BANK_ACCOUNT" && !sourceId) {
+      if (!sourceId) {
         throw new Error("Payment token missing");
       }
       const paymentConfig = await GetSquareConfigApi();
@@ -215,19 +279,28 @@ export default function CheckoutLayout() {
       // CARD, GOOGLE_PAY, and CASH_APP all tokenize client-side and post
       // through this same create-payment endpoint — only the sourceId's
       // origin and payment_mode differ.
-      await CreatePaymentApi({
+      const paymentResponse = await CreatePaymentApi({
         order_id: createdOrderId,
         sourceId,
         payment_mode: method,
       });
 
-      const paymentConfirmed = await waitForSquarePaymentStatus(createdOrderId);
-      if (!paymentConfirmed) {
+      const charged = paymentResponse?.data?.data?.payment_status;
+      const paymentStatus =
+        charged === "SUCCESS" || charged === "REJECTED"
+          ? charged
+          : await waitForSquarePaymentStatus(createdOrderId);
+      if (paymentStatus === "REJECTED") {
+        throw new Error(PAYMENT_REJECTED);
+      }
+      if (paymentStatus === "TIMEOUT") {
+        // It may still go through: don't invite a second payment.
         throw new Error(
-          "We couldn't confirm your payment. Please check your orders shortly or try again."
+          "We're still confirming your payment. Check My Orders in a minute before trying again."
         );
       }
 
+      forgetCashAppOrder();
       checkoutCompletedRef.current = true;
       setStep("done");
       clearCart();
@@ -295,9 +368,15 @@ export default function CheckoutLayout() {
   if (step === "done") {
     return <ProcessingScreen title="Payment confirmed" description="Opening your order confirmation…" />;
   }
+  if (resumingCashApp) {
+    return <ProcessingScreen title="Finishing your Cash App payment…" description="One moment while we reopen your order." />;
+  }
   if (items.length === 0) {
     return <EmptyCart />;
   }
+  // Before the order exists: the cart's items and handling fee plus the chosen
+  // shipping. Tax is added when the order is made.
+  const cartTotal = summary?.grand_total ?? subtotal;
   return (
     <section className="py-8 lg:py-12">
       <div className="container max-w-5xl">
@@ -340,12 +419,21 @@ export default function CheckoutLayout() {
                 onPlaceOrder={handlePlaceOrder}
                 onPayPalPay={handlePayPalPay}
                 onBack={() => {
+                  forgetCashAppOrder();
+                  setInitialMethod(undefined);
+                  setOrderError(null);
                   // A new choice makes a new order, with its own totals.
                   setOrderTotals(null);
-                  setStep("shipping");
+                  // An order reopened after Cash App has no address or rates
+                  // loaded here: start again from the address.
+                  setStep(selectedAddressId ? "shipping" : "address");
                 }}
                 processing={processing}
                 orderError={orderError}
+                orderId={createdOrderId}
+                orderNumber={orderNumber}
+                orderTotal={orderTotals?.totalAmount ?? null}
+                initialMethod={initialMethod}
               />
             )}
           </div>
@@ -353,10 +441,12 @@ export default function CheckoutLayout() {
             <OrderSummary
               items={items}
               subtotal={orderTotals?.subtotal ?? subtotal}
+              handlingAmount={orderTotals?.handlingAmount ?? summary?.handling_fee ?? 0}
+              handlingLabel={summary?.handling_fee_label}
               taxAmount={orderTotals?.taxAmount ?? null}
               taxRate={orderTotals?.taxRate}
               shippingAmount={shippingAmount}
-              total={orderTotals?.totalAmount ?? subtotal + shippingAmount}
+              total={orderTotals?.totalAmount ?? cartTotal + shippingAmount}
               selectedRate={selectedRate}
             />
           </div>

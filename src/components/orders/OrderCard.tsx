@@ -4,11 +4,6 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
-  Clock,
-  Truck,
-  CheckCircle2,
-  XCircle,
-  RotateCcw,
   ShoppingBag,
   CreditCard,
   Loader2,
@@ -16,11 +11,19 @@ import {
   Sparkles,
 } from "lucide-react";
 import OrderPriceSummary from "./OrderPriceSummary";
-import ShipmentTracking from "./ShipmentTracking";
+import ShipmentTracking, { orderStatus, paymentStatus, type StatusText } from "./ShipmentTracking";
 import ProxyImage from "../ProxyImage";
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
+/** The order's money as the API worked it out: subtotal + handling + tax + shipping = total. */
+export interface OrderPricingBreakdown {
+  subtotal?: number;
+  handling?: number;
+  tax?: number;
+  shipping?: number;
+  total?: number;
+}
 export interface OrderData {
   id: string | number;
   orderId?: string;
@@ -30,7 +33,10 @@ export interface OrderData {
   status?: string;
   total_amount?: number | string;
   subtotal_amount?: number | string;
+  handling_amount?: number | string;
+  tax_amount?: number | string;
   shipping_amount?: number | string;
+  pricing_breakdown?: OrderPricingBreakdown | null;
   payment_status?: string;
   shipment_status?: string;
   tracking_number?: string;
@@ -54,6 +60,9 @@ export interface OrderData {
 }
 export interface OrderDetail {
   tax_amount: number;
+  tax_rate?: number;
+  handling_amount?: number;
+  pricing_breakdown?: OrderPricingBreakdown | null;
   id: number;
   order_number: string;
   subtotal_amount: number;
@@ -113,63 +122,28 @@ interface OrderCardProps {
   loadingDetail?: boolean;
 }
 // ─────────────────────────────────────────────
-// Status Config
+// Status Colours (the wording is in ShipmentTracking)
 // ─────────────────────────────────────────────
-const statusConfig: Record<
-  string,
-  {
-    pill: string;
-    dot: string;
-    icon: React.ReactNode;
-  }
-> = {
-  PENDING_PAYMENT: {
+const toneStyles: Record<StatusText["tone"], { pill: string; dot: string }> = {
+  waiting: {
     pill:
       "bg-primary-soft text-primary-ink border-primary",
     dot: "bg-primary",
-    icon: <Clock className="h-3 w-3" />,
   },
-  PENDING: {
-    pill:
-      "bg-primary-soft text-primary-ink border-primary",
-    dot: "bg-primary",
-    icon: <RotateCcw className="h-3 w-3" />,
-  },
-  PROCESSING: {
+  progress: {
     pill:
       "bg-muted text-foreground border-input",
     dot: "bg-secondary-ink",
-    icon: <RotateCcw className="h-3 w-3 animate-spin" />,
   },
-  SHIPPED: {
-    pill:
-      "bg-muted text-foreground border-input",
-    dot: "bg-secondary-ink",
-    icon: <Truck className="h-3 w-3" />,
-  },
-  OUT_FOR_DELIVERY: {
-    pill:
-      "bg-muted text-foreground border-input",
-    dot: "bg-secondary-ink",
-    icon: <Truck className="h-3 w-3" />,
-  },
-  DELIVERED: {
+  success: {
     pill:
       "bg-success-soft text-success border-success/30",
     dot: "bg-success",
-    icon: <CheckCircle2 className="h-3 w-3" />,
   },
-  SUCCESS: {
-    pill:
-      "bg-success-soft text-success border-success/30",
-    dot: "bg-success",
-    icon: <CheckCircle2 className="h-3 w-3" />,
-  },
-  CANCELLED: {
+  danger: {
     pill:
       "bg-destructive-soft text-destructive border-destructive/30",
     dot: "bg-destructive",
-    icon: <XCircle className="h-3 w-3" />,
   },
 };
 // ─────────────────────────────────────────────
@@ -210,16 +184,8 @@ export default function OrderCard({
       year: "numeric",
     })
     : "N/A";
-  const orderStatus = (
-    order?.payment_status ||
-    order?.status ||
-    "PENDING"
-  ).toUpperCase();
-  const config = statusConfig[orderStatus] || {
-    pill: "bg-muted text-foreground border-border",
-    dot: "bg-muted-foreground",
-    icon: <Clock className="h-3 w-3" />,
-  };
+  const status = orderStatus(order);
+  const config = toneStyles[status.tone];
   const productName = order?.preview?.product_name
     ? decodeHtml(order.preview.product_name)
     : null;
@@ -317,7 +283,7 @@ export default function OrderCard({
               <span
                 className={`w-1.5 h-1.5 rounded-full ${config.dot}`}
               />
-              {orderStatus.replace(/_/g, " ")}
+              {status.label}
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -493,12 +459,9 @@ export default function OrderCard({
                     Payment
                   </span>
                   <span
-                    className={`ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full border ${detail.payment_status === "SUCCESS"
-                      ? "bg-success-soft text-success border-success/30"
-                      : "bg-primary-soft text-primary-ink border-primary"
-                      }`}
+                    className={`ml-auto text-[10px] font-semibold px-2.5 py-1 rounded-full border ${toneStyles[paymentStatus(detail.payment_status).tone].pill}`}
                   >
-                    {detail.payment_status}
+                    {paymentStatus(detail.payment_status).label}
                   </span>
                 </div>
               </section>
@@ -509,6 +472,7 @@ export default function OrderCard({
                     subtotal: Number(
                       order.subtotal_amount || 0
                     ),
+                    handling: Number(order.handling_amount || 0),
                     customizationTotal,
                     shippingCost: Number(
                       order.shipping_amount || 0

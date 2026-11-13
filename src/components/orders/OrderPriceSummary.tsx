@@ -1,7 +1,10 @@
 // components/orders/OrderPriceSummary.tsx
 
+// The API's own figures for one order; the total is never worked out here.
 interface Order {
   subtotal?: number | string;
+  /** The order handling fee; shown only when above 0. */
+  handling?: number | string;
   customizationTotal?: number | string;
   shippingCost?: number | string;
   tax?: number | string;
@@ -14,6 +17,7 @@ interface OrderPriceSummaryProps {
 
 export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
   const subtotal = Number(order?.subtotal || 0);
+  const handling = Number(order?.handling || 0);
   const shippingCost = Number(order?.shippingCost || 0);
   const tax = Number(order?.tax || 0);
   const total = Number(order?.total || 0);
@@ -32,6 +36,13 @@ export default function OrderPriceSummary({ order }: OrderPriceSummaryProps) {
           <span className="text-xs text-muted-foreground">Subtotal</span>
           <span className="text-xs font-medium tabular-nums">${subtotal.toFixed(2)}</span>
         </div>
+
+        {handling > 0 && (
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Handling fee</span>
+            <span className="text-xs font-medium tabular-nums">${handling.toFixed(2)}</span>
+          </div>
+        )}
 
         {/* {customizationTotal > 0 && (
           <div className="flex justify-between items-center">

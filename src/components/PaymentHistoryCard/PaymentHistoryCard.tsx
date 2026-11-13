@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import { paymentStatus, shipmentStatus, type StatusText } from "@/components/orders/ShipmentTracking";
 import { isSafeHttpUrl } from "@/lib/validation";
 
 // Summary of the order's first item. Kept on the type because the API
@@ -17,8 +18,10 @@ export interface PaymentPreview {
   custom_text: string | null;
 }
 
+// subtotal + handling + tax + shipping = total.
 export interface PaymentPricingBreakdown {
   subtotal: number;
+  handling?: number;
   tax: number;
   shipping: number;
   total: number;
@@ -68,13 +71,25 @@ export interface PaymentOrder {
   order_id: number;
   order_number: string;
   subtotal_amount: number;
+  /** The order handling fee; usually 0. */
+  handling_amount?: number;
   tax_amount: number;
   tax_rate: number;
   shipping_amount: number;
   total_amount: number;
   pricing_breakdown?: PaymentPricingBreakdown | null;
-  payment_status: "SUCCESS" | "FAILED" | "PENDING" | "REFUNDED";
-  shipment_status: "SUCCESS" | "FAILED" | "PENDING" | "IN_TRANSIT" | "LABEL_CREATED" | "DELIVERED";
+  payment_status: "SUCCESS" | "PENDING" | "REJECTED";
+  shipment_status:
+    | "PENDING"
+    | "LABEL_CREATED"
+    | "SUCCESS"
+    | "FAILED"
+    | "IN_TRANSIT"
+    | "OUT_FOR_DELIVERY"
+    | "DELIVERED"
+    | "EXCEPTION"
+    | "RETURNED"
+    | "CANCELLED";
   tracking_number: string | null;
   tracking_url: string | null;
   preview?: PaymentPreview | null;
@@ -94,31 +109,21 @@ interface PaymentHistoryCardProps {
   payment: Payment;
 }
 
-// Status dot colors stay semantic (green/red/amber/blue) for at-a-glance
-// scanning, while the badge chrome itself follows the neutral theme.
-const statusConfig: Record<string, { label: string; dot: string }> = {
-  SUCCESS: { label: "Success", dot: "bg-success" },
-  FAILED: { label: "Failed", dot: "bg-destructive" },
-  PENDING: { label: "Pending", dot: "bg-primary" },
-  REFUNDED: { label: "Refunded", dot: "bg-muted-foreground" },
-  IN_TRANSIT: { label: "In Transit", dot: "bg-foreground" },
-  DELIVERED: { label: "Delivered", dot: "bg-success" },
+// Status dot colors stay semantic (green/red/amber/neutral) for at-a-glance
+// scanning, while the badge chrome itself follows the neutral theme. The
+// wording comes from ShipmentTracking, shared with My Orders.
+const toneDots: Record<StatusText["tone"], string> = {
+  success: "bg-success",
+  danger: "bg-destructive",
+  waiting: "bg-primary",
+  progress: "bg-foreground",
 };
 
-// A label that failed needs the team's attention, not the customer's: the
-// order is paid and stands.
-const shipmentBadges: Record<string, { label: string; dot: string }> = {
-  SUCCESS: { label: "Preparing your shipment", dot: "bg-primary" },
-  FAILED: { label: "Preparing your shipment", dot: "bg-primary" },
-  LABEL_CREATED: { label: "Preparing your shipment", dot: "bg-primary" },
-};
-
-function StatusBadge({ status, overrides }: { status: string; overrides?: typeof statusConfig }) {
-  const cfg = overrides?.[status] ?? statusConfig[status] ?? { label: status, dot: "bg-muted-foreground" };
+function StatusBadge({ status }: { status: StatusText }) {
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide bg-muted text-foreground border border-border">
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-      {cfg.label}
+      <span className={`w-1.5 h-1.5 rounded-full ${toneDots[status.tone]}`} />
+      {status.label}
     </span>
   );
 }
@@ -274,6 +279,7 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
   // pricing_breakdown mirrors the flat *_amount fields; prefer it when sent.
   const breakdown = order.pricing_breakdown;
   const subtotal = breakdown?.subtotal ?? order.subtotal_amount;
+  const handling = breakdown?.handling ?? order.handling_amount ?? 0;
   const tax = breakdown?.tax ?? order.tax_amount;
   const shipping = breakdown?.shipping ?? order.shipping_amount;
   const total = breakdown?.total ?? order.total_amount;
@@ -359,12 +365,12 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
         <div className="flex flex-wrap items-center gap-2 mb-5">
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground font-medium">Payment:</span>
-            <StatusBadge status={order.payment_status} />
+            <StatusBadge status={paymentStatus(order.payment_status)} />
           </div>
           <span className="text-border text-xs">|</span>
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-muted-foreground font-medium">Shipment:</span>
-            <StatusBadge status={order.shipment_status} overrides={shipmentBadges} />
+            <StatusBadge status={shipmentStatus(order.shipment_status)} />
           </div>
         </div>
 
@@ -376,6 +382,12 @@ export default function PaymentHistoryCard({ payment }: PaymentHistoryCardProps)
             <span>Subtotal</span>
             <span className="font-medium text-foreground">{formatMoney(subtotal)}</span>
           </div>
+          {handling > 0 && (
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Handling fee</span>
+              <span className="font-medium text-foreground">{formatMoney(handling)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Tax{order.tax_rate ? ` (${order.tax_rate}%)` : ""}</span>
             <span className="font-medium text-foreground">{formatMoney(tax)}</span>

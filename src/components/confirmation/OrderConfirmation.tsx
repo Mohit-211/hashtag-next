@@ -35,16 +35,19 @@ const toNumber = (value: unknown) => {
 
 function confirmationState(detail: OrderDetail): ConfirmationState {
   const payment = (detail.payment_status ?? "").toUpperCase();
-  if ((detail.status ?? "").toUpperCase() === "CANCELLED" || payment === "REFUNDED") return "cancelled";
-  if (payment === "SUCCESS" || payment === "PAID") return "paid";
-  if (payment === "FAILED") return "failed";
+  const status = (detail.status ?? "").toUpperCase();
+  if (status === "CANCELLED") return "cancelled";
+  if (payment === "SUCCESS") return "paid";
+  // REJECTED: the last attempt failed (the order is FAILED).
+  if (payment === "REJECTED" || status === "FAILED") return "failed";
+  // PENDING / PENDING_PAYMENT: not paid yet, or the payment is still processing.
   return "pending";
 }
 
 const PAYMENT_LABELS: Record<ConfirmationState, string> = {
   paid: "Paid",
   pending: "Awaiting confirmation",
-  failed: "Not completed",
+  failed: "Payment failed",
   cancelled: "Cancelled",
 };
 
@@ -138,7 +141,7 @@ export default function OrderConfirmation() {
     let cancelled = false;
     Promise.allSettled([
       GetOrderDetailApi(orderId, { skipErrorToast: true }),
-      // The order date and tax only come with the order list.
+      // The order date only comes with the order list (newest first).
       GetAllOrderApi({ skipErrorToast: true }),
     ]).then(([detailRes, listRes]) => {
       if (cancelled) return;
@@ -238,11 +241,12 @@ export default function OrderConfirmation() {
 
   const { detail, summary } = load;
   const state = confirmationState(detail);
+  // The API's own figures (subtotal + handling + tax + shipping = total); nothing is added up here.
   const subtotal = toNumber(detail.subtotal_amount);
+  const handling = toNumber(detail.handling_amount);
   const shipping = toNumber(detail.shipping_amount);
+  const tax = toNumber(detail.tax_amount ?? summary?.tax_amount);
   const total = toNumber(detail.total_amount);
-  // The API builds the total as subtotal + tax + shipping; the list carries the tax itself.
-  const tax = summary ? toNumber(summary.tax_amount) : Math.max(0, +(total - subtotal - shipping).toFixed(2));
   const items = detail.items ?? [];
 
   return (
@@ -261,7 +265,7 @@ export default function OrderConfirmation() {
 
         <div className="grid gap-4 sm:grid-cols-2 items-start mb-8">
           {detail.address && <ShippingAddress address={detail.address} />}
-          <OrderPriceSummary order={{ subtotal, shippingCost: shipping, tax, total }} />
+          <OrderPriceSummary order={{ subtotal, handling, shippingCost: shipping, tax, total }} />
         </div>
 
         <NextSteps state={state} />

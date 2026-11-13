@@ -16,9 +16,18 @@ export interface TrackableOrder {
 }
 
 const STAGES = ["Order placed", "Payment confirmed", "Shipped", "Delivered"] as const;
-const PREPARING = "Preparing your shipment";
+const PREPARING = "Preparing to ship";
 
 const upper = (v?: string) => (v ?? "").toUpperCase();
+
+/** A status in the shopper's words; `tone` picks its colour. */
+export interface StatusText {
+  label: string;
+  tone: "waiting" | "progress" | "success" | "danger";
+}
+
+/** "SOME_VALUE" → "Some value", for a status this file doesn't know. */
+const humanize = (v: string) => v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, " ");
 
 /**
  * Paid, with no carrier scan yet: the label exists (SUCCESS on orders from before
@@ -28,31 +37,73 @@ const upper = (v?: string) => (v ?? "").toUpperCase();
 export const isPreparingShipment = (o: TrackableOrder) =>
   ["SUCCESS", "LABEL_CREATED", "FAILED"].includes(upper(o.shipment_status));
 
-/** Index into STAGES, or -1 when the order was cancelled / payment failed. */
+const isCancelled = (o: TrackableOrder) =>
+  upper(o.status) === "CANCELLED" || upper(o.shipment_status) === "CANCELLED";
+
+/** Index into STAGES, or -1 when the order was cancelled or its last payment failed. */
 export function orderStage(o: TrackableOrder): number {
   const status = upper(o.status);
   const payment = upper(o.payment_status);
   const shipment = upper(o.shipment_status);
-  if (status === "CANCELLED" || payment === "FAILED") return -1;
-  if (shipment === "DELIVERED" || status === "DELIVERED") return 3;
+  if (isCancelled(o)) return -1;
+  if (status === "DELIVERED" || shipment === "DELIVERED") return 3;
   // A tracking number proves nothing: every paid order gets one before it
-  // leaves. GET order has no `status`, so a carrier scan counts too.
-  if (
-    !isPreparingShipment(o) &&
-    (["SHIPPED", "IN_TRANSIT", "OUT_FOR_DELIVERY"].includes(shipment) ||
-      ["SHIPPED", "OUT_FOR_DELIVERY"].includes(status))
-  ) {
+  // leaves. The carrier having the package does.
+  if (status === "SHIPPED" || ["IN_TRANSIT", "OUT_FOR_DELIVERY", "EXCEPTION", "RETURNED"].includes(shipment)) {
     return 2;
   }
-  if (payment === "SUCCESS" || payment === "PAID") return 1;
+  if (status === "CONFIRMED" || payment === "SUCCESS") return 1;
+  if (status === "FAILED" || payment === "REJECTED") return -1;
   return 0;
 }
 
-export const orderStageLabel = (o: TrackableOrder) => {
-  const stage = orderStage(o);
-  if (stage === 1 && isPreparingShipment(o)) return PREPARING;
-  return stage < 0 ? "Cancelled" : STAGES[stage];
+const AFTER_SHIPPING: Record<string, StatusText> = {
+  OUT_FOR_DELIVERY: { label: "Out for delivery", tone: "progress" },
+  EXCEPTION: { label: "Delivery problem", tone: "danger" },
+  RETURNED: { label: "Returned", tone: "danger" },
 };
+
+/** The order's status in one phrase, for order cards and the tracking list. */
+export function orderStatus(o: TrackableOrder): StatusText {
+  const stage = orderStage(o);
+  if (stage < 0) return { label: isCancelled(o) ? "Cancelled" : "Payment failed", tone: "danger" };
+  if (stage === 3) return { label: "Delivered", tone: "success" };
+  if (stage === 2) return AFTER_SHIPPING[upper(o.shipment_status)] ?? { label: "Shipped", tone: "progress" };
+  if (stage === 1) {
+    return isPreparingShipment(o) ? { label: PREPARING, tone: "progress" } : { label: "Confirmed", tone: "success" };
+  }
+  return { label: "Awaiting payment", tone: "waiting" };
+}
+
+export const orderStageLabel = (o: TrackableOrder) => orderStatus(o).label;
+
+const PAYMENT_STATUSES: Record<string, StatusText> = {
+  SUCCESS: { label: "Paid", tone: "success" },
+  PENDING: { label: "Awaiting payment", tone: "waiting" },
+  REJECTED: { label: "Payment failed", tone: "danger" },
+};
+
+/** An order's payment_status in the shopper's words. */
+export const paymentStatus = (status?: string): StatusText =>
+  PAYMENT_STATUSES[upper(status) || "PENDING"] ?? { label: humanize(upper(status)), tone: "waiting" };
+
+const SHIPMENT_STATUSES: Record<string, StatusText> = {
+  PENDING: { label: "Not shipped yet", tone: "waiting" },
+  LABEL_CREATED: { label: PREPARING, tone: "progress" },
+  SUCCESS: { label: PREPARING, tone: "progress" },
+  // The label couldn't be bought: the team's problem, not the shopper's.
+  FAILED: { label: PREPARING, tone: "progress" },
+  IN_TRANSIT: { label: "In transit", tone: "progress" },
+  OUT_FOR_DELIVERY: { label: "Out for delivery", tone: "progress" },
+  DELIVERED: { label: "Delivered", tone: "success" },
+  EXCEPTION: { label: "Delivery problem", tone: "danger" },
+  RETURNED: { label: "Returned", tone: "danger" },
+  CANCELLED: { label: "Cancelled", tone: "danger" },
+};
+
+/** An order's shipment_status in the shopper's words. */
+export const shipmentStatus = (status?: string): StatusText =>
+  SHIPMENT_STATUSES[upper(status) || "PENDING"] ?? { label: humanize(upper(status)), tone: "progress" };
 
 export const formatOrderDate = (raw?: string) =>
   raw
@@ -68,7 +119,7 @@ export default function ShipmentTracking({ order }: { order: TrackableOrder }) {
     return (
       <div className="flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive-soft px-4 py-3 text-sm text-destructive">
         <XCircle className="h-4 w-4 shrink-0" />
-        This order was cancelled or its payment didn&apos;t go through.
+        {isCancelled(order) ? "This order was cancelled." : "The payment for this order didn't go through."}
       </div>
     );
   }

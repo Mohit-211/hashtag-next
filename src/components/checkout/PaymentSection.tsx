@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   CreditCard as CardIcon,
-  Landmark,
   Loader2,
   ShieldCheck,
   Lock,
@@ -17,6 +16,7 @@ import {
 import { useCart } from "@/contexts/CartContext";
 
 import { errorMessage } from "@/lib/errors";
+import { forgetCashAppOrder, rememberCashAppOrder } from "./cashAppPending";
 import type { SquareCashAppPay, SquarePaymentMethod, SquarePayments } from "./square.types";
 
 const SQUARE_SDK_SANDBOX = "https://sandbox.web.squarecdn.com/v1/square.js";
@@ -43,8 +43,7 @@ export type SquareMethod =
   | "CARD"
   | "GOOGLE_PAY"
   | "PAYPAL"
-  | "CASH_APP"
-  | "BANK_ACCOUNT";
+  | "CASH_APP";
 
 interface Props {
   onPlaceOrder: (sourceId?: string, method?: SquareMethod) => Promise<void>;
@@ -52,6 +51,13 @@ interface Props {
   onBack: () => void;
   processing: boolean;
   orderError?: string | null;
+  /** The order being paid. Cash App uses its number as the payment's reference. */
+  orderId: number | null;
+  orderNumber: string | null;
+  /** The order's total_amount: what Square charges, and what Google Pay and Cash App show. */
+  orderTotal: number | null;
+  /** The method to open on, e.g. Cash App when the shopper comes back from the Cash App app. */
+  initialMethod?: SquareMethod;
 }
 
 const GoogleLogo = ({ size = 16 }: { size?: number }) => (
@@ -121,13 +127,20 @@ export default function PaymentSection({
   onBack,
   processing,
   orderError,
+  orderId,
+  orderNumber,
+  orderTotal,
+  initialMethod,
 }: Props) {
   const [squareConfig, setSquareConfig] = useState<SquareConfig | null>(null);
   const [squareLoading, setSquareLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState<SquareMethod>("CARD");
+  const [selectedMethod, setSelectedMethod] = useState<SquareMethod>(initialMethod ?? "CARD");
+  // Square wants the amount as text with 2 decimals.
+  const walletAmount =
+    orderTotal != null && Number.isFinite(orderTotal) && orderTotal > 0 ? orderTotal.toFixed(2) : null;
 
   const paymentsRef  = useRef<SquarePayments | null>(null);
   const cardRef      = useRef<SquarePaymentMethod | null>(null);
@@ -178,61 +191,91 @@ export default function PaymentSection({
     };
   }, [squareConfig]);
 
+  // Google Pay and Cash App show the order's total, and Square can't change a
+  // Cash App payment request once it's built, so the widgets are made again
+  // whenever the order or its total changes.
   useEffect(() => {
     const payments = paymentsRef.current;
     if (!payments) return;
+    // Set when this run is replaced: a widget that finishes loading after that is thrown away.
+    let stale = false;
     const cleanup = async () => {
       for (const ref of [cardRef, googlePayRef, cashAppRef]) {
         if (ref.current) { try { await ref.current.destroy(); } catch {} ref.current = null; }
       }
     };
+    const attach = async <W extends { attach(selector: string): Promise<void>; destroy(): Promise<void> }>(
+      widget: W,
+      selector: string,
+      ref: React.RefObject<W | null>
+    ) => {
+      if (!stale) await widget.attach(selector);
+      if (stale) { try { await widget.destroy(); } catch {} return false; }
+      ref.current = widget;
+      return true;
+    };
+    const showSetupError = (err: unknown, fallback: string) => {
+      console.error(err);
+      if (!stale) setPaymentError(errorMessage(err, fallback));
+    };
+    const walletRequest = () => {
+      if (!walletAmount) throw new Error("We couldn't load your order total. Please go back to shipping and try again.");
+      return payments.paymentRequest({ countryCode: "US", currencyCode: "USD", total: { amount: walletAmount, label: "Total" } });
+    };
     const mount = async () => {
-      await cleanup(); setPaymentError(null);
-      try {
-        if (selectedMethod === "CARD") {
-          const card = await payments.card();
-          await card.attach("#sq-card-container");
-          cardRef.current = card;
-        } else if (selectedMethod === "GOOGLE_PAY") {
-          const req = payments.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
-          try { const gp = await payments.googlePay(req); await gp.attach("#sq-google-pay-button"); googlePayRef.current = gp; }
-          catch { setPaymentError("Google Pay is not available on this device / browser."); }
-        } else if (selectedMethod === "CASH_APP") {
-          const req = payments.paymentRequest({ countryCode:"US", currencyCode:"USD", total:{ amount:"1.00", label:"Total" } });
-          try {
-            const cashApp = await payments.cashAppPay(req, {
-              redirectURL: window.location.href,
-              referenceId: `order-${Date.now()}`,
-            });
-            cashApp.addEventListener("ontokenization", async (event) => {
-              const { tokenResult } = event?.detail || {};
-              if (tokenResult?.status === "OK" && tokenResult?.token) {
-                // Destroy the widget (it manages its own overlay/modal DOM)
-                // while the container is still mounted, before onPlaceOrder
-                // advances the checkout step and React unmounts this
-                // component out from under it — otherwise Square's own
-                // async cleanup can try to remove a node React already
-                // tore down.
-                try { await cashApp.destroy(); } catch {}
-                cashAppRef.current = null;
-                onPlaceOrder(tokenResult.token, "CASH_APP");
-              } else {
-                setPaymentError(
-                  tokenResult?.errors?.map((e) => e.message).join(", ") ||
-                    "Cash App payment failed."
-                );
-              }
-            });
-            await cashApp.attach("#sq-cash-app-button");
-            cashAppRef.current = cashApp;
-          } catch { setPaymentError("Cash App Pay is not available on this device / browser."); }
-        }
-      } catch (err) { setPaymentError(errorMessage(err, "Failed to initialise payment form.")); }
+      await cleanup();
+      if (stale) return;
+      setPaymentError(null);
+      if (selectedMethod === "CARD") {
+        try { await attach(await payments.card(), "#sq-card-container", cardRef); }
+        catch (err) { showSetupError(err, "Failed to initialise payment form."); }
+      } else if (selectedMethod === "GOOGLE_PAY") {
+        try { await attach(await payments.googlePay(walletRequest()), "#sq-google-pay-button", googlePayRef); }
+        catch (err) { showSetupError(err, "Google Pay couldn't load. Please choose another payment method."); }
+      } else if (selectedMethod === "CASH_APP") {
+        try {
+          if (!orderId || !orderNumber) throw new Error("We couldn't find your order. Please go back to shipping and try again.");
+          const cashApp = await payments.cashAppPay(walletRequest(), {
+            redirectURL: window.location.href,
+            // The same on the way back from the Cash App app.
+            referenceId: orderNumber,
+          });
+          cashApp.addEventListener("ontokenization", async (event) => {
+            const { tokenResult } = event?.detail || {};
+            if (tokenResult?.status === "OK" && tokenResult?.token) {
+              // Destroy the widget (it manages its own overlay/modal DOM)
+              // while the container is still mounted, before onPlaceOrder
+              // advances the checkout step and React unmounts this
+              // component out from under it — otherwise Square's own
+              // async cleanup can try to remove a node React already
+              // tore down.
+              try { await cashApp.destroy(); } catch {}
+              cashAppRef.current = null;
+              onPlaceOrder(tokenResult.token, "CASH_APP");
+            } else {
+              setPaymentError(
+                tokenResult?.errors?.map((e) => e.message).join(", ") ||
+                  "Cash App payment failed."
+              );
+            }
+          });
+          // On a phone the shopper leaves for the Cash App app and comes back
+          // to this page: note the order so checkout reopens it.
+          if (await attach(cashApp, "#sq-cash-app-button", cashAppRef)) rememberCashAppOrder(orderId, orderNumber);
+        } catch (err) { showSetupError(err, "Cash App Pay couldn't load. Please choose another payment method."); }
+      }
     };
     mount();
-    return () => { cleanup(); };
+    return () => {
+      stale = true;
+      // The Cash App button went away inside the page (another method, another
+      // step), so no approval is coming back. The trip to the Cash App app
+      // unloads the page instead, which doesn't run this.
+      forgetCashAppOrder();
+      cleanup();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMethod, sdkReady]);
+  }, [selectedMethod, sdkReady, walletAmount, orderId, orderNumber]);
 
   const tokenizeAndPay = async (widgetRef: React.RefObject<SquarePaymentMethod | null>, method: SquareMethod) => {
     if (!widgetRef.current) { setPaymentError("Payment form is not ready. Please wait a moment."); return; }
@@ -528,18 +571,7 @@ export default function PaymentSection({
         .ps-error-icon { color: var(--color-destructive); flex-shrink: 0; margin-top: 1px; }
         .ps-error-text { font-size: 12.5px; color: var(--color-destructive); line-height: 1.5; }
 
-        /* ── BANK INFO ── */
-        .ps-bank-info { padding: 20px; text-align: center; }
-        .ps-bank-icon-wrap {
-          width: 52px; height: 52px;
-          border-radius: 16px;
-          background: var(--color-primary-soft);
-          border: 1.5px solid var(--color-primary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 14px;
-        }
+        /* ── PAYPAL TEXT ── */
         .ps-bank-title { font-size: 14px; font-weight: 800; color: var(--color-foreground); margin: 0 0 6px; }
         .ps-bank-desc  { font-size: 12px; color: var(--color-muted-foreground); line-height: 1.6; margin: 0; }
 
@@ -688,32 +720,11 @@ export default function PaymentSection({
                 <div id="sq-google-pay-button"   style={{ display: selectedMethod === "GOOGLE_PAY" ? "block" : "none" }} onClick={selectedMethod === "GOOGLE_PAY" ? handleGooglePay : undefined} />
                 <div id="sq-cash-app-button"     style={{ display: selectedMethod === "CASH_APP"   ? "block" : "none" }} />
 
-                {selectedMethod === "BANK_ACCOUNT" && (
-                  <div className="ps-bank-info">
-                    <div className="ps-bank-icon-wrap">
-                      <Landmark size={22} className="text-foreground" />
-                    </div>
-                    <p className="ps-bank-title">ACH Bank Transfer</p>
-                    <p className="ps-bank-desc">
-                      You&apos;ll be prompted to securely link your bank account.<br />
-                      Funds typically arrive in 1–3 business days.
-                    </p>
-                  </div>
-                )}
-
                 {selectedMethod === "CARD" && (
                   <button className="ps-pay-btn" onClick={handleCardPay} disabled={isLoading} type="button">
                     {isLoading
                       ? <><Loader2 size={16} style={{ animation:"spin 1s linear infinite" }} /> Processing…</>
                       : "Pay Now"}
-                  </button>
-                )}
-
-                {selectedMethod === "BANK_ACCOUNT" && (
-                  <button className="ps-pay-btn" onClick={() => onPlaceOrder(undefined, "BANK_ACCOUNT")} disabled={isLoading} type="button">
-                    {isLoading
-                      ? <><Loader2 size={16} style={{ animation:"spin 1s linear infinite" }} /> Processing…</>
-                      : "Continue to Bank Transfer"}
                   </button>
                 )}
               </div>

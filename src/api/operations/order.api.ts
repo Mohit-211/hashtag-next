@@ -12,11 +12,12 @@ export const CreateOrderApi = (payload: {
 // Pass { skipErrorToast: true } when the screen shows the error itself.
 type RequestOptions = { skipErrorToast?: boolean };
 
+/** One page of the customer's orders, newest first: { data, pagination: { total, page, limit, totalPages } }. */
 export const GetAllOrderApi =
-  (options?: RequestOptions) => {
+  ({ page, limit, ...options }: RequestOptions & { page?: number; limit?: number } = {}) => {
     return client.get(
       ORDER.GET_ALL,
-      options
+      { ...options, params: { page, limit } }
     );
   };
 

@@ -41,8 +41,14 @@ export interface CartItem {
 }
 
 export interface CartSummary {
+  /** The cart lines; they never include the handling fee. */
   items_total: number;
+  /** Charged once per order when a product in the cart triggers it; 0 otherwise. */
+  handling_fee: number;
+  handling_fee_label: string;
+  /** Always 0: shipping (and tax) are worked out at checkout. */
   shipping_cost: number;
+  /** items_total + handling_fee. */
   grand_total: number;
 }
 

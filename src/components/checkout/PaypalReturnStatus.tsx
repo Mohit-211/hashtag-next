@@ -87,7 +87,8 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
         pollInFlightRef.current = true;
 
         try {
-          const res = await GetOrderDetailApi(id);
+          // Failed checks are retried below, so no toast for each one.
+          const res = await GetOrderDetailApi(id, { skipErrorToast: true });
           const detail = res?.data?.data ?? res?.data ?? null;
           const status = detail?.payment_status;
 
@@ -97,7 +98,7 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
             finishSuccess(id);
             return;
           }
-          if (status === "FAILED" || status === "REFUNDED") {
+          if (status === "REJECTED") {
             finishFailed(
               landedFrom === "cancel"
                 ? "Your PayPal payment was cancelled. No charge was made."
@@ -171,19 +172,14 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
           order_id: parsedOrderId,
           paypal_order_id: paypalToken,
         });
-        const status = response?.data?.data?.status;
-        if (status === "COMPLETED") {
+        // SUCCESS: the order is paid. PENDING: PayPal is still processing, so
+        // wait for the order to say paid. A failed capture is an error (catch).
+        if (response?.data?.data?.payment_status === "SUCCESS") {
           finishSuccess(parsedOrderId);
-        } else if (status === "PENDING") {
+        } else {
           toast("Your PayPal payment is still processing.");
           pollAttemptsRef.current = 0;
           pollOrderStatus(parsedOrderId);
-        } else {
-          finishFailed(
-            landedFrom === "cancel"
-              ? "Your PayPal payment was cancelled. No charge was made."
-              : "PayPal payment failed. Please try again."
-          );
         }
       } catch (err) {
         finishFailed(

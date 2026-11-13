@@ -92,6 +92,8 @@ export default function Cart() {
         {/* 💰 Summary */}
         <CartSummary
           itemsTotal={summary?.items_total ?? 0}
+          handlingFee={summary?.handling_fee ?? 0}
+          handlingFeeLabel={summary?.handling_fee_label}
           shippingCost={summary?.shipping_cost ?? 0}
           grandTotal={summary?.grand_total ?? 0}
           hasUnavailableItems={items.some((item) => item.is_purchasable === false)}

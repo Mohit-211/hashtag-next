@@ -5,13 +5,24 @@ import Link from "next/link";
 import { loginUrl } from "@/lib/authRedirect";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
-import { ShoppingBag, ArrowRight, Package } from "lucide-react";
+import { ShoppingBag, ArrowRight, Package, Loader2 } from "lucide-react";
 
 import OrdersEmpty from "@/components/orders/OrdersEmpty";
 import OrdersList from "@/components/orders/OrdersList";
 import { GetAllOrderApi } from "@/api/operations/order.api";
 import { OrderData } from "@/components/orders/OrderCard";
 import { Button } from "@/components/ui/button";
+import { errorMessage } from "@/lib/errors";
+
+/** GET order's `pagination`. */
+interface OrdersPagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+const PAGE_SIZE = 10;
 
 // ─────────────────────────────────────────────
 // Skeleton loader for order cards
@@ -38,13 +49,19 @@ export default function Orders() {
   const isLoggedIn = useIsLoggedIn();
   // null until the first response arrives.
   const [orders, setOrders] = useState<OrderData[] | null>(null);
+  // The last page loaded; "Load more" asks for the next one.
+  const [pagination, setPagination] = useState<OrdersPagination | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
     let cancelled = false;
-    GetAllOrderApi()
+    GetAllOrderApi({ page: 1, limit: PAGE_SIZE })
       .then((response) => {
-        if (!cancelled) setOrders(response?.data?.data?.data || []);
+        if (cancelled) return;
+        setOrders(response?.data?.data?.data || []);
+        setPagination(response?.data?.data?.pagination ?? null);
       })
       .catch((error) => {
         console.error("Failed to fetch orders:", error);
@@ -54,6 +71,33 @@ export default function Orders() {
       cancelled = true;
     };
   }, [isLoggedIn]);
+
+  const hasMore = !!pagination && pagination.page < pagination.totalPages;
+
+  const loadMore = async () => {
+    if (!pagination || loadingMore) return;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const response = await GetAllOrderApi({
+        page: pagination.page + 1,
+        limit: PAGE_SIZE,
+        skipErrorToast: true,
+      });
+      const next: OrderData[] = response?.data?.data?.data || [];
+      // A new order since the last page shifts the pages by one: skip repeats.
+      setOrders((prev) => {
+        const shown = new Set((prev ?? []).map((o) => String(o.id)));
+        return [...(prev ?? []), ...next.filter((o) => !shown.has(String(o.id)))];
+      });
+      setPagination(response?.data?.data?.pagination ?? null);
+    } catch (error) {
+      console.error("Failed to fetch more orders:", error);
+      setLoadMoreError(errorMessage(error, "We couldn't load more orders. Please try again."));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // The login state is only known in the browser — show the skeleton until then
   // rather than flashing "sign in" at a logged-in shopper.
@@ -112,6 +156,7 @@ export default function Orders() {
   }
 
   // ── Orders list ──
+  const totalOrders = pagination?.total ?? orders.length;
   return (
     <section className="py-8 lg:py-16">
       <div className="container max-w-3xl">
@@ -120,7 +165,7 @@ export default function Orders() {
           <div>
             <h1 className="text-3xl font-heading font-bold tracking-tight">Your Orders</h1>
             <p className="text-muted-foreground mt-1.5 text-sm">
-              {orders.length} order{orders.length !== 1 ? "s" : ""} — review purchases and track deliveries.
+              {totalOrders} order{totalOrders !== 1 ? "s" : ""} — review purchases and track deliveries.
             </p>
           </div>
           {/* Subtle icon accent */}
@@ -130,6 +175,24 @@ export default function Orders() {
         </div>
 
         <OrdersList orders={orders} />
+
+        {hasMore && (
+          <div className="mt-6 flex flex-col items-center gap-2">
+            {loadMoreError && (
+              <p className="text-sm text-destructive">{loadMoreError}</p>
+            )}
+            <Button variant="outline" onClick={loadMore} disabled={loadingMore} className="gap-2">
+              {loadingMore ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading…
+                </>
+              ) : (
+                "Load more orders"
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );
