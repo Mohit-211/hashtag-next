@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isGrandCategory } from "@/lib/productFamily";
-import { getGalleryAssets } from "@/lib/images";
+import { getGalleryAssets, resolveImageSrc } from "@/lib/images";
 import { preloadImages } from "@/lib/preloadImages";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 import type { ProductCategoryRef } from "@/data/typesproduct";
@@ -169,7 +169,6 @@ const getVariantOptionValues = (v: Variant): Record<string, string> => {
   return out;
 };
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 /** Logged-in shoppers get their cart/wishlist flags; guests use the public endpoint. */
 const fetchProductData = async (id: string): Promise<Product | null> => {
@@ -328,7 +327,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
       urls.push(
         main?.image ??
           (v.images?.[0]
-            ? v.images[0].file_name?.startsWith("http") ? v.images[0].file_name : `${BASE_URL}${v.images[0].file_uri}`
+            ? resolveImageSrc(v.images[0].file_uri)
             : undefined)
       );
     }
@@ -700,7 +699,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     variantData?.images && variantData.images.length > 0
       ? variantData.images.map((img) => ({
         ...img,
-        url: img.file_name?.startsWith("http") ? img.file_name : `${BASE_URL}${img.file_uri}`,
+        url: resolveImageSrc(img.file_uri),
       }))
       : product?.attachments || [];
   // Gallery images come from the selected variant's own supplier meta (S&S or SanMar),
