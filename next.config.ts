@@ -31,6 +31,8 @@ const nextConfig = {
     return [
       { source: "/send-otp", destination: "/forgot-password", permanent: false },
       { source: "/verify-otp", destination: "/login", permanent: false },
+      // Short link to the Sourcing Request form (used by the Full Front no-price popup).
+      { source: "/contact", destination: "/contact-us", permanent: false },
     ];
   },
 };

@@ -13,7 +13,7 @@ import {
 } from "@/api/operations/cart.api";
 
 import ProxyImage from "../ProxyImage";
-import type { CartItemType } from "./CartItemsList";
+import { parseCustomizationConfig, type CartItemType } from "./CartItemsList";
 
 interface Props {
   item: CartItemType;
@@ -40,8 +40,16 @@ export default function CartItem({ item, onRefresh }: Props) {
   // arrives as its own separate cart item, e.g. cart_id 18 vs 19 — see
   // response shape). The old `.customization?.breakdown` lookup always
   // resolved to undefined, so that section is removed rather than fixed.
-  const locations = item.customization_config?.locations ?? [];
-  const printMethod = item.customization_config?.print_method ?? null;
+  const config = parseCustomizationConfig(item.customization_config);
+  const locations = config?.locations ?? [];
+  const printMethod = config?.print_method ?? null;
+  const pricingRows = item.pricing_snapshot?.pricing_table ?? [];
+  const productUnitPrice = item.pricing_snapshot?.product_price?.final_product_price;
+  const unitPrice = item.pricing_snapshot?.final_price_per_item ?? item.price;
+  const money = (n: unknown) => (Number(n) || 0).toFixed(2);
+  // Rows can arrive without a type or location; never crash the cart on that.
+  const label = (s?: string | null) =>
+    String(s ?? "").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
   const uploadedImage = item.logo_image ?? null;
   const colorCode = item.color_code ?? null;
 
@@ -285,6 +293,33 @@ export default function CartItem({ item, onRefresh }: Props) {
               ))}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Price breakdown: garment + each decoration (type · position) per item */}
+      {(pricingRows.length > 0 || productUnitPrice != null) && (
+        <div className="mt-4 rounded-lg border border-border bg-muted/40 divide-y divide-border/60 text-xs">
+          {productUnitPrice != null && (
+            <div className="flex items-center justify-between px-3 py-2">
+              <span className="text-muted-foreground">Product</span>
+              <span className="font-mono font-semibold tabular-nums">${money(productUnitPrice)}</span>
+            </div>
+          )}
+          {pricingRows.map((row, i) => (
+            <div key={`${row.type}-${row.location}-${i}`} className="flex items-center justify-between gap-3 px-3 py-2">
+              <span className="min-w-0 text-muted-foreground">
+                <span className="font-semibold text-foreground">{label(row.type) || "Decoration"}</span>
+                {row.location && <>{" · "}{label(row.location)}</>}
+              </span>
+              <span className="font-mono font-semibold tabular-nums shrink-0">+${money(row.price_per_item)}</span>
+            </div>
+          ))}
+          {unitPrice != null && (
+            <div className="flex items-center justify-between px-3 py-2 font-semibold">
+              <span>Price per item</span>
+              <span className="font-mono tabular-nums">${money(unitPrice)}</span>
+            </div>
+          )}
         </div>
       )}
 

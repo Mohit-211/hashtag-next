@@ -15,13 +15,45 @@ export type CustomizationBreakdownItem = {
   total_price: number;
 };
 
+/** One decoration charge on a line, e.g. EMBROIDERY at RIGHT_CHEST, $12/item. */
+export type PricingTableRow = {
+  type: string;
+  location: string;
+  quantity: number;
+  price_per_item: number;
+  total: number;
+};
+
 export type PricingSnapshot = {
   customization_price?: {
     total_customization_price: number;
     setup_fee: number;
   };
+  product_price?: { final_product_price: number };
+  final_price_per_item?: number;
+  pricing_table?: PricingTableRow[];
+  inquiry_only?: boolean;
   [key: string]: unknown;
 };
+
+export type CustomizationConfig = {
+  print_method: string | null;
+  locations: CustomizationLocation[];
+};
+
+/** The API sends `customization_config` as a JSON string; older lines may send an object. */
+export function parseCustomizationConfig(
+  raw: CustomizationConfig | string | null | undefined
+): CustomizationConfig | null {
+  if (!raw) return null;
+  if (typeof raw !== "string") return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export type CartItemType = {
   cart_id: number;
@@ -54,10 +86,7 @@ export type CartItemType = {
   // directly). The old parallel `customization: {...}` shape built by
   // page.tsx's mapper is no longer read anywhere, so it's dropped here
   // to stop the type lying about what's actually available.
-  customization_config?: {
-    print_method: string | null;
-    locations: CustomizationLocation[];
-  };
+  customization_config?: CustomizationConfig | string | null;
 
   /** The customer's real files on this line, which production works from. */
   graphics?: { id: number; original_name: string; file_url: string }[];

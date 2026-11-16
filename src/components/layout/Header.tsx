@@ -44,7 +44,7 @@ const navLinks = [
   { label: "Saved", href: "/saved" },
   { label: "Gallery", href: "/gallery" },
   // The full label overflows the desktop bar next to search; it is kept for the mobile menu.
-  { label: "Submit Your Sourcing Request", short: "Sourcing Request", href: "/contact-us" },
+  { label: "I Can't find ", short: "I Cant't find ", href: "/contact-us" },
 ];
 
 export default function Header() {

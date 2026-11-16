@@ -108,7 +108,8 @@ const TierTable = React.memo(function TierTable({
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
       {tiers.map((tier) => {
         const active = activeTier?.min_qty === tier.min_qty;
-        const isBestValue = tier.unit_price === cheapestPrice && tier.max_qty === null;
+        // "BEST" only means something when there are other tiers to compare with.
+        const isBestValue = tiers.length > 1 && tier.unit_price === cheapestPrice && tier.max_qty === null;
         const pctOff = baseTierPrice > 0
           ? Math.round((1 - tier.unit_price / baseTierPrice) * 100)
           : 0;
@@ -234,27 +235,27 @@ const PriceBar = React.memo(function PriceBar({
   activeTier,
 }: PriceBarProps) {
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-foreground to-foreground text-background p-5 overflow-hidden relative">
+    <div className="rounded-2xl bg-linear-to-br from-foreground via-foreground to-foreground/85 text-background p-5 overflow-hidden relative shadow-lg ring-1 ring-foreground/10">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-background/60 mb-0.5">
             {qty.toLocaleString()} units × {fmt(unitPrice)}
           </p>
-          <p className="text-3xl font-black text-primary-ink leading-tight tabular-nums">
+          <p className="text-3xl font-black text-primary leading-tight tabular-nums">
             {fmt(total)}
           </p>
         </div>
         {activeTier && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-card/10 border border-card/15 text-[10px] font-bold text-muted-foreground flex-shrink-0">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-background/10 border border-background/15 text-[10px] font-bold text-background/80 shrink-0">
             <Package size={10} />
             Tier {activeTier.min_qty.toLocaleString()}{activeTier.max_qty != null ? `–${activeTier.max_qty.toLocaleString()}` : "+"}
           </span>
         )}
       </div>
 
-      <div className="space-y-2 pt-3 border-t border-card/10">
+      <div className="space-y-2 pt-3 border-t border-background/15">
         <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">Unit price</span>
+          <span className="text-background/60">Unit price</span>
           <span className="font-semibold text-background tabular-nums">{fmt(unitPrice)}</span>
         </div>
         {saving > 0 && (
@@ -459,6 +460,44 @@ export default function SageQuantityPricing({
         >
           +
         </button>
+      </div>
+    );
+  }
+
+  /* ── Single price: no tiers to compare, so a plain price line ── */
+  if (tiers.length === 1) {
+    const only = tiers[0];
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+            <span className="w-6 h-6 rounded-lg bg-primary/20 flex items-center justify-center">
+              <Tag size={12} className="text-primary-ink" />
+            </span>
+            Price per piece
+            {only.min_qty > 1 && (
+              <span className="text-muted-foreground font-medium">· min {only.min_qty.toLocaleString()}</span>
+            )}
+          </div>
+          <span className="text-base font-black tabular-nums text-foreground">{fmt(only.unit_price)}</span>
+        </div>
+
+        <div className="pt-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Select Quantity</p>
+          <QtyStepper
+            qty={qty}
+            qtyInput={qtyInput}
+            effectiveMin={effectiveMin}
+            stockLimit={stockLimit}
+            onDecrease={handleDecrease}
+            onIncrease={handleIncrease}
+            onFocus={handleQtyInputFocus}
+            onInputChange={handleQtyInputChange}
+            onInputBlur={handleQtyInputBlur}
+          />
+        </div>
+
+        <PriceBar qty={qty} unitPrice={unitPrice} total={total} saving={saving} activeTier={null} />
       </div>
     );
   }

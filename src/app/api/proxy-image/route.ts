@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const response = await fetch(url, {
+      // A slow supplier host must not hang the customization canvas for minutes.
+      signal: AbortSignal.timeout(10_000),
       // Forward a browser-like UA so servers don't block the request
       headers: {
         "User-Agent":

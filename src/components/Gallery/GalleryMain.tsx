@@ -200,31 +200,7 @@ function HeroSection({ loaded, photos }: { loaded: boolean; photos: Photo[] }) {
             </a>
           </div>
 
-          {/* the tag */}
-          <div
-            className="relative w-full max-w-[210px] justify-self-start lg:justify-self-end drop-shadow-xl"
-          >
-            <svg className="absolute -top-9 left-1/2 -translate-x-1/2 text-border" width="30" height="40" viewBox="0 0 30 40" fill="none">
-              <path d="M15 0C15 0 4 10 4 20C4 26 9 30 15 30C21 30 26 26 26 20C26 10 15 0 15 0Z" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-            <div className="pt-9 pb-5 px-5 border border-border bg-card">
-              <div className="flex justify-center mb-4">
-                <div className="w-3 h-3 rounded-full border border-border" />
-              </div>
-              <div className="flex items-baseline justify-center">
-                <span className="font-heading font-bold tabular-nums text-foreground" style={{ fontSize: "2.75rem", lineHeight: 1 }}>
-                  {count}
-                </span>
-              </div>
-              <p className="text-center text-sm mt-1.5 text-muted-foreground">
-                pieces produced
-              </p>
-              <Perforation className="my-4" />
-              <p className="text-center text-xs font-mono text-muted-foreground">
-                {sku(photos.length)}
-              </p>
-            </div>
-          </div>
+        
         </div>
       </div>
       <Perforation />
@@ -323,12 +299,12 @@ function Toolbar({
 }: { value: string; onChange: (v: string) => void; resultCount: number; compact: boolean; onToggleCompact: () => void }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 pb-4 border-b border-border">
-      <div>
+      {/* <div>
         <p className="text-sm text-muted-foreground">In the archive</p>
         <p className="text-2xl font-heading font-bold tabular-nums text-foreground">
           {String(resultCount).padStart(2, "0")} <span className="text-sm font-normal text-muted-foreground">pieces</span>
         </p>
-      </div>
+      </div> */}
 
       <div className="flex items-center gap-2 w-full sm:w-auto">
         <div className="relative flex-1 sm:w-64">

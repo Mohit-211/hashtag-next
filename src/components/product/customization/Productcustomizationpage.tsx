@@ -12,8 +12,9 @@ import {
   Upload, RotateCw, RotateCcw, Download, Sparkles, Eye, ImageDown,
   AlertCircle, Loader2, Plus, Minus, Type, Image as ImageIcon,
   Trash2, ShoppingCart, Heart, Zap, Package,
-  CheckCircle2, FileImage,
+  CheckCircle2, FileImage, Send, ChevronRight,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ProductVariantByIdApi, ProductDetailApi, ProductDetailGuestApi } from "@/api/operations/product.api";
 import AddToCartModal, { buildConfiguredCustomizationPayload } from "@/components/common/AddToCartModal";
@@ -144,7 +145,7 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
       hotspots: [
         { id: "LEFT_CHEST", label: "L. Chest", top: "35%", left: "60%" },
         { id: "RIGHT_CHEST", label: "R. Chest", top: "35%", left: "32%" },
-        // { id: "FULL_FRONT", label: "Full Front", top: "53%", left: "46%" },
+        { id: "FULL_FRONT", label: "Full Front", top: "53%", left: "46%" },
       ]
     },
     {
@@ -201,7 +202,7 @@ const GARMENT_VIEWS: Record<GarmentType, GarmentView[]> = {
       hotspots: [
         { id: "LEFT_CHEST", label: "L. Chest", top: "38%", left: "70%" },
         { id: "RIGHT_CHEST", label: "R. Chest", top: "38%", left: "32%" },
-        // { id: "FULL_FRONT", label: "Full Front", top: "51%", left: "52%" },
+        { id: "FULL_FRONT", label: "Full Front", top: "51%", left: "52%" },
       ]
     },
     {
@@ -301,7 +302,10 @@ const COLOR_NAME_FALLBACKS: Record<string, string> = {
 /* ─────────────────────────────────────────── Helpers ── */
 const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
   try {
-    const r = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+    // Give up on the proxy quickly and use the photo URL directly instead.
+    const r = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}`, {
+      signal: AbortSignal.timeout(8_000),
+    });
     if (!r.ok) throw new Error("proxy failed");
     const blob = await r.blob();
     return new Promise((res, rej) => {
@@ -312,10 +316,10 @@ const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
     });
   } catch { return url; }
 };
-const loadImage = (src: string): Promise<HTMLImageElement> =>
+const loadImage = (src: string, { anonymous = true } = {}): Promise<HTMLImageElement> =>
   new Promise((res, rej) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (anonymous) img.crossOrigin = "anonymous";
     img.onload = () => res(img);
     img.onerror = rej;
     // Cache-busting query params only make sense for real URLs — appending
@@ -1111,7 +1115,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       isRestoringSessionRef.current = false;
       return;
     }
-    setProductImg(null);
+    // No setProductImg(null) here: the canvas only uses an image loaded for the
+    // current photo URL, and clearing it when the photo URL hasn't changed left
+    // the canvas blank (the loader effect never re-runs).
     setLogoPos({ x: 190, y: 190 });
     setJustStagedVariantIds([]);
     if (activeVariant) {
@@ -1151,10 +1157,15 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   // not using a mockup) — prefers the active variant's own images before
   // falling back to product-level images.
   const displayImage = useMemo(() => {
+    // SAGE products carry no variant images; their photo is an image attachment.
+    const attachmentImgs = ((product?.attachments ?? []) as { file_type?: string; file_uri?: string; is_primary?: boolean }[])
+      .filter(a => a?.file_type === "image" && a?.file_uri) as VariantImage[];
     const imgs: VariantImage[] =
       (activeVariant?.images && activeVariant.images.length > 0)
         ? activeVariant.images
-        : (product?.images ?? []);
+        : (product?.images && product.images.length > 0)
+          ? product.images
+          : attachmentImgs;
     if (!imgs.length) return null;
     const primary =
       imgs.find(img => img?.is_primary && img?.file_uri) ||
@@ -1169,7 +1180,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   // Full Back Standard vs Large are two sizes of the SAME print area — never
   // selectable together, so picking one always drops the other.
   const MUTUALLY_EXCLUSIVE_LOCATIONS = ["FULL_BACK_STANDARD", "FULL_BACK_LARGE"];
-  const toggleLocation = (id: string) =>
+  // Full Front: every tap opens the "Pricing Not Available" information modal.
+  const [showFullFrontNoPrice, setShowFullFrontNoPrice] = useState(false);
+  const toggleLocation = (id: string) => {
+    if (id === "FULL_FRONT" && !selectedLocations.includes(id)) {
+      setShowFullFrontNoPrice(true);
+      return;
+    }
+    applyToggleLocation(id);
+  };
+  const applyToggleLocation = (id: string) =>
     setSelectedLocations(prev => {
       if (prev.includes(id)) return prev.filter(l => l !== id);
       const next = MUTUALLY_EXCLUSIVE_LOCATIONS.includes(id)
@@ -1223,7 +1243,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const apparelQtyInput = apparelQtyDraft ?? (currentQty > 0 ? String(currentQty) : "1");
   const useMockupOnCanvas = isApparel;
   const canvasBaseImageSrc = useMockupOnCanvas ? (activeView?.mockup ?? null) : displayImage;
-  const productImg = canvasBaseImageSrc ? loadedProductImg : null;
+  // Only the image loaded for the CURRENT source counts, so switching product
+  // never leaves the previous product's photo on the canvas.
+  const productImg =
+    canvasBaseImageSrc && loadedProductImg?.dataset.baseSrc === canvasBaseImageSrc
+      ? loadedProductImg
+      : null;
   useEffect(() => {
     if (!canvasBaseImageSrc) return;
     let cancelled = false;
@@ -1233,7 +1258,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           ? canvasBaseImageSrc
           : await toBase64ViaSameOrigin(canvasBaseImageSrc);
         if (cancelled) return;
-        const img = await loadImage(src);
+        let img: HTMLImageElement;
+        try {
+          img = await loadImage(src);
+        } catch (err) {
+          // Real product photos: if the proxy fell back to a CORS-blocked URL,
+          // still show the photo (the preview export then falls back to the photo URL).
+          if (useMockupOnCanvas) throw err;
+          img = await loadImage(src, { anonymous: false });
+        }
+        img.dataset.baseSrc = canvasBaseImageSrc;
         if (!cancelled) setProductImg(img);
       } catch (err) {
         console?.error("Failed to load product image:", err);
@@ -1937,6 +1971,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     );
   }
   if (!product) {
+    
     return (
       <section className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center space-y-3">
@@ -1962,6 +1997,36 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
         }}
         onCancel={cancelLoginPrompt}
       />
+      <Dialog open={showFullFrontNoPrice} onOpenChange={setShowFullFrontNoPrice}>
+        <DialogContent className="bg-card text-center sm:max-w-sm p-6">
+          <DialogHeader className="items-center">
+            <div className="w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center">
+              <AlertCircle size={22} className="text-primary-ink" />
+            </div>
+            <DialogTitle className="text-lg font-black text-foreground">Pricing Not Available</DialogTitle>
+            <DialogDescription className="leading-relaxed">
+              Pricing for this position is currently unavailable. You can submit a sourcing request for assistance.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 flex flex-col-reverse gap-3">
+            <button
+              onClick={() => setShowFullFrontNoPrice(false)}
+              className="w-full h-12 rounded-xl border-2 border-border bg-card font-semibold text-sm text-muted-foreground flex items-center justify-center gap-2 transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-foreground active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <RotateCcw size={15} />
+              Choose Another Position
+            </button>
+            <button
+              onClick={() => { setShowFullFrontNoPrice(false); router.push("/contact"); }}
+              className="group w-full h-12 rounded-xl bg-primary text-foreground font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-primary/30 transition-all hover:shadow-lg hover:shadow-primary/40 hover:brightness-105 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
+            >
+              <Send size={15} />
+              Go to Query
+              <ChevronRight size={16} className="transition-transform group-hover:translate-x-1" />
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {showPreviewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/70 backdrop-blur-sm p-4">
           <div className="w-full max-w-md bg-card rounded-2xl overflow-hidden shadow-2xl">
@@ -3082,6 +3147,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       onGraphicFile: handleGraphicFile,
       onRemoveGraphic: handleRemoveGraphic,
       onOpenGraphicPicker: isLoggedIn ? () => setShowGraphicPicker(true) : null,
+      baseImageLoading: !!canvasBaseImageSrc && !productImg && failedBaseImageSrc !== canvasBaseImageSrc,
     };
   }
 }
@@ -3146,6 +3212,8 @@ interface LogoCanvasSectionProps {
   onRemoveGraphic: () => void;
   /** Null for guests, who have no saved graphics. */
   onOpenGraphicPicker: (() => void) | null;
+  /** The product photo is still loading onto the canvas. */
+  baseImageLoading: boolean;
 }
 function LogoCanvasSection({
   canvasRef, fileRef, logoImg, logoSrc, logoSize, logoRotation,
@@ -3162,7 +3230,7 @@ function LogoCanvasSection({
   handleRemoveLogoBackground, isRemovingLogoBg,
   autoRemoveBg, setAutoRemoveBg, bgRemoved, setBgRemoved,
   graphicName, graphicUploading, graphicError, logoFailed,
-  onGraphicFile, onRemoveGraphic, onOpenGraphicPicker,
+  onGraphicFile, onRemoveGraphic, onOpenGraphicPicker, baseImageLoading,
 }: LogoCanvasSectionProps) {
   const savedGraphicsButton = onOpenGraphicPicker && (
     <button
@@ -3217,6 +3285,12 @@ function LogoCanvasSection({
               className="w-full h-auto rounded-xl block border border-border"
               style={{ cursor: getCursor() }}
             />
+            {baseImageLoading && (
+              <div className="pointer-events-none absolute inset-3 flex flex-col items-center justify-center gap-2 rounded-xl bg-card/70 backdrop-blur-[1px]">
+                <Loader2 size={28} className="animate-spin text-primary-ink" />
+                <p className="text-xs font-semibold text-muted-foreground">Loading product image…</p>
+              </div>
+            )}
             {logoFailed && graphicName && !customText.trim() && (
               <div className="absolute inset-3 flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-muted px-6 text-center">
                 <FileImage size={32} className="text-muted-foreground" />
@@ -3254,8 +3328,11 @@ function LogoCanvasSection({
                   }}
                   className="hidden"
                 />
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-semibold text-foreground">Auto-remove background</span>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/50 px-3 py-2.5">
+                  <span className="flex items-center gap-2 min-w-0 text-[13px] font-semibold text-foreground leading-tight">
+                    <Sparkles size={14} className="text-primary-ink shrink-0" />
+                    Auto-remove background
+                  </span>
                   <button
                     type="button"
                     role="switch"
@@ -3263,7 +3340,7 @@ function LogoCanvasSection({
                     onClick={() => setAutoRemoveBg((p: boolean) => !p)}
                     className={cn(
                       "relative w-11 h-6 rounded-full transition-colors flex-shrink-0",
-                      autoRemoveBg ? "bg-primary" : "bg-muted"
+                      autoRemoveBg ? "bg-primary" : "bg-border"
                     )}
                   >
                     <span className={cn(
@@ -3291,39 +3368,62 @@ function LogoCanvasSection({
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-muted rounded-xl border border-border">
-                      <div className="w-12 h-12 rounded-xl border border-border bg-card overflow-hidden flex-shrink-0 flex items-center justify-center">
-                        {logoImg ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- uploaded logo preview
-                          <img src={logoSrc!} alt="Logo" className="w-full h-full object-contain" />
-                        ) : (
-                          <FileImage size={20} className="text-muted-foreground" />
-                        )}
+                    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+                      <div className="flex items-center gap-3 p-3.5">
+                        <div className="w-16 h-16 rounded-xl border border-border bg-muted overflow-hidden shrink-0 flex items-center justify-center bg-[linear-gradient(45deg,var(--color-border)_25%,transparent_25%,transparent_75%,var(--color-border)_75%),linear-gradient(45deg,var(--color-border)_25%,transparent_25%,transparent_75%,var(--color-border)_75%)] bg-size-[12px_12px] bg-position-[0_0,6px_6px]">
+                          {logoImg ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- uploaded logo preview
+                            <img src={logoSrc!} alt="Logo" className="w-full h-full object-contain" />
+                          ) : (
+                            <FileImage size={22} className="text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate leading-tight" title={graphicName ?? undefined}>{graphicName ?? "Logo uploaded"}</p>
+                          <p className={cn(
+                            "mt-1 flex items-start gap-1 text-[11px] leading-snug",
+                            graphicUploading || isRemovingLogoBg ? "text-primary-ink" : bgRemoved ? "text-success" : "text-muted-foreground"
+                          )}>
+                            {(graphicUploading || isRemovingLogoBg) && <Loader2 size={11} className="animate-spin shrink-0" />}
+                            {bgRemoved && !isRemovingLogoBg && !graphicUploading && <CheckCircle2 size={11} className="shrink-0" />}
+                            {graphicUploading
+                              ? "Uploading…"
+                              : isRemovingLogoBg
+                                ? "Removing background…"
+                                : logoFailed
+                                  ? "We'll work from your original file"
+                                  : bgRemoved
+                                    ? "Background removed"
+                                    : "Drag on canvas to reposition"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate" title={graphicName ?? undefined}>{graphicName ?? "Logo uploaded"}</p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {graphicUploading
-                            ? "Uploading…"
-                            : isRemovingLogoBg
-                              ? "Removing background…"
-                              : logoFailed
-                                ? "We'll work from your original file"
-                                : bgRemoved
-                                  ? "Background removed — drag on canvas to reposition"
-                                  : "Drag on canvas to reposition"}
-                        </p>
-                      </div>
-                      <div className="flex gap-1.5 flex-shrink-0">
-                        {logoImg && (
-                          <button onClick={() => handleRemoveLogoBackground()} disabled={isRemovingLogoBg}
-                            title={isRemovingLogoBg ? "Removing background…" : "Remove Background"}
-                            className="w-8 h-8 rounded-lg border border-primary/60 bg-primary-soft flex items-center justify-center hover:bg-primary/20 text-primary-ink disabled:opacity-60 disabled:cursor-not-allowed">
-                            {isRemovingLogoBg ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
-                          </button>
-                        )}
-                        <button onClick={() => fileRef.current?.click()} className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted text-muted-foreground"><Upload size={13} /></button>
-                        <button onClick={() => { setLogoSrc(null); setLogoImg(null); setBgRemoved(false); onRemoveGraphic(); }} className="w-8 h-8 rounded-lg border border-destructive/30 flex items-center justify-center hover:bg-destructive-soft text-destructive"><Trash2 size={13} /></button>
+                      <div className="grid grid-cols-3 border-t border-border divide-x divide-border">
+                        <button
+                          onClick={() => handleRemoveLogoBackground()}
+                          disabled={!logoImg || isRemovingLogoBg || bgRemoved}
+                          title="Remove background"
+                          className="h-14 flex flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-primary-ink hover:bg-primary-soft disabled:text-muted-foreground disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
+                        >
+                          {isRemovingLogoBg ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                          <span className="whitespace-nowrap">Remove BG</span>
+                        </button>
+                        <button
+                          onClick={() => fileRef.current?.click()}
+                          title="Replace logo"
+                          className="h-14 flex flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <Upload size={15} />
+                          <span className="whitespace-nowrap">Replace</span>
+                        </button>
+                        <button
+                          onClick={() => { setLogoSrc(null); setLogoImg(null); setBgRemoved(false); onRemoveGraphic(); }}
+                          title="Remove logo"
+                          className="h-14 flex flex-col items-center justify-center gap-1 px-1 text-[11px] font-semibold text-destructive hover:bg-destructive-soft transition-colors"
+                        >
+                          <Trash2 size={15} />
+                          <span className="whitespace-nowrap">Delete</span>
+                        </button>
                       </div>
                     </div>
                     {savedGraphicsButton}
