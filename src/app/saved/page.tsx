@@ -91,7 +91,7 @@ export default function Saved() {
               <Heart className="h-7 w-7 text-muted-foreground" />
             </div>
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">Sign in to see your wishlist</h2>
+              <h1 className="text-2xl font-semibold tracking-tight">Sign in to see your wishlist</h1>
               <p className="mt-2 text-sm text-muted-foreground max-w-xs mx-auto">
                 Save items you love and come back to them any time.
               </p>

@@ -12,7 +12,7 @@ export default function SavedGraphicsSection() {
   return (
     <div className="bg-card border border-border rounded-xl p-6 lg:p-8 space-y-6">
       <div>
-        <h2 className="text-xl font-heading font-bold text-foreground">Saved Graphics</h2>
+        <h1 className="text-xl font-heading font-bold text-foreground">Saved Graphics</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Every file you upload is saved here, ready to choose again when you customize a product.
         </p>

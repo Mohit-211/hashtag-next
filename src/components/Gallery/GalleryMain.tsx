@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useMemo, useRef } from "react";
-import Image from "next/image";
+import Image, { getImageProps, type ImageProps } from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { GalleryApi, type GalleryPhoto } from "@/api/operations/gallery.api";
@@ -33,6 +33,61 @@ function markImageLoaded(src: string) {
 }
 function sku(id: number) {
   return `HB${String(id).padStart(4, "0")}`;
+}
+
+// ─── IMAGE DELIVERY ──────────────────────────────────────────────────────────
+// Photos go through Next's image optimizer (/_next/image), which sends a WebP
+// copy sized for where each photo is shown. The admin's gallery uploads are
+// camera originals of up to ~8 MB each.
+
+/** Site files and https URLs: the sources next.config lets the optimizer fetch. */
+function canOptimize(src: string) {
+  return /^\/(?!\/)|^https:\/\//i.test(src);
+}
+
+/**
+ * next/image through the optimizer. If the optimizer can't deliver a photo,
+ * the original file is tried before `onError` reports it unavailable.
+ */
+function OptimizedImage({ src, alt, onError, ...props }: Omit<ImageProps, "src" | "unoptimized"> & { src: string }) {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const original = !canOptimize(src) || failedSrc === src;
+  return (
+    <Image
+      {...props}
+      src={src}
+      alt={alt}
+      unoptimized={original}
+      onError={(e) => (original ? onError?.(e) : setFailedSrc(src))}
+    />
+  );
+}
+
+/** Width of a grid card's photo at each breakpoint: 2 / 3 / 4 columns in the page container. */
+const CARD_SIZES =
+  "(min-width: 1536px) 324px, (min-width: 1280px) 294px, (min-width: 768px) 230px, (min-width: 640px) 185px, calc(50vw - 26px)";
+
+/**
+ * Device pixels across the modal's photo pane: the dialog (max-w-5xl inside
+ * p-10) less its 288px side panel from md up, or the dialog's width on phones.
+ * Zoom shows the photo at 1.5x.
+ */
+function modalPhotoWidth(zoomed: boolean) {
+  const vw = window.innerWidth;
+  const pane = vw >= 768 ? Math.min(vw - 80, 1024) - 290 : vw - 34;
+  return Math.ceil(pane * (zoomed ? 1.5 : 1) * (window.devicePixelRatio || 1));
+}
+
+/**
+ * The optimizer's copy of `src` at least `width` pixels wide (never larger
+ * than the original). A single URL rather than a srcset, so the modal photo
+ * keeps its natural size the way the original file did.
+ */
+function sizedSrc(src: string, width: number) {
+  if (!canOptimize(src)) return src;
+  const { props } = getImageProps({ src, alt: "", width, height: width });
+  // srcSet is "<url> 1x, <url> 2x", and its 1x copy is the first configured size >= width.
+  return props.srcSet?.split(" ")[0] ?? props.src;
 }
 
 // Shown until the team has added photos on the admin's Gallery screen.
@@ -152,27 +207,7 @@ function AnimatedLoader({ onComplete }: { onComplete: () => void }) {
 }
 
 // ─── HERO ─────────────────────────────────────────────────────────────────────
-function useCountUp(target: number, active: boolean, duration = 900) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(Math.round(eased * target));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [active, target, duration]);
-  return value;
-}
-
-function HeroSection({ loaded, photos }: { loaded: boolean; photos: Photo[] }) {
-  const count = useCountUp(photos.length, loaded);
-
+function HeroSection() {
   return (
     <section className="relative bg-background">
       <div className="container py-16 md:py-24">
@@ -262,12 +297,11 @@ function GalleryCard({ photo, onClick }: { photo: Photo; onClick: (p: Photo) => 
             <span className="text-xs">Image unavailable</span>
           </div>
         ) : (
-          <Image
+          <OptimizedImage
             src={photo.src}
             alt={photo.name}
             fill
-            unoptimized
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            sizes={CARD_SIZES}
             onLoad={() => { setImgLoaded(true); markImageLoaded(photo.src); }}
             onError={() => setImgError(true)}
             className={`object-cover transition-[opacity,transform] duration-500 ease-out group-hover:scale-[1.03] ${imgLoaded ? "opacity-100" : "opacity-0"}`}
@@ -295,7 +329,7 @@ function GalleryCard({ photo, onClick }: { photo: Photo; onClick: (p: Photo) => 
 
 // ─── TOOLBAR ──────────────────────────────────────────────────────────────────
 function Toolbar({
-  value, onChange, resultCount, compact, onToggleCompact,
+  value, onChange, compact, onToggleCompact,
 }: { value: string; onChange: (v: string) => void; resultCount: number; compact: boolean; onToggleCompact: () => void }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8 pb-4 border-b border-border">
@@ -378,6 +412,8 @@ function GalleryGrid({ photos, onOpen }: { photos: Photo[]; onOpen: (p: Photo) =
 function GalleryModal({ photos, photo, onClose }: { photos: Photo[]; photo: Photo | null; onClose: () => void }) {
   const [current, setCurrent] = useState<Photo | null>(null);
   const [zoomed, setZoomed] = useState(false);
+  // A photo the optimizer couldn't deliver falls back to its original file.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
 
   // Opening a (different) photo resets the modal to it.
@@ -440,8 +476,9 @@ function GalleryModal({ photos, photo, onClose }: { photos: Photo[]; photo: Phot
               <AnimatePresence mode="wait">
                 <motion.img
                   key={current.id}
-                  src={current.src}
+                  src={failedSrc === current.src ? current.src : sizedSrc(current.src, modalPhotoWidth(zoomed))}
                   alt={current.name}
+                  onError={() => setFailedSrc(current.src)}
                   onClick={() => setZoomed((z) => !z)}
                   className={`max-w-full max-h-full transition-transform duration-300 ease-out cursor-zoom-in ${zoomed ? "scale-150 cursor-zoom-out" : "object-contain"}`}
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
@@ -478,7 +515,7 @@ function GalleryModal({ photos, photo, onClose }: { photos: Photo[]; photo: Phot
                     aria-label={`View ${p.name}`}
                     className={`relative aspect-square overflow-hidden border transition-colors duration-150 ${p.id === current.id ? "border-primary" : "border-border opacity-60 hover:opacity-100"}`}
                   >
-                    <Image src={p.src} alt={p.name} fill unoptimized sizes="80px" className="object-cover" />
+                    <OptimizedImage src={p.src} alt={p.name} fill sizes="80px" className="object-cover" />
                   </button>
                 ))}
               </div>
@@ -555,7 +592,7 @@ export default function GalleryMain() {
 
       {loaded && (
         <motion.main className="min-h-screen bg-background" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
-          <HeroSection loaded={loaded} photos={photos} />
+          <HeroSection />
           <MarqueeSection />
           <GalleryGrid photos={photos} onOpen={setModal} />
           <Footer />

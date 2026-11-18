@@ -131,23 +131,26 @@ export function useCategoriesData() {
     }
   }, []);
 
+  /** Resolves false when the request failed (so a load-more can retry the same page), true otherwise. */
   const fetchProducts = useCallback(
-    async (pageNumber: number, isLoadMore: boolean, filters: Omit<FilterParams, "page" | "limit">) => {
+    async (pageNumber: number, isLoadMore: boolean, filters: Omit<FilterParams, "page" | "limit">): Promise<boolean> => {
       const thisFetchId = ++fetchIdRef.current;
       try {
         isFetchingRef.current = true;
         setProductLoading(true);
         const params = buildFilterParams({ page: pageNumber, limit: LOAD_MORE_LIMIT, ...filters });
         const res: ProductApiResponse = await AllProductsApi(params);
-        if (thisFetchId !== fetchIdRef.current) return;
+        if (thisFetchId !== fetchIdRef.current) return true;
         const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
         setProducts((prev) => (isLoadMore ? [...prev, ...raw] : raw));
         setTotalProducts(res?.data?.data?.pagination?.total ?? 0);
         const more = raw.length === LOAD_MORE_LIMIT;
         setHasMore(more);
         hasMoreRef.current = more;
+        return true;
       } catch (err) {
         console.error("Error fetching products:", err);
+        return false;
       } finally {
         if (thisFetchId === fetchIdRef.current) {
           isFetchingRef.current = false;
@@ -175,7 +178,7 @@ export function useCategoriesData() {
       limit: number = LOAD_MORE_LIMIT,
       categoryIds?: Array<number | string>,
       tier?: string
-    ) => {
+    ): Promise<boolean> => {
       const thisFetchId = ++fetchIdRef.current;
       try {
         isFetchingRef.current = true;
@@ -186,15 +189,17 @@ export function useCategoriesData() {
           ...(categoryIds?.length ? { category_id: categoryIds.join(",") } : {}),
           ...(tier && tier !== "all" ? { tier } : {}),
         });
-        if (thisFetchId !== fetchIdRef.current) return;
+        if (thisFetchId !== fetchIdRef.current) return true;
         const raw = Array.isArray(res?.data?.data?.data) ? res.data.data.data : [];
         setProducts((prev) => (isLoadMore ? [...prev, ...raw] : raw));
         setTotalProducts(res?.data?.data?.pagination?.total ?? 0);
         const more = raw.length === limit;
         setHasMore(more);
         hasMoreRef.current = more;
+        return true;
       } catch (err) {
         console.error("Error fetching products by use case:", err);
+        return false;
       } finally {
         if (thisFetchId === fetchIdRef.current) {
           isFetchingRef.current = false;

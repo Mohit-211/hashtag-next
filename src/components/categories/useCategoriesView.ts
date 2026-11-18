@@ -734,29 +734,43 @@ export function useCategoriesView({
       const fullHeight = document.documentElement.scrollHeight;
       if (scrollY + innerHeight >= fullHeight - 200) {
         fetchingRef.current = true;
-        const nextPage = pageRef.current + 1;
+        const prevPage = pageRef.current;
+        const nextPage = prevPage + 1;
         pageRef.current = nextPage;
         setPage(nextPage);
-        if (activeUseCaseIdRef.current != null) {
-          await fetchProductsByUseCase(activeUseCaseIdRef.current, nextPage, true, undefined, activeUseCaseCategoryIdsRef.current, activeTierRef.current);
-        } else {
-          await fetchProducts(nextPage, true, {
-            category: activeCategoryRef.current,
-            parents: activeParentsRef.current,
-            industry: activeIndustryRef.current,
-            industryCategories: activeIndustryCategoriesRef.current,
-            brands: activeBrandsRef.current,
-            sizes: activeSizesRef.current,
-            colors: activeColorsRef.current,
-            priceRange: priceRangeRef.current,
-            genders: activeGendersRef.current,
-            fabrics: activeFabricsRef.current,
-            tier: activeTierRef.current,
-            sort: sortByRef.current,
-            search: urlSearchRef.current,
-          });
+        let loaded = false;
+        try {
+          if (activeUseCaseIdRef.current != null) {
+            loaded = await fetchProductsByUseCase(activeUseCaseIdRef.current, nextPage, true, undefined, activeUseCaseCategoryIdsRef.current, activeTierRef.current);
+          } else {
+            loaded = await fetchProducts(nextPage, true, {
+              category: activeCategoryRef.current,
+              parents: activeParentsRef.current,
+              industry: activeIndustryRef.current,
+              industryCategories: activeIndustryCategoriesRef.current,
+              brands: activeBrandsRef.current,
+              sizes: activeSizesRef.current,
+              colors: activeColorsRef.current,
+              priceRange: priceRangeRef.current,
+              genders: activeGendersRef.current,
+              fabrics: activeFabricsRef.current,
+              tier: activeTierRef.current,
+              sort: sortByRef.current,
+              search: urlSearchRef.current,
+            });
+          }
+        } catch (err) {
+          console.error("Error loading more products:", err);
+        } finally {
+          // A page that failed to load is not skipped: step back so the next
+          // scroll asks for the same page again — unless a filter change has
+          // already reset paging while this request was in flight.
+          if (!loaded && pageRef.current === nextPage) {
+            pageRef.current = prevPage;
+            setPage(prevPage);
+          }
+          fetchingRef.current = false;
         }
-        fetchingRef.current = false;
       }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -41,6 +41,15 @@ export default function LoginForm({ switchToRegister, returnTo, initialEmail = "
   const [loading, setLoading] = useState(false);
   // Set when the API refuses an unverified account (403).
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  // False once the form is gone (the user switched to Register or left the page
+  // while logging in). Set in an effect so Strict Mode's remount ends up true.
+  const mountedRef = useRef(false);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -55,8 +64,12 @@ export default function LoginForm({ switchToRegister, returnTo, initialEmail = "
     const res = await login(email.trim(), password);
 
     if (res.success) {
+      // The session exists now (login() stored the token) whether or not this
+      // form is still shown, so the rest of the app is told either way.
       toast.success("Welcome back!");
       notifyAuthChanged();
+      // The user has moved on while waiting: don't pull them off that page.
+      if (!mountedRef.current) return;
       // Back to the page that asked for login (it restores its state and
       // resumes any pending action). `replace` keeps /login out of history so
       // Back doesn't land on the login form again.
@@ -64,6 +77,7 @@ export default function LoginForm({ switchToRegister, returnTo, initialEmail = "
       return;
     }
 
+    if (!mountedRef.current) return;
     if (res.status === 403) setUnverifiedEmail(email.trim());
     setFormError(res.error || "We couldn't log you in. Please try again.");
     setLoading(false);

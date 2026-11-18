@@ -11,6 +11,8 @@ import {
 import { CreateOrderApi, GetOrderDetailApi } from "@/api/operations/order.api";
 import { GetShippingRatesApi } from "@/api/operations/shipping.api";
 import EmptyCart from "./EmptyCart";
+import CheckoutSkeleton from "./CheckoutSkeleton";
+import CartLoadError from "../cart/CartLoadError";
 import ProcessingScreen from "./ProcessingScreen";
 import ProgressRail from "./ProgressRail";
 import ShippingSection from "./ShippingSection";
@@ -91,6 +93,9 @@ export default function CheckoutLayout() {
     refreshCart,
     clearCart,
     pending_order,
+    loading: cartLoading,
+    error: cartError,
+    retry: retryCart,
   } = useCart();
   const subtotal = summary?.items_total ?? 0;
   const [step, setStep] = useState<CheckoutStep>("address");
@@ -361,6 +366,8 @@ export default function CheckoutLayout() {
   // refreshCart() during/after payment can legitimately
   // empty the cart while we still want to show the
   // processing/success screens instead of EmptyCart.
+  // The cart counts as empty only once it has loaded:
+  // until then show a skeleton, and Retry if it failed.
   // ─────────────────────────────────────────────
   if (step === "processing") {
     return <ProcessingScreen />;
@@ -370,6 +377,12 @@ export default function CheckoutLayout() {
   }
   if (resumingCashApp) {
     return <ProcessingScreen title="Finishing your Cash App payment…" description="One moment while we reopen your order." />;
+  }
+  if (cartLoading) {
+    return <CheckoutSkeleton />;
+  }
+  if (cartError) {
+    return <CartLoadError message={cartError} onRetry={retryCart} />;
   }
   if (items.length === 0) {
     return <EmptyCart />;

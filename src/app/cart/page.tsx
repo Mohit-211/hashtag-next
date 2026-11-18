@@ -1,9 +1,10 @@
 // app/cart/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import CartEmpty from "@/components/cart/CartEmpty";
+import CartLoadError from "@/components/cart/CartLoadError";
 import CartItemsList, {
   CartItemType,
 } from "@/components/cart/CartItemsList";
@@ -56,27 +57,21 @@ function CartSkeleton() {
 }
 
 export default function Cart() {
-  const { items = [], summary, refreshCart } = useCart();
+  const { items = [], summary, refreshCart, loading, error, retry } = useCart();
 
-  const [loading, setLoading] = useState(true);
-
+  // Fetch the cart again on arrival so prices and stock are current, unless
+  // its first load is already on the way (a fresh page load).
+  const refreshOnArrival = useRef(!loading);
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        await refreshCart();
-      } catch (error) {
-        console.error("Failed to load cart:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load();
+    if (refreshOnArrival.current) void refreshCart();
   }, [refreshCart]);
 
   if (loading) {
     return <CartSkeleton />;
+  }
+
+  if (error) {
+    return <CartLoadError message={error} onRetry={retry} />;
   }
 
   if (items.length === 0) {

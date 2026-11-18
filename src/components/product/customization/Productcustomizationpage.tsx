@@ -316,6 +316,15 @@ const toBase64ViaSameOrigin = async (url: string): Promise<string> => {
     });
   } catch { return url; }
 };
+/** Reads a blob as a data URL. Rejects if the read fails or is aborted. */
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result as string);
+    reader.onerror = () => rej(reader.error ?? new Error("Couldn't read the image."));
+    reader.onabort = () => rej(new Error("Reading the image was cancelled."));
+    reader.readAsDataURL(blob);
+  });
 const loadImage = (src: string, { anonymous = true } = {}): Promise<HTMLImageElement> =>
   new Promise((res, rej) => {
     const img = new Image();
@@ -607,6 +616,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [isRemovingLogoBg, setIsRemovingLogoBg] = useState(false);
   const [autoRemoveBg, setAutoRemoveBg] = useState(false);
   const [bgRemoved, setBgRemoved] = useState(false);
+  // Each new logo, and each background-removal request, takes the next id.
+  // Work started for an older id must leave the logo alone.
+  const logoRequestRef = useRef(0);
+  // Removals run one at a time; the newest request waits here meanwhile.
+  const bgRemovalRef = useRef<{ running: boolean; queued: { src: string; id: number } | null }>({
+    running: false,
+    queued: null,
+  });
   // The browser couldn't draw the chosen file (AI, EPS, PSD, CDR…).
   const [logoFailed, setLogoFailed] = useState(false);
   // The customer's real file: this is what production gets, while the canvas
@@ -691,6 +708,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   /** Takes the customer's file exactly as it is, and uploads it unless they're a guest. */
   const showGraphicFile = (file: File) => {
     const preview = URL.createObjectURL(file);
+    logoRequestRef.current += 1;
     setGraphicFile(file);
     applySavedGraphic(null);
     setGraphicError(null);
@@ -922,7 +940,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       if (saved.textShadow !== undefined) setTextShadow(saved.textShadow);
       if (saved.textOpacity !== undefined) setTextOpacity(saved.textOpacity);
       if (saved.textPos) setTextPos(saved.textPos);
-      if (saved.logoSrc) setLogoSrc(saved.logoSrc);
+      if (saved.logoSrc) {
+        logoRequestRef.current += 1;
+        setLogoSrc(saved.logoSrc);
+      }
       if (saved.savedGraphic) {
         applySavedGraphic(saved.savedGraphic);
         if (!canDrawGraphic(saved.savedGraphic)) setLogoFailed(true);
@@ -1292,26 +1313,45 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   /** Makes the logo transparent by cutting out its background, entirely in
    *  the browser (no upload to a third-party API — @imgly/background-removal
    *  runs the model client-side via WASM). Loaded on demand so the ~large
-   *  model/wasm bundle isn't fetched until a user actually clicks the button. */
-  const handleRemoveLogoBackground = useCallback(async (srcOverride?: string) => {
+   *  model/wasm bundle isn't fetched until a user actually clicks the button.
+   *  The newest logo always wins: a removal started for an older logo drops
+   *  its result, and a request made while one is running waits its turn. */
+  const handleRemoveLogoBackground = useCallback((srcOverride?: string) => {
     const src = srcOverride ?? logoSrc;
-    if (!src || isRemovingLogoBg) return;
-    setIsRemovingLogoBg(true);
-    try {
-      const { removeBackground } = await import("@imgly/background-removal");
-      const blob = await removeBackground(src);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setLogoSrc(reader.result as string);
-        setBgRemoved(true);
-      };
-      reader.readAsDataURL(blob);
-    } catch (err) {
-      console.error("Failed to remove logo background:", err);
-    } finally {
-      setIsRemovingLogoBg(false);
+    if (!src) return;
+    const removal = bgRemovalRef.current;
+    const request = { src, id: ++logoRequestRef.current };
+    if (removal.running) {
+      // Replaces any request already waiting.
+      removal.queued = request;
+      return;
     }
-  }, [logoSrc, isRemovingLogoBg]);
+    const run = async (job: { src: string; id: number }) => {
+      const isCurrent = () => job.id === logoRequestRef.current;
+      removal.running = true;
+      setIsRemovingLogoBg(true);
+      try {
+        const { removeBackground } = await import("@imgly/background-removal");
+        const blob = await removeBackground(job.src);
+        if (!isCurrent()) return;
+        const dataUrl = await blobToDataUrl(blob);
+        if (!isCurrent()) return;
+        setLogoSrc(dataUrl);
+        setBgRemoved(true);
+      } catch (err) {
+        // A stale run can fail because its preview URL was already revoked.
+        if (isCurrent()) console.error("Failed to remove logo background:", err);
+      } finally {
+        // Only now has the reader finished, so the spinner can stop.
+        const next = removal.queued;
+        removal.queued = null;
+        removal.running = false;
+        if (next && next.id === logoRequestRef.current) void run(next);
+        else setIsRemovingLogoBg(false);
+      }
+    };
+    void run(request);
+  }, [logoSrc]);
   const resetLogoPlacement = () => {
     const defaultSize = 120;
     setLogoRotation(0);
@@ -1329,6 +1369,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   };
   /** A saved graphic needs no upload: its id goes with the customization. */
   const handlePickSavedGraphic = (graphic: SavedGraphic) => {
+    logoRequestRef.current += 1;
     graphicUploadRef.current = null;
     setGraphicUploading(false);
     setShowGraphicPicker(false);
@@ -1343,6 +1384,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     setLogoSrc(drawable ? graphic.file_url : null);
   };
   const handleRemoveGraphic = () => {
+    logoRequestRef.current += 1;
     graphicUploadRef.current = null;
     setGraphicUploading(false);
     setGraphicFile(null);
@@ -3197,7 +3239,7 @@ interface LogoCanvasSectionProps {
   activeViewIdx: number;
   setActiveViewIdx: (idx: number) => void;
   isApparel: boolean;
-  handleRemoveLogoBackground: (srcOverride?: string) => Promise<void>;
+  handleRemoveLogoBackground: (srcOverride?: string) => void;
   isRemovingLogoBg: boolean;
   autoRemoveBg: boolean;
   setAutoRemoveBg: Setter<boolean>;

@@ -133,7 +133,7 @@ export default function Orders() {
               <ShoppingBag className="h-7 w-7 text-muted-foreground/50" />
             </div>
             <div className="space-y-1.5">
-              <h2 className="text-2xl font-bold tracking-tight">Sign in to view orders</h2>
+              <h1 className="text-2xl font-bold tracking-tight">Sign in to view orders</h1>
               <p className="text-muted-foreground text-sm max-w-xs mx-auto">
                 Log in to view your order history and track your purchases.
               </p>

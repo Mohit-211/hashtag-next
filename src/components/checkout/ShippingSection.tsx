@@ -58,9 +58,9 @@ export default function ShippingSection({
         </div>
 
         <div>
-          <h2 className="text-lg font-semibold font-heading text-foreground">
+          <h1 className="text-lg font-semibold font-heading text-foreground">
             Shipping Method
-          </h2>
+          </h1>
 
           <p className="text-xs text-muted-foreground mt-0.5">
             Choose your preferred delivery option

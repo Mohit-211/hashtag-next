@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,22 @@ export default function PasswordSection() {
   const [showNewPw, setShowNewPw] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  // Pending "log in again" sign-out after a password change. Leaving this
+  // section cancels it, so it can't sign the user out on another page.
+  const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountedRef = useRef(false);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      if (logoutTimerRef.current) {
+        clearTimeout(logoutTimerRef.current);
+        logoutTimerRef.current = null;
+      }
+    };
+  }, []);
 
 const getStrength = () => {
   let score = 0;
@@ -95,10 +111,15 @@ const strength = getStrength();
           toast.success("Password updated. You've been signed out on your other devices.");
         } else {
           toast.success("Password updated. Please log in again.");
-          setTimeout(() => {
-            logout();
-            router.push("/login");
-          }, 1500);
+          // The user may have left this section while the request was in flight.
+          if (!unmountedRef.current) {
+            if (logoutTimerRef.current) clearTimeout(logoutTimerRef.current);
+            logoutTimerRef.current = setTimeout(() => {
+              logoutTimerRef.current = null;
+              logout();
+              router.push("/login");
+            }, 1500);
+          }
         }
       } else {
         toast.error(res?.data?.message || "Something went wrong");
@@ -114,9 +135,9 @@ const strength = getStrength();
   return (
     <div className="bg-card border border-border rounded-xl p-6 lg:p-8 space-y-6">
       <div>
-        <h2 className="text-xl font-heading font-bold text-foreground">
+        <h1 className="text-xl font-heading font-bold text-foreground">
           Change Password
-        </h2>
+        </h1>
 
         <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
           Keep your account secure by updating your password regularly.

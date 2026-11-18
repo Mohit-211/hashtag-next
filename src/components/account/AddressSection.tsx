@@ -155,9 +155,9 @@ export default function AddressSection({
             <MapPin className="h-5 w-5 text-foreground" />
           </div>
           <div className="flex-1">
-            <h2 className="font-bold text-lg uppercase tracking-wide text-foreground">
+            <h1 className="font-bold text-lg uppercase tracking-wide text-foreground">
               Delivery Address
-            </h2>
+            </h1>
             <p className="text-xs text-muted-foreground mt-0.5">Select where to ship your order</p>
           </div>
           <button
@@ -171,7 +171,7 @@ export default function AddressSection({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <MapPin className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-base font-semibold">Saved Addresses</h2>
+            <h1 className="text-base font-semibold">Saved Addresses</h1>
             {addresses.length > 0 && (
               <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground border">
                 {addresses.length}

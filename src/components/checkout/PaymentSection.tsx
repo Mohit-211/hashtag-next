@@ -634,7 +634,7 @@ export default function PaymentSection({
             <Lock size={18} className="text-foreground" strokeWidth={2.5} />
           </div>
           <div>
-            <p className="ps-header-title">Secure Payment</p>
+            <h1 className="ps-header-title">Secure Payment</h1>
             <p className="ps-header-sub">256-bit TLS encryption · Powered by Square</p>
           </div>
         </div>

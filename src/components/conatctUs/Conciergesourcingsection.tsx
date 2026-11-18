@@ -167,9 +167,9 @@ export default function ConciergeSourcingSection() {
       <div className="relative grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-14">
         {/* Left column — pitch */}
         <div>
-          <h2 className="mb-4 max-w-lg text-3xl leading-[1.1] md:text-4xl">
+          <h1 className="mb-4 max-w-lg text-3xl leading-[1.1] md:text-4xl">
             Looking for a Specific Brand or Custom Item?
-          </h2>
+          </h1>
 
           <h3 className="mb-5 max-w-lg text-xl font-medium leading-snug md:text-2xl">
             Our Concierge Sourcing Team Has You Covered.

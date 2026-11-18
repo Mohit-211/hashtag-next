@@ -48,12 +48,16 @@ export default function HeroSection() {
           </div>
 
           <div className="relative">
+            {/* The home page's LCP image: fetched first, at the width it's shown
+                (full container width, then half of it from lg). */}
             <Image
               src="/assets/HomeImage/image1.jpeg"
               alt="Printing products"
               width={900}
-              height={700}
-              priority
+              height={675}
+              preload
+              fetchPriority="high"
+              sizes="(min-width: 1536px) 644px, (min-width: 1280px) 584px, (min-width: 1024px) 456px, (min-width: 768px) 720px, (min-width: 640px) 592px, calc(100vw - 32px)"
               className="w-full h-auto rounded-2xl object-cover"
             />
           </div>

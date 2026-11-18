@@ -23,9 +23,9 @@ export default function ProcessingScreen({
           </div>
         </div>
 
-        <h2 className="mt-8 text-2xl font-bold font-heading text-foreground">
+        <h1 className="mt-8 text-2xl font-bold font-heading text-foreground">
           {title}
-        </h2>
+        </h1>
 
         <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
           {description}

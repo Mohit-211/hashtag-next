@@ -21,9 +21,9 @@ export default function EmptyCart() {
           </div>
         </div>
 
-        <h2 className="mt-7 text-2xl font-bold text-foreground">
+        <h1 className="mt-7 text-2xl font-bold text-foreground">
           Your cart is empty
-        </h2>
+        </h1>
 
         <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
           Looks like you haven&apos;t added anything yet. Browse our products and find something you&apos;ll love.

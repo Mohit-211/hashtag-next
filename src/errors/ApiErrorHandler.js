@@ -1,9 +1,17 @@
 import { toast } from "sonner";
 import errorMessages from "./errorMessages";
+import { notifyAuthChanged } from "../lib/authRedirect";
 
 const TOKEN_KEY = "hastagBillionaire";
 
+// One expired session sets off a burst of 401s; handle it once (one toast, one
+// redirect). Reset on login: on /login there is no page reload to clear it.
 let sessionExpiredHandled = false;
+
+/** Lets the next expired session be handled again. Called after a successful login. */
+export const resetSessionExpired = () => {
+  sessionExpiredHandled = false;
+};
 
 // Centralized API error notifications: this is the ONE place that toasts an
 // HTTP-level failure (4xx/5xx/network). Callers should NOT show their own
@@ -32,6 +40,8 @@ export const handleApiError = (error) => {
     if (!sessionExpiredHandled && typeof window !== "undefined") {
       sessionExpiredHandled = true;
       localStorage.removeItem(TOKEN_KEY);
+      // Signed-in state (header, cart, wishlist) follows at once, even on /login.
+      notifyAuthChanged();
       const { pathname, search } = window.location;
       if (!pathname.startsWith("/login")) {
         toast.error(errorMessages.UNAUTHORIZED || "Session expired. Please log in again.");

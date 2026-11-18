@@ -68,9 +68,9 @@ export default function ProfileSection({ user }: Props) {
 
   return (
     <div className="bg-card border border-border rounded-xl p-6 lg:p-8 space-y-6">
-      <h2 className="text-xl font-heading font-bold text-foreground">
+      <h1 className="text-xl font-heading font-bold text-foreground">
         Profile Information
-      </h2>
+      </h1>
 
       <form onSubmit={handleSave} className="space-y-4 max-w-lg" noValidate>
         <input
