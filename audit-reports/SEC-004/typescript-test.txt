@@ -1,9 +1,0 @@
-SEC-004 TypeScript check on next 16.4.6
-
-==============================================================================
-Captured output
-==============================================================================
-$ npx tsc --noEmit
-# 2026-11-19 13:59:53 +0530  branch nextjs-security-upgrade @ a70e15c  next 16.4.6  typescript 5.9.3
-# exit code: 0
-# (tsc prints nothing when there are no type errors)

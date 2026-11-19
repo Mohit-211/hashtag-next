@@ -1,4 +1,0 @@
-      4 createSourceFile
-      2 new Project({compilerOptions:{}})
-      1 new Project({useInMemoryFileSystem:true,compilerOptions:{allowJs:true}})
-      1 new Project({useInMemoryFileSystem:true})

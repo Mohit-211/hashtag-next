@@ -1,9 +1,0 @@
-import { removeBackground } from "@imgly/background-removal";
-type Cfg = NonNullable<Parameters<typeof removeBackground>[1]>;
-// Same call shape the app uses (Productcustomizationpage.tsx: removeBackground(job.src))
-export const run = (src: string) => removeBackground(src);
-export const good: Cfg = { model: "isnet_fp16", device: "cpu", output: { format: "image/png", quality: 0.8 } };
-// @ts-expect-error -- "tpu" is not a valid device; this line must error while Config is correctly typed
-export const bad: Cfg = { device: "tpu" };
-type IsAny<T> = 0 extends 1 & T ? true : false;
-export const configIsAny: IsAny<Cfg> = false;

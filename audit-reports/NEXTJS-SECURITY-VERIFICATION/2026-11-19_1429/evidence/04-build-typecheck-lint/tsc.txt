@@ -1,4 +1,0 @@
-$ npx tsc --noEmit
-# 2026-11-19 14:39:29 +0530  branch nextjs-security-upgrade @ 4c3565a  next 16.4.6  node v26.13.0
-# exit code: 0
-# (no output means no type errors)
