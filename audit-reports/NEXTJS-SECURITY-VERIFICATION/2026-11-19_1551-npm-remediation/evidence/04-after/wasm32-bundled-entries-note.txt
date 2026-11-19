@@ -1,0 +1,2 @@
+oxide-wasm32-wasi: {"version":"4.3.3","cpu":["wasm32"],"optional":true,"dev":true,"bundleDependencies":["@napi-rs/wasm-runtime","@emnapi/core","@emnapi/runtime","@tybys/wasm-util","@emnapi/wasi-threads","tslib"]}
+oxide-wasm32-wasi not installed on this machine (cpu mismatch)

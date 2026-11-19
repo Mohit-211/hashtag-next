@@ -1,0 +1,10 @@
+- node_modules/@imgly/background-removal/node_modules/zod@3.25.76
+~ node_modules/@ts-morph/common/node_modules/minimatch: 10.2.6 -> 11.0.9 (fields changed: version, resolved, integrity, dependencies, engines)
++ node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/core@1.11.1 [inBundle] [optional] [dev]
++ node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/runtime@1.11.1 [inBundle] [optional] [dev]
++ node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@emnapi/wasi-threads@1.2.2 [inBundle] [optional] [dev]
++ node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@napi-rs/wasm-runtime@1.1.4 [inBundle] [optional] [dev]
++ node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/@tybys/wasm-util@0.10.2 [inBundle] [optional] [dev]
++ node_modules/@tailwindcss/oxide-wasm32-wasi/node_modules/tslib@2.8.1 [inBundle] [optional] [dev]
+top-level lock fields changed: none
+entries before: 719 after: 724

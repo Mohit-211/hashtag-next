@@ -1,0 +1,28 @@
+$ git status (after audit) — 2026-11-19 15:04:08 +0530
+On branch nextjs-security-upgrade
+Your branch is up to date with 'origin/nextjs-security-upgrade'.
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	audit-reports/NEXTJS-SECURITY-VERIFICATION/
+
+nothing added to commit but untracked files present (use "git add" to track)
+
+$ git status --short --untracked-files=all | grep -v NEXTJS-SECURITY-VERIFICATION   (anything other than the new audit folder)
+(nothing)
+
+$ git diff --stat HEAD   (tracked files changed since the last commit)
+(end; empty means no tracked file changed)
+
+$ git diff --cached --name-only   (staged)
+(end; empty means nothing staged)
+
+$ git log -3 --oneline   (no new commits)
+4c3565a docs(security): add SEC-004 verification evidence
+a70e15c fix(security): upgrade Next.js to 16.4.6
+fa403e3 fix: accessible change-password errors and cart artwork preview
+
+$ git rev-parse HEAD origin/nextjs-security-upgrade origin/main
+4c3565ad3c254254dfbad1cb42abea674d91b7a0
+4c3565ad3c254254dfbad1cb42abea674d91b7a0
+fa403e31f3ff606b7a4398e9362e50a874b52ec1

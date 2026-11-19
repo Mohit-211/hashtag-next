@@ -1,0 +1,4 @@
+4:var minimatch = require('minimatch');
+33:var minimatch__namespace = /*#__PURE__*/_interopNamespaceCompat(minimatch);
+1170:        return minimatch__namespace.minimatch(path, pattern);
+1258:        return minimatch__namespace.minimatch(path, pattern);

@@ -1,0 +1,171 @@
+# Where IMG.LY 1.7.0 gets zod at runtime
+## package.json exports / dependencies
+{
+  "version": "1.7.0",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs",
+      "types": "./dist/src/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "lodash-es": "^4.17.21",
+    "ndarray": "~1.0.0",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "onnxruntime-web": "1.21.0"
+  }
+}
+
+## Every module import in the runtime bundles (dist/index.mjs, dist/index.cjs) - zod is NOT imported:
+node_modules/@imgly/background-removal/dist/index.mjs:1000:import("onnxruntime-web/webgpu")
+node_modules/@imgly/background-removal/dist/index.mjs:1002:import("onnxruntime-web")
+node_modules/@imgly/background-removal/dist/index.cjs:1017:import("onnxruntime-web/webgpu")
+node_modules/@imgly/background-removal/dist/index.cjs:1019:import("onnxruntime-web")
+
+## Bundled source markers for zod inside dist/index.mjs (zod is inlined at build time):
+1067:// ../../node_modules/.pnpm/zod@3.24.2/node_modules/zod/lib/index.mjs
+
+## Files in the package that reference the nested 'zod' module (types only):
+node_modules/@imgly/background-removal/dist/index.cjs.map
+node_modules/@imgly/background-removal/dist/index.mjs.map
+node_modules/@imgly/background-removal/dist/src/schema.d.ts
+
+## Nested install that npm audit flags:
+node_modules/@imgly/background-removal/node_modules/zod = 3.25.76
+
+## The only zod schema in IMG.LY (dist/index.mjs, src/schema.ts) - no z.array anywhere in the schema:
+// src/schema.ts
+var ConfigSchema = z.object({
+  publicPath: z.string().optional().describe("The public path to the wasm files and the onnx model.").default(
+    "https://staticimgly.com/@imgly/background-removal-data/${PACKAGE_VERSION}/dist/"
+  ).transform((val) => {
+    return val.replace("${PACKAGE_NAME}", package_default.name).replace("${PACKAGE_VERSION}", package_default.version);
+  }),
+  debug: z.boolean().default(false).describe("Whether to enable debug logging."),
+  rescale: z.boolean().default(true).describe("Whether to rescale the image."),
+  device: z.enum(["cpu", "gpu"]).default("cpu").describe("The device to run the model on."),
+  proxyToWorker: z.boolean().default(false).describe("Whether to proxy inference to a web worker."),
+  fetchArgs: z.any().default({}).describe("Arguments to pass to fetch when loading the model."),
+  progress: z.function().args(z.string(), z.number(), z.number()).returns(z.void()).describe("Progress callback.").optional(),
+  model: z.preprocess(
+    (val) => {
+      switch (val) {
+        case "large":
+          return "isnet";
+        case "small":
+          return "isnet_quint8";
+        case "medium":
+          return "isnet_fp16";
+        default:
+          return val;
+      }
+    },
+    z.enum(["isnet", "isnet_fp16", "isnet_quint8"])
+  ).default("medium"),
+  output: z.object({
+    format: z.enum([
+      "image/png",
+      "image/jpeg",
+      "image/webp",
+      "image/x-rgba8",
+      "image/x-alpha8"
+    ]).default("image/png"),
+    quality: z.number().default(0.8)
+  }).default({})
+}).default({}).transform((config) => {
+  if (config.debug)
+    console.log("Config:", config);
+  if (config.debug && !config.progress) {
+    config.progress = config.progress ?? ((key, current, total) => {
+      console.debug(`Downloading ${key}: ${current} of ${total}`);
+    });
+    if (!crossOriginIsolated) {
+      if (config.debug)
+        console.debug(
+          "Cross-Origin-Isolated is not enabled. Performance will be degraded. Please see  https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer."
+        );
+    }
+  }
+  return config;
+});
+function validateConfig(configuration) {
+  return ConfigSchema.parse(configuration ?? {});
+}
+
+// src/in
+
+## Bundled zod 3.24.2 ZodArray._parse - parses every element and collects every issue (same behaviour the advisory describes):
+var ZodArray = class _ZodArray extends ZodType {
+  _parse(input) {
+    const { ctx, status } = this._processInputParams(input);
+    const def = this._def;
+    if (ctx.parsedType !== ZodParsedType.array) {
+      addIssueToContext(ctx, {
+        code: ZodIssueCode.invalid_type,
+        expected: ZodParsedType.array,
+        received: ctx.parsedType
+      });
+      return INVALID;
+    }
+    if (def.exactLength !== null) {
+      const tooBig = ctx.data.length > def.exactLength.value;
+      const tooSmall = ctx.data.length < def.exactLength.value;
+      if (tooBig || tooSmall) {
+        addIssueToContext(ctx, {
+          code: tooBig ? ZodIssueCode.too_big : ZodIssueCode.too_small,
+          minimum: tooSmall ? def.exactLength.value : void 0,
+          maximum: tooBig ? def.exactLength.value : void 0,
+          type: "array",
+          inclusive: true,
+          exact: true,
+          message: def.exactLength.message
+        });
+        status.dirty();
+      }
+    }
+    if (def.minLength !== null) {
+      if (ctx.data.length < def.minLength.value) {
+        addIssueToContext(ctx, {
+          code: ZodIssueCode.too_small,
+          minimum: def.minLength.value,
+          type: "array",
+          inclusive: true,
+          exact: false,
+          message: def.minLength.message
+        });
+        status.dirty();
+      }
+    }
+    if (def.maxLength !== null) {
+      if (ctx.data.length > def.maxLength.value) {
+        addIssueToContext(ctx, {
+          code: ZodIssueCode.too_big,
+          maximum: def.maxLength.value,
+          type: "array",
+          inclusive: true,
+          exact: false,
+          message: def.maxLength.message
+        });
+        status.dirty();
+      }
+    }
+    if (ctx.common.async) {
+      return Promise.all([...ctx.data].map((item, i) => {
+        return def.type._parseAsync(new ParseInputLazyPath(ctx, item, ctx.path, i));
+      })).then((result2) => {
+        return ParseStatus.mergeArray(status, result2);
+      });
+    }
+    const result = [...ctx.data].map((item, i) => {
+      return def.type._parseSync(new ParseInputLazyPath(ctx, item, ctx.path, i));
+    });
+    return ParseStatus.mergeArray(status, result);
+  }
+  
+
+## The app's only call site (src/components/product/customization/Productcustomizationpage.tsx) - no config passed:
+1334:        const { removeBackground } = await import("@imgly/background-removal");
+1335:        const blob = await removeBackground(job.src);

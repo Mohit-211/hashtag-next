@@ -1,0 +1,11 @@
+v10 exports AST,GLOBSTAR,Minimatch,braceExpand,defaults,escape,filter,makeRe,match,minimatch,sep,unescape
+v11 exports GLOBSTAR,Minimatch,braceExpand,defaults,escape,filter,match,minimatch,sep,unescape
+["src/a.ts","**/*.ts"] v10=true v11=true
+["/x/node_modules/y.d.ts","**/node_modules/**"] v10=true v11=true
+["a/b/c.tsx","a/**/*.{ts,tsx}"] v10=true v11=true
+["a/.hidden/x.ts","a/**/*.ts"] v10=false v11=false
+["C:/p/a.ts","C:/p/*.ts"] v10=true v11=true
+["a/b","a/*/"] v10=false v11=false
+["/abs/file.ts","/abs/**"] v10=true v11=true
+["foo.js","!*.ts"] v10=true v11=true
+8/8 identical

@@ -1,0 +1,249 @@
+[
+  {
+    "endpoint": "/user/auth/login",
+    "backend": [
+      "POST /user/auth/login [none]"
+    ]
+  },
+  {
+    "endpoint": "/user/auth/register",
+    "backend": [
+      "POST /user/auth/register [none]"
+    ]
+  },
+  {
+    "endpoint": "/user/auth/logout",
+    "backend": [
+      "GET /user/auth/logout [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/user/auth/verify-email",
+    "backend": [
+      "POST /user/auth/verify-email [none]"
+    ]
+  },
+  {
+    "endpoint": "/user/auth/verify-email/resend",
+    "backend": [
+      "POST /user/auth/verify-email/resend [none]"
+    ]
+  },
+  {
+    "endpoint": "/user/auth/forgot-password",
+    "backend": [
+      "POST /user/auth/forgot-password [none]"
+    ]
+  },
+  {
+    "endpoint": "/user/auth/forgot-password/reset",
+    "backend": [
+      "POST /user/auth/forgot-password/reset [none]"
+    ]
+  },
+  {
+    "endpoint": "/user/auth/reset-password",
+    "backend": [
+      "POST /user/auth/reset-password [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/user/profile",
+    "backend": [
+      "GET /user/profile [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/user/deactivate",
+    "backend": [
+      "DELETE /user/deactivate [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/contactUs",
+    "backend": [
+      "POST /contactUs [none]",
+      "PUT /contactUs/:id [admin]",
+      "GET /contactUs [admin]",
+      "DELETE /contactUs/:id [admin]"
+    ]
+  },
+  {
+    "endpoint": "/sourcing-requests/create",
+    "backend": [
+      "POST /sourcing-requests/create [none]",
+      "PUT /sourcing-requests/:id [admin]"
+    ]
+  },
+  {
+    "endpoint": "/product",
+    "backend": [
+      "GET /product [none]",
+      "GET /product/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/product-category/get-grand-categories",
+    "backend": [
+      "GET /product-category/get-grand-categories [none]",
+      "GET /product-category/:id [none]",
+      "PUT /product-category/:id [admin]"
+    ]
+  },
+  {
+    "endpoint": "/industry",
+    "backend": [
+      "POST /industry [admin]",
+      "GET /industry [none]",
+      "GET /industry/:id [none]",
+      "PUT /industry/:id [admin]",
+      "DELETE /industry/:id [admin]"
+    ]
+  },
+  {
+    "endpoint": "/industry/use-case/products",
+    "backend": [
+      "GET /industry/use-case/products [none]",
+      "GET /industry/use-case/:id [none]",
+      "PUT /industry/use-case/:id [admin]",
+      "DELETE /industry/use-case/:id [admin]"
+    ]
+  },
+  {
+    "endpoint": "/product/cart",
+    "backend": [
+      "GET /product/:id [user-jwt]",
+      "POST /product/cart [user-jwt]",
+      "PUT /product/cart [user-jwt]",
+      "DELETE /product/cart/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/product/cart/get",
+    "backend": [
+      "GET /product/cart/get [user-jwt]",
+      "DELETE /product/cart/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/product/cart/increment",
+    "backend": [
+      "PUT /product/cart/increment [user-jwt]",
+      "DELETE /product/cart/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/product/cart/decrement",
+    "backend": [
+      "PUT /product/cart/decrement [user-jwt]",
+      "DELETE /product/cart/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/order/shipping/rates",
+    "backend": [
+      "POST /order/shipping/rates [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/product/wishlist",
+    "backend": [
+      "GET /product/:id [user-jwt]",
+      "POST /product/wishlist [user-jwt]",
+      "DELETE /product/wishlist/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/product/wishlist/get",
+    "backend": [
+      "GET /product/wishlist/get [user-jwt]",
+      "DELETE /product/wishlist/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/product/wishlist/move",
+    "backend": [
+      "DELETE /product/wishlist/:id [user-jwt]",
+      "POST /product/wishlist/move [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/address",
+    "backend": [
+      "POST /address [user-jwt]",
+      "GET /address [user-jwt]",
+      "PUT /address [user-jwt]",
+      "DELETE /address/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/order",
+    "backend": [
+      "POST /order [user-jwt]",
+      "GET /order [user-jwt]",
+      "GET /order/:id [user-jwt]",
+      "PATCH /order/:id [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/payment/square/config",
+    "backend": [
+      "GET /payment/square/config [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/payment/square/create-payment",
+    "backend": [
+      "POST /payment/square/create-payment [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/payment/square/payment-status",
+    "backend": [
+      "POST /payment/square/payment-status [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/payment/history",
+    "backend": [
+      "GET /payment/history [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/payment/paypal/create-order",
+    "backend": [
+      "POST /payment/paypal/create-order [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/payment/paypal/capture-order",
+    "backend": [
+      "POST /payment/paypal/capture-order [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/graphics",
+    "backend": [
+      "POST /graphics [user-jwt]",
+      "GET /graphics [user-jwt]"
+    ]
+  },
+  {
+    "endpoint": "/gallery",
+    "backend": [
+      "GET /gallery [none]",
+      "POST /gallery [admin]",
+      "PUT /gallery/:id [admin]",
+      "DELETE /gallery/:id [admin]"
+    ]
+  },
+  {
+    "endpoint": "/brand/website-brands",
+    "backend": [
+      "GET /brand/website-brands [none]",
+      "GET /brand/:id [none]",
+      "PUT /brand/:id [admin]",
+      "DELETE /brand/:id [admin]"
+    ]
+  }
+]

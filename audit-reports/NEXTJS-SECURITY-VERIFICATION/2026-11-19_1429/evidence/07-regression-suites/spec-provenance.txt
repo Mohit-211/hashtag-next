@@ -1,0 +1,30 @@
+# 2026-11-19 14:56:29 +0530  Provenance of the regression specs
+audit-reports/raw/audit.spec.mjs and audit-reports/raw/sec003.spec.mjs were removed from the working tree at about 14:25 (before this audit; not by this audit).
+Their git blob hashes were recorded in the committed SEC-004 evidence (audit-reports/SEC-004/page-load-tests.txt and raw/auth-tests-sec003-console.txt).
+Runnable copies differ only in the playwright import path, the browser launch line and (sec003) BASE. Reversing those edits gives:
+  audit.spec.reconstructed.mjs   git blob 102a58f4273baf1cb6151ec62fc7d229739b8009   recorded: 102a58f4273baf1cb6151ec62fc7d229739b8009
+  sec003.spec.reconstructed.mjs  git blob 7fbf64cdfa2f6c41146b15b5a48f6970033b5f73   recorded: 7fbf64cdfa2f6c41146b15b5a48f6970033b5f73
+
+$ diff reconstructed original vs runnable copy (audit.spec)
+4c4
+< import { chromium } from "playwright";
+---
+> import { chromium } from "file:///D:/blockcod/CurrentProject/hashtag-next/node_modules/playwright/index.mjs";
+27c27
+< const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
+---
+> const browser = await chromium.launch({ channel: "chrome" });
+
+$ diff reconstructed original vs runnable copy (sec003.spec)
+4c4
+< import { chromium } from "playwright";
+---
+> import { chromium } from "file:///D:/blockcod/CurrentProject/hashtag-next/node_modules/playwright/index.mjs";
+7c7
+< const BASE = "http://localhost:3107";
+---
+> const BASE = process.env.BASE;
+15c15
+< const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
+---
+> const browser = await chromium.launch({ channel: "chrome" });

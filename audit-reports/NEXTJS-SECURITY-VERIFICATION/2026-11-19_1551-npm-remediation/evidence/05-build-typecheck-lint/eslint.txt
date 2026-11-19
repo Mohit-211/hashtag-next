@@ -1,0 +1,15 @@
+
+> hashtagbillionaire@0.1.0 lint
+> eslint
+
+
+d:\blockcod\CurrentProject\hashtag-next\src\errors\ApiErrorHandler.js
+  48:9  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+✖ 1 problem (0 errors, 1 warning)
+
+
+real	0m16.077s
+user	0m0.197s
+sys	0m0.230s
+eslint exit=0

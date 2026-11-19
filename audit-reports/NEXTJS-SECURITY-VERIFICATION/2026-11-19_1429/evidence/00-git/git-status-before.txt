@@ -1,0 +1,20 @@
+$ git status (before audit) — 2026-11-19 14:29:26 +0530
+On branch nextjs-security-upgrade
+Your branch is up to date with 'origin/nextjs-security-upgrade'.
+
+nothing to commit, working tree clean
+
+$ git status --short
+
+$ git diff --cached --name-only (staged)
+(end of staged list)
+
+$ git log -5 --oneline
+4c3565a docs(security): add SEC-004 verification evidence
+a70e15c fix(security): upgrade Next.js to 16.4.6
+fa403e3 fix: accessible change-password errors and cart artwork preview
+f066027 perf: page payment history one page at a time and drop unused images
+9444933 fix: address audit findings in auth, cart, catalog, gallery and customizer
+
+$ git stash list
+(end)

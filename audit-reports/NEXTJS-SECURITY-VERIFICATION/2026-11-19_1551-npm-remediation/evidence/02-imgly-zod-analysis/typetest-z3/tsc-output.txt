@@ -1,0 +1,9 @@
+# nested zod: 3.25.76
+## tsc -p . (skipLibCheck: true, as in project tsconfig)
+# exit code: 0
+## tsc -p . --skipLibCheck false
+node_modules/@imgly/background-removal/dist/src/codecs.d.ts(3,25): error TS7016: Could not find a declaration file for module 'ndarray'. '<typetest-z3>/node_modules/ndarray/ndarray.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/ndarray` if it exists or add a new declaration (.d.ts) file containing `declare module 'ndarray';`
+node_modules/@imgly/background-removal/dist/src/utils.d.ts(2,37): error TS7016: Could not find a declaration file for module 'ndarray'. '<typetest-z3>/node_modules/ndarray/ndarray.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/ndarray` if it exists or add a new declaration (.d.ts) file containing `declare module 'ndarray';`
+# exit code: 2

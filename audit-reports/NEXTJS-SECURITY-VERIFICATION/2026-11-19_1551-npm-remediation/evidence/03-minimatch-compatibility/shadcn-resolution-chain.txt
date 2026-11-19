@@ -1,0 +1,4 @@
+shadcn -> ts-morph: node_modules\ts-morph\dist\ts-morph.js
+ts-morph -> @ts-morph/common: node_modules\@ts-morph\common\dist\ts-morph-common.js
+@ts-morph/common -> minimatch: node_modules\@ts-morph\common\node_modules\minimatch\dist\commonjs\index.js 11.0.9
+ts-morph loads via ESM import, Project is function

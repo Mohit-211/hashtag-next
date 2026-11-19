@@ -1,0 +1,325 @@
+[
+  {
+    "id": "M1",
+    "group": "method",
+    "description": "DELETE on a static page (/login)",
+    "request": "DELETE /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 405 Method Not Allowed"
+    ],
+    "allowHeader": "Allow: GET",
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 260
+  },
+  {
+    "id": "M2",
+    "group": "method",
+    "description": "OPTIONS on a static page (/login)",
+    "request": "OPTIONS /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 405 Method Not Allowed"
+    ],
+    "allowHeader": "Allow: GET",
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 260
+  },
+  {
+    "id": "M3",
+    "group": "method",
+    "description": "DELETE on the GET-only route handler (/api/proxy-image)",
+    "request": "DELETE /api/proxy-image HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 405 Method Not Allowed"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 211
+  },
+  {
+    "id": "M4",
+    "group": "method",
+    "description": "OPTIONS on the GET-only route handler (/api/proxy-image)",
+    "request": "OPTIONS /api/proxy-image HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 204 No Content"
+    ],
+    "allowHeader": "allow: GET, HEAD, OPTIONS",
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 197
+  },
+  {
+    "id": "M5",
+    "group": "method",
+    "description": "DELETE on the internal rewrite (/favicon.ico -> /favicon.png)",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 500 Internal Server Error"
+    ],
+    "allowHeader": "Allow: GET",
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 302
+  },
+  {
+    "id": "M6",
+    "group": "method",
+    "description": "OPTIONS on the internal rewrite (/favicon.ico)",
+    "request": "OPTIONS /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 500 Internal Server Error"
+    ],
+    "allowHeader": "Allow: GET",
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 302
+  },
+  {
+    "id": "M7",
+    "group": "method",
+    "description": "GET on the internal rewrite (control)",
+    "request": "GET /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 200 OK"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 12947
+  },
+  {
+    "id": "R1",
+    "group": "smuggle",
+    "description": "DELETE /favicon.ico, Transfer-Encoding: chunked, body = a second request",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-R1 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 500 Internal Server Error"
+    ],
+    "allowHeader": "Allow: GET",
+    "connection": "client-timeout",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 330
+  },
+  {
+    "id": "R2",
+    "group": "smuggle",
+    "description": "OPTIONS /favicon.ico, Transfer-Encoding: chunked, body = a second request",
+    "request": "OPTIONS /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-R2 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 500 Internal Server Error"
+    ],
+    "allowHeader": "Allow: GET",
+    "connection": "client-timeout",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 330
+  },
+  {
+    "id": "R3",
+    "group": "smuggle",
+    "description": "DELETE /api/proxy-image, Transfer-Encoding: chunked, body = a second request",
+    "request": "DELETE /api/proxy-image HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-R3 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 405 Method Not Allowed"
+    ],
+    "allowHeader": null,
+    "connection": "client-timeout",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 239
+  },
+  {
+    "id": "R4",
+    "group": "smuggle",
+    "description": "OPTIONS /login, Transfer-Encoding: chunked, body = a second request",
+    "request": "OPTIONS /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-R4 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 405 Method Not Allowed"
+    ],
+    "allowHeader": "Allow: GET",
+    "connection": "client-timeout",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 288
+  },
+  {
+    "id": "H1",
+    "group": "header",
+    "description": "Content-Length and Transfer-Encoding: chunked together (CL.TE)",
+    "request": "POST /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nContent-Length: 6\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-H1 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H2",
+    "group": "header",
+    "description": "Transfer-Encoding: chunked then Content-Length (TE.CL order)",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: chunked\\r\\nContent-Length: 3\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-H2 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H3",
+    "group": "header",
+    "description": "Two different Content-Length headers",
+    "request": "POST /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nContent-Length: 0\\r\\nContent-Length: 40\\r\\n\\r\\nGET /smuggle-probe-H3 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H4",
+    "group": "header",
+    "description": "Obfuscated 'Transfer-Encoding : chunked' (space before colon)",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding : chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-H4 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H5",
+    "group": "header",
+    "description": "Transfer-Encoding: xchunked (unknown coding)",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: xchunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-H5 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H6",
+    "group": "header",
+    "description": "Transfer-Encoding: chunked, chunked (repeated coding)",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: chunked, chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-H6 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H7",
+    "group": "header",
+    "description": "Header folding (obs-fold) on Transfer-Encoding",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding:\\r\\n chunked\\r\\n\\r\\n38\\r\\nGET /smuggle-probe-H7 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H8",
+    "group": "header",
+    "description": "Invalid chunk size",
+    "request": "DELETE /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nTransfer-Encoding: chunked\\r\\n\\r\\nzz\\r\\nabc\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H9",
+    "group": "header",
+    "description": "Bare LF line endings in the request head",
+    "request": "DELETE /favicon.ico HTTP/1.1\\nHost: 127.0.0.1:3107\\nTransfer-Encoding: chunked\\n\\n38\\r\\nGET /smuggle-probe-H9 HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\n\\r\\n0\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H10",
+    "group": "header",
+    "description": "Negative Content-Length",
+    "request": "POST /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nContent-Length: -1\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "H11",
+    "group": "header",
+    "description": "Content-Length with a plus sign (+5)",
+    "request": "POST /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nContent-Length: +5\\r\\n\\r\\nhello",
+    "responses": [
+      "HTTP/1.1 400 Bad Request"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 47
+  },
+  {
+    "id": "P1",
+    "group": "pipeline",
+    "description": "Two pipelined GET requests (control)",
+    "request": "GET /favicon.ico HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\n\\r\\nGET /login HTTP/1.1\\r\\nHost: 127.0.0.1:3107\\r\\nConnection: close\\r\\n\\r\\n",
+    "responses": [
+      "HTTP/1.1 200 OK",
+      "HTTP/1.1 200 OK"
+    ],
+    "allowHeader": null,
+    "connection": "server-closed",
+    "extraResponseObserved": false,
+    "smuggleProbeAnswered": false,
+    "responseBytes": 36552
+  }
+]

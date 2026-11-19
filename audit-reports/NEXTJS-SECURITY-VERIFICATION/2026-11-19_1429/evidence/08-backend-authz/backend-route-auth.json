@@ -1,0 +1,2098 @@
+[
+  {
+    "method": "POST",
+    "path": "/contactUs",
+    "guard": "none",
+    "limiter": true,
+    "handler": "contactUsController.createContactUs",
+    "file": "src/routes/v1/Common/contactUs.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/contactUs/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "contactUsController.updateContactUs",
+    "file": "src/routes/v1/Common/contactUs.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/contactUs",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "contactUsController.getAllContactUs",
+    "file": "src/routes/v1/Common/contactUs.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/contactUs/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "contactUsController.deleteContactUs",
+    "file": "src/routes/v1/Common/contactUs.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/faq",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "faqController.createFaq",
+    "file": "src/routes/v1/Common/faq.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/faq",
+    "guard": "none",
+    "limiter": false,
+    "handler": "faqController.getAllFaq",
+    "file": "src/routes/v1/Common/faq.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/faq/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "faqController.updateFaq",
+    "file": "src/routes/v1/Common/faq.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/faq/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "faqController.deleteFaq",
+    "file": "src/routes/v1/Common/faq.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/role",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "roleController.createRole",
+    "file": "src/routes/v1/Common/role.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/role/:id",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "roleController.findRoleById",
+    "file": "src/routes/v1/Common/role.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/role",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "roleController.getAllRoles",
+    "file": "src/routes/v1/Common/role.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/role/:id",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "roleController.updateRole",
+    "file": "src/routes/v1/Common/role.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/role/:id",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "roleController.deleteRole",
+    "file": "src/routes/v1/Common/role.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/department",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "departmentController.createDepartment",
+    "file": "src/routes/v1/Common/department.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/department",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "departmentController.getAllDeparments",
+    "file": "src/routes/v1/Common/department.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/department/:id",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "departmentController.findDepartmentById",
+    "file": "src/routes/v1/Common/department.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/department/:id",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "departmentController.updateDepartment",
+    "file": "src/routes/v1/Common/department.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/department/:id",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "departmentController.deleteDepartment",
+    "file": "src/routes/v1/Common/department.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/country",
+    "guard": "none",
+    "limiter": false,
+    "handler": "countryController.getAllCountry",
+    "file": "src/routes/v1/Common/country.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/country/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "countryController.getCountryId",
+    "file": "src/routes/v1/Common/country.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/state",
+    "guard": "none",
+    "limiter": false,
+    "handler": "stateController.getAllState",
+    "file": "src/routes/v1/Common/state.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/state/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "stateController.getStateById",
+    "file": "src/routes/v1/Common/state.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/city",
+    "guard": "none",
+    "limiter": false,
+    "handler": "cityController.getAllCity",
+    "file": "src/routes/v1/Common/city.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/city/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "cityController.getCityById",
+    "file": "src/routes/v1/Common/city.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/payment/count",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "paymentController.getNewPaymentCount",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/payment/sum",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "paymentController.getNewPaymentTotal",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/payment/square/config",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "checkoutController.getSquareConfig",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/payment/square/create-payment",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "checkoutController.createPayment",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/payment/square/payment-status",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "checkoutController.getSquarePaymentStatus",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/payment/webhook/square",
+    "guard": "none",
+    "limiter": true,
+    "handler": "checkoutController.squareWebhook",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/payment/history",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "checkoutController.getPaymentHistory",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/payment/admin/all",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "checkoutController.getAllPayments",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/payment/paypal/create-order",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "checkoutController.createPayPalOrder",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/payment/paypal/capture-order",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "checkoutController.capturePayPalOrder",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/payment/paypal/webhook",
+    "guard": "none",
+    "limiter": true,
+    "handler": "checkoutController.paypalWebhookController",
+    "file": "src/routes/v1/Common/payment.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/create-product",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.createProduct",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/import/format",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productImportController.getImportFormat",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/import/preview",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productImportController.previewImport",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/import",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productImportController.importProducts",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/add-product-variants",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.addProductVariants",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/duplicate/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.duplicateProduct",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product/manual/full",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.updateManualProductFull",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/get-brand-assignment",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getProductsForBrandMapping",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/brand-assignment",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.assignBrandToProducts",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/update",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.updateProduct",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/delete",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.deleteProduct",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productController.getAllProducts",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/grand-category-products",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productController.getAllProductsByGrandCategory",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/product-by-brand",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productController.getProductsByBrand",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/:id",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "productController.getProductById",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/variant/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productController.getVariantById",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/guest/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productController.getGuestProductById",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/get-variant",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productController.getProductVariant",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/ss/styles/:brand",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getSSStylesByBrand",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/ss/style/:styleId",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getSSProductByStyle",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/sync/ss/:styleId",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.syncSingleStyle",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/product/ss/delete/:styleId",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.deleteSSProductByStyle",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/admin/stats",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getAdminStats",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/get/variant",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getProductVariantByAdmin",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/admin/variant/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getProductVariantByIdAdmin",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product/admin/weight",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.setAdminWeight",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/admin/get/all",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getAllProductsAdmin",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/pricing/markup",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "pricingController.getAllPricingMarkup",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product/pricing/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "pricingController.updatePricingMarkup",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/admin/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productController.getProductByIdAdmin",
+    "file": "src/routes/v1/Common/product.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/brand/website-brands",
+    "guard": "none",
+    "limiter": false,
+    "handler": "brandController.getPublishedBrands",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/brand",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "brandController.createBrand",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/brand",
+    "guard": "none",
+    "limiter": false,
+    "handler": "brandController.getAllBrands",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/brand/ss",
+    "guard": "none",
+    "limiter": false,
+    "handler": "brandController.getAllSSBrands",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/brand/sync/ss",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "brandController.syncSSBrands",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/brand/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "brandController.getBrandById",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/brand/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "brandController.updateBrand",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/brand/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "brandController.deleteBrand",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/brand/publish",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "brandController.publishBrands",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/brand/manual-brand",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "brandController.createManualBrand",
+    "file": "src/routes/v1/Common/brand.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/size/create",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "sizeController.createSize",
+    "file": "src/routes/v1/Common/size.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/size",
+    "guard": "none",
+    "limiter": false,
+    "handler": "sizeController.getAllSizes",
+    "file": "src/routes/v1/Common/size.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/size/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "sizeController.getSizeById",
+    "file": "src/routes/v1/Common/size.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/size/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "sizeController.updateSize",
+    "file": "src/routes/v1/Common/size.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/size/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "sizeController.deleteSize",
+    "file": "src/routes/v1/Common/size.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/get-parent-categories",
+    "guard": "none",
+    "limiter": false,
+    "handler": "parentCategoryController.getAllParentCategories",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/get-grand-categories",
+    "guard": "none",
+    "limiter": false,
+    "handler": "grandCategoryController.getAllGrandCategories",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/add-category-to-parent",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "parentCategoryController.addCategoryToParent",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/add-parent-to-grand",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "grandCategoryController.addParentToGrand",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/remove-category-from-parent",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "parentCategoryController.removeCategoryFromParent",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/remove-parent-from-grand",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "grandCategoryController.removeParentFromGrand",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/unassigned",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productCategoryController.getProductsWithoutParentCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/for-categories",
+    "guard": "none",
+    "limiter": false,
+    "handler": "parentCategoryController.getParentCategoriesForCategories",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/for-parents",
+    "guard": "none",
+    "limiter": false,
+    "handler": "grandCategoryController.getGrandCategoriesForParents",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productCategoryController.createCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productCategoryController.getAllCategories",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/sync/ss",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productCategoryController.syncSSCategories",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "productCategoryController.findCategoryById",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product-category/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productCategoryController.updateCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/delete",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "productCategoryController.deleteCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/create-parent-category",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "parentCategoryController.createParentCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/get-parent-category/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "parentCategoryController.findParentCategoryById",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product-category/update-parent-category/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "parentCategoryController.updateParentCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/product-category/delete-parent-category",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "parentCategoryController.deleteParentCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/map-parent-categories",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "parentCategoryController.mapCategoriesToParent",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/createGrandCategory",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "grandCategoryController.createGrandCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product-category/findGrandCategoryById/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "grandCategoryController.findGrandCategoryById",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product-category/updateGrandCategory/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "grandCategoryController.updateGrandCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/product-category/deleteGrandCategory",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "grandCategoryController.deleteGrandCategory",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product-category/map-grand-categories",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "grandCategoryController.mapParentsToGrand",
+    "file": "src/routes/v1/Common/productCategory.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/wishlist",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.addToWishlist",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/wishlist/get",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.getWishlist",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/product/wishlist/:id",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.removeFromWishlist",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/wishlist/move",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.moveWishlistToCart",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/cart",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.addToCart",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/product/cart/get",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.getCart",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product/cart",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.updateCartQuantity",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product/cart/increment",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.incrementCart",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/product/cart/decrement",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.decrementCart",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/product/cart/:id",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.removeFromCart",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/product/cart/move",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "cartWishlistController.moveCartToWishlist",
+    "file": "src/routes/v1/Common/cartWishlist.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/order/admin",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "orderController.getAdminOrders",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/order/admin/:id/label",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "orderController.retryOrderShipment",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/order/admin/:id/cancel",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "orderController.adminCancelOrder",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/order/admin/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "orderController.adminDeleteOrder",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/order",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "orderController.createOrder",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/order",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "orderController.getOrders",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/order/:id",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "orderController.getOrderById",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "PATCH",
+    "path": "/order/:id",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "orderController.cancelOrder",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/order/shipping/rates",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "orderController.getShippingRatesController",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/order/create-shipment-label",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "orderController.createShipmentLabel",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/order/shipstation",
+    "guard": "none",
+    "limiter": false,
+    "handler": "orderController.shipstationWebhook",
+    "file": "src/routes/v1/Common/order.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/address",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "addressController.addAddress",
+    "file": "src/routes/v1/Common/address.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/address",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "addressController.getAddresses",
+    "file": "src/routes/v1/Common/address.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/address",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "addressController.updateAddress",
+    "file": "src/routes/v1/Common/address.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/address/:id",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "addressController.deleteAddress",
+    "file": "src/routes/v1/Common/address.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/carrier/sync",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "CarrierController.syncCarriers",
+    "file": "src/routes/v1/Common/carrier.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/carrier/sync/services",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "CarrierController.syncServices",
+    "file": "src/routes/v1/Common/carrier.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/carrier",
+    "guard": "none",
+    "limiter": false,
+    "handler": "CarrierController.getCarriers",
+    "file": "src/routes/v1/Common/carrier.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/carrier/:carrier_id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "CarrierController.getServicesByCarrier",
+    "file": "src/routes/v1/Common/carrier.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sage/supplier-truth/:prodEId",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.getSageSupplierTruth",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/categories",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.getCategories",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/sync/category",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.syncSageCategories",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/suppliers-by-category",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.getSuppliersByCategory",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sage/get/categories",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.getAllSageCategories",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/supplier",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.getSuppliers",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/search",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.searchProducts",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sage/product/:prodEId",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.getProductDetails",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/import",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.importProduct",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/import/selected",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.importSelectedSageProducts",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sage/delete",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sageController.deleteSageProducts",
+    "file": "src/routes/v1/Common/sage.routes.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sanmar/sync/brand",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sanmarController.syncSanmarBrands",
+    "file": "src/routes/v1/Common/sanmar.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sanmar/brands",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sanmarController.getSanmarBrands",
+    "file": "src/routes/v1/Common/sanmar.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sanmar/styles",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sanmarController.getSanmarStylesByBrand",
+    "file": "src/routes/v1/Common/sanmar.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sanmar/products",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sanmarController.getSanmarProductsByStyle",
+    "file": "src/routes/v1/Common/sanmar.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sanmar/sync/save",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "sanmarController.syncSanmarProduct",
+    "file": "src/routes/v1/Common/sanmar.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/ottocap/otto-image",
+    "guard": "none",
+    "limiter": false,
+    "handler": "imageController.getOttoImage",
+    "file": "src/routes/v1/Common/ottocap.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/ottocap/import-inventory",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "ottocapController.importOttoCapInventory",
+    "file": "src/routes/v1/Common/ottocap.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/ottocap/import-catalog",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "ottocapController.importOttoCapCatalog",
+    "file": "src/routes/v1/Common/ottocap.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/ottocap/products",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "ottocapController.getOttoProducts",
+    "file": "src/routes/v1/Common/ottocap.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/ottocap/products/:skuNo",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "ottocapController.getOttoProductDetails",
+    "file": "src/routes/v1/Common/ottocap.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/ottocap/import-products",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "ottocapController.importOttoProduct",
+    "file": "src/routes/v1/Common/ottocap.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/ottocap/import-selected-variants",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "ottocapController.importSelectedOttoVariants",
+    "file": "src/routes/v1/Common/ottocap.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/use-case",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getAllUseCases",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/use-case/products",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getProductsForMultipleUseCases",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/industry",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.createIndustry",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getAllIndustries",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getIndustryById",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/industry/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.updateIndustry",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/industry/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.deleteIndustry",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/industry/use-case",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.createUseCase",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/use-case/all",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getAllUseCasesDropdown",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/use-case/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getUseCaseById",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/:industry_id/use-cases",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getUseCasesByIndustry",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/industry/use-case/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.updateUseCase",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/industry/use-case/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.deleteUseCase",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/industry/use-case/:id/parent-categories",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.updateUseCaseParentCategories",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/use-case/:id/parent-categories",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getUseCaseParentCategories",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/use-case/:id/products",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getUseCaseProducts",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/industry/use-case/:id/products/add",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.addProductsToUseCase",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/industry/use-case/:id/products/exclude",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.excludeProductsFromUseCase",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/industry/use-case/:id/products/:productId/override",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.clearProductOverride",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/industry/use-case/products/move",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "industryController.moveProductsBetweenUseCases",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/industry/products/:productId/use-cases",
+    "guard": "none",
+    "limiter": false,
+    "handler": "industryController.getUseCasesForProduct",
+    "file": "src/routes/v1/Common/industry.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/sourcing-requests/create",
+    "guard": "none",
+    "limiter": false,
+    "handler": "sourcingRequestController.createSourcingRequest",
+    "file": "src/routes/v1/Common/sourcingRequest.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/sourcing-requests/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "sourcingRequestController.updateSourcingRequest",
+    "file": "src/routes/v1/Common/sourcingRequest.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/sourcing-requests/admin",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "sourcingRequestController.getAllSourcingRequests",
+    "file": "src/routes/v1/Common/sourcingRequest.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/tiers",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "tierController.createTier",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/tiers",
+    "guard": "none",
+    "limiter": false,
+    "handler": "tierController.getAllTiers",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/tiers/:id/parent-categories",
+    "guard": "none",
+    "limiter": false,
+    "handler": "tierController.getTierParentCategories",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/tiers/:id/parent-categories",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "tierController.updateTierParentCategories",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/tiers/:id/products",
+    "guard": "none",
+    "limiter": false,
+    "handler": "tierController.getTierProducts",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/tiers/:id/products/add",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "tierController.addProductsToTier",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/tiers/products/current",
+    "guard": "none",
+    "limiter": false,
+    "handler": "tierController.getCurrentTiersForProducts",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/tiers/products/bulk-remove",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "tierController.bulkClearProductTierOverrides",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "PATCH",
+    "path": "/tiers/products/:productId",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "tierController.setProductTier",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/tiers/products/:productId/exclude",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "tierController.excludeProductFromAllTiers",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/tiers/products/:productId/override",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "tierController.clearProductTierOverride",
+    "file": "src/routes/v1/Common/tier.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/add-on/addon-product",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "addonProductController.createAddOnProduct",
+    "file": "src/routes/v1/Common/addonProduct.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/add-on/addon-product",
+    "guard": "none",
+    "limiter": false,
+    "handler": "addonProductController.getAllAddOnProducts",
+    "file": "src/routes/v1/Common/addonProduct.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/add-on/addon-product/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "addonProductController.getAddOnProductById",
+    "file": "src/routes/v1/Common/addonProduct.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/add-on/addon-product/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "addonProductController.updateAddOnProduct",
+    "file": "src/routes/v1/Common/addonProduct.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/add-on/addon-product/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "addonProductController.deleteAddOnProduct",
+    "file": "src/routes/v1/Common/addonProduct.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/add-on/product/:productId/addons",
+    "guard": "none",
+    "limiter": false,
+    "handler": "addonProductController.getProductAddOns",
+    "file": "src/routes/v1/Common/addonProduct.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/add-on/product/:productId/addons",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "addonProductController.assignProductAddOns",
+    "file": "src/routes/v1/Common/addonProduct.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/customization-option",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.createCustomizationOption",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/customization-option",
+    "guard": "none",
+    "limiter": false,
+    "handler": "customizationController.getAllCustomizationOptions",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/customization-option/:id",
+    "guard": "none",
+    "limiter": false,
+    "handler": "customizationController.getCustomizationOptionById",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/customization-option/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.updateCustomizationOption",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/customization-option/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.deleteCustomizationOption",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/customization-option/:optionId/value",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.createCustomizationOptionValue",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/customization-option/customization-option-value/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.updateCustomizationOptionValue",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/customization-option/customization-option-value/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.deleteCustomizationOptionValue",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/customization-option/value/:valueId/pricing",
+    "guard": "none",
+    "limiter": false,
+    "handler": "customizationController.getPricing",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/customization-option/value/:valueId/pricing",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.createPricing",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/customization-option/value/pricing/:pricingId",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.updatePricing",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/customization-option/value/pricing/:pricingId",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.deletePricing",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/customization-option/product/:productId/customizations",
+    "guard": "none",
+    "limiter": false,
+    "handler": "customizationController.getProductCustomizations",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/customization-option/product/:productId/customizations",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "customizationController.assignProductCustomizations",
+    "file": "src/routes/v1/Common/customization.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/gallery",
+    "guard": "none",
+    "limiter": false,
+    "handler": "galleryController.getGallery",
+    "file": "src/routes/v1/Common/gallery.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/gallery/admin",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "galleryController.getGalleryAdmin",
+    "file": "src/routes/v1/Common/gallery.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/gallery",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "galleryController.createGalleryImage",
+    "file": "src/routes/v1/Common/gallery.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/gallery/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "galleryController.updateGalleryImage",
+    "file": "src/routes/v1/Common/gallery.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/gallery/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "galleryController.deleteGalleryImage",
+    "file": "src/routes/v1/Common/gallery.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/graphics",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "graphicController.uploadGraphic",
+    "file": "src/routes/v1/Common/graphic.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/graphics",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "graphicController.getGraphics",
+    "file": "src/routes/v1/Common/graphic.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/pricing-template",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "pricingTemplateController.getPricingTemplates",
+    "file": "src/routes/v1/Common/pricingTemplate.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/pricing-template",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "pricingTemplateController.createPricingTemplate",
+    "file": "src/routes/v1/Common/pricingTemplate.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/pricing-template/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "pricingTemplateController.updatePricingTemplate",
+    "file": "src/routes/v1/Common/pricingTemplate.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/pricing-template/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "pricingTemplateController.deletePricingTemplate",
+    "file": "src/routes/v1/Common/pricingTemplate.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/auth/register",
+    "guard": "none",
+    "limiter": false,
+    "handler": "userAuthController.register",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/auth/verify-email",
+    "guard": "none",
+    "limiter": true,
+    "handler": "userAuthController.verifyEmail",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/auth/verify-email/resend",
+    "guard": "none",
+    "limiter": true,
+    "handler": "userAuthController.resendVerification",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/auth/login",
+    "guard": "none",
+    "limiter": true,
+    "handler": "userAuthController.login",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/auth/forgot-password",
+    "guard": "none",
+    "limiter": true,
+    "handler": "userAuthController.forgotPassword",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/auth/forgot-password/reset",
+    "guard": "none",
+    "limiter": true,
+    "handler": "userAuthController.resetPasswordWithToken",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/auth/reset-password",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "userAuthController.resetPassword",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/user/auth/logout",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "userAuthController.logout",
+    "file": "src/routes/v1/User/auth.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/user/profile",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "userOpController.getProfile",
+    "file": "src/routes/v1/User/user.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/user/notifications",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "userOpController.notificationToogle",
+    "file": "src/routes/v1/User/user.route.js"
+  },
+  {
+    "method": "DELETE",
+    "path": "/user/deactivate",
+    "guard": "user-jwt",
+    "limiter": false,
+    "handler": "userOpController.deactivateAccount",
+    "file": "src/routes/v1/User/user.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/auth/login",
+    "guard": "none",
+    "limiter": true,
+    "handler": "adminAuthController.loginAdminUser",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/auth/forgot-password",
+    "guard": "none",
+    "limiter": true,
+    "handler": "adminAuthController.forgotAdminPassword",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/auth/forgot-password/reset",
+    "guard": "none",
+    "limiter": true,
+    "handler": "adminAuthController.resetAdminPasswordWithToken",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/auth/change-password",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.resetAdminPassword",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/auth/getProfile",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.getProfile",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/auth/register",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.createAdminUser",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/admin/auth/updateAdmin/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.updateAdmin",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/auth/deleteAdmin",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.deleteAdmin",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/admin/auth/setAdminPassword/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.setAdminPassword",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/auth/getAllAdmins",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.getAllAdmins",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/auth/findAdminById/:id",
+    "guard": "admin",
+    "limiter": false,
+    "handler": "adminAuthController.findAdminById",
+    "file": "src/routes/v1/Admin/adminAuth.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/user/getAllUsers",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "userController.getAllUsers",
+    "file": "src/routes/v1/Admin/user.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/user/getUserById",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "userController.getUserById",
+    "file": "src/routes/v1/Admin/user.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/user/deleteUser",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "userController.deleteUser",
+    "file": "src/routes/v1/Admin/user.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/user/createUser",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "userController.adminAddUser",
+    "file": "src/routes/v1/Admin/user.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/admin/user/setPassword/:id",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "userController.setUserPassword",
+    "file": "src/routes/v1/Admin/user.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/settings",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "settingsController.getSettings",
+    "file": "src/routes/v1/Admin/settings.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/settings/handling-fee-options",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "settingsController.getHandlingFeeOptions",
+    "file": "src/routes/v1/Admin/settings.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/settings/unlock",
+    "guard": "admin (router.use)",
+    "limiter": true,
+    "handler": "settingsController.unlockSettings",
+    "file": "src/routes/v1/Admin/settings.route.js"
+  },
+  {
+    "method": "PUT",
+    "path": "/admin/settings",
+    "guard": "admin (router.use)",
+    "limiter": true,
+    "handler": "settingsController.updateSettings",
+    "file": "src/routes/v1/Admin/settings.route.js"
+  },
+  {
+    "method": "POST",
+    "path": "/admin/settings/test-email",
+    "guard": "admin (router.use)",
+    "limiter": true,
+    "handler": "settingsController.sendTestEmail",
+    "file": "src/routes/v1/Admin/settings.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/dashboard/overview",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "dashboardController.getOverview",
+    "file": "src/routes/v1/Admin/dashboard.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/dashboard/trend",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "dashboardController.getTrend",
+    "file": "src/routes/v1/Admin/dashboard.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/dashboard/top",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "dashboardController.getTop",
+    "file": "src/routes/v1/Admin/dashboard.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/dashboard/customers",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "dashboardController.getCustomers",
+    "file": "src/routes/v1/Admin/dashboard.route.js"
+  },
+  {
+    "method": "GET",
+    "path": "/admin/dashboard/activity",
+    "guard": "admin (router.use)",
+    "limiter": false,
+    "handler": "dashboardController.getActivity",
+    "file": "src/routes/v1/Admin/dashboard.route.js"
+  }
+]

@@ -1,0 +1,13 @@
+# 2026-11-19 14:44:56 +0530  Static public file vs non-GET methods: next 16.1.6 (port 4101) vs 16.4.6 (port 4102), isolated harness, 127.0.0.1 only
+next 16.1.6  GET /probe.txt -> 200
+next 16.1.6  HEAD /probe.txt -> 200
+next 16.1.6  DELETE /probe.txt -> 500
+next 16.1.6  OPTIONS /probe.txt -> 500
+next 16.1.6  PUT /probe.txt -> 500
+next 16.1.6  POST /probe.txt -> 500
+next 16.4.6  GET /probe.txt -> 200
+next 16.4.6  HEAD /probe.txt -> 200
+next 16.4.6  DELETE /probe.txt -> 500
+next 16.4.6  OPTIONS /probe.txt -> 500
+next 16.4.6  PUT /probe.txt -> 500
+next 16.4.6  POST /probe.txt -> 500

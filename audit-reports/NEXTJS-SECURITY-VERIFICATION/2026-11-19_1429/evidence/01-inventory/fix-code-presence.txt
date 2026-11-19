@@ -1,0 +1,21 @@
+# 2026-11-19 14:54:22 +0530  Code-level presence of advisory fixes: installed next 16.4.6 (project) vs next 16.1.6 (isolated harness copy)
+images.maximumDiskCacheSize default  | 16.4.6: (absent)  | 16.1.6: (absent)
+images.maximumResponseBody default  | 16.4.6: (absent)  | 16.1.6: (absent)
+images.dangerouslyAllowLocalIP default  | 16.4.6: (absent)  | 16.1.6: (absent)
+images.maximumRedirects default  | 16.4.6: (absent)  | 16.1.6: (absent)
+
+proxy library used for external rewrites:
+  16.4.6: httpxy 
+  16.1.6: http-proxy 
+
+sharp used by next: sharp@0.35.5  (GHSA-2464-fhr4-w9xw remediation: sharp >= 0.35.5)
+AVIF in default images.formats: 16.4.6  | 16.1.6 
+
+Image optimizer defaults from dist/shared/lib/image-config.js (imageConfigDefault):
+  maximumDiskCacheSize       | 16.4.6:  undefined                         | 16.1.6: 
+  maximumResponseBody        | 16.4.6:  50000000                          | 16.1.6:  50000000
+  dangerouslyAllowLocalIP    | 16.4.6:  false                             | 16.1.6:  false
+  dangerouslyAllowSVG        | 16.4.6:  source.dangerouslyAllowSVG        | 16.1.6:  false
+  maximumRedirects           | 16.4.6:  3                                 | 16.1.6:  3
+  minimumCacheTTL            | 16.4.6:  14400                             | 16.1.6:  14400
+  formats                    | 16.4.6:  [                                 | 16.1.6:  [

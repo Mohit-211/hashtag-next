@@ -1,0 +1,34 @@
+const fs = require("fs");
+const rd = f => { const b = fs.readFileSync(f); const t = (b[0] === 0xff && b[1] === 0xfe) ? b.toString("utf16le") : b.toString("utf8"); return JSON.parse(t.replace(/^\uFEFF/, "")); };
+const [orig, origProd, mid, midProd, fin, finProd, out] = process.argv.slice(2);
+const O = rd(orig), OP = rd(origProd), M = rd(mid), MP = rd(midProd), F = rd(fin), FP = rd(finProd);
+const adv = v => [...new Set(v.via.filter(x => typeof x === "object").map(x => x.url.split("/").pop()))];
+const rows = Object.entries(O.vulnerabilities).map(([name, v]) => {
+  let status;
+  if (F.vulnerabilities[name]) status = "REMAINING - documented exception (Zod GHSA-mrhx-c7xc-m3w5)";
+  else if (M.vulnerabilities[name]) status = "FIXED by minimatch override (this change)";
+  else status = "FIXED by earlier non-force npm audit fix (lockfile updates)";
+  return { package: name, originalSeverity: v.severity, direct: v.isDirect, advisories: adv(v), via: v.via.filter(x => typeof x === "string"), inProductionAudit: !!OP.vulnerabilities[name], status };
+});
+for (const [name, v] of Object.entries(M.vulnerabilities)) if (!O.vulnerabilities[name]) rows.push({ package: name, originalSeverity: null, note: "appeared after audit fix", status: F.vulnerabilities[name] ? "REMAINING" : "FIXED by minimatch override (this change)" });
+const meta = a => a.metadata.vulnerabilities;
+const res = {
+  generated: new Date().toISOString(),
+  stages: {
+    "1-original (2026-11-19_1429, next 16.4.6, before npm audit fix)": { all: meta(O), productionOnly: meta(OP) },
+    "2-after non-force npm audit fix (before this change)": { all: meta(M), productionOnly: meta(MP) },
+    "3-after minimatch override (this change)": { all: meta(F), productionOnly: meta(FP) }
+  },
+  packages: rows.sort((a, b) => a.status.localeCompare(b.status) || a.package.localeCompare(b.package))
+};
+const NOTES = {
+  zod: { status: "PARTIALLY FIXED - 2 of 3 copies fixed by earlier npm audit fix; 1 copy is the documented exception", copies: { "node_modules/zod": "4.4.3 -> 4.6.7 (npm audit fix) - patched", "node_modules/shadcn/node_modules/zod": "3.25.76 -> removed (shadcn 4.16.1 -> 4.23.0 now uses root zod 4.6.7, npm audit fix)", "node_modules/@imgly/background-removal/node_modules/zod": "3.25.76 - REMAINING, type-only copy; documented exception" } },
+  minimatch: { status: "FIXED - 1 copy by earlier npm audit fix, 1 copy by minimatch override (this change)", copies: { "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch": "10.2.6 -> 11.0.9 (typescript-eslint 8.66.0 -> 8.73.0, npm audit fix)", "node_modules/@ts-morph/common/node_modules/minimatch": "10.2.6 -> 11.0.9 (overrides, this change)" } },
+  shadcn: { status: "FIXED - zod path by earlier npm audit fix, ts-morph/minimatch path by minimatch override (this change)" },
+  "@imgly/background-removal": { status: "REMAINING - documented exception (flagged only because of its nested type-only zod 3.25.76)" }
+};
+for (const r of res.packages) if (NOTES[r.package]) Object.assign(r, NOTES[r.package]);
+res.packages.sort((a, b) => a.status.localeCompare(b.status) || a.package.localeCompare(b.package));
+fs.writeFileSync(out, JSON.stringify(res, null, 2) + "\n");
+console.log(JSON.stringify(res.stages, null, 1));
+const c={};for(const r of res.packages)c[r.status.split(" - ")[0]]=(c[r.status.split(" - ")[0]]||0)+1;console.log(c);for(const r of res.packages.filter(r=>r.copies||/PARTIAL|REMAINING|override/.test(r.status)))console.log(r.package,"|",r.status);

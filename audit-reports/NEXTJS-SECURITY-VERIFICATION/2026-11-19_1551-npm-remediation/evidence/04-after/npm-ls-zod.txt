@@ -1,0 +1,18 @@
+hashtagbillionaire@0.1.0 d:\blockcod\CurrentProject\hashtag-next
++-- @imgly/background-removal@1.7.0
+| `-- zod@3.25.76
++-- eslint-config-next@16.4.6
+| `-- eslint-plugin-react-hooks@7.1.1
+|   +-- zod-validation-error@4.0.2
+|   | `-- zod@4.6.7 deduped
+|   `-- zod@4.6.7 deduped
++-- shadcn@4.23.0
+| +-- @modelcontextprotocol/server@2.4.0
+| | +-- @modelcontextprotocol/core@2.4.0
+| | | `-- zod@4.6.7 deduped
+| | `-- zod@4.6.7 deduped
+| +-- @shadcn/registry@0.2.1
+| | `-- zod@4.6.7 deduped
+| `-- zod@4.6.7 deduped
+`-- zod@4.6.7
+
