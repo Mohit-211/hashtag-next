@@ -79,61 +79,79 @@ export default function PaymentHistoryPage() {
     total_pages: 1,
   });
 
-  // ★ CHANGED — was page-based click pagination. Now infinite scroll:
-  // `limit` grows by PAGE_SIZE each time the sentinel at the bottom of
-  // the list scrolls into view, and every fetch re-requests page 1 with
-  // the larger limit — so the response naturally returns the full
-  // accumulated set and we can just replace `payments` wholesale rather
-  // than merging/deduping pages by hand.
-  const [limit, setLimit] = useState(PAGE_SIZE);
+  // Infinite scroll, one page at a time: each time the sentinel at the
+  // bottom of the list scrolls into view we request the next `page` with
+  // the same PAGE_SIZE and append it, so payments already on screen are
+  // never downloaded again. GET payment/history pages by offset, newest
+  // payment first.
+  const [page, setPage] = useState(1); // the page being requested or shown
+  const [loadedPage, setLoadedPage] = useState(0); // last page that loaded
+  const [hasMore, setHasMore] = useState(true);
   const [attempt, setAttempt] = useState(0); // bumped by "Try again"
-  // The request (limit + attempt) whose response arrived last.
-  const [settled, setSettled] = useState<{ limit: number; attempt: number } | null>(null);
+  // The request (page + attempt) whose response arrived last.
+  const [settled, setSettled] = useState<{ page: number; attempt: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const inFlight = settled?.limit !== limit || settled?.attempt !== attempt;
+  const inFlight = settled?.page !== page || settled?.attempt !== attempt;
   const loading = inFlight && payments.length === 0; // first load (skeleton)
   const loadingMore = inFlight && payments.length > 0; // scroll-triggered load
 
   useEffect(() => {
     let cancelled = false;
-    GetPaymentHistoryApi({ page: 1, limit })
+    GetPaymentHistoryApi({ page, limit: PAGE_SIZE })
       .then((res) => {
         if (cancelled) return;
         if (!res?.success) throw new Error(res?.message || "Failed to fetch");
-        setPayments(res.data.payments);
+        const rows: Payment[] = res.data.payments ?? [];
+        // A payment made while the customer scrolls shifts every offset by
+        // one, so the next page can repeat a row we already show: skip it.
+        setPayments((prev) => {
+          const seen = new Set(prev.map((p) => p.payment_id));
+          const fresh = rows.filter((p) => {
+            if (seen.has(p.payment_id)) return false;
+            seen.add(p.payment_id);
+            return true;
+          });
+          return fresh.length ? [...prev, ...fresh] : prev;
+        });
         setMeta({
           total: res.data.total,
           current_page: res.data.current_page,
           total_pages: res.data.total_pages,
         });
+        setLoadedPage(page);
+        // A short page is the last one. total_pages also stops us when the
+        // last page is exactly full, saving a request for an empty page.
+        setHasMore(rows.length === PAGE_SIZE && page < res.data.total_pages);
         setError(null);
       })
       .catch((err: unknown) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Something went wrong");
       })
       .finally(() => {
-        if (!cancelled) setSettled({ limit, attempt });
+        if (!cancelled) setSettled({ page, attempt });
       });
     return () => {
       cancelled = true;
     };
-  }, [limit, attempt]);
+  }, [page, attempt]);
 
-  const hasMore = payments.length < meta.total;
-
-  // Observe the sentinel and grow `limit` once it's on screen — skipped
-  // while a fetch is already in flight or nothing more is left to load.
+  // Observe the sentinel and ask for the page after the last one that
+  // loaded once it's on screen — skipped while a fetch is in flight, after
+  // an error (the failed page waits for "Try again") or at the end.
   useEffect(() => {
-    if (loading || loadingMore || !hasMore) return;
+    if (loading || loadingMore || !hasMore || error) return;
     const el = sentinelRef.current;
     if (!el) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setLimit((prev) => prev + PAGE_SIZE);
+          observer.disconnect();
+          // Not `prev + 1`: repeated scroll events set the same page, so
+          // they can't skip a page or start a second request.
+          setPage(loadedPage + 1);
         }
       },
       { rootMargin: "300px" } // start loading a bit before it's actually visible
@@ -141,7 +159,7 @@ export default function PaymentHistoryPage() {
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [loading, loadingMore, hasMore]);
+  }, [loading, loadingMore, hasMore, error, loadedPage]);
 
   const handleRetry = () => {
     setError(null);
