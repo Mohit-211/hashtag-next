@@ -1,0 +1,27 @@
+SEC-004 ESLint check on next 16.4.6 / eslint-config-next 16.4.6
+
+==============================================================================
+Captured output
+==============================================================================
+$ npx eslint src
+# 2026-11-19 14:00:06 +0530  eslint 9.39.5  eslint-config-next 16.4.6 (npm ls)
+
+d:\blockcod\CurrentProject\hashtag-next\src\errors\ApiErrorHandler.js
+  48:9  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+✖ 1 problem (0 errors, 1 warning)
+
+# exit code: 0
+
+==============================================================================
+Baseline: the same `npx eslint src` on next 16.1.6 / eslint-config-next 16.1.6 (captured 2026-11-19 07:43:58 UTC)
+==============================================================================
+exit code 0, output: (none - no errors, no warnings)
+
+==============================================================================
+Assessment
+==============================================================================
+The single warning comes from @next/next/no-location-assign-relative-destination, a rule added to eslint-config-next in 16.x after 16.1.6.
+It flags src/errors/ApiErrorHandler.js:48, the expired-session handler's deliberate full-page navigation to /login (it runs in an axios
+interceptor outside React, where useRouter() is not available). It is a warning, not an error or a security finding; it was not suppressed
+and the code was not changed.

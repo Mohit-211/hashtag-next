@@ -1,0 +1,160 @@
+[
+  {
+    "id": "SEC003-01",
+    "name": "Signed-out user opening /account is redirected to login with returnTo",
+    "status": "Passed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/login?returnTo=%2Faccount",
+      "accountContentSeen": false,
+      "accountApiCalls": [],
+      "navigations": 3,
+      "pageErrors": []
+    }
+  },
+  {
+    "id": "SEC003-08a",
+    "name": "No redirect loop for signed-out user (stable on login)",
+    "status": "Passed",
+    "detail": {
+      "navigations": [
+        "http://localhost:3301/account",
+        "http://localhost:3301/account",
+        "http://localhost:3301/login?returnTo=%2Faccount"
+      ],
+      "loginNavs": 1
+    }
+  },
+  {
+    "id": "SEC003-02a",
+    "name": "While the token is being verified, no account content is rendered",
+    "status": "Passed",
+    "detail": {
+      "textDuringCheck": "Home Use Cases Orders Saved Gallery I Cant't find Account Checking your session… Quick Links Home Categories Orders Saved Track Order Policies Privacy Policy Te"
+    }
+  },
+  {
+    "id": "SEC003-02",
+    "name": "Signed-in user (valid token) sees the account page",
+    "status": "Passed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/account",
+      "profileFieldValues": [
+        "Audit Test User",
+        "audit.user@example.test",
+        "5550100"
+      ],
+      "profileCall": {
+        "method": "GET",
+        "path": "user/profile",
+        "hasToken": true
+      }
+    }
+  },
+  {
+    "id": "SEC003-02b",
+    "name": "Account sections (profile, addresses, graphics, password) still switch",
+    "status": "Passed",
+    "detail": {
+      "Saved Addresses": true,
+      "Saved Graphics": true,
+      "Change Password": true,
+      "Profile Information": true
+    }
+  },
+  {
+    "id": "SEC003-06a",
+    "name": "Refreshing /account while signed in keeps access",
+    "status": "Passed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/account"
+    }
+  },
+  {
+    "id": "SEC003-03",
+    "name": "Logout on the account page removes access (home, token cleared, /account → login)",
+    "status": "Passed",
+    "detail": {
+      "afterLogoutUrl": "http://localhost:3301/",
+      "tokenCleared": true,
+      "revisitUrl": "http://localhost:3301/login?returnTo=%2Faccount"
+    }
+  },
+  {
+    "id": "SEC003-06b",
+    "name": "Refreshing /account while signed out redirects to login",
+    "status": "Passed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/login?returnTo=%2Faccount"
+    }
+  },
+  {
+    "id": "SEC003-03b",
+    "name": "Logout in another tab removes access on the open account page",
+    "status": "Passed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/login?returnTo=%2Faccount"
+    }
+  },
+  {
+    "id": "SEC003-04",
+    "name": "Invalid token: access denied, token cleared, sent to login",
+    "status": "Passed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/login?returnTo=%2Faccount",
+      "accountContentSeen": false,
+      "tokenCleared": true,
+      "loginNavigations": 2,
+      "urlContainsToken": false
+    }
+  },
+  {
+    "id": "SEC003-05",
+    "name": "Expired token (jwt expired): logged out and redirected to login",
+    "status": "Passed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/login?returnTo=%2Faccount",
+      "accountContentSeen": false,
+      "tokenCleared": true,
+      "loginNavigations": 2,
+      "urlContainsToken": false
+    }
+  },
+  {
+    "id": "SEC003-05b",
+    "name": "Profile check fails with 500: no account shown, sent to login (existing BUG-010 logout path)",
+    "status": "Failed",
+    "detail": {
+      "finalUrl": "http://localhost:3301/account",
+      "accountContentSeen": false,
+      "tokenCleared": false,
+      "loginNavigations": 0,
+      "urlContainsToken": false
+    }
+  },
+  {
+    "id": "SEC003-08b",
+    "name": "Login page with returnTo=/account is stable (no loop back to /account)",
+    "status": "Passed",
+    "detail": {
+      "navigations": [
+        "http://localhost:3301/login?returnTo=%2Faccount",
+        "http://localhost:3301/login?returnTo=%2Faccount"
+      ],
+      "note": "Login page emits 2 same-URL navigation events at load (its own hydration); check is: never leaves login, count stable over 4 s"
+    }
+  },
+  {
+    "id": "SEC003-09",
+    "name": "Token never appears in URLs or console output",
+    "status": "Passed",
+    "detail": {
+      "navigations": [
+        "http://localhost:3301/account",
+        "http://localhost:3301/account",
+        "http://localhost:3301/login?returnTo=%2Faccount",
+        "http://localhost:3301/login?returnTo=%2Faccount"
+      ],
+      "consoleLines": 2
+    }
+  }
+]

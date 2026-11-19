@@ -1,0 +1,151 @@
+SEC-004 page-load and audit tests (audit-reports/raw/audit.spec.mjs, unmodified)
+
+==============================================================================
+Captured console output
+==============================================================================
+$ CHROME_PATH="C:/Program Files/Google/Chrome/Application/chrome.exe" node audit-reports/raw/audit.spec.mjs audit-reports/SEC-004/page-load-tests.json
+# 2026-11-19 14:02:26 +0530  target: next start (16.4.6 production build of a70e15c) on http://localhost:3107 (the spec's default BASE)  spec file unmodified, git blob 102a58f4273baf1cb6151ec62fc7d229739b8009  playwright 1.65.0 (restored with --no-save)
+{"Passed":85,"Failed":6,"Blocked":2}
+F-011 Failed Login form rejects malformed email {"formText":""}
+F-012 Failed Forgot-password form rejects empty email {"nativeInvalid":false,"formText":""}
+F-016 Blocked Category listing shows products (catalog search/filter base) {"productLinks":0,"note":"No products rendered - backend data unavailable from localhost (CORS) or empty"}
+F-017 Blocked Product detail page renders for first listed product {"note":"No product link available"}
+S-004 Failed Proxy rejects IPv6 loopback [::1] {"http":200,"body":"�PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u00039\u0000\u0000\u00039\b\u0006\u0000\u0000\u0000$\u0012�\u0019\u0000\u0000\u0000 cHRM\u0000\u0000z&\u0000\u0000��\u0000\u0000�\u0000\u0000\u0000��\u0000\u0000u0\u0000\u0000�`\u0000\u0000:�\u0000\u0000\u0017p��Q<\u0000\u0000\u0000\u0006bKGD\u0000�\u0000�\u0000�����\u0000\u0000\u0000\tpHYs\u0000\u0000.#\u0000\u0000.#\u0001x�
+S-006 Failed Proxy rejects IPv4-mapped IPv6 loopback {"http":200,"body":"�PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u00039\u0000\u0000\u00039\b\u0006\u0000\u0000\u0000$\u0012�\u0019\u0000\u0000\u0000 cHRM\u0000\u0000z&\u0000\u0000��\u0000\u0000�\u0000\u0000\u0000��\u0000\u0000u0\u0000\u0000�`\u0000\u0000:�\u0000\u0000\u0017p��Q<\u0000\u0000\u0000\u0006bKGD\u0000�\u0000�\u0000�����\u0000\u0000\u0000\tpHYs\u0000\u0000.#\u0000\u0000.#\u0001x�
+S-007 Failed Proxy rejects hostname resolving to loopback (localtest.me) {"http":200,"body":"�PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u00039\u0000\u0000\u00039\b\u0006\u0000\u0000\u0000$\u0012�\u0019\u0000\u0000\u0000 cHRM\u0000\u0000z&\u0000\u0000��\u0000\u0000�\u0000\u0000\u0000��\u0000\u0000u0\u0000\u0000�`\u0000\u0000:�\u0000\u0000\u0017p��Q<\u0000\u0000\u0000\u0006bKGD\u0000�\u0000�\u0000�����\u0000\u0000\u0000\tpHYs\u0000\u0000.#\u0000\u0000.#\u0001x�
+S-010 Failed Security response headers present on / {"missing":["content-security-policy","x-frame-options","strict-transport-security","x-content-type-options","referrer-policy"],"xPoweredBy":"Next.js"}
+# exit code: 0
+
+==============================================================================
+Summary
+==============================================================================
+Page-load tests (23 routes x desktop/tablet/mobile): 69 / 69 passed
+All audit tests: {"Passed":85,"Failed":6,"Blocked":2} (total 93)
+
+Comparison by test id:
+  original audit (audit-reports/raw/test-results.json, next 16.1.6): {"Passed":84,"Failed":7,"Blocked":2}, page loads 69/69
+  16.1.6 baseline re-run today (same app code fa403e3, isolated copy, port 3301): {"Passed":85,"Failed":6,"Blocked":2}, page loads 69/69
+  16.4.6 (this run): {"Passed":85,"Failed":6,"Blocked":2}, page loads 69/69
+  status changes vs 16.1.6 baseline: none
+  status changes vs original audit: F-001 Failed->Passed (Signed-out visitor opening /account is sent to login)
+
+==============================================================================
+Existing failures and blocked tests (unchanged by the upgrade; separate findings, not modified)
+==============================================================================
+  F-011 Failed   Login form rejects malformed email
+           -> login form validation (existing finding)
+  F-012 Failed   Forgot-password form rejects empty email
+           -> forgot-password form validation (existing finding)
+  F-016 Blocked  Category listing shows products (catalog search/filter base)
+           -> blocked: the API refuses browser calls from localhost:3107 (CORS), so no catalog data
+  F-017 Blocked  Product detail page renders for first listed product
+           -> blocked: depends on F-016
+  S-004 Failed   Proxy rejects IPv6 loopback [::1]
+           -> SEC-001 image-proxy SSRF filter (open)
+  S-006 Failed   Proxy rejects IPv4-mapped IPv6 loopback
+           -> SEC-001 image-proxy SSRF filter (open)
+  S-007 Failed   Proxy rejects hostname resolving to loopback (localtest.me)
+           -> SEC-001 image-proxy SSRF filter (open)
+  S-010 Failed   Security response headers present on /
+           -> security response headers not configured (separate finding)
+
+==============================================================================
+All results
+==============================================================================
+id     status   http  h1  consoleErr  name
+T-001  Passed   200   1   3           Load / (desktop)
+T-002  Passed   200   1   0           Load /about (desktop)
+T-003  Passed   200   1   6           Load /categories (desktop)
+T-004  Passed   200   1   3           Load /gallery (desktop)
+T-005  Passed   200   1   0           Load /cart (desktop)
+T-006  Passed   200   1   0           Load /checkout (desktop)
+T-007  Passed   200   1   0           Load /login (desktop)
+T-008  Passed   200   1   0           Load /forgot-password (desktop)
+T-009  Passed   200   1   0           Load /reset-password (desktop)
+T-010  Passed   200   1   0           Load /verify-email (desktop)
+T-011  Passed   200   1   0           Load /account (desktop)
+T-012  Passed   200   1   0           Load /orders (desktop)
+T-013  Passed   200   1   0           Load /saved (desktop)
+T-014  Passed   200   1   2           Load /payment-history (desktop)
+T-015  Passed   200   1   0           Load /track-order (desktop)
+T-016  Passed   200   1   0           Load /contact-us (desktop)
+T-017  Passed   200   1   0           Load /support (desktop)
+T-018  Passed   200   1   0           Load /privacy-policy (desktop)
+T-019  Passed   200   1   0           Load /terms (desktop)
+T-020  Passed   200   1   0           Load /shippingreturns (desktop)
+T-021  Passed   200   1   0           Load /confirmation (desktop)
+T-022  Passed   200   1   0           Load /checkout/paypal/success (desktop)
+T-023  Passed   200   1   0           Load /checkout/paypal/cancel (desktop)
+T-024  Passed   200   1   3           Load / (tablet)
+T-025  Passed   200   1   0           Load /about (tablet)
+T-026  Passed   200   1   6           Load /categories (tablet)
+T-027  Passed   200   1   3           Load /gallery (tablet)
+T-028  Passed   200   1   0           Load /cart (tablet)
+T-029  Passed   200   1   0           Load /checkout (tablet)
+T-030  Passed   200   1   0           Load /login (tablet)
+T-031  Passed   200   1   0           Load /forgot-password (tablet)
+T-032  Passed   200   1   0           Load /reset-password (tablet)
+T-033  Passed   200   1   0           Load /verify-email (tablet)
+T-034  Passed   200   1   0           Load /account (tablet)
+T-035  Passed   200   1   0           Load /orders (tablet)
+T-036  Passed   200   1   0           Load /saved (tablet)
+T-037  Passed   200   1   2           Load /payment-history (tablet)
+T-038  Passed   200   1   0           Load /track-order (tablet)
+T-039  Passed   200   1   0           Load /contact-us (tablet)
+T-040  Passed   200   1   0           Load /support (tablet)
+T-041  Passed   200   1   0           Load /privacy-policy (tablet)
+T-042  Passed   200   1   0           Load /terms (tablet)
+T-043  Passed   200   1   0           Load /shippingreturns (tablet)
+T-044  Passed   200   1   0           Load /confirmation (tablet)
+T-045  Passed   200   1   0           Load /checkout/paypal/success (tablet)
+T-046  Passed   200   1   0           Load /checkout/paypal/cancel (tablet)
+T-047  Passed   200   1   3           Load / (mobile)
+T-048  Passed   200   1   0           Load /about (mobile)
+T-049  Passed   200   1   6           Load /categories (mobile)
+T-050  Passed   200   1   3           Load /gallery (mobile)
+T-051  Passed   200   1   0           Load /cart (mobile)
+T-052  Passed   200   1   0           Load /checkout (mobile)
+T-053  Passed   200   1   0           Load /login (mobile)
+T-054  Passed   200   1   0           Load /forgot-password (mobile)
+T-055  Passed   200   1   0           Load /reset-password (mobile)
+T-056  Passed   200   1   0           Load /verify-email (mobile)
+T-057  Passed   200   1   0           Load /account (mobile)
+T-058  Passed   200   1   0           Load /orders (mobile)
+T-059  Passed   200   1   0           Load /saved (mobile)
+T-060  Passed   200   1   2           Load /payment-history (mobile)
+T-061  Passed   200   1   0           Load /track-order (mobile)
+T-062  Passed   200   1   0           Load /contact-us (mobile)
+T-063  Passed   200   1   0           Load /support (mobile)
+T-064  Passed   200   1   0           Load /privacy-policy (mobile)
+T-065  Passed   200   1   0           Load /terms (mobile)
+T-066  Passed   200   1   0           Load /shippingreturns (mobile)
+T-067  Passed   200   1   0           Load /confirmation (mobile)
+T-068  Passed   200   1   0           Load /checkout/paypal/success (mobile)
+T-069  Passed   200   1   0           Load /checkout/paypal/cancel (mobile)
+F-001  Passed                         Signed-out visitor opening /account is sent to login
+F-002  Passed                         Signed-out visitor opening /orders sees a login prompt or redirect
+F-003  Passed                         Signed-out visitor opening /saved sees a login prompt or redirect
+F-004  Passed                         Signed-out visitor opening /payment-history sees a login prompt or redirect
+F-005  Passed                         Signed-out visitor opening /checkout sees a login prompt or redirect
+F-006  Passed                         Signed-out visitor opening /cart sees a login prompt or redirect
+F-010  Passed                         Login form rejects empty submission client-side
+F-011  Failed                         Login form rejects malformed email
+F-012  Failed                         Forgot-password form rejects empty email
+F-013  Passed                         Reset-password page without token shows an error state
+F-014  Passed   404                   Unknown route returns 404 page
+F-015  Passed   200                   Unknown product id handled gracefully
+F-016  Blocked                        Category listing shows products (catalog search/filter base)
+F-017  Blocked                        Product detail page renders for first listed product
+S-001  Passed   400                   Proxy rejects missing url
+S-002  Passed   400                   Proxy rejects file: scheme
+S-003  Passed   400                   Proxy rejects 127.0.0.1
+S-004  Failed   200                   Proxy rejects IPv6 loopback [::1]
+S-005  Passed   400                   Proxy rejects 169.254.169.254 metadata IP
+S-006  Failed   200                   Proxy rejects IPv4-mapped IPv6 loopback
+S-007  Failed   200                   Proxy rejects hostname resolving to loopback (localtest.me)
+S-010  Failed                         Security response headers present on /
+S-011  Passed                         robots.txt and sitemap.xml served
+P-001  Passed                         Home page weight and load timing (desktop)
+
+Console errors on page loads are the browser's CORS refusals of production API calls from localhost:3107 plus the resulting "Network Error" logs; the
+same errors appear in the original audit run and the 16.1.6 baseline. Raw JSON: raw/page-load-tests.json, raw/page-load-tests-16.1.6-baseline.json.

@@ -1,0 +1,177 @@
+
+> hashtagbillionaire@0.1.0 dev
+> next dev
+
+▲ Next.js 16.4.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env
+✓ Ready in 599ms
+✓ Running next.config.ts took 60ms
+
+✓ Generated AGENTS.md for AI agents. Set `agentRules: false` in next.config to disable.
+○ Compiling / ...
+ GET / 200 in 1246ms (next.js: 402ms, application-code: 844ms)
+ GET / 200 in 154ms (next.js: 4ms, application-code: 150ms)
+ GET / 200 in 491ms (next.js: 6ms, application-code: 484ms)
+ GET /categories 200 in 735ms (next.js: 650ms, application-code: 85ms)
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978516724.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780291106442.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780920343626.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978566312.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978476107.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292261802.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292129762.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978706358.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978039822.avif" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292157807.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+ GET /categories?use_case_id=7 200 in 579ms (next.js: 62ms, application-code: 517ms)
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978125970.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978202325.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978107655.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780922732087.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780291567426.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292087526.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1784672663918.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780979372479.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292415455.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780979016911.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978146492.avif" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978755190.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780979302244.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1785344947283.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1784166721424.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292342882.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMMB210%2Fsanmar-mmb210-product-0.jpg 200 in 2.0s (next.js: 167ms, application-code: 1842ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3002%2Fsanmar-mm3002-product-0.jpg 200 in 1623ms (next.js: 4ms, application-code: 1619ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fottocap%2F18-202%2Fottocap-18-202-product-1.jpg 200 in 1764ms (next.js: 6ms, application-code: 1758ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3002%2Fsanmar-1882511-variant-0.jpg 200 in 2.0s (next.js: 6ms, application-code: 2.0s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3002%2Fsanmar-1882501-variant-0.jpg 200 in 2.0s (next.js: 13ms, application-code: 2.0s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3002%2Fsanmar-1882491-variant-0.jpg 200 in 2.2s (next.js: 7ms, application-code: 2.2s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3002%2Fsanmar-1882521-variant-0.jpg 200 in 817ms (next.js: 13ms, application-code: 804ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMMB210%2Fsanmar-2313881-variant-0.jpg 200 in 682ms (next.js: 11ms, application-code: 671ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMMB210%2Fsanmar-2313871-variant-0.jpg 200 in 649ms (next.js: 1.7ms, application-code: 648ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMMB210%2Fsanmar-2313891-variant-0.jpg 200 in 808ms (next.js: 5ms, application-code: 804ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fwww.promoplace.com%2Fws%2Fws.dll%2FQPic%3FSN%3D51093%26P%3D165623453%26RS%3D300%26I%3D1 200 in 1229ms (next.js: 3ms, application-code: 1227ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMMB210%2Fsanmar-2313901-variant-0.jpg 200 in 639ms (next.js: 24ms, application-code: 615ms)
+○ Compiling /login ...
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3013%2Fsanmar-1885851-variant-0.jpg 200 in 854ms (next.js: 4ms, application-code: 850ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3013%2Fsanmar-1885871-variant-0.jpg 200 in 1107ms (next.js: 9ms, application-code: 1098ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3013%2Fsanmar-1885891-variant-0.jpg 200 in 1171ms (next.js: 3ms, application-code: 1168ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FTM1WX002%2Fsanmar-2029801-variant-0.jpg 200 in 1380ms (next.js: 3ms, application-code: 1377ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FTM1WX002%2Fsanmar-2029811-variant-0.jpg 200 in 1418ms (next.js: 2ms, application-code: 1416ms)
+ GET /login 200 in 572ms (next.js: 90ms, application-code: 481ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FTM1WX002%2Fsanmar-2029821-variant-0.jpg 200 in 1169ms (next.js: 28ms, application-code: 1142ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FTM1WX002%2Fsanmar-2029841-variant-0.jpg 200 in 1159ms (next.js: 1.5ms, application-code: 1157ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FTM1WX002%2Fsanmar-2029831-variant-0.jpg 200 in 1335ms (next.js: 3ms, application-code: 1333ms)
+ GET /product/103484 200 in 1310ms (next.js: 648ms, application-code: 662ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3013%2Fsanmar-1885861-variant-0.jpg 200 in 1075ms (next.js: 2ms, application-code: 1073ms)
+ GET /login?mode=register 200 in 74ms (next.js: 2ms, application-code: 72ms)
+ GET /forgot-password 200 in 167ms (next.js: 35ms, application-code: 132ms)
+ GET /login 200 in 49ms (next.js: 1.0ms, application-code: 48ms)
+ GET /contact-us 200 in 206ms (next.js: 42ms, application-code: 165ms)
+ GET /categories/industry/1/tech-and-startups 200 in 275ms (next.js: 140ms, application-code: 135ms)
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780920343626.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780291106442.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978476107.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978566312.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978706358.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978516724.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978755190.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780291567426.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780979016911.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292261802.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292087526.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780922732087.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1785344947283.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978125970.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978039822.avif" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978107655.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1784166721424.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780979302244.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292342882.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F388878428%2Fsage-701253-front.jpg 200 in 1516ms (next.js: 1.7ms, application-code: 1514ms)
+[browser] Image with src "/api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F388878428%2Fsage-701253-front.jpg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F518878436%2Fsage-701267-front.jpg 200 in 1085ms (next.js: 55ms, application-code: 1030ms)
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780979372479.jpg" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978202325.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780978146492.avif" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292129762.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794963974122-2fdadadcd20f.jpg 200 in 3.3s (next.js: 1.9ms, application-code: 3.3s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794885630817-a33327007b84.jpg 200 in 3.6s (next.js: 1.8ms, application-code: 3.6s)
+[browser] Image with src "/api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794963974122-2fdadadcd20f.jpg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1784672663918.webp" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794873312582-4d66eaf8542e.png 200 in 3.9s (next.js: 3ms, application-code: 3.9s)
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292157807.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1780292415455.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more: https://nextjs.org/docs/api-reference/next/image#sizes
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794962195373-bfee031643f1.jpg 200 in 4.1s (next.js: 2ms, application-code: 4.1s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fss%2F17372%2Fss-ls24012-product.jpg 200 in 793ms (next.js: 4ms, application-code: 789ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F579434533%2Fsage-701298-front.jpg 200 in 813ms (next.js: 2ms, application-code: 811ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F558331237%2Fsage-10030-front.jpg 200 in 736ms (next.js: 4ms, application-code: 731ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794965605074-ee4827b99e7d.png 200 in 4.7s (next.js: 3ms, application-code: 4.7s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F338076171%2Fsage-10010-front.jpg 200 in 621ms (next.js: 2ms, application-code: 619ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794965641738-87abcdc35da5.png 200 in 2.1s (next.js: 7ms, application-code: 2.1s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F969434361%2Fsage-cfkit-front.jpg 200 in 592ms (next.js: 6ms, application-code: 586ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F589115129%2Fsage-10048-front.jpg 200 in 613ms (next.js: 3ms, application-code: 610ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F917549456%2Fsage-98350-front.jpg 200 in 586ms (next.js: 9ms, application-code: 577ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F538471580%2Fsage-hw135ctg-front.jpg 200 in 573ms (next.js: 1.9ms, application-code: 571ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F987431333%2Fsage-wdlornsg-front.jpg 200 in 631ms (next.js: 7ms, application-code: 624ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F729295397%2Fsage-hw147ctg-front.jpg 200 in 723ms (next.js: 4ms, application-code: 719ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F999368249%2Fsage-pc45ms-front.jpg 200 in 803ms (next.js: 1.5ms, application-code: 801ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F328331229%2Fsage-10035-front.jpg 200 in 855ms (next.js: 1.3ms, application-code: 854ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F187431331%2Fsage-wdcolacr-front.jpg 200 in 828ms (next.js: 1.2ms, application-code: 827ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsage%2F162836301%2Fsage-3510-front.jpg 200 in 837ms (next.js: 1.6ms, application-code: 835ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FOG154%2Fsanmar-og154-product-0.jpg 200 in 1210ms (next.js: 8ms, application-code: 1202ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FOE341%2Fsanmar-oe341-product-0.jpg 200 in 1504ms (next.js: 6ms, application-code: 1498ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fottocap%2F18-692%2Fottocap-18-692-product-1.jpg 200 in 1572ms (next.js: 2ms, application-code: 1569ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FLOG154%2Fsanmar-log154-product-0.jpg 200 in 1566ms (next.js: 4ms, application-code: 1562ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FLOG861%2Fsanmar-log861-product-0.jpg 200 in 1608ms (next.js: 6ms, application-code: 1602ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FOG861%2Fsanmar-og861-product-0.jpg 200 in 1865ms (next.js: 5ms, application-code: 1860ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2F93000%2Fsanmar-93000-product-0.jpg 200 in 1597ms (next.js: 1.2ms, application-code: 1595ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794012942036-653a8ad2cfa2.png 200 in 2.1s (next.js: 3ms, application-code: 2.1s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1792187267659-7a971e1a42e7.png 200 in 1966ms (next.js: 1.6ms, application-code: 1964ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1794841152170-e14e3f0b6b48.png 200 in 161ms (next.js: 2ms, application-code: 159ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FMM3015%2Fsanmar-mm3015-product-0.jpg 200 in 1661ms (next.js: 1.1ms, application-code: 1660ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1792187244632-1159492f3886.png 200 in 2.5s (next.js: 3ms, application-code: 2.5s)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fimages%2Fimages-1792187290175-2a53ad75a28b.png 200 in 1991ms (next.js: 4ms, application-code: 1986ms)
+ GET /categories 200 in 325ms (next.js: 179ms, application-code: 146ms)
+[browser] Image with src "https://node.hashtagbillionaire.com/images/images-1786106217052.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+ GET /product/103440 200 in 1162ms (next.js: 129ms, application-code: 1033ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471311-variant-0.jpg 200 in 1758ms (next.js: 1.8ms, application-code: 1756ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471311-variant-1.jpg 200 in 1660ms (next.js: 1.7ms, application-code: 1658ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471461-variant-0.jpg 200 in 1671ms (next.js: 1.5ms, application-code: 1669ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471381-variant-0.jpg 200 in 1744ms (next.js: 1.4ms, application-code: 1743ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471421-variant-0.jpg 200 in 1675ms (next.js: 1.6ms, application-code: 1674ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471501-variant-0.jpg 200 in 1656ms (next.js: 39ms, application-code: 1618ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471581-variant-0.jpg 200 in 453ms (next.js: 1.9ms, application-code: 451ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471541-variant-0.jpg 200 in 1162ms (next.js: 1.9ms, application-code: 1160ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471621-variant-0.jpg 200 in 1301ms (next.js: 1.7ms, application-code: 1300ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1563621-variant-0.jpg 200 in 1303ms (next.js: 1.2ms, application-code: 1302ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1471701-variant-0.jpg 200 in 1416ms (next.js: 1.6ms, application-code: 1414ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1563631-variant-0.jpg 200 in 1504ms (next.js: 2ms, application-code: 1502ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1563661-variant-0.jpg 200 in 1163ms (next.js: 1.4ms, application-code: 1162ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1586101-variant-0.jpg 200 in 850ms (next.js: 1.6ms, application-code: 848ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1586111-variant-0.jpg 200 in 826ms (next.js: 7ms, application-code: 820ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1586121-variant-0.jpg 200 in 1182ms (next.js: 1.7ms, application-code: 1181ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1936811-variant-0.jpg 200 in 1140ms (next.js: 1.1ms, application-code: 1139ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1936821-variant-0.jpg 200 in 1409ms (next.js: 2ms, application-code: 1407ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-2033671-variant-0.jpg 200 in 1259ms (next.js: 1.0ms, application-code: 1258ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-1936831-variant-0.jpg 200 in 1827ms (next.js: 3ms, application-code: 1823ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-2033751-variant-0.jpg 200 in 1257ms (next.js: 1.2ms, application-code: 1256ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-2072611-variant-0.jpg 200 in 1111ms (next.js: 3ms, application-code: 1108ms)
+ GET /api/proxy-image?url=https%3A%2F%2Fnode.hashtagbillionaire.com%2Fuploads%2Fsuppliers%2Fsanmar%2FAL2004%2Fsanmar-2072531-variant-0.jpg 200 in 1137ms (next.js: 1.9ms, application-code: 1135ms)
+ GET /gallery 200 in 196ms (next.js: 34ms, application-code: 162ms)
+⨯ upstream image response timed out for https://node.hashtagbillionaire.com/images/images-1793797565492-790b2106f62b.jpg
+⨯ upstream image response timed out for https://node.hashtagbillionaire.com/images/images-1793797658227-51227c95b3fd.jpg
+⨯ upstream image response timed out for https://node.hashtagbillionaire.com/images/images-1793797660200-07147db54383.jpg
+⨯ upstream image response timed out for https://node.hashtagbillionaire.com/images/images-1793797661213-14b3d39a47e4.jpg
+⨯ upstream image response timed out for https://node.hashtagbillionaire.com/images/images-1793797663156-0714bb3058ba.jpg
+ GET / 200 in 190ms (next.js: 2ms, application-code: 188ms)
+ GET /gallery 200 in 55ms (next.js: 4ms, application-code: 51ms)
+ GET /categories 200 in 363ms (next.js: 231ms, application-code: 132ms)
+ GET / 200 in 115ms (next.js: 2ms, application-code: 113ms)
+
+[exited with code 1]

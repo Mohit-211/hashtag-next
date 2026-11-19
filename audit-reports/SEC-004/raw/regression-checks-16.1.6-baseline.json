@@ -1,0 +1,225 @@
+{
+  "label": "before",
+  "http": {
+    "favicon.ico": {
+      "status": 200,
+      "location": null,
+      "type": "image/png",
+      "bytes": 12694,
+      "sha": "63daeb958fed",
+      "csp": null,
+      "cache": "public, max-age=0",
+      "disposition": null
+    },
+    "favicon.png": {
+      "status": 200,
+      "location": null,
+      "type": "image/png",
+      "bytes": 12694,
+      "sha": "63daeb958fed",
+      "csp": null,
+      "cache": "public, max-age=0",
+      "disposition": null
+    },
+    "send-otp": {
+      "status": 307,
+      "location": "/forgot-password",
+      "type": "",
+      "bytes": 16,
+      "sha": "d7445054de08",
+      "csp": null,
+      "cache": null,
+      "disposition": null
+    },
+    "send-otp?x=1": {
+      "status": 307,
+      "location": "/forgot-password?x=1",
+      "type": "",
+      "bytes": 20,
+      "sha": "16cc50744c81",
+      "csp": null,
+      "cache": null,
+      "disposition": null
+    },
+    "verify-otp": {
+      "status": 307,
+      "location": "/login",
+      "type": "",
+      "bytes": 6,
+      "sha": "c42c80aa0611",
+      "csp": null,
+      "cache": null,
+      "disposition": null
+    },
+    "contact": {
+      "status": 307,
+      "location": "/contact-us",
+      "type": "",
+      "bytes": 11,
+      "sha": "df351ad43d65",
+      "csp": null,
+      "cache": null,
+      "disposition": null
+    },
+    "contact/": {
+      "status": 308,
+      "location": "/contact",
+      "type": "",
+      "bytes": 8,
+      "sha": "eda4eb3e3530",
+      "csp": null,
+      "cache": null,
+      "disposition": null
+    },
+    "contact-us": {
+      "status": 200,
+      "location": null,
+      "type": "text/html",
+      "bytes": 30116,
+      "sha": "4c758e50bd02",
+      "csp": null,
+      "cache": "s-maxage=31536000",
+      "disposition": null
+    },
+    "optimizer: local jpeg": {
+      "status": 200,
+      "location": null,
+      "type": "image/jpeg",
+      "bytes": 44417,
+      "sha": "d0775cf3aae4",
+      "csp": "default-src 'self'; script-src 'none'; sandbox;",
+      "cache": "public, max-age=14400, must-revalidate",
+      "disposition": "attachment"
+    },
+    "optimizer: local svg": {
+      "status": 200,
+      "location": null,
+      "type": "image/svg+xml",
+      "bytes": 556,
+      "sha": "170943152383",
+      "csp": "default-src 'self'; script-src 'none'; sandbox;",
+      "cache": "public, max-age=14400, must-revalidate",
+      "disposition": "attachment"
+    },
+    "optimizer: proxy route": {
+      "status": 400,
+      "location": null,
+      "type": "",
+      "bytes": 30,
+      "sha": "f8affb043d40",
+      "csp": null,
+      "cache": null,
+      "disposition": null
+    },
+    "optimizer: remote https": {
+      "status": 200,
+      "location": null,
+      "type": "image/png",
+      "bytes": 9095,
+      "sha": "069cd5706d41",
+      "csp": "default-src 'self'; script-src 'none'; sandbox;",
+      "cache": "public, max-age=14400, must-revalidate",
+      "disposition": "attachment"
+    },
+    "optimizer: bad width": {
+      "status": 400,
+      "location": null,
+      "type": "",
+      "bytes": 42,
+      "sha": "fd2f0378819a",
+      "csp": null,
+      "cache": null,
+      "disposition": null
+    },
+    "proxy: backend image": {
+      "status": 200,
+      "location": null,
+      "type": "image/png",
+      "bytes": 281633,
+      "sha": "03d00e1a23cd",
+      "csp": null,
+      "cache": "public, max-age=86400, immutable",
+      "disposition": null
+    },
+    "robots.txt": {
+      "status": 200,
+      "location": null,
+      "type": "text/plain",
+      "bytes": 796,
+      "sha": "d0008c899705",
+      "csp": null,
+      "cache": "public, max-age=0, must-revalidate",
+      "disposition": null
+    },
+    "sitemap.xml": {
+      "status": 200,
+      "location": null,
+      "type": "application/xml",
+      "bytes": 235783,
+      "sha": "48200b931e8c",
+      "csp": null,
+      "cache": "public, max-age=0, must-revalidate",
+      "disposition": null
+    },
+    "404 page": {
+      "status": 404,
+      "location": null,
+      "type": "text/html",
+      "bytes": 25138,
+      "sha": "8cd3b4975649",
+      "csp": null,
+      "cache": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "disposition": null
+    }
+  },
+  "pages": {
+    "/product/103440": {
+      "status": 200,
+      "images": 5,
+      "loaded": 5,
+      "broken": [],
+      "h1": "Allmade Unisex Tri-Blend Tee",
+      "pageErrors": [],
+      "localFailures": []
+    },
+    "/gallery": {
+      "status": 200,
+      "images": 37,
+      "loaded": 17,
+      "broken": [],
+      "h1": "Printed. Stitched.Shipped.",
+      "pageErrors": [],
+      "localFailures": [
+        "500 /_next/image?url=https://node.hashtagbillionaire.com/images/images-1793797450082-ba4ed37d6f29.jpg"
+      ]
+    },
+    "/categories": {
+      "status": 200,
+      "images": 60,
+      "loaded": 34,
+      "broken": [],
+      "h1": "What are you shopping for?",
+      "pageErrors": [],
+      "localFailures": []
+    },
+    "/": {
+      "status": 200,
+      "images": 15,
+      "loaded": 15,
+      "broken": [],
+      "h1": "Print, Apparel & Promo Solutions forEvery Industry",
+      "pageErrors": [],
+      "localFailures": []
+    }
+  },
+  "shots": {
+    "/": "home.png",
+    "/about": "about.png",
+    "/login": "login.png",
+    "/forgot-password": "forgot-password.png",
+    "/contact-us": "contact-us.png",
+    "/privacy-policy": "privacy-policy.png",
+    "/cart": "cart.png",
+    "/gallery": "gallery.png"
+  }
+}
