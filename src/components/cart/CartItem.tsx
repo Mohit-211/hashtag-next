@@ -13,6 +13,7 @@ import {
 } from "@/api/operations/cart.api";
 
 import ProxyImage from "../ProxyImage";
+import { Dialog, DialogClose, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { parseCustomizationConfig, type CartItemType } from "./CartItemsList";
 
 interface Props {
@@ -22,7 +23,7 @@ interface Props {
 
 export default function CartItem({ item, onRefresh }: Props) {
   const [loading, setLoading] = useState(false);
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   /* ── Typeable quantity ──
      `qtyDraft` is a local string buffer the user can freely type/clear into
@@ -259,28 +260,66 @@ export default function CartItem({ item, onRefresh }: Props) {
             ))}
           </div>
 
-          {/* Artwork proof swatch */}
+          {/* Artwork proof swatch. Opens the preview as a Radix dialog, which
+              moves focus in, traps it, closes on Escape and, because the
+              swatch is its DialogTrigger, puts focus back on the swatch. */}
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => uploadedImage && setPreviewSrc(uploadedImage)}
-              disabled={!uploadedImage}
-              className="w-12 h-12 shrink-0 rounded-md border border-dashed border-border bg-background/60 overflow-hidden disabled:cursor-default enabled:cursor-zoom-in enabled:hover:opacity-80 transition"
-            >
-              {uploadedImage ? (
-                <ProxyImage
-                  src={uploadedImage}
-                  alt={"Uploaded artwork"}
-                  width={48}
-                  height={48}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <UploadCloud className="h-4 w-4 text-muted-foreground/50" />
-                </div>
-              )}
-            </button>
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  disabled={!uploadedImage}
+                  className="w-12 h-12 shrink-0 rounded-md border border-dashed border-border bg-background/60 overflow-hidden disabled:cursor-default enabled:cursor-zoom-in enabled:hover:opacity-80 transition"
+                >
+                  {uploadedImage ? (
+                    <ProxyImage
+                      src={uploadedImage}
+                      alt={"Uploaded artwork"}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <UploadCloud className="h-4 w-4 text-muted-foreground/50" />
+                    </div>
+                  )}
+                </button>
+              </DialogTrigger>
+
+              {/* Same full-screen lightbox as before: the content box fills
+                  the viewport and is the dark backdrop, so a click on it
+                  (not on the image) closes, as the old overlay did.
+                  Radix hides the rest of the page with aria-hidden but
+                  doesn't set aria-modal itself, so it's set here. */}
+              <DialogContent
+                showCloseButton={false}
+                aria-modal="true"
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setPreviewOpen(false);
+                }}
+                className="inset-0 flex max-w-none translate-x-0 translate-y-0 items-center justify-center gap-0 rounded-none bg-foreground/70 p-4 ring-0 sm:max-w-none"
+              >
+                <DialogTitle className="sr-only">Artwork preview</DialogTitle>
+                <DialogClose asChild>
+                  <button
+                    type="button"
+                    className="absolute top-4 right-4 text-background/80 hover:text-background text-2xl leading-none"
+                    aria-label="Close preview"
+                  >
+                    ×
+                  </button>
+                </DialogClose>
+                {uploadedImage && (
+                  // eslint-disable-next-line @next/next/no-img-element -- lightbox sized by the image itself
+                  <img
+                    src={uploadedImage}
+                    alt="Artwork preview"
+                    className="max-w-full max-h-full rounded-lg shadow-2xl"
+                  />
+                )}
+              </DialogContent>
+            </Dialog>
 
             <div className="min-w-0 leading-tight">
               <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -388,30 +427,6 @@ export default function CartItem({ item, onRefresh }: Props) {
 
         <p className="font-bold text-lg tabular-nums">${itemTotal.toFixed(2)}</p>
       </div>
-
-      {/* Artwork preview lightbox */}
-      {previewSrc && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/70 p-4"
-          onClick={() => setPreviewSrc(null)}
-        >
-          <button
-            type="button"
-            onClick={() => setPreviewSrc(null)}
-            className="absolute top-4 right-4 text-background/80 hover:text-background text-2xl leading-none"
-            aria-label="Close preview"
-          >
-            ×
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element -- lightbox sized by the image itself */}
-          <img
-            src={previewSrc}
-            alt="Artwork preview"
-            className="max-w-full max-h-full rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
     </div>
   );
 }
