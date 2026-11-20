@@ -97,7 +97,9 @@ export interface OrderDetail {
     customized_image: string;
     price: number;
     quantity: number;
-    total: number;
+    /** A number today, but null when the line has no total (NaN over JSON) and a
+     *  decimal string from older API versions. Format with Number(...) (BUG-027). */
+    total?: number | string | null;
     graphics?: { id: number; original_name: string; file_url: string }[];
     customization_config?: {
       print_method: string;
@@ -431,7 +433,7 @@ export default function OrderCard({
                           </div>
                           <div className="shrink-0 flex flex-col items-end">
                             <span className="text-sm font-bold text-foreground">
-                              ${item.total.toFixed(2)}
+                              ${(Number(item.total) || 0).toFixed(2)}
                             </span>
                             {/* <span className="text-[11px] text-muted-foreground">
                               ${item.price.toFixed(2)} ×{" "}
