@@ -13,7 +13,6 @@ import {
   GetSquareConfigApi,
   SquareConfig,
 } from "@/api/operations/payment.api";
-import { useCart } from "@/contexts/CartContext";
 
 import { errorMessage } from "@/lib/errors";
 import { forgetCashAppOrder, rememberCashAppOrder } from "./cashAppPending";
@@ -300,8 +299,10 @@ export default function PaymentSection({
     } finally { setPaymentLoading(false); }
   };
 
-  const { refreshCart } = useCart();
-  const handleCardPay   = async () => { try { await tokenizeAndPay(cardRef, "CARD"); await refreshCart(); } catch (err) { console.error(err); } };
+  // No cart refresh after paying (BUG-026): a paid order empties the cart and
+  // reloads the page (handlePlaceOrder in CheckoutLayout), and a failed payment
+  // leaves the cart unchanged. tokenizeAndPay handles every error itself.
+  const handleCardPay   = () => tokenizeAndPay(cardRef, "CARD");
   const handleGooglePay = () => tokenizeAndPay(googlePayRef, "GOOGLE_PAY");
 
   const handlePayPalClick = async () => {
