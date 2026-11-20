@@ -4,7 +4,6 @@ import { isAxiosError } from "axios";
 import { useCart } from "@/contexts/CartContext";
 import {
   CreatePaymentApi,
-  GetSquareConfigApi,
   CreatePaypalOrderApi,
   GetSquarePaymentStatusApi,
 } from "@/api/operations/payment.api";
@@ -276,10 +275,6 @@ export default function CheckoutLayout() {
       }
       if (!sourceId) {
         throw new Error("Payment token missing");
-      }
-      const paymentConfig = await GetSquareConfigApi();
-      if (!paymentConfig) {
-        throw new Error("Unable to load payment configuration");
       }
       // CARD, GOOGLE_PAY, and CASH_APP all tokenize client-side and post
       // through this same create-payment endpoint — only the sourceId's
