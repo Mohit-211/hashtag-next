@@ -1,4 +1,4 @@
-import client from "../client";
+import client, { uploadTimeout } from "../client";
 import { CART_ENDPOINTS } from "../endpoints";
 // ➕ Add to cart
 // cart.api.ts
@@ -8,6 +8,8 @@ export const AddToCartApi = (formData: FormData) => {
     headers: {
       "Content-Type": "multipart/form-data", // ✅ let browser set boundary
     },
+    // Carries the customization image(s): the timeout grows with the upload.
+    timeout: uploadTimeout(formData),
   });
 };
 
@@ -17,6 +19,8 @@ export const AddToCartApi = (formData: FormData) => {
 export const ManualAddToCartApi = (formData: FormData) =>
   client.post("/product/cart", formData, {
     headers: { "Content-Type": undefined },
+    // Carries the customer's files (up to 100 MB each): the timeout grows with the upload.
+    timeout: uploadTimeout(formData),
   });
 
 // 📦 Get all cart items

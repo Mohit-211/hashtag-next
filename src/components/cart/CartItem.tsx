@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, Minus, Plus, Trash2, UploadCloud, Stamp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,11 +18,15 @@ import { parseCustomizationConfig, type CartItemType } from "./CartItemsList";
 
 interface Props {
   item: CartItemType;
-  onRefresh: () => void;
+  /** Fetches the cart again; quantity changes wait for it (see below). */
+  onRefresh: () => void | Promise<void>;
 }
 
 export default function CartItem({ item, onRefresh }: Props) {
   const [loading, setLoading] = useState(false);
+  // Set while a request for this line runs. A ref, not `loading`: state only
+  // changes on the next render, so two events in a row would both see false.
+  const inFlightRef = useRef(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   /* ── Typeable quantity ──
@@ -65,43 +69,73 @@ export default function CartItem({ item, onRefresh }: Props) {
   const designFee = item.pricing_snapshot?.customization_price?.setup_fee;
   const showDesignFee = !!designFee && designFee > 0;
 
-  const handleDecrease = async () => {
-    // ★ FIXED — was item.canDecrease, API sends can_decrease.
-    if (item.quantity <= minQuantity || loading || item.can_decrease === false) return;
+  /* ── +/- (BUG-024) ──
+     A typed value that hasn't been sent yet goes first, then the step applies
+     to it: 5, type 10, + → quantity 10, then increment → 11. The buttons don't
+     take focus when pressed (onMouseDown below), so pressing one no longer
+     blurs the box, sends the typed value on its own and disables the button
+     before its click arrives. One request at a time, in order. */
+  const changeQuantity = async (step: 1 | -1) => {
+    if (inFlightRef.current) return;
+    const draft = qtyDraft;
+    setQtyDraft(null);
+
+    const typed = Math.floor(Number(draft));
+    const hasTyped = draft !== null && draft.trim() !== "" && Number.isFinite(typed);
+    const target = hasTyped ? Math.max(minQuantity, typed) : null;
+    const base = target ?? item.quantity;
+    const update = target !== null && target !== item.quantity;
+    // ★ FIXED — was item.canIncrease/canDecrease, API sends can_increase/can_decrease.
+    // Those describe the line's current quantity, not a typed one.
+    const stepAllowed =
+      step === 1
+        ? target !== null || item.can_increase !== false
+        : base > minQuantity && (target !== null || item.can_decrease !== false);
+    if ((hasTyped && typed < minQuantity) || (step === -1 && base <= minQuantity)) {
+      toast.error(`The minimum for this item is ${minQuantity}.`);
+    }
+    if (!update && !stepAllowed) return;
+
+    inFlightRef.current = true;
+    setLoading(true);
+    let changed = false;
     try {
-      setLoading(true);
-      await DecrementCartItemApi({ cart_id: item.cart_id });
-      toast.success("Quantity decreased");
-      onRefresh();
+      if (update) {
+        await UpdateCartQuantityApi({ cart_id: item.cart_id, quantity: target });
+        changed = true;
+        toast.success("Quantity updated");
+      }
+      if (stepAllowed) {
+        if (step === 1) await IncrementCartItemApi({ cart_id: item.cart_id });
+        else await DecrementCartItemApi({ cart_id: item.cart_id });
+        changed = true;
+        toast.success(step === 1 ? "Quantity increased" : "Quantity decreased");
+      }
     } catch (err) {
-      // The axios response interceptor already toasts the failure.
+      // The axios response interceptor already toasts the failure. A failed
+      // update skips the step, which was meant for the typed quantity.
       console.error(err);
+    }
+    try {
+      // One refresh for the whole sequence, also when only its first part
+      // worked. The spinner stays until it's done: without it the box shows
+      // the old cart's quantity until the refreshed cart arrives.
+      if (changed) await onRefresh();
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
   };
 
-  const handleIncrease = async () => {
-    // ★ FIXED — was item.canIncrease, API sends can_increase.
-    if (loading || item.can_increase === false) return;
-    try {
-      setLoading(true);
-      await IncrementCartItemApi({ cart_id: item.cart_id });
-      toast.success("Quantity increased");
-      onRefresh();
-    } catch (err) {
-      // The axios response interceptor already toasts the failure.
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleDecrease = () => changeQuantity(-1);
+  const handleIncrease = () => changeQuantity(1);
 
   /* ── Commit a manually-typed quantity ──
      Does nothing if the box was left empty or unchanged, and never goes below
      the line's minimum: removing a line stays on the Remove button. */
   const commitTypedQty = async (raw: string) => {
-    if (loading) return;
+    // Also covers the blur the box fires when a +/- request swaps it for the spinner.
+    if (inFlightRef.current) return;
     setQtyDraft(null);
 
     const typed = Math.floor(Number(raw));
@@ -111,21 +145,26 @@ export default function CartItem({ item, onRefresh }: Props) {
     const target = Math.max(minQuantity, typed);
     if (target === item.quantity) return;
 
+    inFlightRef.current = true;
     setLoading(true);
     try {
       await UpdateCartQuantityApi({ cart_id: item.cart_id, quantity: target });
       toast.success("Quantity updated");
-      onRefresh();
+      // Keep the spinner until the cart has the new quantity; otherwise the box
+      // falls back to the old one while the refresh runs.
+      await onRefresh();
     } catch (err) {
       // The axios response interceptor already toasts the failure.
       console.error(err);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
   };
 
   const handleRemove = async () => {
-    if (loading) return;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     try {
       setLoading(true);
       await RemoveFromCartApi(item.cart_id);
@@ -135,6 +174,7 @@ export default function CartItem({ item, onRefresh }: Props) {
       // The axios response interceptor already toasts the failure.
       console.error(err);
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
   };
@@ -377,9 +417,16 @@ export default function CartItem({ item, onRefresh }: Props) {
       {/* Bottom: quantity + total */}
       <div className="flex items-center justify-between pt-4 mt-1 border-t border-border/60">
         <div className="flex items-center rounded-full border border-border overflow-hidden bg-background">
+          {/* While a value is typed, the step applies to it (see changeQuantity),
+              so the line's own limits don't disable the buttons then. Pressing
+              them keeps focus in the box (BUG-024). */}
           <button
             onClick={handleDecrease}
-            disabled={loading || item.quantity <= minQuantity || item.can_decrease === false}
+            onMouseDown={(e) => e.preventDefault()}
+            disabled={
+              loading ||
+              (qtyDraft === null && (item.quantity <= minQuantity || item.can_decrease === false))
+            }
             className="p-2 hover:bg-muted disabled:opacity-40 transition-colors"
             aria-label="Decrease quantity"
           >
@@ -417,7 +464,8 @@ export default function CartItem({ item, onRefresh }: Props) {
 
           <button
             onClick={handleIncrease}
-            disabled={loading || item.can_increase === false}
+            onMouseDown={(e) => e.preventDefault()}
+            disabled={loading || (qtyDraft === null && item.can_increase === false)}
             className="p-2 hover:bg-muted disabled:opacity-40 transition-colors"
             aria-label="Increase quantity"
           >

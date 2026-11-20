@@ -1,27 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fetchPublicUrl, readBody, UnsafeTargetError } from "@/lib/ssrfSafeFetch";
 
 const MAX_URL_LENGTH = 2048;
 
-// Blocks obvious SSRF targets: loopback, link-local (incl. the cloud
-// metadata IP), and private RFC1918 ranges. Best-effort hostname/IP-literal
-// check — this proxy has no allowlist of trusted image hosts, so without
-// this a client could make the server fetch internal-network resources.
-function isBlockedHost(hostname: string): boolean {
-  const host = hostname.toLowerCase();
-  if (host === "localhost" || host.endsWith(".localhost")) return true;
-  if (host === "0.0.0.0" || host === "::1") return true;
-
-  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (ipv4) {
-    const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
-    if (a === 127) return true; // loopback
-    if (a === 169 && b === 254) return true; // link-local / cloud metadata
-    if (a === 10) return true; // 10.0.0.0/8
-    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
-    if (a === 192 && b === 168) return true; // 192.168.0.0/16
-  }
-  return false;
-}
+// This proxy has no allowlist of trusted image hosts (supplier images come
+// from many domains), so every fetch goes through fetchPublicUrl. It refuses
+// any URL, DNS answer or redirect that leads to loopback, private, link-local
+// or other non-public addresses, and connects only to the validated IP, so
+// the server can't be used to reach internal-network resources (SEC-001).
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
@@ -42,36 +28,42 @@ export async function GET(req: NextRequest) {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     return new NextResponse("Only http/https URLs are allowed", { status: 400 });
   }
-  if (isBlockedHost(parsed.hostname)) {
-    return new NextResponse("This host cannot be fetched", { status: 400 });
-  }
 
   try {
-    const response = await fetch(url, {
+    const response = await fetchPublicUrl(parsed, {
       // A slow supplier host must not hang the customization canvas for minutes.
       signal: AbortSignal.timeout(10_000),
-      // Forward a browser-like UA so servers don't block the request
       headers: {
+        // Forward a browser-like UA so servers don't block the request
         "User-Agent":
           "Mozilla/5.0 (compatible; ImageProxy/1.0)",
+        // The rest are the headers fetch() used to send, so supplier CDNs and
+        // their bot filters still see the same request as before.
+        Accept: "*/*",
+        "Accept-Language": "*",
+        "Sec-Fetch-Mode": "cors",
+        "Accept-Encoding": "gzip, deflate",
       },
     });
+    const status = response.statusCode ?? 502;
 
-    if (!response.ok) {
-      return new NextResponse(`Upstream error: ${response.status}`, {
-        status: response.status,
+    if (status < 200 || status > 299) {
+      response.destroy();
+      return new NextResponse(`Upstream error: ${status}`, {
+        status,
       });
     }
 
-    const contentType = response.headers.get("content-type") || "";
+    const contentType = response.headers["content-type"] || "";
     // Only ever relay actual image bytes through this same-origin endpoint —
     // without this, an attacker-controlled URL could make it reflect
     // arbitrary content (e.g. text/html) under our own origin.
     if (!contentType.toLowerCase().startsWith("image/")) {
+      response.destroy();
       return new NextResponse("Upstream response was not an image", { status: 400 });
     }
 
-    const buffer = await response.arrayBuffer();
+    const buffer = await readBody(response);
 
     return new NextResponse(buffer, {
       status: 200,
@@ -84,6 +76,10 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
+    if (err instanceof UnsafeTargetError) {
+      // Generic message: don't tell the caller what an internal name resolved to.
+      return new NextResponse("This host cannot be fetched", { status: 400 });
+    }
     console.error("[proxy-image] fetch failed:", err);
     return new NextResponse("Failed to fetch image", { status: 500 });
   }

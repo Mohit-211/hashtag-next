@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, ExternalLink, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /** The order/shipment fields tracking needs — present on both the order list and order detail. */
@@ -114,6 +114,21 @@ export const formatOrderDate = (raw?: string) =>
 export default function ShipmentTracking({ order }: { order: TrackableOrder }) {
   const stage = orderStage(order);
   const [copied, setCopied] = useState(false);
+  // Turns the "copied" tick off again: one timer at a time, cancelled when
+  // this component goes away.
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountedRef = useRef(false);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
+    };
+  }, []);
 
   if (stage < 0) {
     return (
@@ -128,8 +143,14 @@ export default function ShipmentTracking({ order }: { order: TrackableOrder }) {
     if (!order.tracking_number) return;
     try {
       await navigator.clipboard.writeText(order.tracking_number);
+      // The component may have gone away while the clipboard was written.
+      if (unmountedRef.current) return;
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopied(false);
+      }, 1500);
     } catch {
       // Clipboard unavailable — the number is still visible to copy by hand.
     }

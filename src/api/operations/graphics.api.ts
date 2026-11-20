@@ -1,4 +1,4 @@
-import client from "../client";
+import client, { uploadTimeout } from "../client";
 import { GRAPHICS_ENDPOINTS } from "../endpoints";
 
 /** A file the customer has uploaded, stored exactly as it came. */
@@ -22,6 +22,7 @@ export const UploadGraphicApi = (file: File) => {
   return client.post(GRAPHICS_ENDPOINTS.BASE, formData, {
     headers: { "Content-Type": undefined },
     skipErrorToast: true,
+    timeout: uploadTimeout(formData),
   });
 };
 

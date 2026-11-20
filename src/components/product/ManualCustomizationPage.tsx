@@ -14,7 +14,14 @@ import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 import type { SavedGraphic } from "@/api/operations/graphics.api";
 import GraphicThumb from "@/components/graphics/GraphicThumb";
 import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
-import { GRAPHIC_MAX_BYTES, GRAPHIC_MAX_MB, canDrawGraphic, fileExtension, formatBytes } from "@/components/graphics/graphicFiles";
+import {
+  GRAPHIC_MAX_MB,
+  GRAPHIC_UPLOAD_ACCEPT,
+  GRAPHIC_UPLOAD_FORMATS,
+  fileExtension,
+  formatBytes,
+  graphicUploadError,
+} from "@/components/graphics/graphicFiles";
 import { cn } from "@/lib/utils";
 import { ProductAddonsApi, ProductCustomizationsApi } from "@/api/operations/product.api";
 import { ManualAddToCartApi } from "@/api/operations/cart.api";
@@ -128,8 +135,6 @@ const IMAGE_MAX_COUNT = 5;
 
 const fileExt = (f: File) => fileExtension(f.name);
 const isSvg = (f: File) => fileExt(f) === "svg" || f.type === "image/svg+xml";
-/** Customers can upload anything, and browsers can't draw all of it (AI, EPS, PSD, CDR…). */
-const canPreview = (f: File) => canDrawGraphic({ original_name: f.name, mime_type: f.type });
 
 /** Short price label for a value at the current quantity. */
 const priceLabel = (p: CustomizationPrice, qty: number, pricingType?: string): string => {
@@ -290,23 +295,25 @@ export default function ManualCustomizationPage({
       [id]: { ...(prev[id] ?? { valueId: null, text: "", images: [] }), ...patch },
     }));
 
-  const handleFiles = (id: number, picked: File[]) => {
+  const handleFiles = async (id: number, picked: File[]) => {
     if (picked.length === 0) return;
-    const current = selections[id]?.images ?? [];
-    const valid = picked.filter((file) => {
-      if (file.size > GRAPHIC_MAX_BYTES) {
-        toast.error(`${file.name} is larger than ${GRAPHIC_MAX_MB} MB.`);
-        return false;
-      }
-      return true;
-    });
-    const room = IMAGE_MAX_COUNT - current.length - (selections[id]?.graphics?.length ?? 0);
+    const problems = await Promise.all(picked.map(graphicUploadError));
+    // A rejected file gets its own message, no preview, and never reaches the cart upload.
+    for (const problem of problems) if (problem) toast.error(problem);
+    const valid = picked.filter((_, i) => !problems[i]);
+    if (valid.length === 0) return;
+    const room = IMAGE_MAX_COUNT - (selections[id]?.images.length ?? 0) - (selections[id]?.graphics?.length ?? 0);
     if (valid.length > room) toast.error(`You can upload up to ${IMAGE_MAX_COUNT} images.`);
-    if (room <= 0 || valid.length === 0) return;
+    if (room <= 0) return;
     const added = valid
       .slice(0, room)
       .map((file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file }));
-    updateSelection(id, { images: [...current, ...added] });
+    // Added to the latest list: the customer may have changed it while the files were checked.
+    setSelections((prev) => {
+      const sel = prev[id] ?? { valueId: null, text: "", images: [] };
+      const space = Math.max(0, IMAGE_MAX_COUNT - sel.images.length - (sel.graphics?.length ?? 0));
+      return { ...prev, [id]: { ...sel, images: [...sel.images, ...added.slice(0, space)] } };
+    });
   };
 
   const removeImage = (id: number, imageId: string) =>
@@ -402,17 +409,29 @@ export default function ManualCustomizationPage({
     if (loggedIn && !takePendingAuthAction(MANUAL_ADD_TO_CART_ACTION, forThis)) return;
 
     (async () => {
-      const files = new Map((await loadPendingFiles(pending.id)).map((f) => [f.key, f.file]));
+      const loaded = await loadPendingFiles(pending.id);
       if (loggedIn) clearPendingFiles();
+      // They may have been saved by an older version of this page: same rules as a fresh pick.
+      const files = new Map<string, File>();
+      const rejected = new Set<string>();
+      for (const { key, file } of loaded) {
+        const problem = await graphicUploadError(file);
+        if (problem) {
+          toast.error(problem);
+          rejected.add(key);
+        } else files.set(key, file);
+      }
       let lostImages = false;
       const restored: Record<number, Selection> = {};
       pending.payload.selections.forEach((s) => {
         const group = groups.find((g) => g.customization.id === s.customizationId);
         if (!group) return;
         const images = s.images.flatMap((img) => {
-          const file = files.get(`${s.customizationId}:${img.id}`);
+          const key = `${s.customizationId}:${img.id}`;
+          const file = files.get(key);
           if (!file) {
-            lostImages = true;
+            // A rejected file already has its own message.
+            if (!rejected.has(key)) lostImages = true;
             return [];
           }
           return [{ id: img.id, file }];
@@ -425,7 +444,8 @@ export default function ManualCustomizationPage({
         };
       });
       if (lostImages) toast.warning("Some uploaded images couldn't be restored. Please add them again.");
-      autoSubmitRef.current = loggedIn && !lostImages;
+      // Never add to the cart without every file the customer chose.
+      autoSubmitRef.current = loggedIn && !lostImages && rejected.size === 0;
       setSelections(restored);
       if (Array.isArray(pending.payload.addons)) setSelectedAddons(pending.payload.addons.map(toSelectedAddon));
       if (pending.payload.qty > 0) setQty(pending.payload.qty);
@@ -962,6 +982,7 @@ function FilePicker({
       <input
         ref={inputRef}
         type="file"
+        accept={GRAPHIC_UPLOAD_ACCEPT}
         multiple
         className="hidden"
         onChange={(e) => {
@@ -1003,7 +1024,7 @@ function FilePicker({
             )}
           </span>
           <span className="text-xs text-muted-foreground">
-            Any file type · up to {GRAPHIC_MAX_MB} MB each · max {IMAGE_MAX_COUNT} files
+            {GRAPHIC_UPLOAD_FORMATS} · up to {GRAPHIC_MAX_MB} MB each · max {IMAGE_MAX_COUNT} files
           </span>
         </button>
       ) : (
@@ -1100,7 +1121,7 @@ function ImageThumb({
     [image.file]
   );
   const [previewFailed, setPreviewFailed] = useState(false);
-  const previewable = canPreview(image.file) && !previewFailed;
+  const previewable = !previewFailed;
   const actionBtn =
     "flex h-8 w-8 items-center justify-center rounded-full bg-card/95 text-foreground shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -1119,7 +1140,7 @@ function ImageThumb({
             className="h-full w-full object-contain p-1.5"
           />
         ) : (
-          // e.g. Adobe Illustrator — browsers can't draw it, so show a file badge.
+          // A damaged file the browser couldn't draw: show a file badge.
           <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-muted">
             <FileImage size={26} className="text-muted-foreground" />
             <span className="rounded bg-foreground px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">

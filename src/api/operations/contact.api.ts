@@ -1,4 +1,4 @@
-import client from "../client";
+import client, { uploadTimeout } from "../client";
 import { CONTACT_ENDPOINTS } from "../endpoints";
 
 // ➕ Add to contact
@@ -12,6 +12,8 @@ export const AddToContactApi = (formData: FormData) => {
 export const AddToSourcingRequestApi = (formData: FormData) => {
   return client.post(CONTACT_ENDPOINTS.SOURCING_REQUEST, formData, {
     headers: { "Content-Type": undefined },
+    // Carries reference images: the timeout grows with the upload.
+    timeout: uploadTimeout(formData),
   });
 };
 

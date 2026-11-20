@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { isAxiosError } from "axios";
 import { XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { CapturePaypalOrderApi } from "@/api/operations/payment.api";
@@ -17,6 +18,33 @@ import { confirmationPath } from "@/lib/orderLinks";
 type ReturnState = "processing" | "success" | "pending" | "failed";
 
 const PAYPAL_ORDER_ID_KEY = "paypal_pending_order_id";
+// The order id this page resolved, kept against the PayPal token (BUG-021).
+// The stash above is single-use, and PayPal's return URL has no order_id, so
+// without this a reload (or coming back from a login) can't find the order.
+const PAYPAL_RETURN_KEY = "paypal_return_order";
+
+/** The order id remembered for this PayPal token, if this tab saw it before. */
+function rememberedOrderId(paypalToken: string): string | null {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(PAYPAL_RETURN_KEY) ?? "null");
+    return saved?.token === paypalToken && saved.orderId != null ? String(saved.orderId) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the backend says the order is paid. A failed lookup counts as no. */
+async function isOrderPaid(id: number): Promise<boolean> {
+  try {
+    // The caller shows its own failure message, so no toast here.
+    const res = await GetOrderDetailApi(id, { skipErrorToast: true });
+    const detail = res?.data?.data ?? res?.data ?? null;
+    return detail?.payment_status === "SUCCESS";
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
+}
 
 // PayPal can land the user back here before the backend has finished
 // updating the order, so a PENDING capture result is polled against the
@@ -25,9 +53,8 @@ const POLL_INTERVAL_MS = 4000;
 const MAX_POLL_ATTEMPTS = 15; // ~1 minute before we stop and show "still pending"
 
 interface Props {
-  // Which PayPal redirect landed the user here — only changes the copy
-  // shown when the payment didn't succeed, the capture call itself is
-  // identical either way.
+  // Which PayPal redirect landed the user here. "cancel" means the buyer
+  // cancelled on PayPal's page, so nothing is captured; only "success" is.
   landedFrom: "success" | "cancel";
 }
 
@@ -99,11 +126,7 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
             return;
           }
           if (status === "REJECTED") {
-            finishFailed(
-              landedFrom === "cancel"
-                ? "Your PayPal payment was cancelled. No charge was made."
-                : "PayPal payment failed. Please try again."
-            );
+            finishFailed("PayPal payment failed. Please try again.");
             return;
           }
 
@@ -128,10 +151,19 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
 
       check();
     },
-    [finishSuccess, finishFailed, landedFrom]
+    [finishSuccess, finishFailed]
   );
 
   useEffect(() => {
+    // The buyer cancelled on PayPal's page: nothing was approved, so there is
+    // nothing to capture. Never read the token or call the capture API here.
+    if (landedFrom === "cancel") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState("failed");
+      setMessage("You cancelled the PayPal payment before it could be confirmed.");
+      return;
+    }
+
     if (captureAttemptedRef.current) return;
     captureAttemptedRef.current = true;
 
@@ -139,23 +171,19 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
 
     if (!paypalToken) {
       // One-shot check of the return URL on arrival from PayPal.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState("failed");
-      setMessage(
-        landedFrom === "cancel"
-          ? "You cancelled the PayPal payment before it could be confirmed."
-          : "We couldn't confirm this PayPal payment — some details were missing."
-      );
+      setMessage("We couldn't confirm this PayPal payment — some details were missing.");
       return;
     }
 
     // The order id isn't guaranteed to come back from PayPal itself, so we
     // prefer whatever the backend echoed on the return_url/cancel_url query
-    // string, and fall back to the id CheckoutLayout stashed in
+    // string, then the id this tab remembered for this same PayPal token (a
+    // reload of this page), and finally the id CheckoutLayout stashed in
     // sessionStorage right before redirecting to PayPal (handlePayPalPay).
     const orderIdParam = searchParams.get("order_id");
     const storedOrderId = sessionStorage.getItem(PAYPAL_ORDER_ID_KEY);
-    const resolvedOrderIdStr = orderIdParam ?? storedOrderId;
+    const resolvedOrderIdStr = orderIdParam ?? rememberedOrderId(paypalToken) ?? storedOrderId;
     const parsedOrderId = resolvedOrderIdStr ? Number(resolvedOrderIdStr) : NaN;
 
     if (!resolvedOrderIdStr || Number.isNaN(parsedOrderId)) {
@@ -165,6 +193,10 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
     }
 
     setOrderId(parsedOrderId);
+    sessionStorage.setItem(
+      PAYPAL_RETURN_KEY,
+      JSON.stringify({ token: paypalToken, orderId: parsedOrderId })
+    );
 
     (async () => {
       try {
@@ -182,6 +214,17 @@ export default function PaypalReturnStatus({ landedFrom }: Props) {
           pollOrderStatus(parsedOrderId);
         }
       } catch (err) {
+        // A failed capture doesn't always mean an unpaid order: the request
+        // can time out after the backend captured, or a reload can send a
+        // second capture while the first is still running. The order is the
+        // source of truth, so check it once before showing the failure. A 401
+        // has already signed the shopper out and sent them to log in, so a
+        // lookup can't succeed.
+        const signedOut = isAxiosError(err) && err.response?.status === 401;
+        if (!signedOut && (await isOrderPaid(parsedOrderId))) {
+          finishSuccess(parsedOrderId);
+          return;
+        }
         finishFailed(
           errorMessage(err, "Unable to confirm your PayPal payment.")
         );

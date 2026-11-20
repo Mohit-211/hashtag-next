@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import Link from "next/link";
 import NextImage from "next/image";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { hasAuthToken, loginUrl } from "@/lib/authRedirect";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
 import { isGrandCategory } from "@/lib/productFamily";
@@ -36,7 +37,8 @@ import { clearPendingFiles, loadPendingFiles, savePendingFiles } from "@/lib/pen
 import { UploadGraphicApi, type SavedGraphic } from "@/api/operations/graphics.api";
 import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
 import {
-  GRAPHIC_FEE_WAIVED_FROM, GRAPHIC_MAX_BYTES, GRAPHIC_MAX_MB, GRAPHIC_SETUP_FEE, canDrawGraphic,
+  GRAPHIC_FEE_WAIVED_FROM, GRAPHIC_MAX_MB, GRAPHIC_SETUP_FEE, GRAPHIC_UPLOAD_ACCEPT, GRAPHIC_UPLOAD_FORMATS,
+  canDrawGraphic, graphicUploadError,
 } from "@/components/graphics/graphicFiles";
 /* ─────────────────────────────────────────── Types ── */
 interface Size { id: number; name: string; measurements?: string }
@@ -636,6 +638,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const [graphicError, setGraphicError] = useState<string | null>(null);
   const [showGraphicPicker, setShowGraphicPicker] = useState(false);
   const [graphicRestorePending, setGraphicRestorePending] = useState(false);
+  // Each picked file takes the next id while it is checked.
+  const graphicPickRef = useRef(0);
   const [logoSize, setLogoSize] = useState(120);
   const [logoRotation, setLogoRotation] = useState(0);
   const [logoOpacity, setLogoOpacity] = useState(1);
@@ -951,9 +955,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       if (saved.hasGraphicFile) {
         setGraphicRestorePending(true);
         loadPendingFiles(GRAPHIC_PENDING_ID)
-          .then((entries) => {
+          .then(async (entries) => {
             const file = entries.find((entry) => entry.key === GRAPHIC_FILE_KEY)?.file;
-            if (file) showGraphicFile(file);
+            // It may have been saved by an older version of this page: same rules as a fresh pick.
+            const problem = file ? await graphicUploadError(file) : null;
+            if (problem) toast.error(problem);
+            else if (file) showGraphicFile(file);
             if (isLoggedIn) clearPendingFiles();
           })
           .finally(() => setGraphicRestorePending(false));
@@ -1358,11 +1365,17 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     setLogoSize(defaultSize);
     setLogoPos({ x: (CANVAS_SIZE - defaultSize) / 2, y: (CANVAS_SIZE - defaultSize) / 2 });
   };
-  const handleGraphicFile = (file: File) => {
-    if (file.size > GRAPHIC_MAX_BYTES) {
-      setGraphicError(`That file is larger than ${GRAPHIC_MAX_MB} MB. Please choose a smaller one.`);
+  const handleGraphicFile = async (file: File) => {
+    const pick = ++graphicPickRef.current;
+    const logoRequest = logoRequestRef.current;
+    const problem = await graphicUploadError(file);
+    // Rejected: no preview and no upload; whatever was there before stays.
+    if (problem) {
+      toast.error(problem);
       return;
     }
+    // A newer file, a saved graphic or Delete came in while this one was checked.
+    if (pick !== graphicPickRef.current || logoRequest !== logoRequestRef.current) return;
     resetLogoPlacement();
     const preview = showGraphicFile(file);
     if (autoRemoveBg && file.type.startsWith("image/")) handleRemoveLogoBackground(preview);
@@ -3362,7 +3375,7 @@ function LogoCanvasSection({
           <div className="p-5 space-y-4">
             {activeTab === "image" && (
               <>
-                <input ref={fileRef} type="file"
+                <input ref={fileRef} type="file" accept={GRAPHIC_UPLOAD_ACCEPT}
                   onChange={e => {
                     const file = e.target.files?.[0];
                     e.target.value = "";
@@ -3403,7 +3416,7 @@ function LogoCanvasSection({
                     </div>
                     <div className="text-center">
                       <p className="font-bold text-foreground text-sm">Click to upload logo</p>
-                      <p className="text-xs text-muted-foreground mt-1">Any file type — up to {GRAPHIC_MAX_MB} MB</p>
+                      <p className="text-xs text-muted-foreground mt-1">{GRAPHIC_UPLOAD_FORMATS} — up to {GRAPHIC_MAX_MB} MB</p>
                     </div>
                   </div>
                   {savedGraphicsButton}

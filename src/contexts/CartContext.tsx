@@ -125,12 +125,16 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const fetchCart = useCallback(async () => {
     const requestId = ++requestIdRef.current;
 
-    if (!hasAuthToken()) {
-      // Signed out: an empty cart is the real answer.
+    // Signed out: an empty cart is the real answer.
+    const settleSignedOut = () => {
       hasCartRef.current = false;
       resetCart();
       setError(null);
       setLoading(false);
+    };
+
+    if (!hasAuthToken()) {
+      settleSignedOut();
       return;
     }
 
@@ -142,6 +146,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     try {
       const res = await GetAllCartItemsApi();
       if (requestId !== requestIdRef.current) return;
+      // The token can go before this tab hears about it (a logout in another
+      // tab is only reported by a later storage event), so check it again:
+      // the reply belongs to a session that has ended.
+      if (!hasAuthToken()) {
+        settleSignedOut();
+        return;
+      }
       const data = res?.data?.data || res?.data;
 
       setItems(data?.items ?? []);
@@ -152,6 +163,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
+      // Signed out meanwhile (e.g. this request's 401 ended the session):
+      // that's an empty cart, not a cart that failed to load.
+      if (!hasAuthToken()) {
+        settleSignedOut();
+        return;
+      }
       console.error("Fetch Cart Error:", err);
       // A failed request says nothing about what's in the cart: keep the one
       // on screen, and report an error only when there's none to show.

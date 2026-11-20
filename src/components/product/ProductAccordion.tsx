@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Truck, FileText, Palette } from "lucide-react";
 import DOMPurify from "dompurify";
+import { GRAPHIC_MAX_MB, GRAPHIC_UPLOAD_FORMATS } from "@/components/graphics/graphicFiles";
 
 // `description` is rich text authored in the backend/admin product editor
 // and rendered as HTML here — untrusted from the frontend's perspective
@@ -75,7 +76,7 @@ export default function ProductAccordion({
           {[
             {
               title: "File format",
-              detail: "Any format, up to 100 MB",
+              detail: `${GRAPHIC_UPLOAD_FORMATS}, up to ${GRAPHIC_MAX_MB} MB`,
             },
             {
               title: "Resolution",

@@ -148,16 +148,23 @@ export default function PaymentSection({
   const cashAppRef   = useRef<SquareCashAppPay | null>(null);
 
   useEffect(() => {
+    // Set on cleanup: a reply that arrives after that is ignored.
+    let cancelled = false;
     const loadConfig = async () => {
       try {
         const config = await GetSquareConfigApi();
-        setSquareConfig(config);
+        if (!cancelled) setSquareConfig(config);
       } catch {
-        setPaymentError("Unable to load payment configuration. Please try again.");
-        setSquareLoading(false);
+        if (!cancelled) {
+          setPaymentError("Unable to load payment configuration. Please try again.");
+          setSquareLoading(false);
+        }
       }
     };
     loadConfig();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Load Square's SDK, then create the payments instance the widgets mount from.
