@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image, { getImageProps, type ImageProps } from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -162,48 +162,6 @@ function TagHole({ className = "" }: { className?: string }) {
     <div className={`relative h-4 ${className}`} aria-hidden="true">
       <div className="absolute left-1/2 top-0 -translate-x-1/2 w-3 h-3 rounded-full bg-background border border-border" />
     </div>
-  );
-}
-
-// ─── LOADER ──────────────────────────────────────────────────────────────────
-// The counter's updater only counts. Finishing is its own effect, so onComplete is
-// scheduled once (not again when React re-runs an updater) and both timers are
-// cleared if the gallery unmounts first. Pass a stable onComplete (useCallback).
-function AnimatedLoader({ onComplete }: { onComplete: () => void }) {
-  const [count, setCount] = useState(0);
-  const done = count >= 100;
-  useEffect(() => {
-    if (done) return;
-    const iv = setInterval(() => setCount((p) => Math.min(p + 4, 100)), 16);
-    return () => clearInterval(iv);
-  }, [done]);
-  useEffect(() => {
-    if (!done) return;
-    const t = setTimeout(onComplete, 300);
-    return () => clearTimeout(t);
-  }, [done, onComplete]);
-
-  return (
-    <motion.div
-      className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-center"
-      exit={{ opacity: 0, transition: { duration: 0.4, ease: "easeInOut" } }}
-    >
-      <div className="relative w-16 h-20 flex flex-col items-center">
-        <div className="w-3 h-3 rounded-full border-2 border-foreground mb-1" />
-        <div
-          className="flex-1 w-full flex items-center justify-center bg-foreground"
-          style={{ clipPath: "polygon(20% 0, 100% 0, 100% 100%, 0 100%, 0 15%)" }}
-        >
-          <span className="text-xs font-bold tracking-wide text-primary">HB</span>
-        </div>
-      </div>
-      <p className="mt-5 text-sm text-muted-foreground">
-        Loading the archive
-      </p>
-      <div className="mt-3 w-40 h-[3px] bg-border">
-        <motion.div className="h-full bg-primary" style={{ width: `${count}%` }} />
-      </div>
-    </motion.div>
   );
 }
 
@@ -567,20 +525,29 @@ function Footer() {
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-export default function GalleryMain() {
-  const [loaded, setLoaded] = useState(false);
-  // Stable, so re-renders while the loader runs (e.g. photos arriving) don't restart it.
-  const handleLoaderComplete = useCallback(() => setLoaded(true), []);
-  const [modal, setModal] = useState<Photo | null>(null);
-  const [photos, setPhotos] = useState<Photo[]>(BUILT_IN_PHOTOS);
+function toPhotos(rows: GalleryPhoto[]): Photo[] {
+  return rows.map((r) => ({ id: r.id, name: r.caption || sku(r.id), src: r.image_url }));
+}
+const samePhotos = (a: Photo[], b: Photo[]) =>
+  a.length === b.length && a.every((p, i) => p.id === b[i].id && p.src === b[i].src && p.name === b[i].name);
 
+/** `initialRows`: the gallery as the server fetched it, so the page (and its HTML) shows the
+ *  real photos at once. The built-in photos cover an empty or failed fetch. */
+export default function GalleryMain({ initialRows }: { initialRows?: GalleryPhoto[] | null }) {
+  const [modal, setModal] = useState<Photo | null>(null);
+  const [photos, setPhotos] = useState<Photo[]>(() =>
+    initialRows?.length ? toPhotos(initialRows) : BUILT_IN_PHOTOS
+  );
+
+  // The server's copy can be a few minutes old: refresh it, and only re-render if it changed.
   useEffect(() => {
     let cancelled = false;
     GalleryApi()
       .then((res) => {
         const rows: GalleryPhoto[] = res?.data?.data ?? [];
         if (cancelled || rows.length === 0) return;
-        setPhotos(rows.map((r) => ({ id: r.id, name: r.caption || sku(r.id), src: r.image_url })));
+        const next = toPhotos(rows);
+        setPhotos((prev) => (samePhotos(prev, next) ? prev : next));
       })
       .catch(console.error);
     return () => {
@@ -591,18 +558,14 @@ export default function GalleryMain() {
   return (
     <>
       <PaperGrain />
-      <AnimatePresence>{!loaded && <AnimatedLoader onComplete={handleLoaderComplete} />}</AnimatePresence>
-
-      {loaded && (
-        <motion.main className="min-h-screen bg-background" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
-          <HeroSection />
-          <MarqueeSection />
-          <GalleryGrid photos={photos} onOpen={setModal} />
-          <Footer />
-          <GalleryModal photos={photos} photo={modal} onClose={() => setModal(null)} />
-          <BackToTop />
-        </motion.main>
-      )}
+      <main className="min-h-screen bg-background">
+        <HeroSection />
+        <MarqueeSection />
+        <GalleryGrid photos={photos} onOpen={setModal} />
+        <Footer />
+        <GalleryModal photos={photos} photo={modal} onClose={() => setModal(null)} />
+        <BackToTop />
+      </main>
     </>
   );
 }
