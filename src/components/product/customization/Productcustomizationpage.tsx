@@ -33,6 +33,7 @@ import {
 } from "./pricing";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { errorMessage } from "@/lib/errors";
+import { isInStock } from "@/lib/stock";
 import { clearPendingFiles, loadPendingFiles, savePendingFiles } from "@/lib/pendingAuthFiles";
 import { UploadGraphicApi, type SavedGraphic } from "@/api/operations/graphics.api";
 import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
@@ -2587,7 +2588,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           <option value="">Size…</option>
                           {sizesForColor.map(v => {
                             // Shoppers never see a stock count (Q49), only whether a size is sold out.
-                            const soldOut = v.stock != null && Number(v.stock) <= 0;
+                            // Same rule as the add-colours modal: invalid stock is sold out, untracked never is.
+                            const soldOut = !isInStock(v);
                             return (
                               <option key={v.id} value={v.id} disabled={soldOut}>
                                 {v.size_details?.name || v.size}{soldOut ? " (out of stock)" : ""}
