@@ -9,7 +9,9 @@ import {
   Loader2,
   AlertCircle,
   Sparkles,
+  RefreshCw,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import OrderPriceSummary from "./OrderPriceSummary";
 import ShipmentTracking, { orderStatus, paymentStatus, type StatusText } from "./ShipmentTracking";
 import ProxyImage from "../ProxyImage";
@@ -122,6 +124,9 @@ interface OrderCardProps {
   toggleExpand: (orderId: string) => void;
   detail?: OrderDetail | null;
   loadingDetail?: boolean;
+  /** The last details request failed: the card shows the error with a Retry button (BUG-028). */
+  detailError?: boolean;
+  onRetryDetail?: () => void;
 }
 // ─────────────────────────────────────────────
 // Status Colours (the wording is in ShipmentTracking)
@@ -176,6 +181,8 @@ export default function OrderCard({
   toggleExpand,
   detail,
   loadingDetail,
+  detailError,
+  onRetryDetail,
 }: OrderCardProps) {
   const cardKey = String(order?.orderId || order?.id);
   const rawDate = order?.created_at || order?.date;
@@ -353,9 +360,15 @@ export default function OrderCard({
           {!loadingDetail && !detail && (
             <div className="flex flex-col items-center justify-center gap-2 py-12">
               <AlertCircle className="h-5 w-5 text-muted-foreground/60" />
-              <p className="text-xs text-muted-foreground">
+              <p role={detailError ? "alert" : undefined} className="text-xs text-muted-foreground">
                 Could not load order details
               </p>
+              {detailError && onRetryDetail && (
+                <Button variant="outline" size="sm" className="gap-2" onClick={onRetryDetail}>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Retry
+                </Button>
+              )}
             </div>
           )}
           {!loadingDetail && detail && (

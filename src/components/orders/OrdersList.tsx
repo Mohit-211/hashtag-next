@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ShoppingBag } from "lucide-react";
 import OrderCard, { type OrderData, type OrderDetail } from "@/components/orders/OrderCard";
 import { GetOrderDetailApi } from "@/api/operations/order.api";
@@ -13,7 +13,33 @@ export default function OrdersList({ orders }: OrdersListProps) {
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [orderDetails, setOrderDetails] = useState<Record<string, OrderDetail>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
-  const toggleExpand = async (cardKey: string, realId: string | number) => {
+  const [detailErrors, setDetailErrors] = useState<Record<string, boolean>>({});
+  // Orders whose details are loading or loaded. A ref, not state, so a second
+  // expand or Retry before React re-renders still sees the first request (BUG-028).
+  const detailRequests = useRef<Record<string, "loading" | "loaded">>({});
+
+  const loadDetail = async (cardKey: string, realId: string | number) => {
+    if (detailRequests.current[cardKey]) return;
+    detailRequests.current[cardKey] = "loading";
+    setLoadingDetails((prev) => ({ ...prev, [cardKey]: true }));
+    setDetailErrors((prev) => ({ ...prev, [cardKey]: false }));
+    try {
+      const res = await GetOrderDetailApi(realId);
+      const detail = res?.data?.data ?? res?.data ?? null;
+      // OrderCard renders detail.items, so a reply without them is a failed load.
+      if (!Array.isArray(detail?.items)) throw new Error("Order detail response has no items");
+      detailRequests.current[cardKey] = "loaded";
+      setOrderDetails((prev) => ({ ...prev, [cardKey]: detail }));
+    } catch (err) {
+      delete detailRequests.current[cardKey];
+      console.error("Failed to fetch order detail:", err);
+      setDetailErrors((prev) => ({ ...prev, [cardKey]: true }));
+    } finally {
+      setLoadingDetails((prev) => ({ ...prev, [cardKey]: false }));
+    }
+  };
+
+  const toggleExpand = (cardKey: string, realId: string | number) => {
     const isCurrentlyExpanded = expandedOrders[cardKey];
 
     if (isCurrentlyExpanded) {
@@ -22,21 +48,8 @@ export default function OrdersList({ orders }: OrdersListProps) {
     }
 
     setExpandedOrders((prev) => ({ ...prev, [cardKey]: true }));
-
-    if (!orderDetails[cardKey]) {
-      try {
-        setLoadingDetails((prev) => ({ ...prev, [cardKey]: true }));
-        const res = await GetOrderDetailApi(realId);
-        const detail = res?.data?.data ?? res?.data ?? null;
-        if (detail) {
-          setOrderDetails((prev) => ({ ...prev, [cardKey]: detail }));
-        }
-      } catch (err) {
-        console.error("Failed to fetch order detail:", err);
-      } finally {
-        setLoadingDetails((prev) => ({ ...prev, [cardKey]: false }));
-      }
-    }
+    // Loaded details are reused, and a request still in flight isn't sent again.
+    void loadDetail(cardKey, realId);
   };
 
 
@@ -74,6 +87,8 @@ export default function OrdersList({ orders }: OrdersListProps) {
             toggleExpand={(key) => toggleExpand(key, realId)}
             detail={orderDetails[cardKey] ?? null}
             loadingDetail={loadingDetails[cardKey] ?? false}
+            detailError={detailErrors[cardKey] ?? false}
+            onRetryDetail={() => void loadDetail(cardKey, realId)}
           />
         );
       })}
