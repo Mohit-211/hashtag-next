@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isAxiosError } from "axios";
 import { toast } from "sonner";
 import LoginPromptModal from "@/components/auth/LoginPromptModal";
 import {
@@ -23,6 +24,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Info,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isGrandCategory } from "@/lib/productFamily";
@@ -190,6 +192,10 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  // The product request failed for a reason other than "not found" (BUG-034).
+  const [loadError, setLoadError] = useState(false);
+  // Retry bumps this, which runs the fetch effect again.
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<Size | null>(null);
   const [variantData, setVariantData] = useState<Variant | null>(null);
@@ -267,7 +273,8 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   );
   const inWishlist = !!wishlistItem;
 
-  /* fetch — the page is keyed by product/variant, so this runs once per product */
+  /* fetch — the page is keyed by product/variant, so this runs once per product (and on Retry).
+     A newer run cancels the older one, so a late reply never overwrites the latest. */
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -290,14 +297,26 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
         setInCart(Boolean(initial.is_in_cart));
         setQuantity(initial.min_order_quantity || 1);
       })
-      .catch((e) => console.error(e))
+      .catch((e) => {
+        if (cancelled) return;
+        console.error(e);
+        // An unknown product is a 404 and keeps the "Product not found" page (F-015);
+        // a server error, network failure or timeout gets the Retry screen instead.
+        if (!(isAxiosError(e) && e.response?.status === 404)) setLoadError(true);
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [id, variantId]);
+  }, [id, variantId, loadAttempt]);
+
+  const retryLoad = () => {
+    setLoadError(false);
+    setLoading(true);
+    setLoadAttempt((n) => n + 1);
+  };
 
   // Keep ?variant_id= on the selected variant so the link can be shared or
   // reloaded. history.replaceState updates the address bar without a
@@ -668,6 +687,20 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
             <div className="mt-6 h-12 w-full rounded-lg bg-muted" />
           </div>
         </div>
+      </section>
+    );
+  }
+  if (loadError) {
+    return (
+      <section role="alert" className="container flex min-h-[60vh] flex-col items-center justify-center gap-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">We couldn&apos;t load this product</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Something went wrong while loading it. Please check your connection and try again.
+        </p>
+        <Button variant="hero" className="gap-2" onClick={retryLoad}>
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </Button>
       </section>
     );
   }
