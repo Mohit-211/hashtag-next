@@ -729,6 +729,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (hasAuthToken()) uploadGraphic(file);
     return preview;
   };
+  /** Whether `file` can be used as artwork, showing the reason when it can't. Fresh picks and
+   *  files restored after sign-in both come through here, so both follow BUG-033's rules (BUG-032). */
+  const validateGraphicFile = async (file: File): Promise<boolean> => {
+    const problem = await graphicUploadError(file);
+    if (problem) toast.error(problem);
+    return !problem;
+  };
   // ── Data loading, restore & derived values ──
   const isLoggedIn = useIsLoggedIn();
   useEffect(() => {
@@ -960,14 +967,33 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       }
       if (saved.hasGraphicFile) {
         setGraphicRestorePending(true);
-        loadPendingFiles(GRAPHIC_PENDING_ID)
-          .then(async (entries) => {
-            const file = entries.find((entry) => entry.key === GRAPHIC_FILE_KEY)?.file;
-            // It may have been saved by an older version of this page: same rules as a fresh pick.
-            const problem = file ? await graphicUploadError(file) : null;
-            if (problem) toast.error(problem);
-            else if (file) showGraphicFile(file);
-            if (isLoggedIn) clearPendingFiles();
+        // Whether the saved record is this page's. [] means nothing is saved, IndexedDB
+        // failed, or another page's files are there now: those are never cleared from here.
+        let ours = false;
+        (async (): Promise<"restored" | "rejected" | "lost"> => {
+          const entries: unknown = await loadPendingFiles(GRAPHIC_PENDING_ID);
+          ours = !(Array.isArray(entries) && entries.length === 0);
+          const file = Array.isArray(entries)
+            ? entries.find((entry) => entry?.key === GRAPHIC_FILE_KEY)?.file
+            : undefined;
+          if (!(file instanceof File)) return "lost";
+          // It may have been saved by an older version of this page: same rules as a fresh pick.
+          if (!(await validateGraphicFile(file))) return "rejected";
+          showGraphicFile(file);
+          return "restored";
+        })()
+          .catch((err) => {
+            console.error("Failed to restore the uploaded logo:", err);
+            return "lost" as const;
+          })
+          .then((result) => {
+            if (result === "lost") toast.warning("Your uploaded logo couldn't be restored. Please upload it again.");
+            // A guest keeps a valid file for when they sign in; an unusable one is cleared.
+            if (result === "restored" ? isLoggedIn : ours) void clearPendingFiles();
+            // Never finish an interrupted Add to cart without the file the customer chose.
+            if (result !== "restored" && resumeAfterRestoreRef.current === "addToCart") {
+              resumeAfterRestoreRef.current = null;
+            }
           })
           .finally(() => setGraphicRestorePending(false));
       }
@@ -1375,12 +1401,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const handleGraphicFile = async (file: File) => {
     const pick = ++graphicPickRef.current;
     const logoRequest = logoRequestRef.current;
-    const problem = await graphicUploadError(file);
     // Rejected: no preview and no upload; whatever was there before stays.
-    if (problem) {
-      toast.error(problem);
-      return;
-    }
+    if (!(await validateGraphicFile(file))) return;
     // A newer file, a saved graphic or Delete came in while this one was checked.
     if (pick !== graphicPickRef.current || logoRequest !== logoRequestRef.current) return;
     resetLogoPlacement();
