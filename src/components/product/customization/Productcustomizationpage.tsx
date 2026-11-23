@@ -626,6 +626,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     running: false,
     queued: null,
   });
+  /** A different logo (or none) from now on: older work must leave it alone, and the
+   *  spinner stops, since a removal still running belongs to a logo that's gone (BUG-031). */
+  const startNewLogo = () => {
+    logoRequestRef.current += 1;
+    setIsRemovingLogoBg(false);
+  };
   // The browser couldn't draw the chosen file (AI, EPS, PSD, CDR…).
   const [logoFailed, setLogoFailed] = useState(false);
   // The customer's real file: this is what production gets, while the canvas
@@ -712,7 +718,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   /** Takes the customer's file exactly as it is, and uploads it unless they're a guest. */
   const showGraphicFile = (file: File) => {
     const preview = URL.createObjectURL(file);
-    logoRequestRef.current += 1;
+    startNewLogo();
     setGraphicFile(file);
     applySavedGraphic(null);
     setGraphicError(null);
@@ -1329,8 +1335,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     const removal = bgRemovalRef.current;
     const request = { src, id: ++logoRequestRef.current };
     if (removal.running) {
-      // Replaces any request already waiting.
+      // Replaces any request already waiting; the spinner shows this logo's turn is coming.
       removal.queued = request;
+      setIsRemovingLogoBg(true);
       return;
     }
     const run = async (job: { src: string; id: number }) => {
@@ -1382,7 +1389,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   };
   /** A saved graphic needs no upload: its id goes with the customization. */
   const handlePickSavedGraphic = (graphic: SavedGraphic) => {
-    logoRequestRef.current += 1;
+    startNewLogo();
     graphicUploadRef.current = null;
     setGraphicUploading(false);
     setShowGraphicPicker(false);
@@ -1397,7 +1404,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     setLogoSrc(drawable ? graphic.file_url : null);
   };
   const handleRemoveGraphic = () => {
-    logoRequestRef.current += 1;
+    startNewLogo();
     graphicUploadRef.current = null;
     setGraphicUploading(false);
     setGraphicFile(null);
