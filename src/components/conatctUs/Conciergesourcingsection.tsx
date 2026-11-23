@@ -1,11 +1,11 @@
 "use client";
 
 import { AddToSourcingRequestApi } from "@/api/operations/contact.api";
-import { useEffect, useRef, useState, FormEvent } from "react";
+import { useEffect, useId, useRef, useState, FormEvent } from "react";
 import { Upload, X, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { emailSchema, nameSchema, textSchema } from "@/lib/validation";
+import { emailSchema, nameSchema, textSchema, zodErrors } from "@/lib/validation";
 import TurnstileWidget, { TURNSTILE_FIELD, TURNSTILE_SITE_KEY } from "@/components/common/TurnstileWidget";
 
 /**
@@ -35,6 +35,8 @@ export interface SourcingRequestPayload {
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
+type FieldErrors = Partial<Record<keyof SourcingRequestPayload, string>>;
+
 const sourcingRequestSchema = z.object({
   name: nameSchema,
   email: emailSchema,
@@ -57,7 +59,11 @@ export default function ConciergeSourcingSection() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileReset, setTurnstileReset] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const detailsId = useId();
+  const fileInputId = useId();
+  const uploadHintId = useId();
 
   useEffect(() => {
     return () => {
@@ -68,8 +74,16 @@ export default function ConciergeSourcingSection() {
 
   const update =
     (field: keyof SourcingRequestPayload) =>
-      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-        setForm((prev) => ({ ...prev, [field]: e.target.value }));
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const value = e.target.value;
+        setForm((prev) => ({ ...prev, [field]: value }));
+        // A field flagged by the last submit is re-checked as it changes, so its
+        // aria-invalid state and message stay accurate and clear once it's fixed.
+        if (fieldErrors[field]) {
+          const check = sourcingRequestSchema.shape[field].safeParse(value);
+          setFieldErrors((prev) => ({ ...prev, [field]: check.success ? undefined : check.error.issues[0]?.message }));
+        }
+      };
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
@@ -105,15 +119,19 @@ export default function ConciergeSourcingSection() {
   };
 
   // Validation feedback is surfaced via toast only (one message at a time)
-  // rather than inline per-field errors.
+  // rather than visible inline per-field errors. For screen readers, every
+  // invalid field is also marked aria-invalid and described by its message
+  // (visually hidden, see FieldError).
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     const result = sourcingRequestSchema.safeParse(form);
     if (!result.success) {
+      setFieldErrors(zodErrors(sourcingRequestSchema, form));
       toast.error(result.error.issues[0]?.message ?? "Please check the form and try again.");
       return;
     }
+    setFieldErrors({});
     if (TURNSTILE_SITE_KEY && !turnstileToken) {
       toast.error("Please complete the check above the button.");
       return;
@@ -154,6 +172,7 @@ export default function ConciergeSourcingSection() {
     previews.forEach((url) => URL.revokeObjectURL(url));
     setFiles([]);
     setPreviews([]);
+    setFieldErrors({});
     setStatus("idle");
   };
 
@@ -258,6 +277,7 @@ export default function ConciergeSourcingSection() {
                 value={form.name}
                 onChange={update("name")}
                 placeholder="John Smith"
+                error={fieldErrors.name}
               />
 
               <Field
@@ -268,6 +288,7 @@ export default function ConciergeSourcingSection() {
                 value={form.email}
                 onChange={update("email")}
                 placeholder="john.smith@company.com"
+                error={fieldErrors.email}
               />
 
               <Field
@@ -276,6 +297,7 @@ export default function ConciergeSourcingSection() {
                 value={form.company}
                 onChange={update("company")}
                 placeholder="Smith & Co."
+                error={fieldErrors.company}
               />
 
 
@@ -286,13 +308,17 @@ export default function ConciergeSourcingSection() {
                 value={form.requested_name}
                 onChange={update("requested_name")}
                 placeholder="e.g. Adidas Quarter-Zip"
+                error={fieldErrors.requested_name}
               />
 
               <div>
-                <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
+                <label htmlFor={detailsId} className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
                   Details / Brand Guidelines
                 </label>
                 <textarea
+                  id={detailsId}
+                  aria-invalid={fieldErrors.details ? true : undefined}
+                  aria-describedby={fieldErrors.details ? `${detailsId}-error` : undefined}
                   value={form.details}
                   onChange={update("details")}
                   rows={4}
@@ -300,18 +326,23 @@ export default function ConciergeSourcingSection() {
                   placeholder="Logo files, PMS colors, quantities, deadline, or a link to your brand guidelines..."
                   className="w-full resize-none rounded-md border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
+                <FieldError id={`${detailsId}-error`} message={fieldErrors.details} />
               </div>
 
               <div>
-                <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
+                {/* Clicking the label opens the file picker, like the button below.
+                    The input is disabled at the limit so the label can't bypass it. */}
+                <label htmlFor={fileInputId} className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
                   Logo / Reference Images
                 </label>
 
                 <input
                   ref={fileInputRef}
+                  id={fileInputId}
                   type="file"
                   accept={ALLOWED_IMAGE_ACCEPT}
                   multiple
+                  disabled={files.length >= MAX_IMAGES}
                   onChange={handleFilesSelected}
                   className="hidden"
                 />
@@ -320,6 +351,7 @@ export default function ConciergeSourcingSection() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={files.length >= MAX_IMAGES}
+                  aria-describedby={uploadHintId}
                   className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background px-3.5 py-4 text-[13px] text-muted-foreground transition-all hover:border-primary hover:bg-primary/5 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border disabled:hover:bg-background"
                 >
                   <Upload size={16} />
@@ -354,7 +386,7 @@ export default function ConciergeSourcingSection() {
                   </div>
                 )}
 
-                <p className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                <p id={uploadHintId} className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                   <ImageIcon size={12} />
                   PNG, JPG, or SVG — up to {MAX_IMAGES} images ({files.length}/{MAX_IMAGES}).
                 </p>
@@ -382,21 +414,48 @@ export default function ConciergeSourcingSection() {
 function Field({
   label,
   required,
+  error,
+  id,
   ...props
 }: {
   label: string;
   required?: boolean;
+  /** Message from the last submit; read by screen readers only (see FieldError). */
+  error?: string;
 } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const autoId = useId();
+  const inputId = id ?? autoId;
+  const errorId = `${inputId}-error`;
   return (
     <div>
-      <label className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
+      <label htmlFor={inputId} className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-muted-foreground">
         {label}
-        {required && <span className="text-primary-ink"> *</span>}
+        {/* aria-required carries this for screen readers, so the name stays "Name", not "Name star". */}
+        {required && <span className="text-primary-ink" aria-hidden="true"> *</span>}
       </label>
       <input
+        id={inputId}
+        aria-required={required || undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
         className="w-full rounded-md border border-border bg-background px-3.5 py-2.5 text-[14px] text-foreground placeholder:text-muted-foreground transition-all focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
         {...props}
       />
+      <FieldError id={errorId} message={error} />
     </div>
+  );
+}
+
+/**
+ * Visually hidden field error. The form shows validation as a toast (which is
+ * announced through sonner's live region); this text is what a screen reader
+ * reads with the field, via aria-describedby, when the user moves to it.
+ */
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} className="sr-only">
+      {message}
+    </p>
   );
 }
