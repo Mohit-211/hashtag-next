@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import Image, { getImageProps, type ImageProps } from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -166,21 +166,22 @@ function TagHole({ className = "" }: { className?: string }) {
 }
 
 // ─── LOADER ──────────────────────────────────────────────────────────────────
+// The counter's updater only counts. Finishing is its own effect, so onComplete is
+// scheduled once (not again when React re-runs an updater) and both timers are
+// cleared if the gallery unmounts first. Pass a stable onComplete (useCallback).
 function AnimatedLoader({ onComplete }: { onComplete: () => void }) {
   const [count, setCount] = useState(0);
+  const done = count >= 100;
   useEffect(() => {
-    const iv = setInterval(() => {
-      setCount((p) => {
-        if (p >= 100) {
-          clearInterval(iv);
-          setTimeout(onComplete, 300);
-          return 100;
-        }
-        return p + 4;
-      });
-    }, 16);
+    if (done) return;
+    const iv = setInterval(() => setCount((p) => Math.min(p + 4, 100)), 16);
     return () => clearInterval(iv);
-  }, [onComplete]);
+  }, [done]);
+  useEffect(() => {
+    if (!done) return;
+    const t = setTimeout(onComplete, 300);
+    return () => clearTimeout(t);
+  }, [done, onComplete]);
 
   return (
     <motion.div
@@ -568,6 +569,8 @@ function Footer() {
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function GalleryMain() {
   const [loaded, setLoaded] = useState(false);
+  // Stable, so re-renders while the loader runs (e.g. photos arriving) don't restart it.
+  const handleLoaderComplete = useCallback(() => setLoaded(true), []);
   const [modal, setModal] = useState<Photo | null>(null);
   const [photos, setPhotos] = useState<Photo[]>(BUILT_IN_PHOTOS);
 
@@ -588,7 +591,7 @@ export default function GalleryMain() {
   return (
     <>
       <PaperGrain />
-      <AnimatePresence>{!loaded && <AnimatedLoader onComplete={() => setLoaded(true)} />}</AnimatePresence>
+      <AnimatePresence>{!loaded && <AnimatedLoader onComplete={handleLoaderComplete} />}</AnimatePresence>
 
       {loaded && (
         <motion.main className="min-h-screen bg-background" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }}>
