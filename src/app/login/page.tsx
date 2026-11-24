@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -8,7 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import AuthLayout from "@/components/login/AuthLayout";
 import LoginForm from "@/components/login/LoginForm";
 import RegisterForm from "@/components/login/RegisterForm";
-import { sanitizeReturnTo } from "@/lib/authRedirect";
+import { SESSION_EXPIRED_REASON, sanitizeReturnTo } from "@/lib/authRedirect";
 import { cn } from "@/lib/utils";
 
 type Mode = "login" | "register";
@@ -22,6 +22,20 @@ function LoginContent() {
   // Where the user came from — they go back there after logging in, or via
   // the back link if they decide not to.
   const returnTo = sanitizeReturnTo(searchParams.get("returnTo"));
+
+  // An expired session sends the shopper here with `reason=session_expired`
+  // (ApiErrorHandler). The notice stays for this visit; the flag then leaves the
+  // URL (returnTo and the rest are kept), so a reload or a shared link doesn't
+  // show it again.
+  const reason = searchParams.get("reason");
+  const [sessionExpired] = useState(() => reason === SESSION_EXPIRED_REASON);
+  useEffect(() => {
+    if (reason !== SESSION_EXPIRED_REASON) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("reason");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [reason, searchParams, pathname, router]);
 
   const setMode = (next: Mode) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -59,6 +73,12 @@ function LoginContent() {
           </button>
         ))}
       </div>
+
+      {mode === "login" && sessionExpired && (
+        <div role="alert" className="rounded-lg border border-border bg-muted px-3.5 py-2.5 text-sm text-foreground">
+          Your session has expired. Please login again.
+        </div>
+      )}
 
       {mode === "login" ? (
         <LoginForm

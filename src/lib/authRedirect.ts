@@ -16,6 +16,8 @@ import type { PendingFileEntry } from "./pendingAuthFiles";
 export const AUTH_TOKEN_KEY = "hastagBillionaire";
 /** Fired on window after a login/logout so contexts can refetch. */
 export const AUTH_CHANGED_EVENT = "auth:changed";
+/** `?reason=` value set when an expired session sends the shopper to /login. */
+export const SESSION_EXPIRED_REASON = "session_expired";
 
 const PENDING_KEY = "pendingAuthAction";
 /** Legacy snapshot written by the full customizer (Productcustomizationpage). */

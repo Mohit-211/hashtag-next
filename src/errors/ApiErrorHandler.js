@@ -1,6 +1,6 @@
 import { toast } from "sonner";
 import errorMessages from "./errorMessages";
-import { notifyAuthChanged } from "../lib/authRedirect";
+import { notifyAuthChanged, SESSION_EXPIRED_REASON } from "../lib/authRedirect";
 
 const TOKEN_KEY = "hastagBillionaire";
 
@@ -44,8 +44,9 @@ export const handleApiError = (error) => {
       notifyAuthChanged();
       const { pathname, search } = window.location;
       if (!pathname.startsWith("/login")) {
-        toast.error(errorMessages.UNAUTHORIZED || "Session expired. Please log in again.");
-        window.location.href = `/login?returnTo=${encodeURIComponent(pathname + search)}`;
+        // The full page load below would wipe a toast before it can be read, so
+        // the login page shows the message instead (`reason`, see app/login).
+        window.location.href = `/login?returnTo=${encodeURIComponent(pathname + search)}&reason=${SESSION_EXPIRED_REASON}`;
       }
     }
     return Promise.reject(error);
