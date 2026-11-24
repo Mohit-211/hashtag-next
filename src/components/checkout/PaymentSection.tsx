@@ -145,6 +145,11 @@ export default function PaymentSection({
   const cardRef      = useRef<SquarePaymentMethod | null>(null);
   const googlePayRef = useRef<SquarePaymentMethod | null>(null);
   const cashAppRef   = useRef<SquareCashAppPay | null>(null);
+  // Set while a tokenization runs. A ref, not `paymentLoading`: state only
+  // changes on the next render, so a second click or key press right after the
+  // first would still see false and start another one (BUG-019).
+  const tokenizingRef = useRef(false);
+  const googlePayBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Set on cleanup: a reply that arrives after that is ignored.
@@ -284,7 +289,9 @@ export default function PaymentSection({
   }, [selectedMethod, sdkReady, walletAmount, orderId, orderNumber]);
 
   const tokenizeAndPay = async (widgetRef: React.RefObject<SquarePaymentMethod | null>, method: SquareMethod) => {
+    if (tokenizingRef.current) return;
     if (!widgetRef.current) { setPaymentError("Payment form is not ready. Please wait a moment."); return; }
+    tokenizingRef.current = true;
     try {
       setPaymentLoading(true); setPaymentError(null);
       const result = await widgetRef.current.tokenize();
@@ -296,14 +303,36 @@ export default function PaymentSection({
       await onPlaceOrder(result.token, method);
     } catch (err) {
       setPaymentError(errorMessage(err, "Payment failed. Please try again."));
-    } finally { setPaymentLoading(false); }
+    } finally { tokenizingRef.current = false; setPaymentLoading(false); }
   };
 
   // No cart refresh after paying (BUG-026): a paid order empties the cart and
   // reloads the page (handlePlaceOrder in CheckoutLayout), and a failed payment
   // leaves the cart unchanged. tokenizeAndPay handles every error itself.
   const handleCardPay   = () => tokenizeAndPay(cardRef, "CARD");
-  const handleGooglePay = () => tokenizeAndPay(googlePayRef, "GOOGLE_PAY");
+
+  /* ── Google Pay trigger (A11Y-046) ──
+     Square puts Google's own Pay button in #sq-google-pay-button and leaves the
+     click to the page (it passes Google a no-op onClick). That button is a real
+     <button type="button"> with a name, so Tab, Enter and Space work and their
+     clicks bubble up to this handler. Only a click from that button pays; the
+     rest of the container is not a control. */
+  const handleGooglePayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!(e.target instanceof Element) || !e.target.closest('button, [role="button"]')) return;
+    tokenizeAndPay(googlePayRef, "GOOGLE_PAY");
+  };
+
+  const isLoading    = processing || paymentLoading;
+
+  // While a payment runs, Google's button is marked unavailable and its clicks
+  // are ignored (tokenizingRef). It isn't given `disabled`: the browser would
+  // then drop keyboard focus while the Google Pay sheet is open.
+  useEffect(() => {
+    const button = googlePayBoxRef.current?.querySelector("button");
+    if (!button) return;
+    if (isLoading) button.setAttribute("aria-disabled", "true");
+    else button.removeAttribute("aria-disabled");
+  }, [isLoading]);
 
   const handlePayPalClick = async () => {
     try {
@@ -314,7 +343,6 @@ export default function PaymentSection({
     }
   };
 
-  const isLoading    = processing || paymentLoading;
   const displayError = paymentError || orderError;
   const activeMethod = METHODS.find((m) => m.key === selectedMethod)!;
 
@@ -513,6 +541,10 @@ export default function PaymentSection({
 
         #sq-card-container { min-height: 89px; }
         #sq-google-pay-button, #sq-apple-pay-button, #sq-cash-app-button { min-height: 48px; cursor: pointer; }
+        /* Only Google's button inside is a control (A11Y-046). */
+        #sq-google-pay-button { cursor: default; }
+        #sq-google-pay-button[aria-busy="true"] { opacity: 0.45; cursor: not-allowed; }
+        #sq-google-pay-button[aria-busy="true"] button { pointer-events: none; }
 
         /* ── PAY BUTTON ── */
         .ps-pay-btn {
@@ -725,7 +757,13 @@ export default function PaymentSection({
             ) : (
               <div className="ps-form-body">
                 <div id="sq-card-container"      style={{ display: selectedMethod === "CARD"       ? "block" : "none" }} />
-                <div id="sq-google-pay-button"   style={{ display: selectedMethod === "GOOGLE_PAY" ? "block" : "none" }} onClick={selectedMethod === "GOOGLE_PAY" ? handleGooglePay : undefined} />
+                <div
+                  id="sq-google-pay-button"
+                  ref={googlePayBoxRef}
+                  style={{ display: selectedMethod === "GOOGLE_PAY" ? "block" : "none" }}
+                  aria-busy={selectedMethod === "GOOGLE_PAY" && isLoading ? true : undefined}
+                  onClick={selectedMethod === "GOOGLE_PAY" ? handleGooglePayClick : undefined}
+                />
                 <div id="sq-cash-app-button"     style={{ display: selectedMethod === "CASH_APP"   ? "block" : "none" }} />
 
                 {selectedMethod === "CARD" && (
