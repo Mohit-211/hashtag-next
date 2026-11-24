@@ -271,11 +271,28 @@ export async function fetchPublicUrl(
 
 const ignoreError = () => {};
 
+/** Largest body readBody() keeps in memory, counted after decompression (SEC-002). */
+export const MAX_PROXY_BODY_BYTES = 15 * 1024 * 1024;
+
+/** The upstream body is over MAX_PROXY_BODY_BYTES; nothing more is read. */
+export class ResponseTooLargeError extends Error {
+  constructor() {
+    super(`Response body is too large (over ${MAX_PROXY_BODY_BYTES} bytes)`);
+    this.name = "ResponseTooLargeError";
+  }
+}
+
 /**
  * Reads a response body into memory, undoing any Content-Encoding the way
- * fetch() did transparently.
+ * fetch() did transparently. Stops with ResponseTooLargeError once the body,
+ * decompressed, would pass MAX_PROXY_BODY_BYTES (or Content-Length says so).
  */
 export async function readBody(res: IncomingMessage): Promise<Uint8Array<ArrayBuffer>> {
+  const declared = Number(res.headers["content-length"]);
+  if (Number.isFinite(declared) && declared > MAX_PROXY_BODY_BYTES) {
+    res.destroy();
+    throw new ResponseTooLargeError();
+  }
   const encoding = String(res.headers["content-encoding"] ?? "").trim().toLowerCase();
   let source: Readable = res;
   if (encoding === "gzip" || encoding === "x-gzip") {
@@ -292,8 +309,13 @@ export async function readBody(res: IncomingMessage): Promise<Uint8Array<ArrayBu
   const chunks: Buffer[] = [];
   let length = 0;
   for await (const chunk of source) {
-    chunks.push(chunk as Buffer);
     length += (chunk as Buffer).length;
+    if (length > MAX_PROXY_BODY_BYTES) {
+      source.destroy();
+      res.destroy();
+      throw new ResponseTooLargeError();
+    }
+    chunks.push(chunk as Buffer);
   }
   const body = new Uint8Array(length);
   let offset = 0;

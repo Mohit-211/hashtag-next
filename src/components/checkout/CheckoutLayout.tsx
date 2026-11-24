@@ -152,6 +152,11 @@ export default function CheckoutLayout() {
       cancelled = true;
     };
   }, []);
+  // The unpaid order already resumed (or made on this page), so a step change
+  // or a cart refresh doesn't resume it again (BUG-017).
+  const resumedOrderIdRef = useRef<number | null>(null);
+  // The resumed order whose totals are loading; cleared by Back so a late reply is dropped.
+  const loadingResumedOrderRef = useRef<number | null>(null);
   useEffect(() => {
     if (checkoutCompletedRef.current) return;
     if (step === "processing" || step === "done") return;
@@ -159,10 +164,13 @@ export default function CheckoutLayout() {
       pending_order?.order_id &&
       pending_order?.payment_status === "PENDING"
     ) {
+      const orderId = pending_order.order_id;
+      if (resumedOrderIdRef.current === orderId) return;
+      resumedOrderIdRef.current = orderId;
       // Resume an unpaid order: the cart's pending order arrives from the
       // server after mount and jumps the flow straight to payment.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCreatedOrderId(pending_order.order_id);
+      setCreatedOrderId(orderId);
+      setOrderNumber(pending_order.order_number ?? null);
       setHasPendingOrder(true);
       setSelectedRate({
         label: "Saved Shipping",
@@ -171,6 +179,23 @@ export default function CheckoutLayout() {
         price: pending_order.shipping_amount || 0,
       });
       setStep("payment");
+      // The wallets need the order's total, and the summary its tax (BUG-016).
+      loadingResumedOrderRef.current = orderId;
+      GetOrderDetailApi(orderId, { skipErrorToast: true })
+        .then((res) => {
+          if (loadingResumedOrderRef.current !== orderId) return;
+          const order: ApiOrder | undefined = res?.data?.data;
+          if (!order?.id) return;
+          setOrderNumber(order.order_number ?? pending_order.order_number ?? null);
+          setOrderTotals(orderTotalsFrom(order));
+        })
+        .catch((err) => {
+          // The card can still pay; Google Pay and Cash App say they can't load the total.
+          console.error(err);
+        })
+        .finally(() => {
+          if (loadingResumedOrderRef.current === orderId) loadingResumedOrderRef.current = null;
+        });
     }
   }, [pending_order, step]);
   /** Loads the rates; false when the customer has to go back and fix the address. */
@@ -217,6 +242,8 @@ export default function CheckoutLayout() {
       const orderData: ApiOrder | undefined = orderResponse?.data?.data;
       const orderId = orderData?.id;
       if (!orderId) throw new Error("Order creation failed");
+      // The refreshed cart may report this order as unpaid: it isn't one to resume.
+      resumedOrderIdRef.current = orderId;
       setCreatedOrderId(orderId);
       setOrderNumber(orderData?.order_number ?? null);
 
@@ -262,10 +289,15 @@ export default function CheckoutLayout() {
     return "TIMEOUT" as const;
   };
 
+  // One payment at a time: a second call while one runs (e.g. Cash App's
+  // tokenization event arriving twice) is ignored (BUG-019).
+  const placingOrderRef = useRef(false);
   const handlePlaceOrder = async (
     sourceId?: string,
     method?: SquareMethod
   ) => {
+    if (placingOrderRef.current) return;
+    placingOrderRef.current = true;
     try {
       setOrderError(null);
       setProcessing(true);
@@ -279,11 +311,20 @@ export default function CheckoutLayout() {
       // CARD, GOOGLE_PAY, and CASH_APP all tokenize client-side and post
       // through this same create-payment endpoint — only the sourceId's
       // origin and payment_mode differ.
-      const paymentResponse = await CreatePaymentApi({
-        order_id: createdOrderId,
-        sourceId,
-        payment_mode: method,
-      });
+      let paymentResponse: Awaited<ReturnType<typeof CreatePaymentApi>> | undefined;
+      try {
+        paymentResponse = await CreatePaymentApi({
+          order_id: createdOrderId,
+          sourceId,
+          payment_mode: method,
+        });
+      } catch (err) {
+        // No answer (client timeout or lost connection): the charge may still
+        // have gone through, so ask for its status below instead of saying it
+        // failed and offering to pay again (BUG-018).
+        if (!isAxiosError(err) || err.response) throw err;
+        console.error(err);
+      }
 
       const charged = paymentResponse?.data?.data?.payment_status;
       const paymentStatus =
@@ -316,6 +357,7 @@ export default function CheckoutLayout() {
       setStep("payment");
     } finally {
       setProcessing(false);
+      if (!checkoutCompletedRef.current) placingOrderRef.current = false;
     }
   };
 
@@ -432,9 +474,12 @@ export default function CheckoutLayout() {
                   setOrderError(null);
                   // A new choice makes a new order, with its own totals.
                   setOrderTotals(null);
+                  // Leaving a resumed order: show the address and shipping steps again (BUG-017).
+                  loadingResumedOrderRef.current = null;
+                  setHasPendingOrder(false);
                   // An order reopened after Cash App has no address or rates
                   // loaded here: start again from the address.
-                  setStep(selectedAddressId ? "shipping" : "address");
+                  setStep(selectedAddressId && shippingRates.length > 0 ? "shipping" : "address");
                 }}
                 processing={processing}
                 orderError={orderError}

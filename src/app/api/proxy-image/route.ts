@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchPublicUrl, readBody, UnsafeTargetError } from "@/lib/ssrfSafeFetch";
+import { fetchPublicUrl, readBody, ResponseTooLargeError, UnsafeTargetError } from "@/lib/ssrfSafeFetch";
 
 const MAX_URL_LENGTH = 2048;
 
@@ -79,6 +79,10 @@ export async function GET(req: NextRequest) {
     if (err instanceof UnsafeTargetError) {
       // Generic message: don't tell the caller what an internal name resolved to.
       return new NextResponse("This host cannot be fetched", { status: 400 });
+    }
+    if (err instanceof ResponseTooLargeError) {
+      // SEC-002: nothing past the cap is read into memory.
+      return new NextResponse("Upstream image is too large", { status: 502 });
     }
     console.error("[proxy-image] fetch failed:", err);
     return new NextResponse("Failed to fetch image", { status: 500 });

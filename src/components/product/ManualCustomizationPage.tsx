@@ -265,6 +265,9 @@ export default function ManualCustomizationPage({
   const basePrice = Number(variant.price) || 0;
   const productUnitPrice = getManualUnitPrice(manualMeta, qty, basePrice) ?? basePrice;
   const activeTier = tiers.length > 0 ? findManualTier(tiers, qty) : null;
+  // Between two price ranges there is no price: the API refuses the quantity and
+  // Add to Cart stops with a message, so show no price rather than the first range's (BUG-030).
+  const inTierGap = tiers.length > 0 && !inTierRange(qty);
   // quantity_fixed: the pack price is the price for the whole pack.
   const packPrice =
     manualMeta?.pricing_mode === "quantity_fixed"
@@ -790,10 +793,10 @@ export default function ManualCustomizationPage({
             <>
               <p className="text-muted-foreground">
                 {tiers.length > 0 ? "Unit Price" : "Price"}:{" "}
-                <span className="font-semibold text-foreground">${formatMoney(productUnitPrice)}</span>
+                <span className="font-semibold text-foreground">{inTierGap ? "—" : `$${formatMoney(productUnitPrice)}`}</span>
               </p>
               <p className="text-right text-muted-foreground">
-                Total: <span className="font-semibold text-foreground">${formatMoney(totals.productTotal)}</span>
+                Total: <span className="font-semibold text-foreground">{inTierGap ? "—" : `$${formatMoney(totals.productTotal)}`}</span>
               </p>
             </>
           )}
@@ -804,10 +807,12 @@ export default function ManualCustomizationPage({
       <div className="rounded-lg border border-border bg-muted px-4 py-3 text-sm">
         <div className="flex justify-between py-1 text-foreground">
           <span>{packPrice != null ? `Product · ${qty} pcs pack` : "Product"}</span>
-          <span className="font-medium text-foreground">
+          <span className={cn("font-medium", inTierGap ? "text-destructive" : "text-foreground")}>
             {packPrice != null
               ? `$${formatMoney(totals.productTotal)}`
-              : `${qty} × $${formatMoney(productUnitPrice)} = $${formatMoney(totals.productTotal)}`}
+              : inTierGap
+                ? "N/A"
+                : `${qty} × $${formatMoney(productUnitPrice)} = $${formatMoney(totals.productTotal)}`}
           </span>
         </div>
         {selectedLines.map((l) => (
@@ -837,7 +842,7 @@ export default function ManualCustomizationPage({
         <div className="h-px bg-muted my-2" />
         <div className="flex justify-between items-baseline">
           <span className="font-semibold text-foreground">Total</span>
-          <span className="text-lg font-bold text-foreground">${formatMoney(grandTotal)}</span>
+          <span className="text-lg font-bold text-foreground">{inTierGap ? "—" : `$${formatMoney(grandTotal)}`}</span>
         </div>
       </div>
 
