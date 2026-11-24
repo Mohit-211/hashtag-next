@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, Minus, Plus, Trash2, UploadCloud, Stamp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,6 +35,25 @@ export default function CartItem({ item, onRefresh }: Props) {
      blur/Enter the value goes to the API in one call. */
   const [qtyDraft, setQtyDraft] = useState<string | null>(null);
   const qtyInput = qtyDraft ?? String(item.quantity);
+
+  /* ── Keyboard focus through a save (A11Y-045) ──
+     The box and the +/- buttons are disabled while a save runs, and the browser
+     drops focus from a disabled control. `refocusRef` holds where keyboard focus
+     should be once the save is done: the box after Enter, a +/- button pressed
+     from the keyboard, or wherever Tab was going when the box was left. */
+  const qtyInputRef = useRef<HTMLInputElement>(null);
+  const refocusRef = useRef<EventTarget | null>(null);
+
+  useEffect(() => {
+    if (loading) return;
+    const target = refocusRef.current;
+    refocusRef.current = null;
+    // Only when the save dropped focus, never when the shopper moved it on.
+    const active = document.activeElement;
+    if (!(target instanceof HTMLElement) || !target.isConnected || (active && active !== document.body)) return;
+    // A button can stay disabled after the save (- at the minimum): the box takes focus then.
+    (target.matches(":disabled") ? qtyInputRef.current : target)?.focus();
+  }, [loading]);
 
   // The API refuses less than this rather than removing the line (Q36).
   const minQuantity = item.min_quantity ?? 1;
@@ -75,7 +94,7 @@ export default function CartItem({ item, onRefresh }: Props) {
      take focus when pressed (onMouseDown below), so pressing one no longer
      blurs the box, sends the typed value on its own and disables the button
      before its click arrives. One request at a time, in order. */
-  const changeQuantity = async (step: 1 | -1) => {
+  const changeQuantity = async (step: 1 | -1, focusAfter: EventTarget | null) => {
     if (inFlightRef.current) return;
     const draft = qtyDraft;
     setQtyDraft(null);
@@ -96,7 +115,11 @@ export default function CartItem({ item, onRefresh }: Props) {
     }
     if (!update && !stepAllowed) return;
 
+    // The box stays on the page during the save, holding the typed quantity
+    // rather than the old one (A11Y-045).
+    if (update) setQtyDraft(String(target));
     inFlightRef.current = true;
+    refocusRef.current = focusAfter;
     setLoading(true);
     let changed = false;
     try {
@@ -124,17 +147,23 @@ export default function CartItem({ item, onRefresh }: Props) {
     } finally {
       inFlightRef.current = false;
       setLoading(false);
+      setQtyDraft(null);
     }
   };
 
-  const handleDecrease = () => changeQuantity(-1);
-  const handleIncrease = () => changeQuantity(1);
+  // A keyboard press arrives as a click with detail 0 and gets focus back on
+  // its button after the save. A click or tap never focuses the button
+  // (onMouseDown below), so it leaves focus as it was.
+  type StepClick = { detail: number; currentTarget: HTMLButtonElement };
+  const handleDecrease = (e: StepClick) => changeQuantity(-1, e.detail === 0 ? e.currentTarget : null);
+  const handleIncrease = (e: StepClick) => changeQuantity(1, e.detail === 0 ? e.currentTarget : null);
 
   /* ── Commit a manually-typed quantity ──
      Does nothing if the box was left empty or unchanged, and never goes below
-     the line's minimum: removing a line stays on the Remove button. */
-  const commitTypedQty = async (raw: string) => {
-    // Also covers the blur the box fires when a +/- request swaps it for the spinner.
+     the line's minimum: removing a line stays on the Remove button.
+     `focusAfter`: where keyboard focus goes once the save is done (see refocusRef). */
+  const commitTypedQty = async (raw: string, focusAfter: EventTarget | null) => {
+    // Also covers the blur the box fires when it's disabled for a save.
     if (inFlightRef.current) return;
     setQtyDraft(null);
 
@@ -145,7 +174,11 @@ export default function CartItem({ item, onRefresh }: Props) {
     const target = Math.max(minQuantity, typed);
     if (target === item.quantity) return;
 
+    // The box stays on the page during the save, holding the quantity being
+    // saved rather than the old one (A11Y-045).
+    setQtyDraft(String(target));
     inFlightRef.current = true;
+    refocusRef.current = focusAfter;
     setLoading(true);
     try {
       await UpdateCartQuantityApi({ cart_id: item.cart_id, quantity: target });
@@ -159,6 +192,7 @@ export default function CartItem({ item, onRefresh }: Props) {
     } finally {
       inFlightRef.current = false;
       setLoading(false);
+      setQtyDraft(null);
     }
   };
 
@@ -438,27 +472,30 @@ export default function CartItem({ item, onRefresh }: Props) {
               `qtyInput` is a local string buffer so typing/clearing digits
               doesn't fight the server-driven `item.quantity` on every
               keystroke; the value only goes to the backend (commitTypedQty)
-              on blur or Enter. While that
-              request is in flight, `loading` disables the field
-              and shows a small spinner instead of the +/- buttons area
-              being separately clickable, avoiding overlapping requests. */}
+              on blur or Enter. While that request is in flight, `loading`
+              disables the field and the +/- buttons, avoiding overlapping
+              requests. The field stays mounted, so it keeps its name and its
+              place for keyboard focus; it's invisible then and a small spinner
+              sits on top of it, as before (A11Y-045). */}
           <div className="relative w-12 flex items-center justify-center">
-            {loading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            ) : (
-              <input
-                type="number"
-                inputMode="numeric"
-                value={qtyInput}
-                min={minQuantity}
-                disabled={loading}
-                onChange={(e) => setQtyDraft(e.target.value)}
-                onBlur={(e) => commitTypedQty(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                }}
-                className="w-full bg-transparent text-center font-mono text-sm font-semibold outline-none disabled:opacity-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
+            <input
+              ref={qtyInputRef}
+              type="number"
+              inputMode="numeric"
+              aria-label={`Quantity for ${item.name}`}
+              value={qtyInput}
+              min={minQuantity}
+              disabled={loading}
+              onChange={(e) => setQtyDraft(e.target.value)}
+              onBlur={(e) => commitTypedQty(e.target.value, e.relatedTarget)}
+              onKeyDown={(e) => {
+                // Saves in place: focus stays in the box (A11Y-045).
+                if (e.key === "Enter") commitTypedQty(e.currentTarget.value, e.currentTarget);
+              }}
+              className="w-full bg-transparent text-center font-mono text-sm font-semibold outline-none disabled:opacity-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            {loading && (
+              <Loader2 className="pointer-events-none absolute inset-0 m-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />
             )}
           </div>
 
