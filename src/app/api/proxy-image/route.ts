@@ -3,11 +3,13 @@ import { fetchPublicUrl, readBody, ResponseTooLargeError, UnsafeTargetError } fr
 
 const MAX_URL_LENGTH = 2048;
 
-// This proxy has no allowlist of trusted image hosts (supplier images come
-// from many domains), so every fetch goes through fetchPublicUrl. It refuses
-// any URL, DNS answer or redirect that leads to loopback, private, link-local
-// or other non-public addresses, and connects only to the validated IP, so
-// the server can't be used to reach internal-network resources (SEC-001).
+const ALLOWED_IMAGE_HOSTS: ReadonlySet<string> = new Set([
+  "node.hashtagbillionaire.com",
+  "www.promoplace.com",
+  "cdnm.sanmar.com",
+  "www.ssactivewear.com",
+  "cdn.ssactivewear.com",
+]);
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url");
@@ -25,20 +27,18 @@ export async function GET(req: NextRequest) {
   } catch {
     return new NextResponse("Invalid url parameter", { status: 400 });
   }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return new NextResponse("Only http/https URLs are allowed", { status: 400 });
+  if (parsed.protocol !== "https:") {
+    return new NextResponse("Only HTTPS URLs are allowed", { status: 400 });
   }
 
   try {
     const response = await fetchPublicUrl(parsed, {
-      // A slow supplier host must not hang the customization canvas for minutes.
       signal: AbortSignal.timeout(10_000),
+      allowedHosts: ALLOWED_IMAGE_HOSTS,
+      httpsOnly: true,
       headers: {
-        // Forward a browser-like UA so servers don't block the request
         "User-Agent":
           "Mozilla/5.0 (compatible; ImageProxy/1.0)",
-        // The rest are the headers fetch() used to send, so supplier CDNs and
-        // their bot filters still see the same request as before.
         Accept: "*/*",
         "Accept-Language": "*",
         "Sec-Fetch-Mode": "cors",

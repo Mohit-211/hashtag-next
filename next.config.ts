@@ -136,6 +136,10 @@ const nextConfig = {
     // admin uploads can't be SVG.
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Real supplier data needs at most 1 redirect (S&S www → cdn). Keeping
+    // this at 1 narrows the R-13 residual: even if an approved host has an
+    // open redirect, next/image follows only 1 hop (SEC-008).
+    maximumRedirects: 1,
   },
   // Browsers request /favicon.ico by convention; the site ships favicon.png.
   async rewrites() {

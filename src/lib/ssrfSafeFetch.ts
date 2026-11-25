@@ -234,6 +234,11 @@ export interface PublicFetchOptions {
   headers?: Record<string, string>;
   /** Redirect hops to follow. Each target is validated like the first URL. */
   maxRedirects?: number;
+  /** When set, every URL (initial and each redirect) must have its normalized
+   *  hostname in this set. Prevents the proxy from reaching unapproved hosts. */
+  allowedHosts?: ReadonlySet<string>;
+  /** When true, only HTTPS URLs are accepted (HTTP is refused). */
+  httpsOnly?: boolean;
 }
 
 /**
@@ -247,32 +252,47 @@ export interface PublicFetchOptions {
  */
 export async function fetchPublicUrl(
   url: URL,
-  { signal, headers = {}, maxRedirects = 5 }: PublicFetchOptions,
+  { signal, headers = {}, maxRedirects = 5, allowedHosts, httpsOnly }: PublicFetchOptions,
 ): Promise<IncomingMessage> {
+  const seen = new Set<string>();
   let target = url;
   for (let redirects = 0; ; redirects++) {
     assertFetchableUrl(target);
+    if (httpsOnly && target.protocol !== "https:") {
+      throw new UnsafeTargetError("Only HTTPS URLs are allowed");
+    }
+    if (allowedHosts) {
+      const host = normalizeHost(target.hostname);
+      if (!allowedHosts.has(host)) {
+        throw new UnsafeTargetError(`Host ${host} is not in the allowlist`);
+      }
+    }
     const addresses = await resolvePublicAddresses(target.hostname);
     signal.throwIfAborted();
     const res = await requestPinned(target, addresses, headers, signal);
 
     const location = res.headers.location;
     if (!REDIRECT_STATUSES.has(res.statusCode ?? 0) || !location) return res;
-    res.destroy(); // the redirect's own body is never used
+    res.destroy();
 
     if (redirects >= maxRedirects) throw new Error(`More than ${maxRedirects} redirects`);
+    let next: URL;
     try {
-      target = new URL(location, target);
+      next = new URL(location, target);
     } catch (err) {
       throw new UnsafeTargetError("Redirect location is not a valid URL", { cause: err });
     }
+    const key = next.href;
+    if (seen.has(key)) throw new Error("Redirect loop detected");
+    seen.add(key);
+    target = next;
   }
 }
 
 const ignoreError = () => {};
 
 /** Largest body readBody() keeps in memory, counted after decompression (SEC-002). */
-export const MAX_PROXY_BODY_BYTES = 15 * 1024 * 1024;
+export const MAX_PROXY_BODY_BYTES = 10 * 1024 * 1024;
 
 /** The upstream body is over MAX_PROXY_BODY_BYTES; nothing more is read. */
 export class ResponseTooLargeError extends Error {
