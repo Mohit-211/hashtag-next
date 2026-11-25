@@ -111,6 +111,8 @@ interface AddToCartModalProps {
   isApparel?: boolean;
   /** Set when this order carries a new graphic: the pieces in the cart that already have it. */
   newGraphicPiecesInCart?: number | null;
+  /** SAGE products get free customization — no graphic fee notice. */
+  isSage?: boolean;
 }
 
 export default function AddToCartModal({
@@ -129,6 +131,7 @@ export default function AddToCartModal({
   configuredVariants,
   isApparel,
   newGraphicPiecesInCart = null,
+  isSage = false,
 }: AddToCartModalProps) {
   const quantity = initialQuantity;
   const [loading, setLoading] = useState(false);
@@ -318,7 +321,7 @@ export default function AddToCartModal({
 
   const pcs = (n: number) => `${n} ${n === 1 ? "pc" : "pcs"}`;
   const showGraphicFee =
-    newGraphicPiecesInCart !== null && grandQty + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
+    !isSage && newGraphicPiecesInCart !== null && grandQty + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
 
   return (
     <div

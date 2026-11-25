@@ -1150,6 +1150,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     () => colorVariants.find(v => v.id === currentVariantId) ?? colorVariants[0],
     [colorVariants, currentVariantId]
   );
+  const isSage = (activeVariant?.supplier ?? variantData?.supplier ?? "").toUpperCase() === "SAGE";
   const currentQty = currentVariantId ? (variantQty[currentVariantId] ?? 0) : 0;
   const activeSizes = useMemo(
     () => Object.entries(variantQty)
@@ -1267,8 +1268,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     setSelectedPrintLocations(prev =>
       prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]
     );
-  /** First location is free; every additional location adds a flat $8/product. */
-  const drinkwareLocationFee = isDrinkware
+  const drinkwareLocationFee = isDrinkware && !isSage
     ? Math.max(0, selectedPrintLocations.length - 1) * DRINKWARE_SECOND_LOCATION_FEE
     : 0;
   // The colour being configured right now uses the current selections.
@@ -1757,7 +1757,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     : null;
   const piecesWithGraphic = grandConfiguredQty + (currentVariantAlreadyConfigured ? 0 : currentQty);
   const showGraphicFeeNotice =
-    newGraphicPiecesInCart !== null && piecesWithGraphic + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
+    !isSage && newGraphicPiecesInCart !== null && piecesWithGraphic + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
   // Added once per order by the cart, so it isn't in any total on this page.
   const handlingFeeText = handlingFeeNote(handlingFee);
 
@@ -2798,15 +2798,19 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           );
                         })}
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-2">
-                        The first location is free — each additional location adds ${DRINKWARE_SECOND_LOCATION_FEE} per product.
-                      </p>
+                      {isSage ? (
+                        <p className="text-[11px] text-primary-ink font-medium mt-2">Customization included</p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground mt-2">
+                          The first location is free — each additional location adds ${DRINKWARE_SECOND_LOCATION_FEE} per product.
+                        </p>
+                      )}
                     </div>
                   </SectionCard>
                 )}
                 <SectionCard
                   step={isDrinkware ? 3 : 2} title="Upload Your Logo"
-                  subtitle="Upload a logo or add custom text to personalize this product."
+                  subtitle={isSage ? "Customization included — upload a logo or add custom text at no extra cost." : "Upload a logo or add custom text to personalize this product."}
                   status="optional"
                 >
                   <LogoCanvasSection {...logoCanvasSectionProps()} />
@@ -3190,6 +3194,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               : undefined
           }
           isApparel={isApparel}
+          isSage={isSage}
           newGraphicPiecesInCart={newGraphicPiecesInCart}
           onSuccess={() => {
             refreshCart();
