@@ -2,14 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { DeactivateAccountApi } from "@/api/users/users.api";
+import { DeactivateAccountApi, UpdateUserProfileApi } from "@/api/users/users.api";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { inputClass } from "@/data/constants";
-import { mobileSchema, nameSchema } from "@/lib/validation";
+import { nameSchema, optionalUsPhoneSchema, toUsPhoneDigits } from "@/lib/validation";
+
+// Flip to true once the backend POST user/profile route is live.
+const PROFILE_EDIT_ENABLED = false;
 
 interface User {
   name?: string;
@@ -24,10 +27,11 @@ interface Props {
 export default function ProfileSection({ user }: Props) {
   const [name, setName] = useState(user?.name ?? "");
   const [mobile, setMobile] = useState(user?.mobile ?? "");
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, refreshProfile } = useAuth();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -39,31 +43,41 @@ export default function ProfileSection({ user }: Props) {
       toast.success("Your account is closed. Sign in within 30 days to restore it.");
       router.push("/");
     } catch (err) {
-      // The axios response interceptor already toasts the failure.
       console.error(err);
       setDeleting(false);
       setConfirmingDelete(false);
     }
   };
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!PROFILE_EDIT_ENABLED || saving) return;
 
     const nameResult = nameSchema.safeParse(name);
     if (!nameResult.success) {
-      toast.error(nameResult.error.issues[0]?.message ?? "Enter your full name ⚠️");
+      toast.error(nameResult.error.issues[0]?.message ?? "Enter your full name.");
       return;
     }
 
-    const mobileResult = mobileSchema.safeParse(mobile);
-    if (!mobileResult.success) {
-      toast.error(mobileResult.error.issues[0]?.message ?? "Enter a valid mobile number ⚠️");
+    const phoneResult = optionalUsPhoneSchema.safeParse(mobile);
+    if (!phoneResult.success) {
+      toast.error(phoneResult.error.issues[0]?.message ?? "Enter a valid phone number, or leave it empty.");
       return;
     }
 
-    // later this will call API
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    try {
+      const trimmedName = name.trim();
+      const digits = mobile.trim() ? toUsPhoneDigits(mobile) : "";
+      await UpdateUserProfileApi({ name: trimmedName, mobile: digits || "" });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      await refreshProfile();
+    } catch {
+      // The axios response interceptor already toasts the server error.
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -76,8 +90,9 @@ export default function ProfileSection({ user }: Props) {
         <input
           value={name}
           maxLength={80}
+          readOnly={!PROFILE_EDIT_ENABLED}
           onChange={(e) => setName(e.target.value)}
-          className={inputClass}
+          className={`${inputClass}${!PROFILE_EDIT_ENABLED ? " bg-muted" : ""}`}
           placeholder="Full Name"
         />
 
@@ -90,20 +105,35 @@ export default function ProfileSection({ user }: Props) {
         <input
           value={mobile}
           maxLength={10}
+          readOnly={!PROFILE_EDIT_ENABLED}
           onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-          className={inputClass}
+          className={`${inputClass}${!PROFILE_EDIT_ENABLED ? " bg-muted" : ""}`}
           placeholder="Phone Number"
         />
 
-        <div className="flex items-center gap-3">
-          <Button type="submit">Save Changes</Button>
+        {PROFILE_EDIT_ENABLED ? (
+          <div className="flex items-center gap-3">
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Saving…
+                </span>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
 
-          {saved && (
-            <span className="text-sm flex items-center gap-1 text-foreground">
-              <Check className="h-4 w-4" /> Saved
-            </span>
-          )}
-        </div>
+            {saved && (
+              <span className="text-sm flex items-center gap-1 text-foreground">
+                <Check className="h-4 w-4" /> Saved
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Profile editing is temporarily unavailable. Contact support if you need to update your name or phone number.
+          </p>
+        )}
       </form>
 
       <div className="border-t border-border pt-6 max-w-lg space-y-3">

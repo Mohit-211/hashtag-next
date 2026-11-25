@@ -32,6 +32,7 @@ interface AuthContextType {
     password: string
   ) => Promise<{ success: boolean; error?: string; status?: number }>;
   logout: () => void;
+  refreshProfile: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -100,6 +101,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // An unverified account answers 403 with a message; the form offers to
   // resend the verification link.
+  const refreshProfile = useCallback(() => setProfileAttempt((n) => n + 1), []);
+
   const login = useCallback(async (email: string, password: string) => {
     try {
       const res = await loginApi({ email, password, role_id: 6 });
@@ -127,6 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: isLoggedIn && !!user,
         login,
         logout,
+        refreshProfile,
       }}
     >
       {children}
