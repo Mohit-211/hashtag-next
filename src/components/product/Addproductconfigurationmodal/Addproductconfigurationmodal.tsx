@@ -6,7 +6,12 @@ import { cn } from "@/lib/utils";
 import { getPriceTiers, getTierUnitPrice, type PriceTier } from "../customization/Sagequantitypricing";
 import { calculateVariantTotal, sumVariantTotals, formatMoney } from "../customization/pricing";
 import { getPromoMinQty } from "../customization/Productcustomizationpage";
-import { getMaterialPrintTotal, type MaterialId, type SpColorCount } from "../customization/pricing";
+import {
+  getMaterialPrintTotal,
+  getMaterialFloor,
+  type MaterialId,
+  type SpColorCount,
+} from "../customization/pricing";
 import { isInStock, stockCeiling } from "@/lib/stock";
 
 /* ─────────────────────────────────────────── Types ── */
@@ -131,7 +136,14 @@ export default function AddProductConfigurationModal({
     ? getPromoMinQty(selectedVariant)
     : (selectedVariant?.min_order_quantity ?? 1);
 
-  const DEFAULT_MIN_QTY = isPromo ? PROMO_MIN_QTY : (selectedVariant?.min_order_quantity ?? 1);
+const variantMinQty = isPromo
+  ? PROMO_MIN_QTY
+  : (selectedVariant?.min_order_quantity ?? 1);
+
+const DEFAULT_MIN_QTY = Math.max(
+  variantMinQty,
+  isApparel ? getMaterialFloor(selectedMaterial) : 1
+);
 
   const newRow = (color = "", qty = DEFAULT_MIN_QTY): ConfigRow => ({
     id: rowIdCounter++,
@@ -175,8 +187,18 @@ export default function AddProductConfigurationModal({
     return variants.find((v) => v.color === row.color);
   };
 
-  const effectiveMinFor = (v?: Variant) => Math.max(DEFAULT_MIN_QTY, v?.min_order_quantity ?? 1);
+ const effectiveMinFor = (v?: Variant) => {
+  const variantMin = isPromo
+    ? getPromoMinQty(v)
+    : (v?.min_order_quantity ?? 1);
 
+  const materialMin =
+    isApparel && selectedMaterial
+      ? getMaterialFloor(selectedMaterial)
+      : 1;
+
+  return Math.max(variantMin, materialMin);
+};
   const sizesForColor = (color: string) =>
     allSizesSorted.map((size) => {
       const v = variants.find((vv) => vv.color === color && vv.size_id === size.id);
@@ -207,6 +229,7 @@ export default function AddProductConfigurationModal({
     const clamped = Math.max(min, Math.min(safeQty, Math.max(max, min)));
     updateRow(id, { qty: clamped });
   };
+
 
   const validRows = useMemo(
     () =>
