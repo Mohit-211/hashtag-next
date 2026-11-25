@@ -101,7 +101,6 @@ const colors = useMemo(() => {
         .map((v) => v.size_id)
     );
   }, [selectedColor, variants]);
-  console.log(manualPricing,"manualPricing")
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -142,14 +141,15 @@ const colors = useMemo(() => {
       </div>
 
       {/* Price */}
-      {manualPricing?.pricing_mode === "quantity_fixed" ? (
+      {manualPricing?.pricing_mode === "quantity_fixed" && manualPricing.quantity_pricing.length > 0 ? (
         <div className="flex items-baseline gap-2">
           <p className="text-3xl font-bold tabular-nums text-foreground">
-            {money(manualPricing.quantity_pricing[0].price)}
+            {money(
+              manualPricing.quantity_pricing[manualPricing.quantity_pricing.length - 1].price /
+              manualPricing.quantity_pricing[manualPricing.quantity_pricing.length - 1].quantity
+            )}
           </p>
-          <p className="text-sm font-medium text-muted-foreground">
-            for {manualPricing.quantity_pricing[0].quantity} pcs
-          </p>
+          <p className="text-sm font-medium text-muted-foreground">/pcs</p>
         </div>
       ) : manualPricing?.pricing_mode === "tiered" ? (
         <div className="flex items-baseline gap-2">
@@ -164,7 +164,6 @@ const colors = useMemo(() => {
           <p className="text-3xl font-bold tabular-nums text-foreground">{money(price)}</p>
         </div>
       )}
-
 
       <div className="h-px bg-muted" />
 
