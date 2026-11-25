@@ -10,9 +10,11 @@ interface Props {
 
 export default function ShippingRateCard({ rate, selected, onSelect }: Props) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onSelect}
-      className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-all border-l-[3px]
+      aria-pressed={selected}
+      className={`flex w-full items-center gap-3 px-4 py-3.5 cursor-pointer transition-all border-l-[3px] text-left
         ${selected
           ? "bg-primary-soft border border-primary-hover border-l-primary"
           : "bg-muted border border-border border-l-transparent hover:border-input hover:bg-card"
@@ -33,6 +35,6 @@ export default function ShippingRateCard({ rate, selected, onSelect }: Props) {
           est.
         </span>
       </span>
-    </div>
+    </button>
   );
 }
