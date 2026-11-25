@@ -142,7 +142,6 @@ export default function ProductGallery({
       window.removeEventListener("keydown", handler);
     };
   }, [lightbox, prev, next]);
-console.log(finalImages,"finalImages")
   // One thumbnail tile; a label (e.g. "Front", "On Model Side") shows underneath when given.
   const renderThumb = (src: string, label: string | undefined, index: number) => (
     <button
