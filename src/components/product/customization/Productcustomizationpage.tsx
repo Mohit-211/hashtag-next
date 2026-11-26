@@ -75,6 +75,7 @@ interface RawProduct {
   attachments: { file_uri: string; file_name?: string }[];
   categories: ProductCategoryRef[];
   meta: string | null;
+  is_bag?: boolean;
 }
 interface Product {
   id: string;
@@ -235,6 +236,8 @@ const ALL_PRINT_LOCATIONS = [
   { id: "HAT_FRONT", label: "Hat Front" },
   { id: "HAT_SIDE", label: "Hat Side" },
   { id: "HAT_BACK_ARCH", label: "Hat Back (Arch)" },
+  { id: "FRONT", label: "Front" },
+  { id: "BACK", label: "Back" },
 ];
 /* ── Drinkware print options (parent category "Drinkware") ── */
 const DRINKWARE_PRINT_TYPES = [
@@ -247,6 +250,11 @@ const DRINKWARE_PRINT_LOCATIONS = [
   { id: "BACK", label: "Back" },
 ] as const;
 type DrinkwarePrintLocation = typeof DRINKWARE_PRINT_LOCATIONS[number]["id"];
+/* ── Bags print options (backend is_bag flag) ── */
+const BAGS_MATERIALS = MATERIALS.filter(m => m.id !== "dtg");
+const BAGS_PRINT_LOCATIONS = [
+  { id: "FRONT", label: "Front" },
+] as const;
 /** The page's decoration selections. */
 interface DecorationSelection {
   material: MaterialId | null;
@@ -271,6 +279,18 @@ const decorationFrom = (
       locations: s.locations,
       ...(s.material === "screen_print" ? { spColorCount: s.spColorCount } : {}),
       ...(s.material === "dtg" ? { dtgStyle: s.dtgStyle } : {}),
+      label: `${option ? `${method} (${option})` : method} · ${places}`,
+    };
+  }
+  if (kind === "bag" && s.material && s.locations.length > 0) {
+    const method = MATERIALS.find(m => m.id === s.material)?.label ?? s.material;
+    const option = s.material === "screen_print" ? s.spColorCount : null;
+    const places = s.locations.map(id => BAGS_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id).join(", ");
+    return {
+      kind,
+      material: s.material,
+      locations: s.locations,
+      ...(s.material === "screen_print" ? { spColorCount: s.spColorCount } : {}),
       label: `${option ? `${method} (${option})` : method} · ${places}`,
     };
   }
@@ -830,8 +850,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     );
   }, [product]);
   const isDrinkware = isPromo && parentCategory.includes("drinkware");
-  // Which decoration a colour set up here carries (none on other products).
-  const decorationKind = isApparel ? "apparel" : isDrinkware ? "drinkware" : null;
+  console.log(product,"product")
+ const isBags =
+  isPromo &&
+  (
+    !!product?.product?.is_bag ||
+    product?.product?.categories?.some(
+      (category) => category?.title?.toLowerCase() === "bags"
+    )
+  );
+  const decorationKind: ColorDecoration["kind"] | null = isApparel ? "apparel" : isBags ? "bag" : isDrinkware ? "drinkware" : null;
   const saveCustomizationToSession = () => {
     if (typeof window === "undefined") return;
     try {
@@ -1196,16 +1224,17 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on colour change only, by design
   }, [selectedColor]);
+  const bagsEffectiveMin = isBags && selectedMaterial ? Math.max(promoMinQty, getMaterialFloor(selectedMaterial)) : promoMinQty;
   const setPromoQty = (variantId: number, qty: number) => {
     if (!isPromo) { setQty(variantId, Math.max(0, qty)); return; }
-    const safe = Number.isFinite(qty) ? Math.floor(qty) : promoMinQty;
+    const floor = isBags ? bagsEffectiveMin : promoMinQty;
+    const safe = Number.isFinite(qty) ? Math.floor(qty) : floor;
     if (manualMeta?.pricing_mode === "quantity_fixed") {
-      // Only the listed packages are allowed — no free-form quantity.
       const pkg = manualMeta.quantity_pricing.find(p => p.quantity === safe);
       setQty(variantId, pkg ? pkg.quantity : manualMeta.quantity_pricing[0].quantity);
       return;
     }
-    setQty(variantId, Math.max(promoMinQty, safe));
+    setQty(variantId, Math.max(floor, safe));
   };
   useEffect(() => {
     if (isRestoringSessionRef.current) return;
@@ -1283,18 +1312,23 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const handleSelectMaterial = (id: MaterialId) => {
     setSelectedMaterial(id);
     setShowPriceTable(true);
+    if (isBags && selectedLocations.length === 0) {
+      setSelectedLocations(["FRONT"]);
+    }
     const floor = getMaterialFloor(id);
     const previousFloor = lastMaterialFloorRef.current;
-    setVariantQty(prev => {
-      const updated: Record<number, number> = { ...prev };
-      Object.entries(prev).forEach(([k, v]) => {
-        updated[Number(k)] = v === previousFloor ? floor : Math.max(floor, v);
+    if (!isPromo || isBags) {
+      setVariantQty(prev => {
+        const updated: Record<number, number> = { ...prev };
+        Object.entries(prev).forEach(([k, v]) => {
+          updated[Number(k)] = v === previousFloor ? floor : Math.max(floor, v);
+        });
+        if (activeVariant && updated[activeVariant.id] === undefined) {
+          updated[activeVariant.id] = floor;
+        }
+        return updated;
       });
-      if (activeVariant && updated[activeVariant.id] === undefined) {
-        updated[activeVariant.id] = floor;
-      }
-      return updated;
-    });
+    }
     lastMaterialFloorRef.current = floor;
   };
   const { items: cartItems, refreshCart } = useCart();
@@ -1524,14 +1558,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   };
   const stopDrag = () => setDragging(null);
   const getCursor = () => dragging ? "grabbing" : (logoImg || customText.trim()) ? "grab" : "default";
-  /* ── Apparel print pricing ── */
+  /* ── Apparel / Bags print pricing ── */
   const getPrintPrice = (): number | null => {
-    if (!isApparel) return null;
+    if (!isApparel && !isBags) return null;
     return getMaterialPrintTotal(selectedMaterial, selectedLocations, currentQty, spColorCount, dtgStyle);
   };
   const printPrice = getPrintPrice();
   const basePrice = activeVariant ? getVariantPrice(activeVariant) : (product?.price ?? 0);
-  const decorationUnitPrice = isApparel && currentQty > 0
+  const decorationUnitPrice = (isApparel || isBags) && currentQty > 0
     ? (printPrice ?? 0) / currentQty
     : 0;
   const currentSelectionPricing = calculateVariantTotal({
@@ -1549,9 +1583,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       : hasTierPricing
         ? (getTierUnitPrice(promoTiers, currentQty) ?? basePrice)
         : basePrice;
-    return base + drinkwareLocationFee;
-  }, [isPromo, manualMeta, hasTierPricing, promoTiers, currentQty, basePrice, drinkwareLocationFee]);
+    return base + drinkwareLocationFee + (isBags ? decorationUnitPrice : 0);
+  }, [isPromo, manualMeta, hasTierPricing, promoTiers, currentQty, basePrice, drinkwareLocationFee, isBags, decorationUnitPrice]);
   const promoTotal = (promoUnitPrice ?? 0) * currentQty;
+  const bagsProductUnitPrice = isBags
+    ? (manualMeta
+        ? (getManualUnitPrice(manualMeta, 1, basePrice) ?? basePrice)
+        : hasTierPricing
+          ? (getTierUnitPrice(promoTiers, 1) ?? basePrice)
+          : basePrice)
+    : basePrice;
   const REQUIREMENTS = [
     ...((isApparel || isPreMade) ? [{ key: "color", label: "Color", done: !!selectedColor }] : []),
     ...(isApparel ? [
@@ -1563,10 +1604,13 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       { key: "printtype", label: "Print type", done: !!selectedPrintType },
       { key: "printloc", label: "Print location", done: selectedPrintLocations.length > 0 },
     ] : []),
+    ...(isBags ? [
+      { key: "mat", label: "Print method", done: !!selectedMaterial },
+    ] : []),
     ...(isPromo ? [{
       key: "qty",
-      label: `Quantity (min ${promoMinQty})`,
-      done: totalQty >= promoMinQty,
+      label: `Quantity (min ${bagsEffectiveMin})`,
+      done: totalQty >= bagsEffectiveMin,
     }] : []),
   ];
   const allMet = REQUIREMENTS.every(r => r.done);
@@ -1635,7 +1679,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       size: v.size_details?.name || v.size || "—",
       quantity: currentQty,
       unit_price: isPromo ? (promoUnitPrice ?? basePrice) : basePrice,
-      decoration_unit_price: isApparel ? (printPrice ?? 0) / currentQty : 0,
+      decoration_unit_price: (isApparel || isBags) ? (printPrice ?? 0) / Math.max(currentQty, 1) : 0,
     }];
   };
   /** `decoration` is what newSizes' decoration prices were worked out for; it
@@ -1750,7 +1794,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const displayTotal = grandConfiguredPrice + currentSelectionTotal;
   // The API charges a new graphic on clothing once, when fewer than 12 pieces in
   // the order carry it. This only warns: the cart's figure is the final one.
-  const newGraphicPiecesInCart = isApparel && savedGraphic?.is_new
+  const newGraphicPiecesInCart = (isApparel || isBags) && savedGraphic?.is_new
     ? cartItems
       .filter((item) => (item.graphics as { id: number }[] | undefined)?.some((g) => g.id === savedGraphic.id))
       .reduce((sum, item) => sum + item.quantity, 0)
@@ -1791,7 +1835,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setTimeout(() => setShowValidationShake(false), 600);
       return;
     }
-    if (isApparel && quoteOnlyLocations.length > 0) {
+    if ((isApparel || isBags) && quoteOnlyLocations.length > 0) {
       setValidationError(
         `${quoteOnlyNames} embroidery is by quote only. Remove it or choose another method, or email ${CONTACT_EMAIL}.`
       );
@@ -1799,8 +1843,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       setTimeout(() => setShowValidationShake(false), 600);
       return;
     }
-    if (isPromo && currentQty < promoMinQty) {
-      setValidationError(`Minimum order quantity for this product is ${promoMinQty}.`);
+    if (isPromo && currentQty < bagsEffectiveMin) {
+      setValidationError(`Minimum order quantity is ${bagsEffectiveMin}.`);
       setShowValidationShake(true);
       setTimeout(() => setShowValidationShake(false), 600);
       return;
@@ -1849,12 +1893,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       const variantsSource = allProductVariants.length > 0 ? allProductVariants : (product?.variants ?? []);
       const tooLow = updatedVariantList.find(cv => {
         const v = variantsSource.find(vv => vv.id === cv.variantId);
-        const min = getPromoMinQty(v ?? activeVariant);
+        const min = Math.max(getPromoMinQty(v ?? activeVariant), isBags && selectedMaterial ? getMaterialFloor(selectedMaterial) : 0);
         return cv.totalQty < min;
       });
       if (tooLow) {
         const v = variantsSource.find(vv => vv.id === tooLow.variantId);
-        const min = getPromoMinQty(v ?? activeVariant);
+        const min = Math.max(getPromoMinQty(v ?? activeVariant), isBags && selectedMaterial ? getMaterialFloor(selectedMaterial) : 0);
         setValidationError(
           `Minimum order quantity for ${tooLow.variantName} is ${min} (currently ${tooLow.totalQty}).`
         );
@@ -1875,7 +1919,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
     setValidationError(null);
     let blob: Blob | null = null;
-    if (isApparel || (isPromo && logoImg)) blob = await getBlob();
+    if (isApparel || isBags || (isPromo && logoImg)) blob = await getBlob();
     canvasBlobRef.current = blob;
     setCanvasBlob(blob);
     setCustomizationJson(JSON.stringify(buildPayload(updatedVariantList)));
@@ -2071,6 +2115,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       </section>
     );
   }
+  console.log(SP_TIERS,"SP_TIERS")
   return (
     <div className="min-h-screen bg-background">
       <LoginPromptModal
@@ -2187,7 +2232,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               {" · "}
               {isApparel && "Pick a print location and decoration method, then upload your logo."}
               {isPreMade && "Choose your color, size and quantity."}
-              {isPromo && `Choose a quantity (minimum ${promoMinQty}) and optionally add your logo.`}
+              {isPromo && `Choose a quantity (minimum ${bagsEffectiveMin}) and optionally add your logo.`}
             </p>
           </div>
         </header>
@@ -2641,10 +2686,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     manualMeta?.pricing_mode === "quantity_fixed"
                       ? "Choose one of the available quantity packages."
                       : manualMeta?.pricing_mode === "fixed"
-                        ? `Minimum order quantity is ${promoMinQty} piece${promoMinQty === 1 ? "" : "s"}.`
-                        : `Minimum order quantity is ${promoMinQty} piece${promoMinQty === 1 ? "" : "s"}. Price drops automatically as you order more.`
+                        ? `Minimum order quantity is ${bagsEffectiveMin} piece${bagsEffectiveMin === 1 ? "" : "s"}.`
+                        : `Minimum order quantity is ${bagsEffectiveMin} piece${bagsEffectiveMin === 1 ? "" : "s"}. Price drops automatically as you order more.`
                   }
-                  status={totalQty >= promoMinQty ? "done" : "required"}
+                  status={totalQty >= bagsEffectiveMin ? "done" : "required"}
                 >
                   {manualMeta?.pricing_mode === "quantity_fixed" ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -2709,20 +2754,20 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
-                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? promoMinQty) - 1);
+                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? bagsEffectiveMin) - 1);
                         }}
-                        disabled={(variantQty[activeVariant?.id ?? -1] ?? promoMinQty) <= promoMinQty}
+                        disabled={(variantQty[activeVariant?.id ?? -1] ?? bagsEffectiveMin) <= bagsEffectiveMin}
                         className={cn(
                           "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
-                          (variantQty[activeVariant?.id ?? -1] ?? promoMinQty) <= promoMinQty
+                          (variantQty[activeVariant?.id ?? -1] ?? bagsEffectiveMin) <= bagsEffectiveMin
                             ? "border-border text-muted-foreground cursor-not-allowed"
                             : "border-border text-muted-foreground hover:border-input hover:bg-muted"
                         )}
                       ><Minus size={20} /></button>
                       <input
                         type="number"
-                        value={activeVariant ? (variantQty[activeVariant.id] ?? promoMinQty) : promoMinQty}
-                        min={promoMinQty}
+                        value={activeVariant ? (variantQty[activeVariant.id] ?? bagsEffectiveMin) : bagsEffectiveMin}
+                        min={bagsEffectiveMin}
                         onChange={e => {
                           if (activeVariant) setPromoQty(activeVariant.id, Number(e.target.value));
                         }}
@@ -2734,7 +2779,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
-                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? promoMinQty) + 1);
+                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? bagsEffectiveMin) + 1);
                         }}
                         className="w-12 h-12 rounded-2xl border-2 border-border flex items-center justify-center text-muted-foreground hover:border-input hover:bg-muted transition-all"
                       ><Plus size={20} /></button>
@@ -2751,6 +2796,149 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </p>
                   )}
                 </SectionCard>
+                {isBags && (
+                  <SectionCard
+                    step={2} title="Print Method & Position"
+                    subtitle="Choose a decoration method and where your design will be applied."
+                    status={selectedMaterial && selectedLocations.length > 0 ? "done" : "required"}
+                  >
+                    {/* ── Decoration Method ── */}
+                    <div className="space-y-2 mb-5">
+                      {BAGS_MATERIALS.map(mat => {
+                        const isSelected = selectedMaterial === mat.id;
+                        return (
+                          <div key={mat.id}>
+                            <button onClick={() => handleSelectMaterial(mat.id)}
+                              className={cn("w-full text-left flex items-start gap-2.5 sm:gap-3 rounded-2xl border-2 p-3 sm:p-3.5 transition-all relative",
+                                isSelected ? "border-primary bg-primary-soft" : "border-border bg-card hover:border-input hover:bg-muted"
+                              )}>
+                              {isSelected && (
+                                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                                  <Check size={11} className="text-foreground" />
+                                </div>
+                              )}
+                              <div className={cn("w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-lg sm:text-xl flex-shrink-0", isSelected ? "bg-primary/20" : "bg-muted")}>
+                                {mat.emoji}
+                              </div>
+                              <div className="flex-1 min-w-0 pr-6">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-black text-foreground">{mat.label}</p>
+                                  <span className={cn("shrink-0 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full", isSelected ? "bg-primary text-foreground" : "bg-muted text-muted-foreground")}>{mat.badge}</span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground mt-0.5">{mat.desc}</p>
+                              </div>
+                            </button>
+                            {isSelected && (
+                              <div className="mt-2 mb-1">
+                                {mat.id === "screen_print" && (
+                                  <div className="rounded-xl border border-border bg-muted p-4">
+                                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Number of Colors</p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      {SP_COLOR_COUNTS.map(c => (
+                                        <button key={c} onClick={() => setSpColorCount(c)}
+                                          className={cn("h-10 rounded-xl border-2 text-xs font-bold transition-all",
+                                            spColorCount === c ? "border-primary bg-primary text-foreground" : "border-border text-muted-foreground bg-card")}>
+                                          {c}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="mt-3">
+                                  <button onClick={() => setShowPriceTable(p => !p)}
+                                    className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-border bg-muted hover:bg-border transition-colors">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                                      <Table2 size={14} className="text-primary-ink" /> View Full Price Table
+                                    </div>
+                                    {showPriceTable ? <ChevronUp size={15} className="text-muted-foreground" /> : <ChevronDown size={15} className="text-muted-foreground" />}
+                                  </button>
+                                  {showPriceTable && (
+                                    <div className="mt-3 rounded-xl border border-border overflow-hidden text-xs">
+                                      <div className="bg-muted px-4 py-2.5 border-b border-border text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                                        {mat.id === "embroidery" && "Embroidery — Price per Position"}
+                                        {mat.id === "dtf" && "DTF Print Pricing"}
+                                        {mat.id === "screen_print" && "Screen Print Pricing"}
+                                      </div>
+                                      <div className="overflow-x-auto">
+                                        {(mat.id === "embroidery" || mat.id === "dtf") && (
+                                          <table className="w-full border-collapse min-w-105 sm:min-w-130">
+                                            <thead>
+                                              <tr className="bg-muted border-b border-border">
+                                                <th className="text-left px-3 py-2 font-bold text-muted-foreground border-r border-border w-36">
+                                                  {mat.id === "embroidery" ? "Position" : "Method"}
+                                                </th>
+                                                {EMB_TIERS.map(t => <th key={t.label} className="px-2 py-2 font-bold text-muted-foreground border-r border-border text-center">{t.label}</th>)}
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {mat.id === "embroidery" ? (
+                                                BAGS_PRINT_LOCATIONS.map(loc => {
+                                                  const prices = EMB_PRICES[loc.id];
+                                                  return prices ? (
+                                                    <tr key={loc.id} className={cn("border-b border-border", selectedLocations.includes(loc.id) ? "bg-primary/8" : "")}>
+                                                      <td className="px-3 py-2 font-semibold text-muted-foreground border-r border-border">{loc.label}</td>
+                                                      {prices.map((p, j) => (
+                                                        <td key={j} className="px-2 py-2 text-center border-r border-border text-muted-foreground">
+                                                          ${formatMoney(bagsProductUnitPrice + p)}
+                                                        </td>
+                                                      ))}
+                                                    </tr>
+                                                  ) : null;
+                                                })
+                                              ) : (
+                                                <tr>
+                                                  <td className="px-3 py-3 font-bold text-primary-ink border-r border-border">DTF (per position)</td>
+                                                  {DTF_PRICES.map((p, i) => (
+                                                    <td key={i} className={cn("px-2 py-3 text-center border-r border-border font-medium",
+                                                      DTF_TIERS.reduce((f, t, idx) => (currentQty >= t ? idx : f), 0) === i ? "text-primary-ink font-bold" : "text-muted-foreground")}>
+                                                      ${formatMoney(bagsProductUnitPrice + p)}
+                                                    </td>
+                                                  ))}
+                                                </tr>
+                                              )}
+                                            </tbody>
+                                          </table>
+                                        )}
+                                        {mat.id === "screen_print" && (
+                                          <table className="w-full border-collapse min-w-120 sm:min-w-160">
+                                            <thead>
+                                              <tr className="bg-muted border-b border-border">
+                                                <th className="text-left px-3 py-2 font-bold text-muted-foreground border-r border-border">Colors</th>
+                                                {SP_TIERS.map((t, i) => (
+                                                  <th key={t.label} className={cn("px-2 py-2 font-bold border-r border-border text-center last:border-r-0",
+                                                    SP_TIERS.reduce((f, tt, idx) => (currentQty >= tt.min ? idx : f), 0) === i ? "text-primary-ink bg-primary/8" : "text-muted-foreground")}>{t.label}</th>
+                                                ))}
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {Object.entries(SP_PRICES).map(([k, p], i) => (
+                                                <tr key={k} className={cn("border-b border-border", k === spColorCount ? "bg-primary/5" : i % 2 === 0 ? "bg-card" : "bg-muted/50")}>
+                                                  <td className="px-3 py-2.5 font-semibold text-muted-foreground border-r border-border">
+                                                    {k} <span className="text-[10px] font-normal text-muted-foreground">(per position)</span>
+                                                  </td>
+                                                  {SP_TIERS.map((t, j) => (
+                                                    <td key={t.label} className="px-2 py-2.5 text-center border-r border-border text-muted-foreground last:border-r-0">${formatMoney(bagsProductUnitPrice + p[j])}</td>
+                                                  ))}
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {isSage && (
+                      <p className="text-[11px] text-primary-ink font-medium mt-2">Customization included</p>
+                    )}
+                  </SectionCard>
+                )}
                 {isDrinkware && (
                   <SectionCard
                     step={2} title="Print Type & Location"
@@ -2809,7 +2997,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   </SectionCard>
                 )}
                 <SectionCard
-                  step={isDrinkware ? 3 : 2} title="Upload Your Logo"
+                  step={(isDrinkware || isBags) ? 3 : 2} title="Upload Your Logo"
                   subtitle={isSage ? "Customization included — upload a logo or add custom text at no extra cost." : "Upload a logo or add custom text to personalize this product."}
                   status="optional"
                 >
@@ -3042,7 +3230,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   </div>
                 )}
-                {isApparel && (selectedLocations.length > 0 || selectedMaterial) && (
+                {(isApparel || isBags) && (selectedLocations.length > 0 || selectedMaterial) && (
                   <div className="rounded-xl border border-border overflow-hidden">
                     <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">Print Details</div>
                     <div className="px-3 py-2 space-y-1.5">
@@ -3054,9 +3242,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       )}
                       {selectedLocations.length > 0 && (
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-xs text-muted-foreground flex-shrink-0">Locations</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">{isBags ? "Position" : "Locations"}</span>
                           <span className="text-xs font-bold text-foreground text-right">
-                            {selectedLocations.map(id => ALL_PRINT_LOCATIONS.find(l => l.id === id)?.label ?? id).join(", ")}
+                            {selectedLocations.map(id => (isBags ? BAGS_PRINT_LOCATIONS : ALL_PRINT_LOCATIONS).find(l => l.id === id)?.label ?? id).join(", ")}
                           </span>
                         </div>
                       )}
@@ -3065,7 +3253,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                           <span className="text-xs text-muted-foreground">
                             price
                           </span>
-                          <span className="text-xs font-black text-foreground">${formatMoney(productTotal + decorationTotal)}
+                          <span className="text-xs font-black text-foreground">
+                            ${formatMoney(isBags ? promoTotal : (productTotal + decorationTotal))}
                           </span>
                         </div>
                       )}
@@ -3095,7 +3284,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </span>
                   </div>
                 </div>
-                {isApparel && selectedMaterial && currentQty > 0 && currentQty < 144 && (
+                {(isApparel || isBags) && selectedMaterial && currentQty > 0 && currentQty < 144 && (
                   <div className="flex items-center gap-2 bg-primary-soft border border-primary rounded-xl px-3.5 py-2.5">
                     <Zap size={13} className="text-primary-ink flex-shrink-0" />
                     <p className="text-xs text-primary-ink font-medium">
@@ -3169,7 +3358,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           spColorCount={spColorCount}
           dtgStyle={dtgStyle}
           selectedLocations={selectedLocations}
-          isApparel={isApparel}
+          isApparel={isApparel || isBags}
           isPromo={isPromo}
           previousTotal={grandConfiguredPrice}
           previousQty={grandConfiguredQty}
@@ -3193,7 +3382,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               ? (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants)
               : undefined
           }
-          isApparel={isApparel}
+          isApparel={isApparel || isBags}
           isSage={isSage}
           newGraphicPiecesInCart={newGraphicPiecesInCart}
           onSuccess={() => {

@@ -120,6 +120,9 @@ export const EMB_PRICES: Record<string, number[]> = {
   HAT_FRONT: [15, 14, 12, 11, 10, 9, 8],
   HAT_SIDE: [10, 9, 8, 7, 6, 5, 5],
   HAT_BACK_ARCH: [10, 9, 8, 7, 6, 5, 5],
+
+  FRONT: [15,12,10,9,7,5,5],
+  BACK: [15,12,10,9,7,5,5],
 };
 /**
  * An embroidery location with no row above (hoodie Full Front and Full Back)
@@ -253,6 +256,14 @@ export type ColorDecoration =
       label: string;
     }
   | {
+      kind: "bag";
+      material: MaterialId;
+      locations: string[];
+      /** Screen print only. */
+      spColorCount?: SpColorCount;
+      label: string;
+    }
+  | {
       kind: "drinkware";
       /** COLOR_IMPRINT or LASER_ENGRAVING. */
       printType: string;
@@ -288,7 +299,7 @@ export function decorationRequestFields(decoration: ColorDecoration): Decoration
       location: loc === "SLEEVE_LEFT" || loc === "SLEEVE_RIGHT" ? "SLEEVE" : loc,
     })),
     ...(material === "screen_print" ? { colors: spColorNumber(decoration.spColorCount ?? "1 Color") } : {}),
-    ...(material === "dtg" ? { dtg_style: DTG_STYLE_KEYS[decoration.dtgStyle ?? "Front Regular"] } : {}),
+    ...(material === "dtg" && decoration.kind === "apparel" ? { dtg_style: DTG_STYLE_KEYS[decoration.dtgStyle ?? "Front Regular"] } : {}),
   };
 }
 /** Same text for the same decoration (whatever order its locations were picked in). */
