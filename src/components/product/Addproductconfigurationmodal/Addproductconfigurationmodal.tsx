@@ -70,6 +70,7 @@ interface Props {
   dtgStyle?: string;
   isApparel?: boolean;
   isPromo?: boolean;
+  isSage?: boolean;
   /** The grand total already locked in from previously configured/added
    *  variants (e.g. Color A added on a prior pass). The modal's
    *  "Estimated Total" is this + whatever is being selected right now,
@@ -126,6 +127,7 @@ export default function AddProductConfigurationModal({
   dtgStyle = "Front Regular",
   isApparel,
   isPromo,
+  isSage = false,
   previousTotal = 0,
   previousQty = 0,
 }: Props) {
@@ -162,14 +164,14 @@ const DEFAULT_MIN_QTY = Math.max(
   // Callers mount this modal only while it's open, so every opening starts
   // with a single fresh row.
   const [rows, setRows] = useState<ConfigRow[]>(() => [
-    newRow(selectedVariant?.color ?? uniqueColors[0] ?? "", DEFAULT_MIN_QTY),
+    newRow(isPromo ? "" : (selectedVariant?.color ?? uniqueColors[0] ?? ""), DEFAULT_MIN_QTY),
   ]);
 
-  // Variants that arrive after opening fill in the first row's colour.
+  // Variants that arrive after opening fill in the first row's colour (skip for promo — user picks).
   const [seenVariantCount, setSeenVariantCount] = useState(variants.length);
   if (variants.length !== seenVariantCount) {
     setSeenVariantCount(variants.length);
-    if (uniqueColors.length > 0) {
+    if (uniqueColors.length > 0 && !isPromo) {
       setRows((prev) =>
         prev.map((r, i) =>
           i === 0 && !r.color ? { ...r, color: selectedVariant?.color ?? uniqueColors[0] } : r
@@ -206,7 +208,7 @@ const DEFAULT_MIN_QTY = Math.max(
     });
 
   const addRow = () =>
-    setRows((prev) => [...prev, newRow(selectedVariant?.color ?? uniqueColors[0] ?? "", DEFAULT_MIN_QTY)]);
+    setRows((prev) => [...prev, newRow("", DEFAULT_MIN_QTY)]);
 
   const removeRow = (id: number) =>
     setRows((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
@@ -259,7 +261,7 @@ const DEFAULT_MIN_QTY = Math.max(
    *  the same getMaterialPrintTotal the main customization page uses, so
    *  the two screens can never drift apart. */
   const rowDecoration = (qty: number): number => {
-    if (!isApparel || !selectedMaterial || selectedLocations.length === 0) return 0;
+    if (isSage || !isApparel || !selectedMaterial || selectedLocations.length === 0) return 0;
     const total = getMaterialPrintTotal(
       selectedMaterial,
       selectedLocations,

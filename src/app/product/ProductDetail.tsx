@@ -841,12 +841,12 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
             />
 
             {/* Charged once per order, on top of the prices shown. */}
-            {handlingFeeText && (
+            {/* {handlingFeeText && (
               <p className="flex items-start gap-2 rounded-lg border border-border bg-muted px-3.5 py-3 text-xs text-muted-foreground">
                 <Info size={14} className="mt-0.5 shrink-0" />
                 {handlingFeeText}
               </p>
-            )}
+            )} */}
 
             {/* MANUAL-supplier products customize and add to cart inline. */}
             {isManualSupplier && variantData && (
@@ -942,6 +942,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
           printPricePerPiece={0}
           configuredVariants={configuredVariants.length > 0 ? configuredVariants : undefined}
           isApparel={isApparel}
+          handlingFeeText={handlingFeeText}
           onSuccess={() => {
             refreshCart();
             setInCart(true);

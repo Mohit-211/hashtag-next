@@ -6,6 +6,7 @@ import {
   Loader2,
   CheckCircle,
   Sparkles,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -113,6 +114,8 @@ interface AddToCartModalProps {
   newGraphicPiecesInCart?: number | null;
   /** SAGE products get free customization — no graphic fee notice. */
   isSage?: boolean;
+  /** Handling-fee notice shown as-is when the product carries one. */
+  handlingFeeText?: string | null;
 }
 
 export default function AddToCartModal({
@@ -132,6 +135,7 @@ export default function AddToCartModal({
   isApparel,
   newGraphicPiecesInCart = null,
   isSage = false,
+  handlingFeeText = null,
 }: AddToCartModalProps) {
   const quantity = initialQuantity;
   const [loading, setLoading] = useState(false);
@@ -447,6 +451,13 @@ export default function AddToCartModal({
             <span className="font-semibold text-foreground">Total · {pcs(grandQty)}</span>
             <span className="text-2xl font-bold tabular-nums text-foreground">${formatMoney(grandTotal)}</span>
           </div>
+
+          {handlingFeeText && (
+            <p className="flex items-start gap-2 rounded-lg border border-border bg-muted px-3.5 py-3 text-xs text-muted-foreground">
+              <Info size={14} className="mt-0.5 shrink-0" />
+              {handlingFeeText}
+            </p>
+          )}
 
           {showGraphicFee && (
             <p className="rounded-lg border border-primary bg-primary-soft px-3.5 py-3 text-xs text-primary-ink">

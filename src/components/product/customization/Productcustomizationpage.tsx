@@ -304,6 +304,7 @@ const decorationFrom = (
 /** Colours with no saved decoration (drafts saved before it was kept per colour) take `fallback`. */
 const withDecoration = (list: ConfiguredVariant[], fallback: ColorDecoration | undefined) =>
   fallback ? list.map(cv => (cv.decoration ? cv : { ...cv, decoration: fallback })) : list;
+console.log(withDecoration,"list")
 const FONTS = [
   { label: "Georgia", value: "Georgia, serif" },
   { label: "Montserrat", value: "'Montserrat', sans-serif" },
@@ -1212,7 +1213,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     setJustStagedVariantIds([]);
     if (activeVariant) {
       const floor = isPromo
-        ? promoMinQty
+        ? bagsEffectiveMin
         : isApparel
           ? getMaterialFloor(selectedMaterial)
           : Math.max(1, activeVariant.min_order_quantity || 1);
@@ -1331,6 +1332,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     }
     lastMaterialFloorRef.current = floor;
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- enforce material floor on bags (covers session restore + material switch)
+  useEffect(() => {
+    if (!isBags || !selectedMaterial || !activeVariant) return;
+    const floor = getMaterialFloor(selectedMaterial);
+    if (currentQty < floor) {
+      setVariantQty(prev => ({ ...prev, [activeVariant.id]: floor }));
+    }
+  }, [isBags, selectedMaterial, activeVariant?.id]);
   const { items: cartItems, refreshCart } = useCart();
   const { wishlist, loading: wishlistSyncing, addToWishlist, removeItem, fetchWishlist } = useWishlist();
   const wishlistItem = wishlist.find(i => i.product_id === variantDataId);
@@ -1565,7 +1574,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   };
   const printPrice = getPrintPrice();
   const basePrice = activeVariant ? getVariantPrice(activeVariant) : (product?.price ?? 0);
-  const decorationUnitPrice = (isApparel || isBags) && currentQty > 0
+  const decorationUnitPrice = (isApparel || isBags) && !isSage && currentQty > 0
     ? (printPrice ?? 0) / currentQty
     : 0;
   const currentSelectionPricing = calculateVariantTotal({
@@ -1678,8 +1687,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       size_id: v.size_id ?? null,
       size: v.size_details?.name || v.size || "—",
       quantity: currentQty,
-      unit_price: isPromo ? (promoUnitPrice ?? basePrice) : basePrice,
-      decoration_unit_price: (isApparel || isBags) ? (printPrice ?? 0) / Math.max(currentQty, 1) : 0,
+      unit_price: isBags
+        ? ((promoUnitPrice ?? basePrice) - decorationUnitPrice)
+        : isPromo ? (promoUnitPrice ?? basePrice) : basePrice,
+      decoration_unit_price: (isApparel || isBags) && !isSage ? (printPrice ?? 0) / Math.max(currentQty, 1) : 0,
     }];
   };
   /** `decoration` is what newSizes' decoration prices were worked out for; it
@@ -2115,7 +2126,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
       </section>
     );
   }
-  console.log(SP_TIERS,"SP_TIERS")
+  console.log(configuredVariants,"configuredVariants")
   return (
     <div className="min-h-screen bg-background">
       <LoginPromptModal
@@ -2374,7 +2385,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                   </p>
                                 </div>
                               )}
-                              <div className="mt-3">
+                              {!isSage && (<div className="mt-3">
                                 <button onClick={() => setShowPriceTable(p => !p)}
                                   className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-border bg-muted hover:bg-border transition-colors">
                                   <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
@@ -2558,7 +2569,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                     </div>
                                   </div>
                                 )}
-                              </div>
+                              </div>)}
                             </div>
                           )}
                         </div>
@@ -2714,12 +2725,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   ) : hasTierPricing ? (
                     <SageQuantityPricing
-                      key={`${activeVariant?.id ?? "none"}-${sageRemountKey}`}
+                      key={`${activeVariant?.id ?? "none"}-${sageRemountKey}-${bagsEffectiveMin}`}
                       tiers={promoTiers}
-                      minOrderQuantity={promoMinQty}
+                      minOrderQuantity={bagsEffectiveMin}
                       stock={activeVariant?.stock}
                       variant="compact"
-                      initialQty={activeVariant ? (variantQty[activeVariant.id] ?? promoMinQty) : promoMinQty}
+                      initialQty={activeVariant ? Math.max(bagsEffectiveMin, variantQty[activeVariant.id] ?? bagsEffectiveMin) : bagsEffectiveMin}
                       onChange={({ quantity }) => {
                         if (activeVariant) setPromoQty(activeVariant.id, quantity);
                       }}
@@ -2754,32 +2765,36 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
-                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? bagsEffectiveMin) - 1);
+                          setPromoQty(activeVariant.id, Math.max(bagsEffectiveMin, variantQty[activeVariant.id] ?? bagsEffectiveMin) - 1);
                         }}
-                        disabled={(variantQty[activeVariant?.id ?? -1] ?? bagsEffectiveMin) <= bagsEffectiveMin}
+                        disabled={Math.max(bagsEffectiveMin, variantQty[activeVariant?.id ?? -1] ?? bagsEffectiveMin) <= bagsEffectiveMin}
                         className={cn(
                           "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
-                          (variantQty[activeVariant?.id ?? -1] ?? bagsEffectiveMin) <= bagsEffectiveMin
+                          Math.max(bagsEffectiveMin, variantQty[activeVariant?.id ?? -1] ?? bagsEffectiveMin) <= bagsEffectiveMin
                             ? "border-border text-muted-foreground cursor-not-allowed"
                             : "border-border text-muted-foreground hover:border-input hover:bg-muted"
                         )}
                       ><Minus size={20} /></button>
                       <input
                         type="number"
-                        value={activeVariant ? (variantQty[activeVariant.id] ?? bagsEffectiveMin) : bagsEffectiveMin}
+                        value={activeVariant ? Math.max(bagsEffectiveMin, variantQty[activeVariant.id] ?? bagsEffectiveMin) : bagsEffectiveMin}
                         min={bagsEffectiveMin}
                         onChange={e => {
-                          if (activeVariant) setPromoQty(activeVariant.id, Number(e.target.value));
+                          if (!activeVariant) return;
+                          const v = Number(e.target.value);
+                          setPromoQty(activeVariant.id, Number.isFinite(v) && v > 0 ? v : bagsEffectiveMin);
                         }}
                         onBlur={e => {
-                          if (activeVariant) setPromoQty(activeVariant.id, Number(e.target.value));
+                          if (!activeVariant) return;
+                          const v = Number(e.target.value);
+                          setPromoQty(activeVariant.id, Number.isFinite(v) && v >= bagsEffectiveMin ? v : bagsEffectiveMin);
                         }}
                         className="w-24 h-12 rounded-2xl border-2 border-border text-center text-lg font-black text-foreground outline-none focus:border-primary transition-all"
                       />
                       <button
                         onClick={() => {
                           if (!activeVariant) return;
-                          setPromoQty(activeVariant.id, (variantQty[activeVariant.id] ?? bagsEffectiveMin) + 1);
+                          setPromoQty(activeVariant.id, Math.max(bagsEffectiveMin, variantQty[activeVariant.id] ?? bagsEffectiveMin) + 1);
                         }}
                         className="w-12 h-12 rounded-2xl border-2 border-border flex items-center justify-center text-muted-foreground hover:border-input hover:bg-muted transition-all"
                       ><Plus size={20} /></button>
@@ -2790,9 +2805,9 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                     </>
                   )}
-                  {totalQty > 0 && totalQty < promoMinQty && (
+                  {totalQty > 0 && totalQty < bagsEffectiveMin && (
                     <p className="text-xs text-destructive font-semibold mt-3 text-center">
-                      Minimum order quantity for this product is {promoMinQty}.
+                      Minimum order quantity is {bagsEffectiveMin}.
                     </p>
                   )}
                 </SectionCard>
@@ -2844,7 +2859,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                     </div>
                                   </div>
                                 )}
-                                <div className="mt-3">
+                                {!isSage && (<div className="mt-3">
                                   <button onClick={() => setShowPriceTable(p => !p)}
                                     className="w-full flex items-center justify-between h-11 px-4 rounded-xl border border-border bg-muted hover:bg-border transition-colors">
                                     <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
@@ -2927,7 +2942,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                                       </div>
                                     </div>
                                   )}
-                                </div>
+                                </div>)}
                               </div>
                             )}
                           </div>
@@ -3031,73 +3046,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </span>
                   </div>
                 </div>
-                {configuredVariants.length > 0 && (
-                  <div className="rounded-xl border border-border overflow-hidden">
-                    {configuredVariants.map((cv, item) => (
-                      <div
-                        key={`${cv.variantId}-${item}`}
-                        className="px-3 py-2.5 border-b border-border last:border-0"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {(() => {
-                              const safeName = cv.variantName || cv.color || `Variant #${cv.variantId}`;
-                              const [colorPart, sizePart] = safeName.split(" · ");
-                              return (
-                                <span className="text-xs font-bold text-foreground truncate">
-                                  {colorPart}
-                                  {sizePart && (
-                                    <span className="font-semibold text-muted-foreground"> · {sizePart}</span>
-                                  )}
-                                </span>
-                              );
-                            })()}
-                            <span className="text-[11px] text-muted-foreground flex-shrink-0">×{cv.totalQty}</span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs font-bold text-foreground">
-                              ${formatMoney(cv.totalPrice)}
-                            </span>
-                            <button
-                              onClick={() => removeConfiguredVariant(cv.variantName)}
-                              className="text-muted-foreground hover:text-destructive"
-                              title="Remove this variant"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="mt-1 pl-0.5 space-y-0.5">
-                          {cv.decoration && (
-                            <p className="text-[10px] text-muted-foreground">{cv.decoration.label}</p>
-                          )}
-                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                            <span>
-                              Item ({cv.totalQty} × $
-                              {formatMoney(cv.totalQty > 0 ? cv.productTotal / cv.totalQty : 0)})
-                            </span>
-                            <span>${formatMoney(cv.productTotal)}</span>
-                          </div>
-                          {cv.decorationTotal > 0 && (
-                            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                              <span>
-                                Decoration ({cv.totalQty} × $
-                                {formatMoney(
-                                  cv.totalQty > 0 ? cv.decorationTotal / cv.totalQty : 0
-                                )})
-                              </span>
-                              <span>${formatMoney(cv.decorationTotal)}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between px-3 py-2.5 bg-muted border-t border-border">
-                      <span className="text-xs font-bold text-foreground">Total — {grandConfiguredQty} pcs</span>
-                      <span className="text-xs font-black text-foreground">${formatMoney(grandConfiguredPrice)}</span>
-                    </div>
-                  </div>
-                )}
+                
                 {isPreMade && activeSizes.length > 0 && (
                   <div className="rounded-xl border border-border overflow-hidden">
                     <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">
@@ -3198,6 +3147,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   </div>
                 )}
+                
                 {isDrinkware && (selectedPrintType || selectedPrintLocations.length > 0) && (
                   <div className="rounded-xl border border-border overflow-hidden">
                     <div className="bg-muted px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">Print Details</div>
@@ -3274,6 +3224,64 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   <div className="flex items-start gap-2 rounded-xl border border-primary bg-primary-soft px-3 py-2.5 text-xs text-primary-ink">
                     <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
                     <p>{handlingFeeText}</p>
+                  </div>
+                )}
+                {configuredVariants.length > 0 && (
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    {configuredVariants.map((cv, item) => (
+                      <div
+                        key={`${cv.variantId}-${item}`}
+                        className="px-3 py-2.5 border-b border-border last:border-0"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {(() => {
+                              const safeName = cv.variantName || cv.color || `Variant #${cv.variantId}`;
+                              const [colorPart, sizePart] = safeName.split(" · ");
+                              return (
+                                <span className="text-xs font-bold text-foreground truncate">
+                                  {colorPart}
+                                  {sizePart && (
+                                    <span className="font-semibold text-muted-foreground"> · {sizePart}</span>
+                                  )}
+                                </span>
+                              );
+                            })()}
+                            <span className="text-[11px] text-muted-foreground flex-shrink-0">×{cv.totalQty}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs font-bold text-foreground">
+                              ${formatMoney(cv.totalPrice)}
+                            </span>
+                            <button
+                              onClick={() => removeConfiguredVariant(cv.variantName)}
+                              className="text-muted-foreground hover:text-destructive"
+                              title="Remove this variant"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-1 pl-0.5 space-y-0.5">
+                          {(() => {
+                            const realSizes = cv.sizes.filter(s => s.quantity > 0 && s.size && s.size !== "—");
+                            return realSizes.length > 0 ? (
+                              <p className="text-[10px] text-muted-foreground">
+                                {realSizes.map(s => `${s.size}`).join(", ")}
+                              </p>
+                            ) : null;
+                          })()}
+                          {cv.decoration && (
+                            <p className="text-[10px] text-muted-foreground">{cv.decoration.label}</p>
+                          )}
+                          
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between px-3 py-2.5 bg-muted border-t border-border">
+                      <span className="text-xs font-bold text-foreground">Total — {grandConfiguredQty} pcs</span>
+                      <span className="text-xs font-black text-foreground">${formatMoney(grandConfiguredPrice)}</span>
+                    </div>
                   </div>
                 )}
                 <div className="rounded-xl bg-foreground text-background p-4">
@@ -3360,6 +3368,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           selectedLocations={selectedLocations}
           isApparel={isApparel || isBags}
           isPromo={isPromo}
+          isSage={isSage}
           previousTotal={grandConfiguredPrice}
           previousQty={grandConfiguredQty}
         />
@@ -3376,7 +3385,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           priceTiers={promoTiers}
           customization={customizationJson}
           canvasBlob={canvasBlob}
-          printPricePerPiece={(printPrice ?? 0) / Math.max(currentQty, 1)}
+          printPricePerPiece={isSage ? 0 : (printPrice ?? 0) / Math.max(currentQty, 1)}
           configuredVariants={
             (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants).length > 0
               ? (pendingVariantList.length > 0 ? pendingVariantList : configuredVariants)
@@ -3385,6 +3394,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           isApparel={isApparel || isBags}
           isSage={isSage}
           newGraphicPiecesInCart={newGraphicPiecesInCart}
+          handlingFeeText={handlingFeeText}
           onSuccess={() => {
             refreshCart();
             setInCart(true);

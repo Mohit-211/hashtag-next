@@ -84,8 +84,8 @@ const styles = `
   }
   .pg-img-skeleton {
     position: absolute;
-    inset: 12px;
-    border-radius: 10px;
+    inset: 0;
+    border-radius: 0;
     z-index: 1;
     background: linear-gradient(90deg, var(--color-muted) 25%, color-mix(in srgb, var(--color-muted) 55%, var(--color-card)) 50%, var(--color-muted) 75%);
     background-size: 200% 100%;
@@ -413,7 +413,6 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
 
   const rating = product.rating ?? 0;
   const reviewCount = product.review_count;
-
   return (
     <Link
       href={href}
@@ -484,29 +483,23 @@ function ProductCard({ product, index }: { product: Product; index: number }) {
           <p className="pg-variant">{product.variant_label}</p>
         )}
 
-        {/* Fixed-height swatch slot keeps cards' lines aligned; the size line
-            only appears when there is a size range. */}
-        {(colors.length > 1 || sizeRange) && (
-          <>
-            <div className="pg-swatch-slot">
-              {colors.length > 1 && (
-                <ColorSwatchList
-                  variants={colors}
-                  selectedId={selectedId}
-                  onSelect={(c) => setSelectedId(c.id)}
-                  size={22}
-                  max={CARD_SWATCH_MAX}
-                  label={`${product.name} colors`}
-                  className="pg-swatches"
-                />
-              )}
-            </div>
-            {sizeRange && (
-              <p className="pg-sizes">
-                Sizes: <b>{sizeRange}</b>
-              </p>
-            )}
-          </>
+        {colors.length > 1 && (
+          <div className="pg-swatch-slot">
+            <ColorSwatchList
+              variants={colors}
+              selectedId={selectedId}
+              onSelect={(c) => setSelectedId(c.id)}
+              size={22}
+              max={CARD_SWATCH_MAX}
+              label={`${product.name} colors`}
+              className="pg-swatches"
+            />
+          </div>
+        )}
+        {sizeRange && (
+          <p className="pg-sizes">
+            Sizes: <b>{sizeRange}</b>
+          </p>
         )}
 
         {/* Rating */}
