@@ -11,8 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { inputClass } from "@/data/constants";
 import { nameSchema, optionalUsPhoneSchema, toUsPhoneDigits } from "@/lib/validation";
 
-// Flip to true once the backend POST user/profile route is live.
-const PROFILE_EDIT_ENABLED = false;
+const PROFILE_EDIT_ENABLED = true;
 
 interface User {
   name?: string;
