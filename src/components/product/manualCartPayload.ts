@@ -26,7 +26,9 @@ export const MANUAL_CART_TYPE = "MANUAL";
 
 export interface ManualCartLine {
   optionId: number;
-  valueId: number;
+  /** Absent for value-less customizations (text/image only). */
+  valueId?: number;
+  text?: string;
   /** Upload order = image_index order. */
   images?: File[];
   /** The customer's saved graphics, sent by id with nothing uploaded again. */
@@ -48,7 +50,8 @@ export interface ManualCartVariantInput {
 
 interface ManualCartCustomizationPayload {
   customization_option_id: number;
-  customization_option_value_id: number;
+  customization_option_value_id?: number;
+  text?: string;
   image_index?: number;
   graphic_id?: number;
 }
@@ -77,7 +80,9 @@ export function buildManualCartRequest({
     variant_id: v.variantId,
     quantity: v.quantity,
     customization: v.lines.flatMap((line) => {
-      const base = { customization_option_id: line.optionId, customization_option_value_id: line.valueId };
+      const base: ManualCartCustomizationPayload = { customization_option_id: line.optionId };
+      if (line.valueId != null) base.customization_option_value_id = line.valueId;
+      if (line.text) base.text = line.text;
       const images = line.images ?? [];
       const graphicIds = line.graphicIds ?? [];
       if (images.length === 0 && graphicIds.length === 0) return [base];

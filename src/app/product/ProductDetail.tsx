@@ -25,9 +25,11 @@ import {
   ChevronRight,
   Info,
   RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isGrandCategory } from "@/lib/productFamily";
+import { isInStock } from "@/lib/stock";
 import { getGalleryAssets, resolveImageSrc } from "@/lib/images";
 import { preloadImages } from "@/lib/preloadImages";
 import { useIsLoggedIn } from "@/hooks/useIsLoggedIn";
@@ -718,8 +720,10 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
     );
   }
 
-  const sageFirstTierPrice =
-    variantData?.supplier === "SAGE"
+  const isSageProduct = variantData?.supplier === "SAGE";
+  const variantSoldOut = isSageProduct && !!variantData && !isInStock(variantData);
+
+  const sageFirstTierPrice = isSageProduct
       ? getPriceTiers(variantData)[0]?.unit_price
       : undefined;
   const displayPrice = sageFirstTierPrice != null
@@ -812,6 +816,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
             <ProductGallery
               attachments={displayAttachments}
               assets={galleryAssets?.length ? galleryAssets : null}
+              soldOut={variantSoldOut}
             />
           </div>
 
@@ -863,19 +868,25 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
               {/* Customize (apparel / promo) or Add to Cart (Pre-Made). */}
               {isManualSupplier ? null : isPreMade ? (
                 <Button
-                  variant={inCart ? "secondary" : "hero"}
+                  variant={variantSoldOut ? "outline" : inCart ? "secondary" : "hero"}
                   size="lg"
-                  className="h-12 w-full"
-                  onClick={handleAddToCart}
-                  disabled={inCart}
+                  className={cn("h-12 w-full", variantSoldOut && "opacity-60 cursor-not-allowed")}
+                  onClick={variantSoldOut ? undefined : handleAddToCart}
+                  disabled={inCart || variantSoldOut}
                 >
-                  {inCart ? <CheckCircle2 /> : <ShoppingCart />}
-                  {inCart ? "In your cart" : "Add to cart"}
+                  {variantSoldOut ? <AlertCircle /> : inCart ? <CheckCircle2 /> : <ShoppingCart />}
+                  {variantSoldOut ? "Sold Out" : inCart ? "In your cart" : "Add to cart"}
                 </Button>
               ) : (
-                <Button variant="hero" size="lg" className="group h-12 w-full" onClick={handleCustomize}>
-                  <Sparkles className="transition-transform duration-300 group-hover:rotate-12" />
-                  Customize this product
+                <Button
+                  variant={variantSoldOut ? "outline" : "hero"}
+                  size="lg"
+                  className={cn("group h-12 w-full", variantSoldOut && "opacity-60 cursor-not-allowed")}
+                  onClick={variantSoldOut ? undefined : handleCustomize}
+                  disabled={variantSoldOut}
+                >
+                  {variantSoldOut ? <AlertCircle /> : <Sparkles className="transition-transform duration-300 group-hover:rotate-12" />}
+                  {variantSoldOut ? "Sold Out" : "Customize this product"}
                 </Button>
               )}
 

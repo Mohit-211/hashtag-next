@@ -33,7 +33,7 @@ import {
 } from "./pricing";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { errorMessage } from "@/lib/errors";
-import { isInStock } from "@/lib/stock";
+import { isInStock, stockCeiling } from "@/lib/stock";
 import { clearPendingFiles, loadPendingFiles, savePendingFiles } from "@/lib/pendingAuthFiles";
 import { UploadGraphicApi, type SavedGraphic } from "@/api/operations/graphics.api";
 import SavedGraphicsPicker from "@/components/graphics/SavedGraphicsPicker";
@@ -549,12 +549,12 @@ function StepBadge({ n, done }: { n: number; done: boolean }) {
     </div>
   );
 }
-function SectionCard({ step, title, subtitle, status, children }: {
+function SectionCard({ step, title, subtitle, status, disabled, children }: {
   step: number; title: string; subtitle: string;
-  status: "required" | "done" | "optional"; children: React.ReactNode;
+  status: "required" | "done" | "optional"; disabled?: boolean; children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden mb-5">
+    <div className={cn("rounded-2xl border border-border bg-card shadow-sm overflow-hidden mb-5", disabled && "opacity-50")}>
       <div className="px-3 py-3 sm:px-5 sm:py-4 border-b border-border flex items-center gap-2 sm:gap-3">
         <StepBadge n={step} done={status === "done"} />
         <div className="flex-1 min-w-0">
@@ -568,7 +568,7 @@ function SectionCard({ step, title, subtitle, status, children }: {
           <span className="text-[11px] font-bold text-muted-foreground bg-muted border border-border px-2.5 py-1 rounded-full whitespace-nowrap">Optional</span>
         )}
       </div>
-      <div className="p-3 sm:p-5">{children}</div>
+      <div className={cn("p-3 sm:p-5", disabled && "pointer-events-none")}>{children}</div>
     </div>
   );
 }
@@ -1112,6 +1112,21 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     });
     return Array.from(map.entries()).map(([name, hex]) => ({ name, hex }));
   }, [product, allProductVariants]);
+  const soldOutColors = useMemo(() => {
+    if (!product) return new Set<string>();
+    const source = allProductVariants.length > 0 ? allProductVariants : product.variants;
+    const byColor = new Map<string, Variant[]>();
+    source.forEach(v => {
+      if (!v.color) return;
+      const list = byColor.get(v.color);
+      if (list) list.push(v); else byColor.set(v.color, [v]);
+    });
+    const out = new Set<string>();
+    byColor.forEach((variants, color) => {
+      if (variants.every(v => !isInStock(v))) out.add(color);
+    });
+    return out;
+  }, [product, allProductVariants]);
   useEffect(() => {
     if (isRestoringSessionRef.current) return;
     if (!selectedColor) {
@@ -1180,6 +1195,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     [colorVariants, currentVariantId]
   );
   const isSage = (activeVariant?.supplier ?? variantData?.supplier ?? "").toUpperCase() === "SAGE";
+  const activeVariantSoldOut = isSage && !!activeVariant && !isInStock(activeVariant);
   const currentQty = currentVariantId ? (variantQty[currentVariantId] ?? 0) : 0;
   const activeSizes = useMemo(
     () => Object.entries(variantQty)
@@ -1802,9 +1818,6 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     if (isPromo && currentQty > 0 && promoUnitPrice !== null) return promoTotal;
     return 0;
   }, [currentVariantAlreadyConfigured, isApparel, isPreMade, isPromo, currentQty, totalQty, estimatedTotal, preMadeSelectionPricing, promoUnitPrice, promoTotal]);
-  const displayTotal = grandConfiguredPrice + currentSelectionTotal;
-  // The API charges a new graphic on clothing once, when fewer than 12 pieces in
-  // the order carry it. This only warns: the cart's figure is the final one.
   const newGraphicPiecesInCart = (isApparel || isBags) && savedGraphic?.is_new
     ? cartItems
       .filter((item) => (item.graphics as { id: number }[] | undefined)?.some((g) => g.id === savedGraphic.id))
@@ -1813,6 +1826,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const piecesWithGraphic = grandConfiguredQty + (currentVariantAlreadyConfigured ? 0 : currentQty);
   const showGraphicFeeNotice =
     !isSage && newGraphicPiecesInCart !== null && piecesWithGraphic + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
+  const displayTotal = grandConfiguredPrice + currentSelectionTotal + (showGraphicFeeNotice ? GRAPHIC_SETUP_FEE : 0);
   // Added once per order by the cart, so it isn't in any total on this page.
   const handlingFeeText = handlingFeeNote(handlingFee);
 
@@ -1839,6 +1853,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     });
   const handleAddToCart = async () => {
     if (requireLogin("addToCart")) return;
+    if (activeVariantSoldOut) {
+      setValidationError("This colour is currently out of stock. Please choose a different colour.");
+      setShowValidationShake(true);
+      setTimeout(() => setShowValidationShake(false), 600);
+      return;
+    }
     if (!allMet) {
       const missing = REQUIREMENTS.filter(r => !r.done).map(r => r.label);
       setValidationError(`Please complete: ${missing.join(", ")}.`);
@@ -2618,7 +2638,10 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                         <select value={row.color} onChange={e => updateOrderRow(row.id, "color", e.target.value)}
                           className="h-10 rounded-xl border-2 border-border px-2 text-xs font-semibold text-foreground bg-card focus:border-primary outline-none">
                           <option value="">Color…</option>
-                          {colors.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                          {colors.map(c => {
+                            const colorSoldOut = soldOutColors.has(c.name);
+                            return <option key={c.name} value={c.name} disabled={colorSoldOut}>{c.name}{colorSoldOut ? " (sold out)" : ""}</option>;
+                          })}
                         </select>
                         <div className="flex items-center border-2 border-border rounded-xl overflow-hidden h-10">
                           <button onClick={() => updateOrderRow(row.id, "qty", Math.max(1, row.qty - 1))} className="w-8 h-full flex items-center justify-center text-muted-foreground hover:bg-muted"><Minus size={12} /></button>
@@ -2692,7 +2715,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
             {isPromo && (
               <>
                 <SectionCard
-                  step={1} title="Select Quantity"
+                  step={1} title="Select Quantity" disabled={activeVariantSoldOut}
                   subtitle={
                     manualMeta?.pricing_mode === "quantity_fixed"
                       ? "Choose one of the available quantity packages."
@@ -2729,6 +2752,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                       tiers={promoTiers}
                       minOrderQuantity={bagsEffectiveMin}
                       stock={activeVariant?.stock}
+                      track_inventory={activeVariant?.track_inventory}
                       variant="compact"
                       initialQty={activeVariant ? Math.max(bagsEffectiveMin, variantQty[activeVariant.id] ?? bagsEffectiveMin) : bagsEffectiveMin}
                       onChange={({ quantity }) => {
@@ -2816,6 +2840,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     step={2} title="Print Method & Position"
                     subtitle="Choose a decoration method and where your design will be applied."
                     status={selectedMaterial && selectedLocations.length > 0 ? "done" : "required"}
+                    disabled={activeVariantSoldOut}
                   >
                     {/* ── Decoration Method ── */}
                     <div className="space-y-2 mb-5">
@@ -2959,6 +2984,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     step={2} title="Print Type & Location"
                     subtitle="Choose how and where your logo will be applied."
                     status={(selectedPrintType && selectedPrintLocations.length > 0) ? "done" : "required"}
+                    disabled={activeVariantSoldOut}
                   >
                     <div className="mb-5">
                       <p className="text-xs font-bold text-foreground mb-2">Print Type</p>
@@ -3014,7 +3040,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                 <SectionCard
                   step={(isDrinkware || isBags) ? 3 : 2} title="Upload Your Logo"
                   subtitle={isSage ? "Customization included — upload a logo or add custom text at no extra cost." : "Upload a logo or add custom text to personalize this product."}
-                  status="optional"
+                  status="optional" disabled={activeVariantSoldOut}
                 >
                   <LogoCanvasSection {...logoCanvasSectionProps()} />
                 </SectionCard>
@@ -3030,9 +3056,14 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
               <div className="p-5 space-y-4">
                 <div className="flex gap-3">
                   {(previewUrl || displayImage) && (
-                    <div className="w-14 h-14 rounded-xl border border-border overflow-hidden flex-shrink-0">
+                    <div className="relative w-14 h-14 rounded-xl border border-border overflow-hidden flex-shrink-0">
                       {/* eslint-disable-next-line @next/next/no-img-element -- canvas data URL or product image */}
-                      <img src={previewUrl || displayImage!} alt={product.name} className="w-full h-full object-contain bg-card" />
+                      <img src={previewUrl || displayImage!} alt={product.name} className={cn("w-full h-full object-contain bg-card", activeVariantSoldOut && "opacity-40")} />
+                      {activeVariantSoldOut && (
+                        <span className="absolute inset-x-0 bottom-0 bg-destructive/90 text-[8px] font-black uppercase text-white text-center py-0.5 leading-none tracking-wider">
+                          Sold Out
+                        </span>
+                      )}
                     </div>
                   )}
                   <div className="min-w-0">
@@ -3211,15 +3242,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   </div>
                 )}
-                {showGraphicFeeNotice && (
-                  <div className="flex items-start gap-2 rounded-xl border border-primary bg-primary-soft px-3 py-2.5 text-xs text-primary-ink">
-                    <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
-                    <p>
-                      A one-time ${GRAPHIC_SETUP_FEE} graphic setup fee applies: this is a new graphic on fewer than{" "}
-                      {GRAPHIC_FEE_WAIVED_FROM} pieces. Your cart shows the final amount.
-                    </p>
-                  </div>
-                )}
+             
                 {handlingFeeText && (
                   <div className="flex items-start gap-2 rounded-xl border border-primary bg-primary-soft px-3 py-2.5 text-xs text-primary-ink">
                     <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
@@ -3284,6 +3307,23 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     </div>
                   </div>
                 )}
+                   {showGraphicFeeNotice && (
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-xs text-muted-foreground">One-time Graphic Setup Fee</span>
+                      <span className="text-xs font-black text-foreground">+${GRAPHIC_SETUP_FEE.toFixed(2)}</span>
+                    </div>
+                    <div className="px-3 pb-2.5 text-[10px] text-muted-foreground">
+                      New graphic on fewer than {GRAPHIC_FEE_WAIVED_FROM} pieces.
+                    </div>
+                  </div>
+                )}
+                {activeVariantSoldOut && (
+                  <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive-soft px-3 py-2.5 text-xs text-destructive font-semibold">
+                    <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
+                    This colour is currently out of stock.
+                  </div>
+                )}
                 <div className="rounded-xl bg-foreground text-background p-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-bold opacity-70">Estimated Total</span>
@@ -3322,16 +3362,20 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     <p className="text-xs text-destructive leading-relaxed">{validationError}</p>
                   </div>
                 )}
-                <button onClick={handleAddToCart} disabled={graphicUploading}
+                <button onClick={handleAddToCart} disabled={graphicUploading || activeVariantSoldOut}
                   className={cn(
                     "w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all duration-200",
                     showValidationShake ? "animate-[shake_0.4s_ease-in-out]" : "",
+                    activeVariantSoldOut ? "bg-muted text-muted-foreground cursor-not-allowed border-2 border-border" :
                     (!allMet && configuredVariants.length === 0) ? "bg-muted text-muted-foreground cursor-not-allowed border-2 border-border" :
                       inCart ? "bg-primary/10 text-primary-ink border-2 border-primary/40" :
                         "bg-primary text-foreground hover:bg-primary-hover shadow-md"
                   )}>
-                  {graphicUploading ? <Loader2 size={16} className="animate-spin" /> : <ShoppingCart size={16} />}
-                  {graphicUploading ? "Uploading your file…" : inCart ? "Added to Cart ✓" : "Add to Cart"}
+                  {graphicUploading ? <Loader2 size={16} className="animate-spin" /> :
+                    activeVariantSoldOut ? <AlertCircle size={16} /> : <ShoppingCart size={16} />}
+                  {graphicUploading ? "Uploading your file…" :
+                    activeVariantSoldOut ? "Sold Out" :
+                    inCart ? "Added to Cart ✓" : "Add to Cart"}
                 </button>
                 <button onClick={handleWishlist} disabled={wishlistLoading}
                   className={cn(

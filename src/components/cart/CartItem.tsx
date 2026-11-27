@@ -67,7 +67,7 @@ export default function CartItem({ item, onRefresh }: Props) {
   const config = parseCustomizationConfig(item.customization_config);
   const locations = config?.locations ?? [];
   const printMethod = config?.print_method ?? null;
-  const unitPrice = item.pricing_snapshot?.final_price_per_item ?? item.price;
+  const unitPrice = item.pricing_snapshot?.total_price ?? item.price;
   const money = (n: unknown) => (Number(n) || 0).toFixed(2);
   const uploadedImage = item.logo_image ?? null;
   const colorCode = item.color_code ?? null;
@@ -76,12 +76,6 @@ export default function CartItem({ item, onRefresh }: Props) {
     item.total_price && item.total_price > 0
       ? item.total_price
       : (item.price ?? 0) * item.quantity;
-
-  // The handling fee is charged once per order and shown in the cart summary.
-  // Older lines still carry a per-line `handling_charge` in their snapshot,
-  // but it's no longer part of the line total, so it isn't shown here.
-  const designFee = item.pricing_snapshot?.customization_price?.setup_fee;
-  const showDesignFee = !!designFee && designFee > 0;
 
   /* ── +/- (BUG-024) ──
      A typed value that hasn't been sent yet goes first, then the step applies
@@ -329,9 +323,7 @@ export default function CartItem({ item, onRefresh }: Props) {
             ))}
           </div>
 
-          {/* Artwork proof swatch. Opens the preview as a Radix dialog, which
-              moves focus in, traps it, closes on Escape and, because the
-              swatch is its DialogTrigger, puts focus back on the swatch. */}
+          {graphics.length > 0 && (
           <div className="flex items-center gap-3">
             <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
               <DialogTrigger asChild>
@@ -356,11 +348,6 @@ export default function CartItem({ item, onRefresh }: Props) {
                 </button>
               </DialogTrigger>
 
-              {/* Same full-screen lightbox as before: the content box fills
-                  the viewport and is the dark backdrop, so a click on it
-                  (not on the image) closes, as the old overlay did.
-                  Radix hides the rest of the page with aria-hidden but
-                  doesn't set aria-modal itself, so it's set here. */}
               <DialogContent
                 showCloseButton={false}
                 aria-modal="true"
@@ -394,13 +381,9 @@ export default function CartItem({ item, onRefresh }: Props) {
               <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                 Artwork
               </p>
-              {graphics.map((graphic) => (
-                <p key={graphic.id} className="mt-0.5 truncate text-xs text-foreground" title={graphic.original_name}>
-                  {graphic.original_name}
-                </p>
-              ))}
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -411,18 +394,6 @@ export default function CartItem({ item, onRefresh }: Props) {
             <span>Price per item</span>
             <span className="font-mono tabular-nums">${money(unitPrice)}</span>
           </div>
-        </div>
-      )}
-
-      {/* Graphic setup fee, if applicable: on the first line with a new graphic */}
-      {showDesignFee && (
-        <div className="flex items-center justify-between px-0.5 pt-3 mt-1">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            One-time graphic setup fee
-          </span>
-          <span className="font-mono text-xs font-semibold text-muted-foreground">
-            +${designFee!.toFixed(2)}
-          </span>
         </div>
       )}
 

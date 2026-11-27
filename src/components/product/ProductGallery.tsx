@@ -22,12 +22,15 @@ interface Props {
   assets?: GalleryAsset[] | null;
 
   badge?: string;
+  /** Show a "Sold Out" overlay on the main image. */
+  soldOut?: boolean;
   onActiveChange?: (index: number) => void;
 }
 
 export default function ProductGallery({
   attachments = [],
   assets,
+  soldOut,
   onActiveChange,
 }: Props) {
   const frontImage = assets?.find((a) => a.assetType === "Front")?.image;
@@ -279,6 +282,15 @@ export default function ProductGallery({
               {finalImages.length > 1 && (
                 <div className="absolute bottom-3.5 right-3.5 bg-card/80 backdrop-blur-sm text-foreground text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider border border-border shadow-sm">
                   {active + 1} / {finalImages.length}
+                </div>
+              )}
+
+              {/* Sold Out badge */}
+              {soldOut && (
+                <div className="absolute inset-x-0 bottom-0 z-[2] pointer-events-none">
+                  <div className="bg-destructive/90 backdrop-blur-sm text-white text-xs font-black uppercase tracking-widest text-center py-2">
+                    Sold Out
+                  </div>
                 </div>
               )}
 

@@ -3,6 +3,7 @@
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Zap, Package, Tag, TrendingDown, Check } from "lucide-react";
+import { stockCeiling } from "@/lib/stock";
 
 /* ════════════════════════════════════════════════════════════════
    TYPES
@@ -25,6 +26,7 @@ export interface SageQuantityPricingProps {
   tiers: PriceTier[];
   minOrderQuantity?: number;
   stock?: number | null;
+  track_inventory?: boolean | null;
   variant?: "compact" | "full";
   /** Identifier for the line item this instance represents — passed through to onChange so a parent rendering multiple instances (e.g. an order summary) can tell them apart. */
   itemId?: string;
@@ -317,6 +319,7 @@ export default function SageQuantityPricing({
   tiers,
   minOrderQuantity = 1,
   stock,
+  track_inventory,
   variant = "compact",
   itemId,
   onChange,
@@ -375,11 +378,8 @@ export default function SageQuantityPricing({
     onChangeRef.current?.({ itemId, quantity: qty, unitPrice, total });
   }, [qty, unitPrice, total, itemId]);
 
-  // A supplier feed can report stock as null/undefined (unknown/untracked),
-  // 0, or even negative (e.g. backordered/oversold). Only a genuinely
-  // positive number represents a real ceiling on how many can be ordered —
-  // anything else should NOT clamp or disable the stepper.
-  const stockLimit = stock != null && stock > 0 ? stock : null;
+  const ceiling = stockCeiling({ stock, track_inventory });
+  const stockLimit = Number.isFinite(ceiling) ? ceiling : null;
 
   const changeQty = useCallback((next: number) => {
     let clamped = Math.max(effectiveMin, Math.round(next));

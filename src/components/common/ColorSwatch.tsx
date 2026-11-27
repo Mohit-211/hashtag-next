@@ -37,10 +37,11 @@ interface ColorSwatchProps {
   selected: boolean;
   /** Diameter in px — 24 on cards, 32 on the product page. */
   size?: number;
+  disabled?: boolean;
   onSelect: (variant: ColorVariant) => void;
 }
 
-export function ColorSwatch({ variant, selected, size = 24, onSelect }: ColorSwatchProps) {
+export function ColorSwatch({ variant, selected, size = 24, disabled, onSelect }: ColorSwatchProps) {
   const codes = swatchCodes(variant.hex);
   const background =
     codes.length > 1 ? `linear-gradient(135deg, ${codes.join(",")})` : codes[0] || "var(--color-muted)";
@@ -49,7 +50,6 @@ export function ColorSwatch({ variant, selected, size = 24, onSelect }: ColorSwa
   const check = Math.round(size * 0.55);
 
   const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
-    // Swatches sit inside product-card links; picking a colour must not navigate.
     e.preventDefault();
     e.stopPropagation();
     onSelect(variant);
@@ -60,10 +60,10 @@ export function ColorSwatch({ variant, selected, size = 24, onSelect }: ColorSwa
       type="button"
       role="radio"
       aria-checked={selected}
-      aria-label={variant.name}
-      title={variant.name}
+      aria-label={`${variant.name}${disabled ? " (sold out)" : ""}`}
+      title={`${variant.name}${disabled ? " (sold out)" : ""}`}
       onClick={handleClick}
-      className="relative inline-flex shrink-0 items-center justify-center rounded-full transition-transform duration-150 hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+      className={`relative inline-flex shrink-0 items-center justify-center rounded-full transition-transform duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground hover:scale-110`}
       style={{
         width: size,
         height: size,
@@ -92,6 +92,14 @@ export function ColorSwatch({ variant, selected, size = 24, onSelect }: ColorSwa
           <path d="M5 12.5l4.5 4.5L19 7.5" />
         </svg>
       )}
+      {disabled && (
+        <span className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          <span className="absolute inset-0 rounded-full" style={{
+            background: `linear-gradient(to top right, transparent calc(50% - 1px), ${isLight ? "#111827" : "#ffffff"} calc(50% - 1px), ${isLight ? "#111827" : "#ffffff"} calc(50% + 1px), transparent calc(50% + 1px))`,
+            opacity: 0.7,
+          }} />
+        </span>
+      )}
     </button>
   );
 }
@@ -103,6 +111,8 @@ interface ColorSwatchListProps {
   size?: number;
   /** Show at most this many; the rest collapse into a "+N" label. */
   max?: number;
+  /** Ids of swatches to show as disabled (e.g. sold-out colours). */
+  disabledIds?: ReadonlySet<string>;
   label?: string;
   className?: string;
 }
@@ -113,6 +123,7 @@ export function ColorSwatchList({
   onSelect,
   size = 24,
   max,
+  disabledIds,
   label = "Color",
   className = "",
 }: ColorSwatchListProps) {
@@ -125,7 +136,7 @@ export function ColorSwatchList({
   return (
     <div role="radiogroup" aria-label={label} className={`flex flex-wrap items-center gap-2 ${className}`}>
       {shown.map((v) => (
-        <ColorSwatch key={v.id} variant={v} size={size} selected={v.id === selectedId} onSelect={onSelect} />
+        <ColorSwatch key={v.id} variant={v} size={size} selected={v.id === selectedId} disabled={disabledIds?.has(v.id)} onSelect={onSelect} />
       ))}
       {extra > 0 && <span className="text-xs font-medium text-muted-foreground">+{extra}</span>}
     </div>

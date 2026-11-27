@@ -234,7 +234,7 @@ export default function ManualCustomizationPage({
             .filter((v): v is CustomizationOptionValue => !!v?.id);
           return { customization: c, option: c.option, values };
         })
-        .filter((g) => g.values.length > 0),
+        .filter((g) => g.values.length > 0 || g.option.allow_text_input || g.option.allow_image_upload),
     [customizations]
   );
 
@@ -278,6 +278,14 @@ export default function ManualCustomizationPage({
       const sel = selections[g.customization.id];
       const value = g.values.find((v) => v.id === sel?.valueId);
       return value ? { group: g, value, sel: sel!, price: getCustomizationPrice(value, qty) } : null;
+    })
+    .filter((l): l is NonNullable<typeof l> => !!l);
+  const valuelessLines = groups
+    .filter((g) => g.values.length === 0)
+    .map((g) => {
+      const sel = selections[g.customization.id];
+      const hasContent = !!sel && (sel.text.trim() !== "" || sel.images.length > 0 || (sel.graphics ?? []).length > 0);
+      return hasContent ? { group: g, sel: sel! } : null;
     })
     .filter((l): l is NonNullable<typeof l> => !!l);
   // Flat (QUANTITY_BASED and FIXED_QUANTITY) charges are spread per piece so the shared
@@ -487,13 +495,21 @@ export default function ManualCustomizationPage({
         {
           variantId: variant.id,
           quantity: qty,
-          // Images only for options that allow them.
-          lines: selectedLines.map((l) => ({
-            optionId: l.group.option.id,
-            valueId: l.value.id,
-            images: l.group.option.allow_image_upload ? l.sel.images.map((img) => img.file) : [],
-            graphicIds: l.group.option.allow_image_upload ? (l.sel.graphics ?? []).map((g) => g.id) : [],
-          })),
+          lines: [
+            ...selectedLines.map((l) => ({
+              optionId: l.group.option.id,
+              valueId: l.value.id,
+              text: l.group.option.allow_text_input ? l.sel.text || undefined : undefined,
+              images: l.group.option.allow_image_upload ? l.sel.images.map((img) => img.file) : [],
+              graphicIds: l.group.option.allow_image_upload ? (l.sel.graphics ?? []).map((g) => g.id) : [],
+            })),
+            ...valuelessLines.map((l) => ({
+              optionId: l.group.option.id,
+              text: l.group.option.allow_text_input ? l.sel.text || undefined : undefined,
+              images: l.group.option.allow_image_upload ? l.sel.images.map((img) => img.file) : [],
+              graphicIds: l.group.option.allow_image_upload ? (l.sel.graphics ?? []).map((g) => g.id) : [],
+            })),
+          ],
           // The customer's own quantity, or one per item when they chose that.
           addons: addons.map((a) => ({ productAddonId: a.id, quantity: addonQuantity(a, qty) })),
         },
@@ -569,49 +585,53 @@ export default function ManualCustomizationPage({
                     <p className={sectionLabel}>
                       {g.option.name} <span className="text-xs font-medium normal-case tracking-normal text-muted-foreground">(optional)</span>
                     </p>
-                    <p className="text-sm font-semibold text-foreground text-right">
-                      {selectedValue?.name || "None"}
-                    </p>
+                    {g.values.length > 0 && (
+                      <p className="text-sm font-semibold text-foreground text-right">
+                        {selectedValue?.name || "None"}
+                      </p>
+                    )}
                   </div>
                   {g.option.description && (
                     <p className="text-xs text-muted-foreground mb-3">{g.option.description}</p>
                   )}
-                  <div className={cn("flex flex-wrap gap-2", !g.option.description && "mt-2")}>
-                    {g.values.map((v) => {
-                      const isActive = sel?.valueId === v.id;
-                      const price = getCustomizationPrice(v, qty);
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => updateSelection(g.customization.id, { valueId: isActive ? null : v.id })}
-                          aria-pressed={isActive}
-                          className={cn(
-                            "min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 text-left",
-                            isActive
-                              ? "bg-foreground text-primary border-foreground"
-                              : "bg-card text-foreground border-border hover:border-primary hover:bg-primary-soft"
-                          )}
-                        >
-                          {v.name}
-                          <span
+                  {g.values.length > 0 && (
+                    <div className={cn("flex flex-wrap gap-2", !g.option.description && "mt-2")}>
+                      {g.values.map((v) => {
+                        const isActive = sel?.valueId === v.id;
+                        const price = getCustomizationPrice(v, qty);
+                        return (
+                          <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => updateSelection(g.customization.id, { valueId: isActive ? null : v.id })}
+                            aria-pressed={isActive}
                             className={cn(
-                              "ml-1.5 text-xs font-medium",
-                              !price.available ? "text-destructive" : isActive ? "text-background/70" : "text-muted-foreground"
+                              "min-w-[52px] px-4 py-2.5 text-sm font-semibold rounded-lg border transition-all duration-200 text-left",
+                              isActive
+                                ? "bg-foreground text-primary border-foreground"
+                                : "bg-card text-foreground border-border hover:border-primary hover:bg-primary-soft"
                             )}
                           >
-                            {priceLabel(price, qty, v.pricing_type)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                            {v.name}
+                            <span
+                              className={cn(
+                                "ml-1.5 text-xs font-medium",
+                                !price.available ? "text-destructive" : isActive ? "text-background/70" : "text-muted-foreground"
+                              )}
+                            >
+                              {priceLabel(price, qty, v.pricing_type)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Quantity / price table for TIERED and QUANTITY_BASED values */}
                   {selectedValue && <CustomizationPriceTable value={selectedValue} qty={qty} />}
 
-                  {/* Optional text / images for options that allow them */}
-                  {selectedValue && (g.option.allow_text_input || g.option.allow_image_upload) && (
+                  {/* Text / images: shown after picking a value, or immediately for value-less options */}
+                  {(selectedValue || g.values.length === 0) && (g.option.allow_text_input || g.option.allow_image_upload) && (
                     <div className="mt-4 rounded-xl border border-border bg-muted p-4 sm:p-5">
                       <div className="mb-4 flex items-start gap-3">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-primary">
@@ -829,6 +849,12 @@ export default function ManualCustomizationPage({
                     : `$${formatMoney(l.price.total)}`
                   : "Free"}
             </span>
+          </div>
+        ))}
+        {valuelessLines.map((l) => (
+          <div key={l.group.customization.id} className="flex justify-between gap-3 py-1 text-foreground">
+            <span className="min-w-0 truncate">{l.group.option.name}</span>
+            <span className="font-medium text-foreground">Included</span>
           </div>
         ))}
         {selectedAddons.map((a) => (

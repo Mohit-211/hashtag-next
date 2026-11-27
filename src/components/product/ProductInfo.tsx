@@ -6,6 +6,7 @@ import type { ManualMeta } from "@/components/product/customization/Productcusto
 import { formatMoney } from "@/components/product/customization/pricing";
 import { ColorSwatchList } from "@/components/common/ColorSwatch";
 import ProductOptionGroup, { resolveDisplayStyle, type OptionGroupValue } from "@/components/product/ProductOptionGroup";
+import { isInStock } from "@/lib/stock";
 
 interface VariantImage {
   id: number;
@@ -24,6 +25,7 @@ interface Variant {
   size_id: number;
   price: string;
   stock: number | null;
+  track_inventory?: boolean;
   images: VariantImage[];
 }
 
@@ -81,7 +83,7 @@ export default function ProductInfo({
 const colors = useMemo(() => {
   const map = new Map<string, string>();
   variants.forEach((v) => {
-    if (!v?.color) return; // skip variants without a color entirely
+    if (!v?.color) return;
     if (!map.has(v?.color)) {
       const code =
         v?.color_code ||
@@ -91,6 +93,20 @@ const colors = useMemo(() => {
     }
   });
   return Array.from(map, ([color, color_code]) => ({ color, color_code }));
+}, [variants]);
+
+const soldOutColorIds = useMemo(() => {
+  const byColor = new Map<string, Variant[]>();
+  variants.forEach((v) => {
+    if (!v?.color) return;
+    const list = byColor.get(v.color);
+    if (list) list.push(v); else byColor.set(v.color, [v]);
+  });
+  const out = new Set<string>();
+  byColor.forEach((vList, color) => {
+    if (vList.every(v => !isInStock(v))) out.add(color);
+  });
+  return out;
 }, [variants]);
 
   const availableSizeIds = useMemo(() => {
@@ -205,6 +221,7 @@ const colors = useMemo(() => {
             size={32}
             variants={colors.map((c) => ({ id: c.color, name: c.color, hex: c.color_code, image: "" }))}
             selectedId={selectedColor}
+            disabledIds={soldOutColorIds.size > 0 ? soldOutColorIds : undefined}
             onSelect={(c) => onColorChange(c.id)}
           />
         </div>

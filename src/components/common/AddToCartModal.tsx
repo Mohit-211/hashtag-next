@@ -201,7 +201,10 @@ export default function AddToCartModal({
   const garmentConfiguredTotal = hasConfigured ? configuredPricing!.productTotal : garmentTotal;
   const configuredDecorationTotal = hasConfigured ? configuredPricing!.decorationTotal : decorationTotal;
 
-  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal;
+  const graphicFeeApplies =
+    !isSage && newGraphicPiecesInCart !== null && grandQty + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
+
+  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + (graphicFeeApplies ? GRAPHIC_SETUP_FEE : 0);
 
   /* ✅ Parse customization JSON safely (legacy single-payload shape) */
   const parsedCustomization = useMemo(() => {
@@ -324,8 +327,6 @@ export default function AddToCartModal({
   if (!open) return null;
 
   const pcs = (n: number) => `${n} ${n === 1 ? "pc" : "pcs"}`;
-  const showGraphicFee =
-    !isSage && newGraphicPiecesInCart !== null && grandQty + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
 
   return (
     <div
@@ -447,6 +448,13 @@ export default function AddToCartModal({
             </div>
           )}
 
+          {graphicFeeApplies && (
+            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+              <span>One-time Graphic Setup Fee</span>
+              <span className="tabular-nums">+${formatMoney(GRAPHIC_SETUP_FEE)}</span>
+            </div>
+          )}
+
           <div className="flex items-baseline justify-between gap-3 border-t border-border pt-4">
             <span className="font-semibold text-foreground">Total · {pcs(grandQty)}</span>
             <span className="text-2xl font-bold tabular-nums text-foreground">${formatMoney(grandTotal)}</span>
@@ -456,13 +464,6 @@ export default function AddToCartModal({
             <p className="flex items-start gap-2 rounded-lg border border-border bg-muted px-3.5 py-3 text-xs text-muted-foreground">
               <Info size={14} className="mt-0.5 shrink-0" />
               {handlingFeeText}
-            </p>
-          )}
-
-          {showGraphicFee && (
-            <p className="rounded-lg border border-primary bg-primary-soft px-3.5 py-3 text-xs text-primary-ink">
-              A one-time ${GRAPHIC_SETUP_FEE} graphic setup fee applies: this is a new graphic on fewer than{" "}
-              {GRAPHIC_FEE_WAIVED_FROM} pieces. Your cart shows the final amount.
             </p>
           )}
 
