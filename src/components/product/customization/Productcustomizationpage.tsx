@@ -11,7 +11,7 @@ import type { ProductCategoryRef } from "@/data/typesproduct";
 import {
   ArrowLeft, Check, Circle, X, ChevronDown, ChevronUp, Table2,
   Upload, RotateCw, RotateCcw, Download, Sparkles, Eye, ImageDown,
-  AlertCircle, Loader2, Plus, Minus, Type, Image as ImageIcon,
+  AlertCircle, Info, Loader2, Plus, Minus, Type, Image as ImageIcon,
   Trash2, ShoppingCart, Heart, Zap, Package,
   CheckCircle2, FileImage, Send, ChevronRight,
 } from "lucide-react";
@@ -3360,6 +3360,16 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   <div className="flex items-start gap-2 bg-destructive-soft border border-destructive/30 rounded-xl px-3 py-2.5">
                     <AlertCircle size={13} className="text-destructive flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-destructive leading-relaxed">{validationError}</p>
+                  </div>
+                )}
+                {isSage && (
+                  <div className="flex gap-2.5 rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+                    <Info size={14} className="mt-0.5 shrink-0 text-foreground/60" />
+                    <p>
+                      Before production begins, you will receive a digital mockup for review and approval.
+                      Production will not start until your mockup has been approved, ensuring your design,
+                      spelling, colors, and details are exactly as requested.
+                    </p>
                   </div>
                 )}
                 <button onClick={handleAddToCart} disabled={graphicUploading || activeVariantSoldOut}
