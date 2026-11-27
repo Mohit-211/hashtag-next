@@ -721,7 +721,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   }
 
   const isSageProduct = variantData?.supplier === "SAGE";
-  const variantSoldOut = isSageProduct && !!variantData && !isInStock(variantData);
+  const variantSoldOut = !!variantData && !isInStock(variantData);
 
   const sageFirstTierPrice = isSageProduct
       ? getPriceTiers(variantData)[0]?.unit_price

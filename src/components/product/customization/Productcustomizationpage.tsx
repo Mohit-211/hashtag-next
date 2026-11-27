@@ -1195,7 +1195,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
     [colorVariants, currentVariantId]
   );
   const isSage = (activeVariant?.supplier ?? variantData?.supplier ?? "").toUpperCase() === "SAGE";
-  const activeVariantSoldOut = isSage && !!activeVariant && !isInStock(activeVariant);
+  const activeVariantSoldOut = !!activeVariant && !isInStock(activeVariant);
   const currentQty = currentVariantId ? (variantQty[currentVariantId] ?? 0) : 0;
   const activeSizes = useMemo(
     () => Object.entries(variantQty)
@@ -3362,7 +3362,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                     <p className="text-xs text-destructive leading-relaxed">{validationError}</p>
                   </div>
                 )}
-                {isSage && (
+                {displayImage && (
                   <div className="flex gap-2.5 rounded-xl border border-border bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
                     <Info size={14} className="mt-0.5 shrink-0 text-foreground/60" />
                     <p>
