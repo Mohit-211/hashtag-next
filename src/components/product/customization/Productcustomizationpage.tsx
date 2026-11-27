@@ -1826,8 +1826,8 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
   const piecesWithGraphic = grandConfiguredQty + (currentVariantAlreadyConfigured ? 0 : currentQty);
   const showGraphicFeeNotice =
     !isSage && newGraphicPiecesInCart !== null && piecesWithGraphic + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
-  const displayTotal = grandConfiguredPrice + currentSelectionTotal + (showGraphicFeeNotice ? GRAPHIC_SETUP_FEE : 0);
-  // Added once per order by the cart, so it isn't in any total on this page.
+  const handlingFeeAmount = Number(handlingFee?.amount) || 0;
+  const displayTotal = grandConfiguredPrice + currentSelectionTotal + (showGraphicFeeNotice ? GRAPHIC_SETUP_FEE : 0) + handlingFeeAmount;
   const handlingFeeText = handlingFeeNote(handlingFee);
 
   /** The cart request: one element per distinct decoration, each with the
@@ -3243,10 +3243,12 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
                   </div>
                 )}
              
-                {handlingFeeText && (
-                  <div className="flex items-start gap-2 rounded-xl border border-primary bg-primary-soft px-3 py-2.5 text-xs text-primary-ink">
-                    <AlertCircle size={13} className="mt-0.5 flex-shrink-0" />
-                    <p>{handlingFeeText}</p>
+                {handlingFeeAmount > 0 && (
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2.5">
+                      <span className="text-xs text-muted-foreground">Handling Fee (once per order)</span>
+                      <span className="text-xs font-black text-foreground">+${formatMoney(handlingFeeAmount)}</span>
+                    </div>
                   </div>
                 )}
                 {configuredVariants.length > 0 && (
@@ -3449,6 +3451,7 @@ export default function ProductCustomizationPage({ productDataId, variantDataId 
           isSage={isSage}
           newGraphicPiecesInCart={newGraphicPiecesInCart}
           handlingFeeText={handlingFeeText}
+          handlingFeeAmount={handlingFeeAmount}
           onSuccess={() => {
             refreshCart();
             setInCart(true);

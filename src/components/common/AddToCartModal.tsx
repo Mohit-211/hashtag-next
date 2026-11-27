@@ -116,6 +116,8 @@ interface AddToCartModalProps {
   isSage?: boolean;
   /** Handling-fee notice shown as-is when the product carries one. */
   handlingFeeText?: string | null;
+  /** Numeric handling fee amount for the total calculation. */
+  handlingFeeAmount?: number;
 }
 
 export default function AddToCartModal({
@@ -136,6 +138,7 @@ export default function AddToCartModal({
   newGraphicPiecesInCart = null,
   isSage = false,
   handlingFeeText = null,
+  handlingFeeAmount = 0,
 }: AddToCartModalProps) {
   const quantity = initialQuantity;
   const [loading, setLoading] = useState(false);
@@ -204,7 +207,7 @@ export default function AddToCartModal({
   const graphicFeeApplies =
     !isSage && newGraphicPiecesInCart !== null && grandQty + newGraphicPiecesInCart < GRAPHIC_FEE_WAIVED_FROM;
 
-  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + (graphicFeeApplies ? GRAPHIC_SETUP_FEE : 0);
+  const grandTotal = garmentConfiguredTotal + configuredDecorationTotal + (graphicFeeApplies ? GRAPHIC_SETUP_FEE : 0) + handlingFeeAmount;
 
   /* ✅ Parse customization JSON safely (legacy single-payload shape) */
   const parsedCustomization = useMemo(() => {
@@ -460,11 +463,11 @@ export default function AddToCartModal({
             <span className="text-2xl font-bold tabular-nums text-foreground">${formatMoney(grandTotal)}</span>
           </div>
 
-          {handlingFeeText && (
-            <p className="flex items-start gap-2 rounded-lg border border-border bg-muted px-3.5 py-3 text-xs text-muted-foreground">
-              <Info size={14} className="mt-0.5 shrink-0" />
-              {handlingFeeText}
-            </p>
+          {handlingFeeAmount > 0 && (
+            <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+              <span>Handling Fee (once per order)</span>
+              <span className="tabular-nums">+${formatMoney(handlingFeeAmount)}</span>
+            </div>
           )}
 
           {error && (

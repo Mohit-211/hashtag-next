@@ -778,6 +778,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
   const manualVariantLabel =
     manualOptionGroups.map((g) => selectedOptions[g.name]).filter(Boolean).join(" / ") || variantData?.sku || "";
   const handlingFeeText = handlingFeeNote(product.order_handling_fee);
+  const handlingFeeAmount = Number(product.order_handling_fee?.amount) || 0;
 
   /* ───────────────────────────────────────────────── render */
   return (
@@ -954,6 +955,7 @@ export default function ProductDetail({ id, variantId }: { id: string; variantId
           configuredVariants={configuredVariants.length > 0 ? configuredVariants : undefined}
           isApparel={isApparel}
           handlingFeeText={handlingFeeText}
+          handlingFeeAmount={handlingFeeAmount}
           onSuccess={() => {
             refreshCart();
             setInCart(true);
